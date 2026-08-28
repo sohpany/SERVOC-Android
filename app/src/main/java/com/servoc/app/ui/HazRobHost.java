@@ -21,6 +21,7 @@ public interface HazRobHost {
     int driveRight();
     void setCameraHost(String host);
     String cameraHost();
+    boolean cameraReachable();
     void setFlash(boolean on);
     boolean flashState();
     void requestExport(String format);
