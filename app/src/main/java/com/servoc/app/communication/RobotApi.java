@@ -55,4 +55,20 @@ public final class RobotApi {
     }
 
     public void stop() throws Exception { getText("/stop", 450); }
+
+    public JSONObject diagnostics() throws Exception { return getJson("/diag", 1200); }
+    public JSONObject data() throws Exception { return getJson("/data", 1200); }
+    public JSONObject config() throws Exception { return getJson("/cfg", 1200); }
+
+    public void startMeasurement() throws Exception { getText("/measure?cmd=start", 800); }
+    public void cancelMeasurement() throws Exception { getText("/measure?cmd=cancel", 800); }
+
+    public void relay(int group) throws Exception {
+        if (group < 0 || group > 3) throw new IllegalArgumentException("relay group 0..3");
+        getText("/relay?g=" + group, 800);
+    }
+
+    public JSONObject setMeasurementTiming(int warmupSec, int measureSec) throws Exception {
+        return getJson("/cfg?warm=" + warmupSec + "&measure=" + measureSec, 1200);
+    }
 }
