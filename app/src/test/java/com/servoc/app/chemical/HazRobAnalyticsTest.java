@@ -68,6 +68,16 @@ public class HazRobAnalyticsTest {
         assertTrue("expected research-only inherited curves",research>0);
     }
 
+    @Test public void genericTargetCurveNeverEnablesSafetyWithoutDeviceCalibration(){
+        double[] ratios=GasEngine.simulateRatios(75,300.0); // H2, MQ-8 target path
+        boolean[] heater={true,true,true,true,false,true,false,true};
+        ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,75,heater);
+        assertNotNull(r);
+        assertTrue("expected a manufacturer target contributor",r.primaryContributors>0);
+        assertFalse("generic target curve must remain provisional",r.quantitative);
+        assertEquals(-1,r.risk);
+    }
+
     @Test public void manufacturerEvidenceSeparatesTargetsFromCrossResponses(){
         assertEquals(ManufacturerEvidenceMatrix.TARGET,
                 ManufacturerEvidenceMatrix.level(GasEngine.MQ7,20));
