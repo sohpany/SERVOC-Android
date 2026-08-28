@@ -9,10 +9,14 @@ import java.util.List;
 
 /**
  * Evidence-weighted analysis layer for the physically installed MQ array.
- * Device-specific empirical calibrations are preferred over generic graph fits.
+ * HazRob v0.4 field-test assumption: installed MQ sensors are pre-calibrated.
+ * Device-specific empirical calibration curves, when stored, still take priority.
  */
 public final class ValidatedGasEngine {
     private ValidatedGasEngine() {}
+
+    /** Explicit project assumption requested for the v0.4 experimental build. */
+    public static final boolean PRECALIBRATED_INSTALLED_MQ=true;
 
     public static final class Result {
         public final int chemical;
@@ -118,10 +122,10 @@ public final class ValidatedGasEngine {
         double mad=weightedMedian(deviations);
         double agreement=Math.max(0,Math.min(100,100*Math.exp(-1.8*mad)));
 
-        // Safety/OEL interpretation is disabled for generic datasheet/community fits.
-        // It becomes quantitative only after a device-specific reference-gas calibration.
-        // A calibrated cross-response additionally requires independent analyte identity confirmation.
-        boolean quantitative=calibratedPrimary>0||(calibrated>0&&identityConfirmed);
+        // In this experimental build, manufacturer-target channels are treated as calibrated
+        // because the installed sensors are declared pre-calibrated. Cross-response evidence
+        // never becomes quantitative by itself; calibrated cross-response still needs identity confirmation.
+        boolean quantitative=(PRECALIBRATED_INSTALLED_MQ&&primary>0)||(calibratedPrimary>0)||(calibrated>0&&identityConfirmed);
         int confidence;
         if((calibrated>=2||primary>=2)&&agreement>=65)confidence=GasEngine.HIGH;
         else if((calibrated>=1||primary>=1)&&accepted.size()>=2&&agreement>=45)confidence=GasEngine.STRONG;
@@ -131,12 +135,12 @@ public final class ValidatedGasEngine {
         String note;
         if(calibratedPrimary>0)
             note="Device-specific reference-gas calibration is active on a manufacturer-target channel; generic equations are fallback evidence.";
+        else if(PRECALIBRATED_INSTALLED_MQ&&primary>0)
+            note="Manufacturer-target channel with project pre-calibrated-sensor assumption active. Cross-responses remain down-weighted; heater/range guards still apply.";
         else if(calibrated>0&&identityConfirmed)
             note="Device-specific cross-response calibration is active and analyte identity is independently confirmed.";
         else if(calibrated>0)
             note="A calibrated cross-response exists, but analyte identity is not independently confirmed; withhold safety interpretation.";
-        else if(primary>0)
-            note="Manufacturer-target generic curve estimate only. PPM is experimental until this device is reference-gas calibrated; safety interpretation is disabled.";
         else if(manufacturerCross>0)
             note="Manufacturer graph cross-response only: useful for fingerprint/research, not selective quantitative safety use.";
         else
