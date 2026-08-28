@@ -11,7 +11,7 @@ import com.servoc.app.measurements.PhysicalCatalog;
 
 public final class LibraryStatus {
     private LibraryStatus() {}
-    public static final String ANALYTICS_VERSION="HazRob-ANALYTICS-2026.08-v4";
+    public static final String ANALYTICS_VERSION="HazRob-ANALYTICS-2026.08-v5";
     public static final String CATALOG_VERSION="HAZROB-CHEM-144-v3";
     public static final String EXPOSURE_VERSION="HAZROB-OEL-source-v1";
     public static final String CALIBRATION_VERSION="HAZROB-MQ-CAL-v1";
@@ -20,9 +20,11 @@ public final class LibraryStatus {
         return "Chemical catalog: "+ChemicalCatalog.COUNT+
                 "\nPurchased MQ sensors: "+SensorEvidenceRegistry.SENSORS.length+
                 "\nPhysical measurements: "+PhysicalCatalog.COUNT+
-                "\nPrimary MQ log-power records: "+GasEngine.curveCount()+
+                "\nInherited MQ power-law records: "+GasEngine.curveCount()+
                 "\nSecondary research curve records: "+ResearchCurveRegistry.count()+
-                "\nDirect curve chemicals: "+ChemicalCoverage.directCurveCount()+
+                "\nTarget-backed curve chemicals: "+ChemicalCoverage.directCurveCount()+
+                "\nManufacturer-graph curve chemicals: "+ChemicalCoverage.graphCurveChemicalCount()+
+                "\nCommunity-only curve chemicals: "+ChemicalCoverage.communityOnlyCurveChemicalCount()+
                 "\nFingerprint/calibration candidates: "+ChemicalCoverage.fingerprintCandidateCount()+
                 "\nComposite/mixture entries: "+ChemicalCoverage.aggregateCount()+
                 "\nWeak/unsupported entries: "+ChemicalCoverage.weakOrUnvalidatedCount()+
