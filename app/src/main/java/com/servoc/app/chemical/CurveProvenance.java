@@ -14,6 +14,9 @@ public final class CurveProvenance {
     public static final int COMMUNITY_DATASHEET_FIT = 2;
     public static final int CROSS_RESPONSE_RESEARCH = 1;
 
+    public static final String MQDATASCIENCE_VERSION = "6.0.0";
+    public static final String MQDATASCIENCE_COMMIT = "e88f876140587a708ee84a4d4d3acbd5720274ee";
+
     public static final class Evidence {
         public final int level;
         public final String source;
@@ -44,10 +47,20 @@ public final class CurveProvenance {
     public static Evidence mqDataScienceComparison() {
         return new Evidence(
                 COMMUNITY_DATASHEET_FIT,
-                "MQDataScience (MIT) / digitized manufacturer response graphs",
-                "ratio = a*ppm^b, inverted by HazRob for comparison",
+                "MQDataScience v"+MQDATASCIENCE_VERSION+" (MIT) @ "+MQDATASCIENCE_COMMIT,
+                "digitized response-graph power law: ratio = a*ppm^b; inverted by HazRob for comparison",
                 false,
-                "Research comparison source. It must not silently replace a validated HazRob calibration model."
+                "Pinned research comparison source. It must not silently replace a validated HazRob calibration model."
+        );
+    }
+
+    public static Evidence mqDataScienceEnvironmentalCorrection() {
+        return new Evidence(
+                CROSS_RESPONSE_RESEARCH,
+                "MQDataScience v"+MQDATASCIENCE_VERSION+" (MIT) @ "+MQDATASCIENCE_COMMIT,
+                "temperature/RH correction factor using RH-interpolated exponential coefficients",
+                false,
+                "Research-only environmental compensation. HazRob refuses out-of-domain clamping and will not apply this model to alarm decisions until validated against reference-gas measurements from the actual sensor array."
         );
     }
 
