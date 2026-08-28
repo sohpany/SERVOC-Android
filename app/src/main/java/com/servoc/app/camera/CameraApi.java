@@ -14,6 +14,12 @@ public final class CameraApi {
     }
     public String host(){return host;}
 
+    /** Checks the ESP32-CAM control server without opening the MJPEG stream. */
+    public boolean ping(){
+        if(get("/status"))return true; // Arduino CameraWebServer
+        return get("/");              // lightweight/custom firmware fallback
+    }
+
     public boolean flash(boolean on){
         int level=on?255:0;
         // Arduino ESP32 CameraWebServer commonly exposes led_intensity through /control.
@@ -31,7 +37,7 @@ public final class CameraApi {
             c.setConnectTimeout(700);c.setReadTimeout(700);c.setUseCaches(false);c.setRequestMethod("GET");
             int code=c.getResponseCode();
             InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();
-            if(in!=null)try{while(in.read()!=-1){} }finally{in.close();}
+            if(in!=null)try{byte[] b=new byte[256];while(in.read(b)!=-1){} }finally{in.close();}
             return code>=200&&code<300;
         }catch(Exception ignored){return false;}
         finally{if(c!=null)c.disconnect();}
