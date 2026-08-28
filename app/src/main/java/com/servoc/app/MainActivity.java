@@ -111,10 +111,11 @@ public final class MainActivity extends Activity implements HazRobHost {
         selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));
         for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}
         if(index==0&&foreground)controlTab.startCamera();
-        refreshAllTabs();
+        refreshVisibleTab();
     }
 
     private void scheduleComms(){
+        // Critical path is independent from whichever UI tab is visible.
         workers.scheduleAtFixedRate(()->{
             if(!foreground)return;
             try{robotApi.drive(left,right);}catch(Exception ignored){}
@@ -122,19 +123,30 @@ public final class MainActivity extends Activity implements HazRobHost {
 
         workers.scheduleAtFixedRate(()->{
             if(!foreground)return;
-            try{latestDiag=robotApi.diagnostics();ui.post(this::refreshDynamicTabs);}
-            catch(Exception e){latestDiag=null;ui.post(this::refreshDynamicTabs);}
+            try{latestDiag=robotApi.diagnostics();ui.post(this::onTelemetryUpdated);}
+            catch(Exception e){latestDiag=null;ui.post(this::onTelemetryUpdated);}
         },0,1,TimeUnit.SECONDS);
     }
 
-    private void refreshDynamicTabs(){
+    private void onTelemetryUpdated(){
         JSONObject d=latestDiag;
         if(d==null){globalStatus.setText("OFFLINE");globalStatus.setTextColor(0xFFFFB74D);}else{globalStatus.setText("ONLINE • "+d.optInt("clients",0));globalStatus.setTextColor(0xFF81C784);}
-        controlTab.refresh();sensorsTab.refresh();chemicalsTab.refresh();physicalTab.refresh();
-        if(selectedTab==4)experimentsTab.refresh();
+        refreshVisibleTab();
     }
 
-    @Override protected void onResume(){super.onResume();foreground=true;if(selectedTab==0)controlTab.startCamera();}
+    private void refreshVisibleTab(){
+        switch(selectedTab){
+            case 0: controlTab.refresh();break;
+            case 1: sensorsTab.refresh();break;
+            case 2: chemicalsTab.refresh();break;
+            case 3: physicalTab.refresh();break;
+            case 4: experimentsTab.refresh();break;
+            case 5: break;
+            default: break;
+        }
+    }
+
+    @Override protected void onResume(){super.onResume();foreground=true;if(selectedTab==0)controlTab.startCamera();refreshVisibleTab();}
     @Override protected void onPause(){foreground=false;controlTab.stopCamera();emergencyStop();super.onPause();}
     @Override protected void onDestroy(){workers.shutdownNow();controlTab.stopCamera();if(db!=null)db.close();super.onDestroy();}
 
@@ -180,7 +192,7 @@ public final class MainActivity extends Activity implements HazRobHost {
 
     @Override public void refreshAllTabs(){
         if(Looper.myLooper()!=Looper.getMainLooper()){ui.post(this::refreshAllTabs);return;}
-        refreshDynamicTabs();experimentsTab.refresh();
+        refreshVisibleTab();
     }
 
     private static String fileStamp(){SimpleDateFormat f=new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US);f.setTimeZone(TimeZone.getDefault());return f.format(new Date());}
