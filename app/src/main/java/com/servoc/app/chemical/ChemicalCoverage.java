@@ -2,7 +2,8 @@ package com.servoc.app.chemical;
 
 /**
  * Scientific coverage planner for the 144-entry chemical catalogue.
- * It intentionally separates direct quantitative curves from empirical fingerprint work.
+ * It separates direct quantitative curves, empirical fingerprint/calibration work,
+ * composite metrics and compounds unsupported by the currently installed MQ array.
  */
 public final class ChemicalCoverage {
     private ChemicalCoverage() {}
@@ -21,53 +22,54 @@ public final class ChemicalCoverage {
         }
     }
 
-    private static final int[] CORROSIVE_OR_OXIDIZING = {
-            4,10,11,12,13,14,15,16,17,18,19,42,43,44,45,46,47,60,61
-    };
-    private static final int[] LOW_RESPONSE_OR_UNPROVEN = {
-            22,24,49,123,124,125,126,127,128,129,130,131,132,133,134
-    };
-
     public static Status forChemical(int chem) {
         if (chem < 0 || chem >= ChemicalCatalog.COUNT)
             return new Status(UNVALIDATED_OR_WEAK, "UNKNOWN", "Invalid catalogue index.");
 
+        MqSensorAffinity.Plan plan=MqSensorAffinity.forChemical(chem);
+
         if (isDirectCurve(chem)) {
             return new Status(DIRECT_CURVE,
-                    "Rs/R0 log-power curve + multi-sensor robust consensus",
-                    "A quantitative curve exists in the current HazRob library. Coefficients remain calibration-dependent and are not a substitute for sensor-specific R0 validation.");
+                    "Rs/R0 log-power curve + evidence-weighted consensus",
+                    "A library curve exists. Recommended installed channels: "+sensorNames(plan.mask)+
+                    ". Device-specific R0/calibration, valid heater protocol and in-range operation are still required before quantitative safety use.");
         }
 
         if (chem >= 135) {
+            if(plan.mask==0){
+                return new Status(UNVALIDATED_OR_WEAK,
+                        "Unsupported aggregate with current MQ array",
+                        plan.reason);
+            }
             return new Status(AGGREGATE,
-                    "Composite / operational metric",
-                    "This entry represents a mixture or aggregate metric rather than one pure analyte. It should be estimated from trained mixture fingerprints or derived from constituent gases, not assigned a single universal MQ curve.");
+                    "Composite/mixture fingerprint • "+plan.className,
+                    "Recommended installed channels: "+sensorNames(plan.mask)+". "+plan.reason+
+                    " A mixture/operational metric must not be assigned a single universal pure-gas MQ equation.");
         }
 
-        if (contains(CORROSIVE_OR_OXIDIZING, chem)) {
+        if(plan.mask==0){
             return new Status(UNVALIDATED_OR_WEAK,
-                    "Research only; fingerprinting requires compatibility review",
-                    "The purchased MQ array has no validated quantitative model for this analyte, and corrosive/oxidizing gases can bias, poison or damage semiconductor sensors. Do not infer ppm from cross-sensitivity alone.");
-        }
-
-        if (contains(LOW_RESPONSE_OR_UNPROVEN, chem)) {
-            return new Status(UNVALIDATED_OR_WEAK,
-                    "No evidence-backed MQ quantitative model",
-                    "Current MQ-array response is expected to be weak, indirect or insufficiently documented. Retain in the catalogue but report as unsupported until controlled calibration demonstrates a usable signal.");
+                    plan.className,
+                    plan.reason);
         }
 
         return new Status(FINGERPRINT_CANDIDATE,
-                "Eight-sensor electronic-nose fingerprint + supervised concentration regression",
-                "This compound is a candidate for empirical training using the existing MQ-2/3/4/5/7/8/9/135 array. Identification must be learned from controlled exposures; concentration regression must be trained separately from identity classification.");
+                "Empirical MQ-array training • "+plan.className,
+                "Recommended installed channels: "+sensorNames(plan.mask)+". "+plan.reason+
+                " Identity classification and concentration calibration remain separate models.");
     }
 
-    public static int directCurveCount() {
-        return GasEngine.SUPPORTED.length;
-    }
+    public static int directCurveCount() { return GasEngine.SUPPORTED.length; }
 
     public static int fingerprintCandidateCount() {
         int n=0;
         for(int i=0;i<ChemicalCatalog.COUNT;i++) if(forChemical(i).level==FINGERPRINT_CANDIDATE) n++;
+        return n;
+    }
+
+    public static int aggregateCount(){
+        int n=0;
+        for(int i=0;i<ChemicalCatalog.COUNT;i++) if(forChemical(i).level==AGGREGATE) n++;
         return n;
     }
 
@@ -82,8 +84,14 @@ public final class ChemicalCoverage {
         return false;
     }
 
-    private static boolean contains(int[] a, int value) {
-        for (int x : a) if (x == value) return true;
-        return false;
+    public static String sensorNames(int mask){
+        if(mask==0)return "none";
+        String[] n={"MQ-2","MQ-3","MQ-4","MQ-5","MQ-7","MQ-8","MQ-9","MQ-135"};
+        StringBuilder s=new StringBuilder();
+        for(int i=0;i<n.length;i++) if((mask&(1<<i))!=0){
+            if(s.length()>0)s.append(", ");
+            s.append(n[i]);
+        }
+        return s.toString();
     }
 }
