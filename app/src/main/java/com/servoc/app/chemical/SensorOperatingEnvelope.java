@@ -15,6 +15,8 @@ public final class SensorOperatingEnvelope {
     public static final int DATASHEET_CROSS_RESPONSE = 2;
     public static final int OUT_OF_RANGE = -1;
     public static final int HEATER_PROTOCOL_REQUIRED = -2;
+    // Compatibility alias used by validation code; both names represent the same rejection state.
+    public static final int HEATER_PROTOCOL_INVALID = HEATER_PROTOCOL_REQUIRED;
 
     public static final class Check {
         public final int status;
