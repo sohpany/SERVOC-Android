@@ -1,0 +1,84 @@
+package com.servoc.app.camera;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.widget.ImageView;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
+public final class MjpegView extends ImageView {
+    private final ExecutorService worker = Executors.newSingleThreadExecutor();
+    private volatile boolean running = false;
+    private volatile HttpURLConnection connection;
+
+    public MjpegView(Context c) {
+        super(c);
+        setScaleType(ScaleType.FIT_CENTER);
+        setBackgroundColor(0xFF000000);
+    }
+
+    public synchronized void start(String url) {
+        stop();
+        running = true;
+        worker.execute(() -> stream(url));
+    }
+
+    public synchronized void stop() {
+        running = false;
+        HttpURLConnection c = connection;
+        if (c != null) c.disconnect();
+        connection = null;
+    }
+
+    private void stream(String streamUrl) {
+        while (running) {
+            try {
+                HttpURLConnection c = (HttpURLConnection) new URL(streamUrl).openConnection();
+                connection = c;
+                c.setConnectTimeout(1800);
+                c.setReadTimeout(5000);
+                c.setUseCaches(false);
+                c.connect();
+                try (InputStream in = c.getInputStream()) {
+                    int prev = -1, cur;
+                    ByteArrayOutputStream frame = null;
+                    while (running && (cur = in.read()) != -1) {
+                        if (frame == null) {
+                            if (prev == 0xFF && cur == 0xD8) {
+                                frame = new ByteArrayOutputStream(64 * 1024);
+                                frame.write(0xFF); frame.write(0xD8);
+                            }
+                        } else {
+                            frame.write(cur);
+                            if (frame.size() > 1024 * 1024) frame = null;
+                            else if (prev == 0xFF && cur == 0xD9) {
+                                byte[] bytes = frame.toByteArray();
+                                Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+                                if (bitmap != null) post(() -> setImageBitmap(bitmap));
+                                frame = null;
+                            }
+                        }
+                        prev = cur;
+                    }
+                } finally {
+                    c.disconnect();
+                    if (connection == c) connection = null;
+                }
+            } catch (Exception ignored) {
+                try { Thread.sleep(800); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
+            }
+        }
+    }
+
+    @Override protected void onDetachedFromWindow() {
+        stop();
+        worker.shutdownNow();
+        super.onDetachedFromWindow();
+    }
+}
