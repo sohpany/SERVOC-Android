@@ -8,6 +8,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.servoc.app.analytics.AnalyticsSnapshot;
 import com.servoc.app.sensors.RobotTelemetry;
 
 import org.json.JSONObject;
@@ -80,9 +81,9 @@ public final class SensorsTab {
         if(d==null){host.showToast("No live measurement to accept");return;}
         JSONObject m=d.optJSONObject("measurement");
         if(m==null||!"ready".equalsIgnoreCase(m.optString("state"))){host.showToast("Complete the automatic measurement before Accept");return;}
-        final String ts=isoNow();final String payload=d.toString();
+        final String ts=isoNow();final String payload=d.toString();final String analytics= AnalyticsSnapshot.toJson(d);
         host.io().execute(()->{
-            try{long id=host.database().save(ts,payload,"ESP32 automatic MQ row cycle","accepted raw/Rs/R0 snapshot");
+            try{long id=host.database().save(ts,payload,"ESP32 automatic MQ row cycle",analytics);
                 host.showToast("Measurement accepted • #"+id);host.refreshAllTabs();}
             catch(Exception e){host.showToast("Could not save measurement");}
         });
