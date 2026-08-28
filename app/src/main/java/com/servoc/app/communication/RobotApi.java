@@ -60,15 +60,17 @@ public final class RobotApi {
     public JSONObject data() throws Exception { return getJson("/data", 1200); }
     public JSONObject config() throws Exception { return getJson("/cfg", 1200); }
 
+    public JSONObject setConfig(String cameraIp,int speed,int neutralLeft,int neutralRight,int warmupSec,int measureSec) throws Exception {
+        String p="/cfg?cam="+cameraIp+"&speed="+speed+"&nl="+neutralLeft+"&nr="+neutralRight+
+                "&warm="+warmupSec+"&measure="+measureSec;
+        return getJson(p,1500);
+    }
+
     public void startMeasurement() throws Exception { getText("/measure?cmd=start", 800); }
     public void cancelMeasurement() throws Exception { getText("/measure?cmd=cancel", 800); }
 
     public void relay(int group) throws Exception {
         if (group < 0 || group > 3) throw new IllegalArgumentException("relay group 0..3");
         getText("/relay?g=" + group, 800);
-    }
-
-    public JSONObject setMeasurementTiming(int warmupSec, int measureSec) throws Exception {
-        return getJson("/cfg?warm=" + warmupSec + "&measure=" + measureSec, 1200);
     }
 }
