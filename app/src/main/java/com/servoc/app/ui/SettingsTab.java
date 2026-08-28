@@ -29,11 +29,11 @@ public final class SettingsTab {
         root.addView(net,UiKit.full(c));
 
         LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"ESP32 ROBOT CONFIGURATION"),UiKit.full(c));
-        speed=field(cfg,"Speed limit %",String.valueOf(host.preferences().getInt("speed",100)));
-        nl=field(cfg,"Left neutral µs",String.valueOf(host.preferences().getInt("nl",1500)));
-        nr=field(cfg,"Right neutral µs",String.valueOf(host.preferences().getInt("nr",1500)));
-        warm=field(cfg,"Sensor warmup seconds",String.valueOf(host.preferences().getInt("warm",60)));
-        measure=field(cfg,"Measurement seconds",String.valueOf(host.preferences().getInt("measure",30)));
+        speed=field(cfg,"Speed limit % (20–100)",String.valueOf(host.preferences().getInt("speed",100)));
+        nl=field(cfg,"Left neutral µs (1400–1600)",String.valueOf(host.preferences().getInt("nl",1500)));
+        nr=field(cfg,"Right neutral µs (1400–1600)",String.valueOf(host.preferences().getInt("nr",1500)));
+        warm=field(cfg,"Sensor warmup seconds (0–3600)",String.valueOf(host.preferences().getInt("warm",60)));
+        measure=field(cfg,"Measurement seconds (5–600)",String.valueOf(host.preferences().getInt("measure",30)));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"SYNC FROM ESP32");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"APPLY TO ESP32");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
         LinearLayout models=UiKit.card(c);models.addView(UiKit.title(c,"MQDATASCIENCE v"+MqDataScience76Catalog.VERSION+" • "+MqDataScience76Catalog.COUNT+" MODELS"),UiKit.full(c));
@@ -69,7 +69,7 @@ public final class SettingsTab {
     private void sync(){host.io().execute(()->{try{JSONObject x=host.robotApi().config();android.os.Handler h=new android.os.Handler(android.os.Looper.getMainLooper());h.post(()->showConfig(x));}catch(Exception e){host.showToast("ESP32 config read failed");}});}
     private void apply(){
         host.emergencyStop();
-        final int s=clamp(num(speed,100),20,100),l=clamp(num(nl,1500),1400,1600),r=clamp(num(nr,1500),1400,1600),w=clamp(num(warm,60),1,3600),m=clamp(num(measure,30),1,3600);
+        final int s=clamp(num(speed,100),20,100),l=clamp(num(nl,1500),1400,1600),r=clamp(num(nr,1500),1400,1600),w=clamp(num(warm,60),0,3600),m=clamp(num(measure,30),5,600);
         host.setCameraHost(camera.getText().toString().trim());final String cam=host.cameraHost();camera.setText(cam);
         host.io().execute(()->{try{JSONObject x=host.robotApi().setConfig(cam,s,l,r,w,m);host.preferences().edit().putInt("speed",s).putInt("nl",l).putInt("nr",r).putInt("warm",w).putInt("measure",m).apply();android.os.Handler h=new android.os.Handler(android.os.Looper.getMainLooper());h.post(()->showConfig(x));host.showToast("ESP32 configuration applied • drive stopped");}catch(Exception e){host.showToast("ESP32 configuration failed");}});
     }
