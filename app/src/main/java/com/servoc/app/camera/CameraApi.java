@@ -22,9 +22,11 @@ public final class CameraApi {
 
     public boolean flash(boolean on){
         int level=on?255:0;
-        // Arduino ESP32 CameraWebServer commonly exposes led_intensity through /control.
+        // Newer Arduino/Espressif CameraWebServer variants.
         if(get("/control?var=led_intensity&val="+level))return true;
-        // Fallback for lightweight custom firmware used by some ESP32-CAM projects.
+        // Common custom CameraWebServer naming.
+        if(get("/control?var=flash&val="+(on?1:0)))return true;
+        // Lightweight custom firmware fallback.
         if(get("/flash?on="+(on?1:0)))return true;
         return false;
     }
