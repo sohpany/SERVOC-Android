@@ -1,6 +1,7 @@
 package com.servoc.app;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -69,7 +70,7 @@ public final class MainActivity extends Activity {
         root.setBackgroundColor(0xFF101010);
         root.setPadding(dp(8), dp(8), dp(8), dp(12));
 
-        TextView title = label("SERVOC CONTROL");
+        TextView title = label("SERVOC CONTROL • v0.2");
         title.setTextSize(20);
         title.setGravity(Gravity.CENTER);
         root.addView(title, new LinearLayout.LayoutParams(-1, -2));
@@ -108,7 +109,13 @@ public final class MainActivity extends Activity {
         settings.addView(apply, new LinearLayout.LayoutParams(-1, -2));
         root.addView(settings, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView note = label("ESP32 retains the real-time failsafe. The app sends drive heartbeat commands every 250 ms while active.");
+        Button analysis = new Button(this);
+        analysis.setText("Open OFFLINE Analysis & Libraries");
+        analysis.setAllCaps(false);
+        analysis.setOnClickListener(v -> startActivity(new Intent(this, AnalysisActivity.class)));
+        root.addView(analysis, new LinearLayout.LayoutParams(-1, -2));
+
+        TextView note = label("ESP32 retains the real-time failsafe. The app sends drive heartbeat commands every 250 ms while active. Analytical libraries can now be tested without robot hardware.");
         note.setTextColor(0xFFBBBBBB);
         root.addView(note, new LinearLayout.LayoutParams(-1, -2));
 
