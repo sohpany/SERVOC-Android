@@ -2,7 +2,7 @@ package com.servoc.app.models;
 
 /**
  * Exact ordered model catalogue from MQDataScience v6.0.0 PredictData.py.
- * Registration means HazRob knows/provenances the model. Execution availability is tracked separately.
+ * This class is provenance/registration only. Runtime implementation status lives in ModelRuntimeRegistry.
  */
 public final class MqDataScience76Catalog {
     private MqDataScience76Catalog() {}
@@ -91,30 +91,4 @@ public final class MqDataScience76Catalog {
     };
 
     public static final int COUNT=NAMES.length;
-
-    public enum Runtime { ANDROID_NATIVE, REFERENCE_REGISTERED }
-
-    /**
-     * Models with a current pure-Java HazRob implementation or direct equivalent.
-     * The remaining source models stay registered and are never falsely reported as executed.
-     */
-    public static Runtime runtime(int index){
-        switch(index){
-            case 11: // Linear
-            case 16: // Ridge
-            case 24: // quadratic
-            case 25: // cubic
-            case 26: // quartic
-            case 28: // logarithmic family support
-            case 29: // power
-            case 51: // moving average
-            case 62: // Kalman-like state processing hooks
-                return Runtime.ANDROID_NATIVE;
-            default:return Runtime.REFERENCE_REGISTERED;
-        }
-    }
-
-    public static int androidNativeCount(){
-        int n=0;for(int i=0;i<COUNT;i++)if(runtime(i)==Runtime.ANDROID_NATIVE)n++;return n;
-    }
 }
