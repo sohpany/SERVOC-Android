@@ -168,6 +168,7 @@ public final class MainActivity extends Activity implements HazRobHost {
 
     @Override public void setCameraHost(String host){cameraApi.setHost(host);prefs.edit().putString("camera",cameraApi.host()).apply();if(selectedTab==0&&foreground)controlTab.startCamera();}
     @Override public String cameraHost(){return cameraApi.host();}
+    @Override public boolean cameraReachable(){return cameraApi.ping();}
     @Override public boolean flashState(){return flash;}
     @Override public void setFlash(boolean on){
         workers.execute(()->{boolean ok=cameraApi.flash(on);if(ok){flash=on;ui.post(controlTab::refresh);showToast(on?"Camera flash ON":"Camera flash OFF");}else showToast("Flash control endpoint not available in current ESP32-CAM firmware");});
