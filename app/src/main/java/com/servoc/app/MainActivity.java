@@ -167,7 +167,12 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override public void showToast(String text){ui.post(()->android.widget.Toast.makeText(this,text,android.widget.Toast.LENGTH_SHORT).show());}
 
     @Override public void emergencyStop(){
-        left=right=0;controlTab.resetJoystick();workers.execute(()->{try{robotApi.stop();}catch(Exception ignored){}});
+        left=right=0;
+        controlTab.resetJoystick();
+        workers.execute(()->{
+            try{robotApi.stop();}catch(Exception ignored){}
+            try{robotApi.cancelMeasurement();}catch(Exception ignored){}
+        });
     }
     @Override public void setDriveCommand(int l,int r){left=Math.max(-100,Math.min(100,l));right=Math.max(-100,Math.min(100,r));}
     @Override public int driveLeft(){return left;}
