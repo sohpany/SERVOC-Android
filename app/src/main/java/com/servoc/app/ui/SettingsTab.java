@@ -8,6 +8,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
 import org.json.JSONObject;
 
@@ -33,10 +34,11 @@ public final class SettingsTab {
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"SYNC FROM ESP32");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"APPLY TO ESP32");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
         LinearLayout models=UiKit.card(c);models.addView(UiKit.title(c,"MQDATASCIENCE v"+MqDataScience76Catalog.VERSION+" • "+MqDataScience76Catalog.COUNT+" MODELS"),UiKit.full(c));
-        models.addView(UiKit.small(c,"Registered source models: "+MqDataScience76Catalog.COUNT+". Android-native status is shown explicitly; registered-only models are not falsely reported as executed."),UiKit.full(c));
+        models.addView(UiKit.small(c,"Registered source models: "+MqDataScience76Catalog.COUNT+" • currently ported Android-native equivalents: "+ModelRuntimeRegistry.nativeCount()+". Registered-only models are preserved but never reported as executed."),UiKit.full(c));
         for(int i=0;i<MqDataScience76Catalog.COUNT;i++){
-            TextView t=UiKit.text(c,String.format("%02d  %s  [%s]",i+1,MqDataScience76Catalog.NAMES[i],MqDataScience76Catalog.runtime(i)==MqDataScience76Catalog.Runtime.ANDROID_NATIVE?"ANDROID NATIVE":"REGISTERED / PORT PENDING"));
-            t.setTextSize(11);t.setBackgroundColor((i&1)==0?0xFF151B22:0xFF1B222A);t.setTextColor(MqDataScience76Catalog.runtime(i)==MqDataScience76Catalog.Runtime.ANDROID_NATIVE?0xFF81C784:0xFFB0BEC5);models.addView(t,UiKit.full(c));
+            boolean nativeModel=ModelRuntimeRegistry.isAndroidNative(i);
+            TextView t=UiKit.text(c,String.format("%02d  %s  [%s]",i+1,MqDataScience76Catalog.NAMES[i],ModelRuntimeRegistry.status(i)));
+            t.setTextSize(11);t.setBackgroundColor((i&1)==0?0xFF151B22:0xFF1B222A);t.setTextColor(nativeModel?0xFF81C784:0xFFB0BEC5);models.addView(t,UiKit.full(c));
         }
         root.addView(models,UiKit.full(c));
     }
