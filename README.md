@@ -1,6 +1,6 @@
 # SERVOC Android
 
-SERVOC is the Android operator application for the remote hazard-inspection robot.
+SERVOC is the Android operator application for the remote hazard-inspection robot. The application is currently branded **HazRob**.
 
 ## v0.2 Analytical Core
 
@@ -15,3 +15,7 @@ SERVOC is the Android operator application for the remote hazard-inspection robo
 - SQLite v2 for experiments, analytics metadata, and fingerprint records.
 
 Quantitative gas readings are not compliance-grade until the complete sensor chain is calibrated and independently validated. Safety-critical motor failsafe remains on ESP32.
+
+## Research references
+
+A complete source-provenance and APA 7th edition bibliography for the sensor manuals, MQ curve libraries, occupational exposure databases, Android/ESP32 implementation references, calibration standards, and wider HazRob engineering standards is maintained in [`REFERENCES_APA.md`](REFERENCES_APA.md).
