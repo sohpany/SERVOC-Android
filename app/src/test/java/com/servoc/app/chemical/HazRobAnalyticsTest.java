@@ -1,14 +1,19 @@
 package com.servoc.app.chemical;
 
 import com.servoc.app.calibration.EmpiricalMqCurve;
+import com.servoc.app.measurements.PhysicalCatalog;
+import com.servoc.app.models.MqDataScience76Catalog;
 import org.junit.Test;
 
 import static org.junit.Assert.*;
 
 public class HazRobAnalyticsTest {
-    @Test public void chemicalCatalogHas144Entries(){
+    @Test public void fixedLibraryCountsRemainVisible(){
         assertEquals(144,ChemicalCatalog.COUNT);
         assertEquals(ChemicalCatalog.NAMES.length,ChemicalCatalog.FORMULAS.length);
+        assertEquals(15,PhysicalCatalog.COUNT);
+        assertEquals(76,MqDataScience76Catalog.COUNT);
+        assertEquals(MqDataScience76Catalog.COUNT,MqDataScience76Catalog.NAMES.length);
     }
 
     @Test public void allCatalogueEntriesHaveCoverageState(){
@@ -65,11 +70,11 @@ public class HazRobAnalyticsTest {
 
     @Test public void manufacturerEvidenceSeparatesTargetsFromCrossResponses(){
         assertEquals(ManufacturerEvidenceMatrix.TARGET,
-                ManufacturerEvidenceMatrix.level(GasEngine.MQ7,20)); // CO
+                ManufacturerEvidenceMatrix.level(GasEngine.MQ7,20));
         assertEquals(ManufacturerEvidenceMatrix.GRAPH_RESPONSE,
-                ManufacturerEvidenceMatrix.level(GasEngine.MQ7,75)); // H2
+                ManufacturerEvidenceMatrix.level(GasEngine.MQ7,75));
         assertEquals(ManufacturerEvidenceMatrix.TARGET,
-                ManufacturerEvidenceMatrix.level(GasEngine.MQ8,75)); // H2
+                ManufacturerEvidenceMatrix.level(GasEngine.MQ8,75));
     }
 
     @Test public void mqDataScienceEnvironmentalCorrectionIsDomainGuarded(){
@@ -93,10 +98,10 @@ public class HazRobAnalyticsTest {
         assertEquals("6.0.0",CurveProvenance.MQDATASCIENCE_VERSION);
         assertEquals("e88f876140587a708ee84a4d4d3acbd5720274ee",
                 CurveProvenance.MQDATASCIENCE_COMMIT);
+        assertEquals(CurveProvenance.MQDATASCIENCE_COMMIT,MqDataScience76Catalog.PINNED_COMMIT);
     }
 
     @Test public void unsupportedOxidizerDoesNotReceiveTrainingMask(){
-        // Chlorine dioxide catalogue index 10 is intentionally compatibility-review only.
         assertEquals(0,MqSensorAffinity.forChemical(10).mask);
     }
 }
