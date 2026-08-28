@@ -2,8 +2,8 @@ package com.servoc.app.chemical;
 
 /**
  * Scientific coverage planner for the 144-entry chemical catalogue.
- * It separates direct quantitative curves, empirical fingerprint/calibration work,
- * composite metrics and compounds unsupported by the currently installed MQ array.
+ * It separates target-backed quantitative candidates, research/library curves,
+ * empirical fingerprint/calibration work, composite metrics and unsupported entries.
  */
 public final class ChemicalCoverage {
     private ChemicalCoverage() {}
@@ -28,11 +28,11 @@ public final class ChemicalCoverage {
 
         MqSensorAffinity.Plan plan=MqSensorAffinity.forChemical(chem);
 
-        if (isDirectCurve(chem)) {
+        if (CurveEligibility.hasTargetBackedCurve(chem)) {
             return new Status(DIRECT_CURVE,
-                    "Rs/R0 log-power curve + evidence-weighted consensus",
-                    "A library curve exists. Recommended installed channels: "+sensorNames(plan.mask)+
-                    ". Device-specific R0/calibration, valid heater protocol and in-range operation are still required before quantitative safety use.");
+                    "Target-backed Rs/R0 curve + evidence-weighted consensus",
+                    "At least one inherited power-law equation is attached to a sensor for which current manufacturer documentation lists this analyte/category as a target. Recommended installed channels: "+sensorNames(plan.mask)+
+                    ". Device-specific R0/reference-gas calibration, correct heater protocol and in-range operation remain mandatory before safety use.");
         }
 
         if (chem >= 135) {
@@ -48,18 +48,25 @@ public final class ChemicalCoverage {
         }
 
         if(plan.mask==0){
-            return new Status(UNVALIDATED_OR_WEAK,
-                    plan.className,
-                    plan.reason);
+            return new Status(UNVALIDATED_OR_WEAK,plan.className,plan.reason);
         }
+
+        String evidence;
+        if(CurveEligibility.hasManufacturerGraphCurve(chem))
+            evidence="A library equation exists and the analyte also appears as manufacturer graph cross-response, but not as a selective target; treat the equation as research evidence until analyte-specific calibration is accepted.";
+        else if(CurveEligibility.hasCommunityOnlyCurve(chem))
+            evidence="A community/inherited equation exists without matching current manufacturer target/graph evidence in this registry; it is retained for comparison only and cannot by itself justify ppm.";
+        else evidence="No direct power-law equation is enabled for this analyte.";
 
         return new Status(FINGERPRINT_CANDIDATE,
                 "Empirical MQ-array training • "+plan.className,
-                "Recommended installed channels: "+sensorNames(plan.mask)+". "+plan.reason+
+                evidence+" Recommended installed channels: "+sensorNames(plan.mask)+". "+plan.reason+
                 " Identity classification and concentration calibration remain separate models.");
     }
 
-    public static int directCurveCount() { return GasEngine.SUPPORTED.length; }
+    public static int directCurveCount() { return CurveEligibility.targetBackedChemicalCount(); }
+    public static int graphCurveChemicalCount(){ return CurveEligibility.graphSupportedChemicalCount(); }
+    public static int communityOnlyCurveChemicalCount(){ return CurveEligibility.communityOnlyChemicalCount(); }
 
     public static int fingerprintCandidateCount() {
         int n=0;
@@ -77,11 +84,6 @@ public final class ChemicalCoverage {
         int n=0;
         for(int i=0;i<ChemicalCatalog.COUNT;i++) if(forChemical(i).level==UNVALIDATED_OR_WEAK) n++;
         return n;
-    }
-
-    private static boolean isDirectCurve(int chem) {
-        for (int c : GasEngine.SUPPORTED) if (c == chem) return true;
-        return false;
     }
 
     public static String sensorNames(int mask){
