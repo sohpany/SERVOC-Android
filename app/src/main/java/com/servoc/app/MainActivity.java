@@ -18,6 +18,7 @@ import android.widget.TextView;
 
 import com.servoc.app.camera.CameraApi;
 import com.servoc.app.communication.RobotApi;
+import com.servoc.app.communication.WifiRoute;
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.report.ReportExporter;
@@ -146,9 +147,15 @@ public final class MainActivity extends Activity implements HazRobHost {
         }
     }
 
-    @Override protected void onResume(){super.onResume();foreground=true;if(selectedTab==0)controlTab.startCamera();refreshVisibleTab();}
+    @Override protected void onResume(){
+        super.onResume();
+        WifiRoute.bindConnectedWifi(this);
+        foreground=true;
+        if(selectedTab==0)controlTab.startCamera();
+        refreshVisibleTab();
+    }
     @Override protected void onPause(){foreground=false;controlTab.stopCamera();emergencyStop();super.onPause();}
-    @Override protected void onDestroy(){workers.shutdownNow();controlTab.stopCamera();if(db!=null)db.close();super.onDestroy();}
+    @Override protected void onDestroy(){workers.shutdownNow();controlTab.stopCamera();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
 
     // HazRobHost
     @Override public RobotApi robotApi(){return robotApi;}
