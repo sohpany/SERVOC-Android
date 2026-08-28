@@ -15,6 +15,7 @@ public final class MjpegView extends ImageView {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private volatile boolean running = false;
     private volatile HttpURLConnection connection;
+    private volatile long generation = 0;
 
     public MjpegView(Context c) {
         super(c);
@@ -23,20 +24,29 @@ public final class MjpegView extends ImageView {
     }
 
     public synchronized void start(String url) {
-        stop();
+        running = false;
+        generation++;
+        HttpURLConnection c = connection;
+        if (c != null) c.disconnect();
+        connection = null;
+
         running = true;
-        worker.execute(() -> stream(url));
+        final long token = generation;
+        worker.execute(() -> stream(url, token));
     }
 
     public synchronized void stop() {
         running = false;
+        generation++;
         HttpURLConnection c = connection;
         if (c != null) c.disconnect();
         connection = null;
     }
 
-    private void stream(String streamUrl) {
-        while (running) {
+    private boolean active(long token){ return running && generation == token; }
+
+    private void stream(String streamUrl, long token) {
+        while (active(token)) {
             try {
                 HttpURLConnection c = (HttpURLConnection) new URL(streamUrl).openConnection();
                 connection = c;
@@ -47,7 +57,7 @@ public final class MjpegView extends ImageView {
                 try (InputStream in = c.getInputStream()) {
                     int prev = -1, cur;
                     ByteArrayOutputStream frame = null;
-                    while (running && (cur = in.read()) != -1) {
+                    while (active(token) && (cur = in.read()) != -1) {
                         if (frame == null) {
                             if (prev == 0xFF && cur == 0xD8) {
                                 frame = new ByteArrayOutputStream(64 * 1024);
@@ -59,7 +69,7 @@ public final class MjpegView extends ImageView {
                             else if (prev == 0xFF && cur == 0xD9) {
                                 byte[] bytes = frame.toByteArray();
                                 Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
-                                if (bitmap != null) post(() -> setImageBitmap(bitmap));
+                                if (bitmap != null && active(token)) post(() -> { if(active(token)) setImageBitmap(bitmap); });
                                 frame = null;
                             }
                         }
@@ -70,6 +80,7 @@ public final class MjpegView extends ImageView {
                     if (connection == c) connection = null;
                 }
             } catch (Exception ignored) {
+                if(!active(token)) return;
                 try { Thread.sleep(800); }
                 catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
             }
