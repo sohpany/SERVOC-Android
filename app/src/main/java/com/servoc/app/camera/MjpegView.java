@@ -14,6 +14,7 @@ import java.util.concurrent.Executors;
 public final class MjpegView extends ImageView {
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private volatile boolean running = false;
+    private volatile boolean released = false;
     private volatile HttpURLConnection connection;
     private volatile long generation = 0;
 
@@ -24,6 +25,7 @@ public final class MjpegView extends ImageView {
     }
 
     public synchronized void start(String url) {
+        if(released)return;
         running = false;
         generation++;
         HttpURLConnection c = connection;
@@ -43,7 +45,14 @@ public final class MjpegView extends ImageView {
         connection = null;
     }
 
-    private boolean active(long token){ return running && generation == token; }
+    public synchronized void release(){
+        if(released)return;
+        stop();
+        released=true;
+        worker.shutdownNow();
+    }
+
+    private boolean active(long token){ return !released && running && generation == token; }
 
     private void stream(String streamUrl, long token) {
         while (active(token)) {
@@ -89,7 +98,6 @@ public final class MjpegView extends ImageView {
 
     @Override protected void onDetachedFromWindow() {
         stop();
-        worker.shutdownNow();
         super.onDetachedFromWindow();
     }
 }
