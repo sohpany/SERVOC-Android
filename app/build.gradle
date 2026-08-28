@@ -1,5 +1,6 @@
 plugins { id 'com.android.application' }
 
+// SERVOC v0.2 analytical core
 android {
     namespace 'com.servoc.app'
     compileSdk 36
