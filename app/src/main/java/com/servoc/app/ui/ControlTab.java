@@ -62,6 +62,7 @@ public final class ControlTab {
         String h=host.cameraHost(); if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");
     }
     public void stopCamera(){video.stop();}
+    public void releaseCamera(){video.release();}
 
     public void refresh(){
         flash.setText(host.flashState()?"FLASH ON":"FLASH OFF");
