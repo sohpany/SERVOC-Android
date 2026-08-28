@@ -155,7 +155,7 @@ public final class MainActivity extends Activity implements HazRobHost {
         refreshVisibleTab();
     }
     @Override protected void onPause(){foreground=false;controlTab.stopCamera();emergencyStop();super.onPause();}
-    @Override protected void onDestroy(){workers.shutdownNow();controlTab.stopCamera();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
+    @Override protected void onDestroy(){workers.shutdownNow();controlTab.releaseCamera();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
 
     // HazRobHost
     @Override public RobotApi robotApi(){return robotApi;}
