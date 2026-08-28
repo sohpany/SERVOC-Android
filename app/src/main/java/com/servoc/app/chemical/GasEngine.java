@@ -32,6 +32,30 @@ public final class GasEngine {
 
     public static int curveCount(){ return CURVES.length; }
 
+    /** One raw per-sensor estimate before robust consensus or evidence filtering. */
+    public static final class Estimate {
+        public final int sensor;
+        public final int chemical;
+        public final double ppm;
+        Estimate(int sensor, int chemical, double ppm) {
+            this.sensor=sensor; this.chemical=chemical; this.ppm=ppm;
+        }
+    }
+
+    /** Exposes the legacy curve estimates so the validated engine can audit each contributor. */
+    public static List<Estimate> estimatesForChemical(double[] ratios, int chemical) {
+        List<Estimate> out=new ArrayList<>();
+        if(ratios==null) return out;
+        for(Curve c:CURVES){
+            if(c.chem!=chemical || c.sensor>=ratios.length) continue;
+            double ratio=ratios[c.sensor];
+            if(!Double.isFinite(ratio)||ratio<=0) continue;
+            double ppm=c.a*Math.pow(ratio,c.b);
+            if(Double.isFinite(ppm)&&ppm>0) out.add(new Estimate(c.sensor,c.chem,ppm));
+        }
+        return out;
+    }
+
     /** Generates deterministic synthetic Rs/R0 ratios for offline UI/analysis testing only. */
     public static double[] simulateRatios(int chem,double ppm){
         double[] ratios=new double[8]; Arrays.fill(ratios,Double.NaN);
