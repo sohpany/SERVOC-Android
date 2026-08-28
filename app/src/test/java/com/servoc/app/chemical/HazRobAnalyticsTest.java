@@ -46,12 +46,30 @@ public class HazRobAnalyticsTest {
                 1L,"reference NH3","unit test");
     }
 
-    @Test public void directCurveEntriesRemainInCatalogueRange(){
+    @Test public void targetBackedCurvesAreDirectAndResearchOnlyCurvesAreNot(){
         assertTrue(GasEngine.curveCount()>0);
+        int direct=0,research=0;
         for(int chem:GasEngine.SUPPORTED){
             assertTrue(chem>=0 && chem<ChemicalCatalog.COUNT);
-            assertEquals(ChemicalCoverage.DIRECT_CURVE,ChemicalCoverage.forChemical(chem).level);
+            if(CurveEligibility.hasTargetBackedCurve(chem)){
+                assertEquals(ChemicalCoverage.DIRECT_CURVE,ChemicalCoverage.forChemical(chem).level);
+                direct++;
+            }else{
+                assertNotEquals(ChemicalCoverage.DIRECT_CURVE,ChemicalCoverage.forChemical(chem).level);
+                research++;
+            }
         }
+        assertTrue("expected target-backed curves",direct>0);
+        assertTrue("expected research-only inherited curves",research>0);
+    }
+
+    @Test public void manufacturerEvidenceSeparatesTargetsFromCrossResponses(){
+        assertEquals(ManufacturerEvidenceMatrix.TARGET,
+                ManufacturerEvidenceMatrix.level(GasEngine.MQ7,20)); // CO
+        assertEquals(ManufacturerEvidenceMatrix.GRAPH_RESPONSE,
+                ManufacturerEvidenceMatrix.level(GasEngine.MQ7,75)); // H2
+        assertEquals(ManufacturerEvidenceMatrix.TARGET,
+                ManufacturerEvidenceMatrix.level(GasEngine.MQ8,75)); // H2
     }
 
     @Test public void unsupportedOxidizerDoesNotReceiveTrainingMask(){
