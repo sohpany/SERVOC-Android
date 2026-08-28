@@ -73,7 +73,7 @@ public final class ValidatedGasEngine {
         if(raw.isEmpty()&&calibration==null)return null;
 
         List<WeightedValue> accepted=new ArrayList<>();
-        int primary=0,calibrated=0,manufacturerCross=0,communityCross=0,rejected=0;
+        int primary=0,calibrated=0,calibratedPrimary=0,manufacturerCross=0,communityCross=0,rejected=0;
         boolean[] usedSensor=new boolean[Math.max(8,ratios==null?0:ratios.length)];
 
         // Device-specific, known-reference calibration has highest priority.
@@ -91,7 +91,7 @@ public final class ValidatedGasEngine {
                 }
                 accepted.add(new WeightedValue(Math.log10(ce.ppm),2.0));
                 usedSensor[sensor]=true;calibrated++;
-                if(envelope.status==SensorOperatingEnvelope.PRIMARY_TARGET)primary++;
+                if(envelope.status==SensorOperatingEnvelope.PRIMARY_TARGET){primary++;calibratedPrimary++;}
                 else if(envelope.status==SensorOperatingEnvelope.MANUFACTURER_GRAPH_RESPONSE)manufacturerCross++;
                 else communityCross++;
             }
@@ -118,9 +118,10 @@ public final class ValidatedGasEngine {
         double mad=weightedMedian(deviations);
         double agreement=Math.max(0,Math.min(100,100*Math.exp(-1.8*mad)));
 
-        // Generic target curves remain provisional; an accepted device calibration is the
-        // preferred quantitative route. A calibrated cross-response needs identity confirmation.
-        boolean quantitative=primary>0||(calibrated>0&&identityConfirmed);
+        // Safety/OEL interpretation is disabled for generic datasheet/community fits.
+        // It becomes quantitative only after a device-specific reference-gas calibration.
+        // A calibrated cross-response additionally requires independent analyte identity confirmation.
+        boolean quantitative=calibratedPrimary>0||(calibrated>0&&identityConfirmed);
         int confidence;
         if((calibrated>=2||primary>=2)&&agreement>=65)confidence=GasEngine.HIGH;
         else if((calibrated>=1||primary>=1)&&accepted.size()>=2&&agreement>=45)confidence=GasEngine.STRONG;
@@ -128,12 +129,14 @@ public final class ValidatedGasEngine {
 
         int risk=quantitative?ExposureLimits.screeningRisk(chemical,ppm):-1;
         String note;
-        if(calibrated>0&&quantitative)
-            note="Device-specific reference-gas calibration is active; generic equations are fallback evidence.";
-        else if(primary>0)
-            note="A manufacturer-target channel contributes. The result remains calibration-dependent and generic cross-responses are strongly down-weighted.";
+        if(calibratedPrimary>0)
+            note="Device-specific reference-gas calibration is active on a manufacturer-target channel; generic equations are fallback evidence.";
+        else if(calibrated>0&&identityConfirmed)
+            note="Device-specific cross-response calibration is active and analyte identity is independently confirmed.";
         else if(calibrated>0)
             note="A calibrated cross-response exists, but analyte identity is not independently confirmed; withhold safety interpretation.";
+        else if(primary>0)
+            note="Manufacturer-target generic curve estimate only. PPM is experimental until this device is reference-gas calibrated; safety interpretation is disabled.";
         else if(manufacturerCross>0)
             note="Manufacturer graph cross-response only: useful for fingerprint/research, not selective quantitative safety use.";
         else
