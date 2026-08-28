@@ -3,424 +3,185 @@ package com.servoc.app;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Configuration;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 import android.widget.TextView;
-import android.widget.Toast;
 
-import com.servoc.app.camera.MjpegView;
+import com.servoc.app.camera.CameraApi;
 import com.servoc.app.communication.RobotApi;
-import com.servoc.app.control.JoystickView;
-import com.servoc.app.sensors.RobotTelemetry;
+import com.servoc.app.data.ExperimentQueries;
+import com.servoc.app.data.ExperimentsDb;
+import com.servoc.app.report.ReportExporter;
+import com.servoc.app.ui.ChemicalsTab;
+import com.servoc.app.ui.ControlTab;
+import com.servoc.app.ui.ExperimentsTab;
+import com.servoc.app.ui.HazRobHost;
+import com.servoc.app.ui.PhysicalTab;
+import com.servoc.app.ui.SensorsTab;
+import com.servoc.app.ui.SettingsTab;
+import com.servoc.app.ui.UiKit;
 
 import org.json.JSONObject;
+
+import java.io.OutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public final class MainActivity extends Activity {
-    private final Handler ui = new Handler(Looper.getMainLooper());
-    private final ScheduledExecutorService workers = Executors.newScheduledThreadPool(4);
+/** Central connection/heartbeat coordinator. Feature UI lives in independent tab classes. */
+public final class MainActivity extends Activity implements HazRobHost {
+    private static final int EXPORT_XLSX=8101, EXPORT_PDF=8102;
+    private final Handler ui=new Handler(Looper.getMainLooper());
+    private final ScheduledExecutorService workers=Executors.newScheduledThreadPool(6);
+
     private SharedPreferences prefs;
-    private RobotApi api;
-    private MjpegView video;
-    private JoystickView joystick;
-    private TextView status;
-    private TextView telemetry;
-    private EditText robotIp;
-    private EditText cameraIp;
-    private EditText speedLimit;
-    private EditText neutralLeft;
-    private EditText neutralRight;
-    private EditText warmup;
-    private EditText measure;
-    private volatile int left = 0, right = 0;
-    private volatile boolean resumed = false;
+    private RobotApi robotApi;
+    private CameraApi cameraApi;
+    private ExperimentsDb db;
     private volatile JSONObject latestDiag;
+    private volatile int left=0,right=0;
+    private volatile boolean foreground=false,flash=false;
 
-    @Override public void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        prefs = getSharedPreferences("servoc", MODE_PRIVATE);
-        api = new RobotApi(prefs.getString("robot", "192.168.4.1"));
-        setContentView(buildResponsiveUi());
-        schedule();
+    private FrameLayout page;
+    private TextView globalStatus;
+    private Button[] tabButtons;
+    private int selectedTab=0;
+
+    private ControlTab controlTab;
+    private SensorsTab sensorsTab;
+    private ChemicalsTab chemicalsTab;
+    private PhysicalTab physicalTab;
+    private ExperimentsTab experimentsTab;
+    private SettingsTab settingsTab;
+    private View[] tabViews;
+
+    @Override public void onCreate(Bundle b){
+        super.onCreate(b);
+        prefs=getSharedPreferences("servoc",MODE_PRIVATE);
+        robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));
+        cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));
+        db=new ExperimentsDb(this);
+        buildTabs();
+        setContentView(buildShell());
+        showTab(0);
+        scheduleComms();
     }
 
-    @Override protected void onResume() {
-        super.onResume();
-        resumed = true;
-        startCamera();
+    private void buildTabs(){
+        controlTab=new ControlTab(this,this);
+        sensorsTab=new SensorsTab(this,this);
+        chemicalsTab=new ChemicalsTab(this,this);
+        physicalTab=new PhysicalTab(this,this);
+        experimentsTab=new ExperimentsTab(this,this);
+        settingsTab=new SettingsTab(this,this);
+        tabViews=new View[]{controlTab.view(),sensorsTab.view(),chemicalsTab.view(),physicalTab.view(),experimentsTab.view(),settingsTab.view()};
     }
 
-    @Override protected void onPause() {
-        hardStop();
-        resumed = false;
-        if (video != null) video.stop();
-        super.onPause();
+    private View buildShell(){
+        LinearLayout root=UiKit.vbox(this);root.setBackgroundColor(0xFF0A0D11);
+        LinearLayout header=UiKit.hbox(this);header.setPadding(UiKit.dp(this,8),UiKit.dp(this,4),UiKit.dp(this,8),UiKit.dp(this,2));
+        TextView title=UiKit.title(this,"HazRob 0.4 • REMOTE HAZARD ROBOT");title.setTextColor(Color.WHITE);header.addView(title,new LinearLayout.LayoutParams(0,-2,1f));
+        globalStatus=UiKit.small(this,"OFFLINE");globalStatus.setTextColor(0xFFFFB74D);globalStatus.setGravity(Gravity.END);header.addView(globalStatus,new LinearLayout.LayoutParams(-2,-2));root.addView(header,UiKit.full(this));
+
+        HorizontalScrollView tabsScroll=new HorizontalScrollView(this);tabsScroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout tabs=UiKit.hbox(this);String[] names={"CONTROL","SENSORS","CHEMICALS","PHYSICAL","EXPERIMENTS","SETTINGS"};tabButtons=new Button[names.length];
+        for(int i=0;i<names.length;i++){final int x=i;Button b=UiKit.button(this,names[i]);b.setTextSize(11);b.setOnClickListener(v->showTab(x));tabButtons[i]=b;tabs.addView(b,new LinearLayout.LayoutParams(UiKit.dp(this,122),UiKit.dp(this,46)));}
+        tabsScroll.addView(tabs);root.addView(tabsScroll,new LinearLayout.LayoutParams(-1,-2));
+        page=new FrameLayout(this);root.addView(page,new LinearLayout.LayoutParams(-1,0,1f));return root;
     }
 
-    @Override protected void onDestroy() {
-        workers.shutdownNow();
-        if (video != null) video.stop();
-        super.onDestroy();
+    private void showTab(int index){
+        if(index<0||index>=tabViews.length)return;
+        if(selectedTab==0&&index!=0)controlTab.stopCamera();
+        selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));
+        for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}
+        if(index==0&&foreground)controlTab.startCamera();
+        refreshAllTabs();
     }
 
-    private View buildResponsiveUi() {
-        boolean wide = isWide();
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(0xFF0E1116);
-        root.setPadding(dp(8), dp(6), dp(8), dp(8));
-        root.addView(buildHeader(), new LinearLayout.LayoutParams(-1, -2));
+    private void scheduleComms(){
+        workers.scheduleAtFixedRate(()->{
+            if(!foreground)return;
+            try{robotApi.drive(left,right);}catch(Exception ignored){}
+        },0,250,TimeUnit.MILLISECONDS);
 
-        FrameLayout videoPanel = buildVideoPanel(wide);
-        View controls = buildControls();
-
-        if (wide) {
-            LinearLayout body = new LinearLayout(this);
-            body.setOrientation(LinearLayout.HORIZONTAL);
-            body.setGravity(Gravity.CENTER_VERTICAL);
-            LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(0, -1, 1.65f);
-            leftParams.setMargins(0, dp(4), dp(6), 0);
-            body.addView(videoPanel, leftParams);
-
-            ScrollView sideScroll = new ScrollView(this);
-            sideScroll.setFillViewport(true);
-            sideScroll.addView(controls);
-            LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(0, -1, 1.0f);
-            rightParams.setMargins(dp(2), dp(4), 0, 0);
-            body.addView(sideScroll, rightParams);
-            root.addView(body, new LinearLayout.LayoutParams(-1, 0, 1f));
-            return root;
-        }
-
-        int screenWidth = getResources().getDisplayMetrics().widthPixels;
-        int videoHeight = clamp((int)(screenWidth * 0.70f), dp(230), dp(430));
-        LinearLayout body = vbox();
-        body.addView(videoPanel, new LinearLayout.LayoutParams(-1, videoHeight));
-        body.addView(controls, new LinearLayout.LayoutParams(-1, -2));
-        root.addView(body, new LinearLayout.LayoutParams(-1, -2));
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(true);
-        scroll.addView(root);
-        return scroll;
+        workers.scheduleAtFixedRate(()->{
+            if(!foreground)return;
+            try{latestDiag=robotApi.diagnostics();ui.post(this::refreshDynamicTabs);}
+            catch(Exception e){latestDiag=null;ui.post(this::refreshDynamicTabs);}
+        },0,1,TimeUnit.SECONDS);
     }
 
-    private View buildHeader() {
-        LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(4), dp(2), dp(4), dp(4));
-
-        TextView title = label("HazRob • CONTROL");
-        title.setTextSize(isWide() ? 18 : 20);
-        title.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        header.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
-
-        status = label("ROBOT OFFLINE");
-        status.setTextSize(13);
-        status.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-        status.setTextColor(0xFFFFB74D);
-        header.addView(status, new LinearLayout.LayoutParams(-2, -2));
-        return header;
+    private void refreshDynamicTabs(){
+        JSONObject d=latestDiag;
+        if(d==null){globalStatus.setText("OFFLINE");globalStatus.setTextColor(0xFFFFB74D);}else{globalStatus.setText("ONLINE • "+d.optInt("clients",0));globalStatus.setTextColor(0xFF81C784);}
+        controlTab.refresh();sensorsTab.refresh();chemicalsTab.refresh();physicalTab.refresh();
+        if(selectedTab==4)experimentsTab.refresh();
     }
 
-    private FrameLayout buildVideoPanel(boolean wide) {
-        FrameLayout frame = new FrameLayout(this);
-        frame.setBackgroundColor(Color.BLACK);
+    @Override protected void onResume(){super.onResume();foreground=true;if(selectedTab==0)controlTab.startCamera();}
+    @Override protected void onPause(){foreground=false;controlTab.stopCamera();emergencyStop();super.onPause();}
+    @Override protected void onDestroy(){workers.shutdownNow();controlTab.stopCamera();if(db!=null)db.close();super.onDestroy();}
 
-        video = new MjpegView(this);
-        frame.addView(video, new FrameLayout.LayoutParams(-1, -1));
+    // HazRobHost
+    @Override public RobotApi robotApi(){return robotApi;}
+    @Override public SharedPreferences preferences(){return prefs;}
+    @Override public ExperimentsDb database(){return db;}
+    @Override public ExecutorService io(){return workers;}
+    @Override public JSONObject latestDiagnostics(){return latestDiag;}
+    @Override public void setLatestDiagnostics(JSONObject value){latestDiag=value;}
+    @Override public void showToast(String text){ui.post(()->android.widget.Toast.makeText(this,text,android.widget.Toast.LENGTH_SHORT).show());}
 
-        int shortSide = Math.min(getResources().getDisplayMetrics().widthPixels,
-                getResources().getDisplayMetrics().heightPixels);
-        int joy = clamp((int)(shortSide * (wide ? 0.28f : 0.34f)), dp(112), dp(180));
-        joystick = new JoystickView(this);
-        FrameLayout.LayoutParams joyParams = new FrameLayout.LayoutParams(joy, joy, Gravity.END | Gravity.BOTTOM);
-        joyParams.setMargins(0, 0, dp(10), dp(10));
-        frame.addView(joystick, joyParams);
-        joystick.setListener((l, r, active) -> {
-            left = l;
-            right = r;
-            if (!active) {
-                left = right = 0;
-                sendDriveNow();
-            }
-        });
+    @Override public void emergencyStop(){
+        left=right=0;controlTab.resetJoystick();workers.execute(()->{try{robotApi.stop();}catch(Exception ignored){}});
+    }
+    @Override public void setDriveCommand(int l,int r){left=Math.max(-100,Math.min(100,l));right=Math.max(-100,Math.min(100,r));}
+    @Override public int driveLeft(){return left;}
+    @Override public int driveRight(){return right;}
 
-        TextView cam = label("ESP32-CAM");
-        cam.setTextSize(11);
-        cam.setBackgroundColor(0x88000000);
-        FrameLayout.LayoutParams camParams = new FrameLayout.LayoutParams(-2, -2, Gravity.START | Gravity.TOP);
-        camParams.setMargins(dp(6), dp(6), 0, 0);
-        frame.addView(cam, camParams);
-        return frame;
+    @Override public void setCameraHost(String host){cameraApi.setHost(host);prefs.edit().putString("camera",cameraApi.host()).apply();if(selectedTab==0&&foreground)controlTab.startCamera();}
+    @Override public String cameraHost(){return cameraApi.host();}
+    @Override public boolean flashState(){return flash;}
+    @Override public void setFlash(boolean on){
+        workers.execute(()->{boolean ok=cameraApi.flash(on);if(ok){flash=on;ui.post(controlTab::refresh);showToast(on?"Camera flash ON":"Camera flash OFF");}else showToast("Flash control endpoint not available in current ESP32-CAM firmware");});
     }
 
-    private View buildControls() {
-        LinearLayout panel = vbox();
-        panel.setPadding(dp(8), dp(6), dp(8), dp(10));
-        panel.setBackgroundColor(0xFF181D24);
-
-        Button stop = button("EMERGENCY STOP");
-        stop.setTextColor(Color.WHITE);
-        stop.setBackgroundColor(0xFFC62828);
-        stop.setOnClickListener(v -> hardStop());
-        LinearLayout.LayoutParams stopParams = full();
-        stopParams.height = dp(54);
-        panel.addView(stop, stopParams);
-
-        section(panel,"CONNECTION");
-        robotIp = input(prefs.getString("robot", "192.168.4.1"));
-        cameraIp = input(prefs.getString("camera", "192.168.4.2"));
-        panel.addView(label("Robot IP"), full());
-        panel.addView(robotIp, full());
-        panel.addView(label("Camera IP"), full());
-        panel.addView(cameraIp, full());
-
-        Button apply = button("Apply connection settings");
-        apply.setOnClickListener(v -> applyNetwork());
-        panel.addView(apply, full());
-
-        section(panel,"ROBOT CONFIGURATION");
-        speedLimit=input(String.valueOf(prefs.getInt("speed",100)));
-        neutralLeft=input(String.valueOf(prefs.getInt("nl",1500)));
-        neutralRight=input(String.valueOf(prefs.getInt("nr",1500)));
-        warmup=input(String.valueOf(prefs.getInt("warm",60)));
-        measure=input(String.valueOf(prefs.getInt("measure",30)));
-        panel.addView(label("Speed limit % (20–100)"),full()); panel.addView(speedLimit,full());
-        panel.addView(label("Left neutral µs (1400–1600)"),full()); panel.addView(neutralLeft,full());
-        panel.addView(label("Right neutral µs (1400–1600)"),full()); panel.addView(neutralRight,full());
-        panel.addView(label("Sensor row warmup seconds"),full()); panel.addView(warmup,full());
-        panel.addView(label("Sensor row measurement seconds"),full()); panel.addView(measure,full());
-
-        Button sync=button("Sync configuration from ESP32");
-        sync.setOnClickListener(v->syncRobotConfig()); panel.addView(sync,full());
-        Button applyCfg=button("Apply configuration to ESP32");
-        applyCfg.setOnClickListener(v->applyRobotConfig()); panel.addView(applyCfg,full());
-
-        section(panel,"LIVE SENSORS / TELEMETRY");
-        telemetry=label("Waiting for /diag …");
-        telemetry.setTextSize(12);
-        telemetry.setTextIsSelectable(true);
-        telemetry.setBackgroundColor(0xFF10151B);
-        panel.addView(telemetry,full());
-
-        Button start=button("Start automatic sensor measurement");
-        start.setOnClickListener(v->sensorCommand(1)); panel.addView(start,full());
-        Button cancel=button("Cancel sensor measurement");
-        cancel.setOnClickListener(v->sensorCommand(0)); panel.addView(cancel,full());
-
-        TextView manual=label("Manual relay test cancels the automatic measurement cycle.");
-        manual.setTextSize(11); manual.setTextColor(0xFFFFCC80); panel.addView(manual,full());
-        Button r1=button("Relay row 1 ON"); r1.setOnClickListener(v->relay(1)); panel.addView(r1,full());
-        Button r2=button("Relay row 2 ON"); r2.setOnClickListener(v->relay(2)); panel.addView(r2,full());
-        Button r3=button("Relay row 3 ON"); r3.setOnClickListener(v->relay(3)); panel.addView(r3,full());
-        Button ro=button("All sensor relays OFF"); ro.setOnClickListener(v->relay(0)); panel.addView(ro,full());
-
-        Button analysis = button("Analysis • 144 chemical library");
-        analysis.setOnClickListener(v -> {
-            Intent i=new Intent(this, AnalysisActivity.class);
-            JSONObject d=latestDiag;
-            if(d!=null)i.putExtra("live_diag",d.toString());
-            startActivity(i);
-        });
-        panel.addView(analysis, full());
-
-        TextView note = label("Drive heartbeat: 250 ms. ESP32 retains its 1 s local failsafe. Sensor telemetry is read from /diag once per second. PPM remains provisional until R0 and gas calibration are validated.");
-        note.setTextSize(12);
-        note.setTextColor(0xFFB8C1CC);
-        panel.addView(note, full());
-        return panel;
+    @Override public void requestExport(String format){
+        boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        i.putExtra(Intent.EXTRA_TITLE,"HazRob_Experiments_"+fileStamp()+(pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_PDF:EXPORT_XLSX);
     }
 
-    private void schedule() {
-        workers.scheduleAtFixedRate(() -> {
-            if (!resumed) return;
-            try {
-                api.drive(left, right);
-            } catch (Exception e) {
-                ui.post(this::setOffline);
-            }
-        }, 0, 250, TimeUnit.MILLISECONDS);
-
-        workers.scheduleAtFixedRate(() -> {
-            if (!resumed) return;
-            try {
-                JSONObject d = api.diagnostics();
-                latestDiag=d;
-                int clients = d.optInt("clients", 0);
-                String text=RobotTelemetry.formatDiagnostics(d);
-                ui.post(() -> {
-                    status.setText("ROBOT ONLINE • " + clients);
-                    status.setTextColor(0xFF81C784);
-                    if(telemetry!=null)telemetry.setText(text);
-                });
-            } catch (Exception e) {
-                ui.post(() -> {
-                    setOffline();
-                    if(telemetry!=null)telemetry.setText("Telemetry unavailable: "+e.getClass().getSimpleName());
-                });
-            }
-        }, 0, 1, TimeUnit.SECONDS);
-    }
-
-    private void setOffline() {
-        if (status == null) return;
-        status.setText("ROBOT OFFLINE");
-        status.setTextColor(0xFFFFB74D);
-    }
-
-    private void applyNetwork() {
-        api.setRobotHost(robotIp.getText().toString());
-        String cam = cameraIp.getText().toString().trim();
-        prefs.edit().putString("robot", api.getRobotHost()).putString("camera", cam).apply();
-        startCamera();
-        toast("Connection settings saved");
-    }
-
-    private void syncRobotConfig(){
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+        final Uri uri=data.getData();final boolean pdf=requestCode==EXPORT_PDF;if(requestCode!=EXPORT_PDF&&requestCode!=EXPORT_XLSX)return;
         workers.execute(()->{
-            try{
-                JSONObject c=api.config();
-                ui.post(()->applyConfigToFields(c,true));
-            }catch(Exception e){ui.post(()->toast("ESP32 config read failed"));}
+            try(OutputStream out=getContentResolver().openOutputStream(uri,"w")){
+                if(out==null)throw new IllegalStateException("output stream");List<ExperimentQueries.Record> rows=ExperimentQueries.recent(db,1000);
+                if(pdf)ReportExporter.writePdf(out,rows);else ReportExporter.writeXlsx(out,rows);showToast(pdf?"PDF exported":"Excel workbook exported");
+            }catch(Exception e){showToast("Export failed: "+e.getClass().getSimpleName());}
         });
     }
 
-    private void applyRobotConfig(){
-        final String cam=cameraIp.getText().toString().trim();
-        final int speed=parse(speedLimit,100), nl=parse(neutralLeft,1500), nr=parse(neutralRight,1500);
-        final int warm=parse(warmup,60), meas=parse(measure,30);
-        workers.execute(()->{
-            try{
-                JSONObject c=api.setConfig(cam,speed,nl,nr,warm,meas);
-                ui.post(()->{
-                    applyConfigToFields(c,true);
-                    toast("ESP32 configuration applied");
-                });
-            }catch(Exception e){ui.post(()->toast("ESP32 configuration failed"));}
-        });
+    @Override public void refreshAllTabs(){
+        if(Looper.myLooper()!=Looper.getMainLooper()){ui.post(this::refreshAllTabs);return;}
+        refreshDynamicTabs();experimentsTab.refresh();
     }
 
-    private void applyConfigToFields(JSONObject c,boolean save){
-        if(c==null)return;
-        String cam=c.optString("cam",cameraIp.getText().toString());
-        int speed=c.optInt("speed",100), nl=c.optInt("nl",1500), nr=c.optInt("nr",1500);
-        int warm=c.optInt("warm",60), meas=c.optInt("measure",30);
-        cameraIp.setText(cam); speedLimit.setText(String.valueOf(speed)); neutralLeft.setText(String.valueOf(nl));
-        neutralRight.setText(String.valueOf(nr)); warmup.setText(String.valueOf(warm)); measure.setText(String.valueOf(meas));
-        if(save){
-            prefs.edit().putString("camera",cam).putInt("speed",speed).putInt("nl",nl).putInt("nr",nr)
-                    .putInt("warm",warm).putInt("measure",meas).apply();
-            startCamera();
-        }
-    }
-
-    private void sensorCommand(int cmd){
-        workers.execute(()->{
-            try{
-                if(cmd==1)api.startMeasurement(); else api.cancelMeasurement();
-                ui.post(()->toast(cmd==1?"Sensor measurement started":"Sensor measurement cancelled"));
-            }catch(Exception e){ui.post(()->toast("Sensor command failed"));}
-        });
-    }
-
-    private void relay(int group){
-        workers.execute(()->{
-            try{api.relay(group);ui.post(()->toast(group==0?"Sensor relays OFF":"Relay row "+group+" ON"));}
-            catch(Exception e){ui.post(()->toast("Relay command failed"));}
-        });
-    }
-
-    private void startCamera() {
-        if (!resumed || video == null) return;
-        String cam = prefs.getString("camera", "192.168.4.2").trim();
-        if (!cam.isEmpty()) video.start("http://" + cam + ":81/stream");
-    }
-
-    private void sendDriveNow() {
-        workers.execute(() -> {
-            try { api.drive(left, right); } catch (Exception ignored) {}
-        });
-    }
-
-    private void hardStop() {
-        left = right = 0;
-        if (joystick != null) joystick.reset();
-        workers.execute(() -> {
-            try { api.stop(); } catch (Exception ignored) {}
-        });
-    }
-
-    private int parse(EditText e,int fallback){
-        try{return Integer.parseInt(e.getText().toString().trim());}catch(Exception x){return fallback;}
-    }
-
-    private void toast(String s){Toast.makeText(this,s,Toast.LENGTH_SHORT).show();}
-
-    private void section(LinearLayout panel,String text){
-        TextView t=label(text); t.setTextColor(0xFF90CAF9); panel.addView(t,full());
-    }
-
-    private boolean isWide() {
-        Configuration c = getResources().getConfiguration();
-        return c.orientation == Configuration.ORIENTATION_LANDSCAPE || c.screenWidthDp >= 700;
-    }
-
-    private LinearLayout vbox() {
-        LinearLayout l = new LinearLayout(this);
-        l.setOrientation(LinearLayout.VERTICAL);
-        l.setGravity(Gravity.CENTER_HORIZONTAL);
-        return l;
-    }
-
-    private TextView label(String text) {
-        TextView t = new TextView(this);
-        t.setText(text);
-        t.setTextColor(Color.WHITE);
-        t.setPadding(dp(7), dp(6), dp(7), dp(6));
-        return t;
-    }
-
-    private EditText input(String text) {
-        EditText e = new EditText(this);
-        e.setText(text);
-        e.setTextColor(Color.WHITE);
-        e.setSingleLine(true);
-        e.setBackgroundColor(0xFF232A33);
-        e.setPadding(dp(10), dp(9), dp(10), dp(9));
-        return e;
-    }
-
-    private Button button(String text) {
-        Button b = new Button(this);
-        b.setText(text);
-        b.setAllCaps(false);
-        return b;
-    }
-
-    private LinearLayout.LayoutParams full() {
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
-        p.setMargins(0, dp(3), 0, dp(3));
-        return p;
-    }
-
-    private int clamp(int value, int min, int max) {
-        return Math.max(min, Math.min(max, value));
-    }
-
-    private int dp(int v) {
-        return Math.round(v * getResources().getDisplayMetrics().density);
-    }
+    private static String fileStamp(){SimpleDateFormat f=new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US);f.setTimeZone(TimeZone.getDefault());return f.format(new Date());}
 }
