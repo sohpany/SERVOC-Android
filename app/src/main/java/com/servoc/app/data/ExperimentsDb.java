@@ -12,7 +12,7 @@ import java.util.List;
 /** Offline-first HazRob database for raw captures, experiments, fingerprints and trained models. */
 public final class ExperimentsDb extends SQLiteOpenHelper {
     public static final int DB_VERSION=3;
-    public ExperimentsDb(Context c){super(c,"hazrob.db",null,DB_VERSION);}
+    public ExperimentsDb(Context c){super(c,"servoc.db",null,DB_VERSION);}
 
     @Override public void onCreate(SQLiteDatabase db){
         db.execSQL("CREATE TABLE experiments(id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, payload TEXT NOT NULL, protocol TEXT, analytics TEXT)");
