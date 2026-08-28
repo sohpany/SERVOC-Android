@@ -72,6 +72,29 @@ public class HazRobAnalyticsTest {
                 ManufacturerEvidenceMatrix.level(GasEngine.MQ8,75)); // H2
     }
 
+    @Test public void mqDataScienceEnvironmentalCorrectionIsDomainGuarded(){
+        ResearchEnvironmentalCorrection.Result mq2=
+                ResearchEnvironmentalCorrection.factor(GasEngine.MQ2,25.0,50.0);
+        assertTrue(mq2.valid);
+        assertTrue(Double.isFinite(mq2.factor));
+        assertTrue(mq2.factor>0);
+
+        ResearchEnvironmentalCorrection.Result out=
+                ResearchEnvironmentalCorrection.factor(GasEngine.MQ2,25.0,20.0);
+        assertFalse(out.valid);
+        assertFalse(Double.isFinite(out.factor));
+
+        ResearchEnvironmentalCorrection.Result mq9=
+                ResearchEnvironmentalCorrection.factor(GasEngine.MQ9,25.0,60.0);
+        assertTrue(mq9.valid);
+    }
+
+    @Test public void mqDataScienceSourceIsPinned(){
+        assertEquals("6.0.0",CurveProvenance.MQDATASCIENCE_VERSION);
+        assertEquals("e88f876140587a708ee84a4d4d3acbd5720274ee",
+                CurveProvenance.MQDATASCIENCE_COMMIT);
+    }
+
     @Test public void unsupportedOxidizerDoesNotReceiveTrainingMask(){
         // Chlorine dioxide catalogue index 10 is intentionally compatibility-review only.
         assertEquals(0,MqSensorAffinity.forChemical(10).mask);
