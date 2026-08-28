@@ -3,6 +3,7 @@ package com.servoc.app;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
@@ -42,7 +43,7 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         prefs = getSharedPreferences("servoc", MODE_PRIVATE);
         api = new RobotApi(prefs.getString("robot", "192.168.4.1"));
-        setContentView(buildUi());
+        setContentView(buildResponsiveUi());
         schedule();
     }
 
@@ -65,70 +66,145 @@ public final class MainActivity extends Activity {
         super.onDestroy();
     }
 
-    private View buildUi() {
-        LinearLayout root = vbox();
-        root.setBackgroundColor(0xFF101010);
-        root.setPadding(dp(8), dp(8), dp(8), dp(12));
+    private View buildResponsiveUi() {
+        boolean wide = isWide();
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(0xFF0E1116);
+        root.setPadding(dp(8), dp(6), dp(8), dp(8));
+        root.addView(buildHeader(), new LinearLayout.LayoutParams(-1, -2));
 
-        TextView title = label("SERVOC CONTROL • v0.2");
-        title.setTextSize(20);
-        title.setGravity(Gravity.CENTER);
-        root.addView(title, new LinearLayout.LayoutParams(-1, -2));
+        FrameLayout videoPanel = buildVideoPanel(wide);
+        View controls = buildControls();
 
-        status = label("DISCONNECTED");
-        status.setGravity(Gravity.CENTER);
-        root.addView(status, new LinearLayout.LayoutParams(-1, -2));
+        if (wide) {
+            LinearLayout body = new LinearLayout(this);
+            body.setOrientation(LinearLayout.HORIZONTAL);
+            body.setGravity(Gravity.CENTER_VERTICAL);
+            LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(0, -1, 1.65f);
+            leftParams.setMargins(0, dp(4), dp(6), 0);
+            body.addView(videoPanel, leftParams);
 
-        FrameLayout videoFrame = new FrameLayout(this);
-        videoFrame.setBackgroundColor(Color.BLACK);
-        root.addView(videoFrame, new LinearLayout.LayoutParams(-1, dp(310)));
+            ScrollView sideScroll = new ScrollView(this);
+            sideScroll.setFillViewport(true);
+            sideScroll.addView(controls);
+            LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(0, -1, 1.0f);
+            rightParams.setMargins(dp(2), dp(4), 0, 0);
+            body.addView(sideScroll, rightParams);
+            root.addView(body, new LinearLayout.LayoutParams(-1, 0, 1f));
+            return root;
+        }
 
-        video = new MjpegView(this);
-        videoFrame.addView(video, new FrameLayout.LayoutParams(-1, -1));
-
-        joystick = new JoystickView(this);
-        FrameLayout.LayoutParams joyParams = new FrameLayout.LayoutParams(dp(135), dp(135), Gravity.END | Gravity.BOTTOM);
-        joyParams.setMargins(0, 0, dp(8), dp(8));
-        videoFrame.addView(joystick, joyParams);
-        joystick.setListener((l, r, active) -> {
-            left = l; right = r;
-            if (!active) { left = right = 0; sendDriveNow(); }
-        });
-
-        LinearLayout settings = vbox();
-        settings.setPadding(dp(8), dp(8), dp(8), dp(8));
-        settings.setBackgroundColor(0xFF1B1B1B);
-        robotIp = input(prefs.getString("robot", "192.168.4.1"));
-        cameraIp = input(prefs.getString("camera", "192.168.4.2"));
-        settings.addView(label("Robot IP")); settings.addView(robotIp, new LinearLayout.LayoutParams(-1, -2));
-        settings.addView(label("Camera IP")); settings.addView(cameraIp, new LinearLayout.LayoutParams(-1, -2));
-        Button apply = new Button(this);
-        apply.setText("Apply connection settings");
-        apply.setAllCaps(false);
-        apply.setOnClickListener(v -> applyNetwork());
-        settings.addView(apply, new LinearLayout.LayoutParams(-1, -2));
-        root.addView(settings, new LinearLayout.LayoutParams(-1, -2));
-
-        Button analysis = new Button(this);
-        analysis.setText("Open OFFLINE Analysis & Libraries");
-        analysis.setAllCaps(false);
-        analysis.setOnClickListener(v -> startActivity(new Intent(this, AnalysisActivity.class)));
-        root.addView(analysis, new LinearLayout.LayoutParams(-1, -2));
-
-        TextView note = label("ESP32 retains the real-time failsafe. The app sends drive heartbeat commands every 250 ms while active. Analytical libraries can now be tested without robot hardware.");
-        note.setTextColor(0xFFBBBBBB);
-        root.addView(note, new LinearLayout.LayoutParams(-1, -2));
-
+        int screenWidth = getResources().getDisplayMetrics().widthPixels;
+        int videoHeight = clamp((int)(screenWidth * 0.70f), dp(230), dp(430));
+        LinearLayout body = vbox();
+        body.addView(videoPanel, new LinearLayout.LayoutParams(-1, videoHeight));
+        body.addView(controls, new LinearLayout.LayoutParams(-1, -2));
+        root.addView(body, new LinearLayout.LayoutParams(-1, -2));
         ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
         scroll.addView(root);
         return scroll;
+    }
+
+    private View buildHeader() {
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(4), dp(2), dp(4), dp(4));
+
+        TextView title = label("HazRob • CONTROL");
+        title.setTextSize(isWide() ? 18 : 20);
+        title.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        header.addView(title, new LinearLayout.LayoutParams(0, -2, 1f));
+
+        status = label("ROBOT OFFLINE");
+        status.setTextSize(13);
+        status.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        status.setTextColor(0xFFFFB74D);
+        header.addView(status, new LinearLayout.LayoutParams(-2, -2));
+        return header;
+    }
+
+    private FrameLayout buildVideoPanel(boolean wide) {
+        FrameLayout frame = new FrameLayout(this);
+        frame.setBackgroundColor(Color.BLACK);
+
+        video = new MjpegView(this);
+        frame.addView(video, new FrameLayout.LayoutParams(-1, -1));
+
+        int shortSide = Math.min(getResources().getDisplayMetrics().widthPixels,
+                getResources().getDisplayMetrics().heightPixels);
+        int joy = clamp((int)(shortSide * (wide ? 0.28f : 0.34f)), dp(112), dp(180));
+        joystick = new JoystickView(this);
+        FrameLayout.LayoutParams joyParams = new FrameLayout.LayoutParams(joy, joy, Gravity.END | Gravity.BOTTOM);
+        joyParams.setMargins(0, 0, dp(10), dp(10));
+        frame.addView(joystick, joyParams);
+        joystick.setListener((l, r, active) -> {
+            left = l;
+            right = r;
+            if (!active) {
+                left = right = 0;
+                sendDriveNow();
+            }
+        });
+
+        TextView cam = label("ESP32-CAM");
+        cam.setTextSize(11);
+        cam.setBackgroundColor(0x88000000);
+        FrameLayout.LayoutParams camParams = new FrameLayout.LayoutParams(-2, -2, Gravity.START | Gravity.TOP);
+        camParams.setMargins(dp(6), dp(6), 0, 0);
+        frame.addView(cam, camParams);
+        return frame;
+    }
+
+    private View buildControls() {
+        LinearLayout panel = vbox();
+        panel.setPadding(dp(8), dp(6), dp(8), dp(10));
+        panel.setBackgroundColor(0xFF181D24);
+
+        Button stop = button("EMERGENCY STOP");
+        stop.setTextColor(Color.WHITE);
+        stop.setBackgroundColor(0xFFC62828);
+        stop.setOnClickListener(v -> hardStop());
+        LinearLayout.LayoutParams stopParams = full();
+        stopParams.height = dp(54);
+        panel.addView(stop, stopParams);
+
+        TextView connectionTitle = label("CONNECTION");
+        connectionTitle.setTextColor(0xFF90CAF9);
+        panel.addView(connectionTitle, full());
+
+        robotIp = input(prefs.getString("robot", "192.168.4.1"));
+        cameraIp = input(prefs.getString("camera", "192.168.4.2"));
+        panel.addView(label("Robot IP"), full());
+        panel.addView(robotIp, full());
+        panel.addView(label("Camera IP"), full());
+        panel.addView(cameraIp, full());
+
+        Button apply = button("Apply connection settings");
+        apply.setOnClickListener(v -> applyNetwork());
+        panel.addView(apply, full());
+
+        Button analysis = button("Analysis • 144 chemical library");
+        analysis.setOnClickListener(v -> startActivity(new Intent(this, AnalysisActivity.class)));
+        panel.addView(analysis, full());
+
+        TextView note = label("Control remains local-first. ESP32 retains real-time failsafe; HazRob transmits drive heartbeat commands every 250 ms while active.");
+        note.setTextSize(12);
+        note.setTextColor(0xFFB8C1CC);
+        panel.addView(note, full());
+        return panel;
     }
 
     private void schedule() {
         workers.scheduleAtFixedRate(() -> {
             if (!resumed) return;
-            try { api.drive(left, right); }
-            catch (Exception e) { ui.post(() -> status.setText("ROBOT OFFLINE")); }
+            try {
+                api.drive(left, right);
+            } catch (Exception e) {
+                ui.post(() -> setOffline());
+            }
         }, 0, 250, TimeUnit.MILLISECONDS);
 
         workers.scheduleAtFixedRate(() -> {
@@ -136,11 +212,20 @@ public final class MainActivity extends Activity {
             try {
                 JSONObject d = api.getJson("/diag", 1200);
                 int clients = d.optInt("clients", 0);
-                ui.post(() -> status.setText("ROBOT ONLINE • clients " + clients));
+                ui.post(() -> {
+                    status.setText("ROBOT ONLINE • " + clients);
+                    status.setTextColor(0xFF81C784);
+                });
             } catch (Exception e) {
-                ui.post(() -> status.setText("ROBOT OFFLINE"));
+                ui.post(this::setOffline);
             }
         }, 0, 2, TimeUnit.SECONDS);
+    }
+
+    private void setOffline() {
+        if (status == null) return;
+        status.setText("ROBOT OFFLINE");
+        status.setTextColor(0xFFFFB74D);
     }
 
     private void applyNetwork() {
@@ -157,13 +242,22 @@ public final class MainActivity extends Activity {
     }
 
     private void sendDriveNow() {
-        workers.execute(() -> { try { api.drive(left, right); } catch (Exception ignored) {} });
+        workers.execute(() -> {
+            try { api.drive(left, right); } catch (Exception ignored) {}
+        });
     }
 
     private void hardStop() {
         left = right = 0;
         if (joystick != null) joystick.reset();
-        workers.execute(() -> { try { api.stop(); } catch (Exception ignored) {} });
+        workers.execute(() -> {
+            try { api.stop(); } catch (Exception ignored) {}
+        });
+    }
+
+    private boolean isWide() {
+        Configuration c = getResources().getConfiguration();
+        return c.orientation == Configuration.ORIENTATION_LANDSCAPE || c.screenWidthDp >= 700;
     }
 
     private LinearLayout vbox() {
@@ -177,7 +271,7 @@ public final class MainActivity extends Activity {
         TextView t = new TextView(this);
         t.setText(text);
         t.setTextColor(Color.WHITE);
-        t.setPadding(dp(7), dp(7), dp(7), dp(7));
+        t.setPadding(dp(7), dp(6), dp(7), dp(6));
         return t;
     }
 
@@ -186,9 +280,26 @@ public final class MainActivity extends Activity {
         e.setText(text);
         e.setTextColor(Color.WHITE);
         e.setSingleLine(true);
-        e.setBackgroundColor(0xFF222222);
-        e.setPadding(dp(8), dp(8), dp(8), dp(8));
+        e.setBackgroundColor(0xFF232A33);
+        e.setPadding(dp(10), dp(9), dp(10), dp(9));
         return e;
+    }
+
+    private Button button(String text) {
+        Button b = new Button(this);
+        b.setText(text);
+        b.setAllCaps(false);
+        return b;
+    }
+
+    private LinearLayout.LayoutParams full() {
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(-1, -2);
+        p.setMargins(0, dp(3), 0, dp(3));
+        return p;
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     private int dp(int v) {
