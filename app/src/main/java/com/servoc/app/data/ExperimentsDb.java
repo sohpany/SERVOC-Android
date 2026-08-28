@@ -9,9 +9,9 @@ import android.database.sqlite.SQLiteOpenHelper;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Offline-first HazRob database for raw captures, experiments, fingerprints and trained models. */
+/** Offline-first HazRob database for raw captures, experiments, fingerprints, calibration and trained models. */
 public final class ExperimentsDb extends SQLiteOpenHelper {
-    public static final int DB_VERSION=3;
+    public static final int DB_VERSION=4;
     public ExperimentsDb(Context c){super(c,"servoc.db",null,DB_VERSION);}
 
     @Override public void onCreate(SQLiteDatabase db){
@@ -19,6 +19,7 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE fingerprints(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, label TEXT NOT NULL, created_ts TEXT NOT NULL, payload TEXT NOT NULL)");
         db.execSQL("CREATE TABLE captures(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, known_ppm REAL, ts TEXT NOT NULL, session_id TEXT, temp_c REAL, rh REAL, phase TEXT, sensor_payload TEXT NOT NULL, feature_payload TEXT)");
         db.execSQL("CREATE TABLE models(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, model_type TEXT NOT NULL, version TEXT NOT NULL, created_ts TEXT NOT NULL, training_count INTEGER, metrics TEXT, payload TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 0)");
+        createCalibrationTables(db);
         db.execSQL("CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)");
     }
 
@@ -33,6 +34,16 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
             db.execSQL("CREATE TABLE IF NOT EXISTS captures(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, known_ppm REAL, ts TEXT NOT NULL, session_id TEXT, temp_c REAL, rh REAL, phase TEXT, sensor_payload TEXT NOT NULL, feature_payload TEXT)");
             db.execSQL("CREATE TABLE IF NOT EXISTS models(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, model_type TEXT NOT NULL, version TEXT NOT NULL, created_ts TEXT NOT NULL, training_count INTEGER, metrics TEXT, payload TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 0)");
         }
+        if(oldVersion<4){
+            createCalibrationTables(db);
+        }
+    }
+
+    private static void createCalibrationTables(SQLiteDatabase db){
+        db.execSQL("CREATE TABLE IF NOT EXISTS calibration_curves(id INTEGER PRIMARY KEY AUTOINCREMENT, sensor_id INTEGER NOT NULL, chemical_id INTEGER NOT NULL, version TEXT NOT NULL, created_ts TEXT NOT NULL, reference_gas TEXT, source_note TEXT, r2 REAL, active INTEGER NOT NULL DEFAULT 0)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS calibration_points(id INTEGER PRIMARY KEY AUTOINCREMENT, curve_id INTEGER NOT NULL, seq INTEGER NOT NULL, ppm REAL NOT NULL, ratio REAL NOT NULL, temp_c REAL, rh REAL, FOREIGN KEY(curve_id) REFERENCES calibration_curves(id) ON DELETE CASCADE)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_cal_curve_target ON calibration_curves(sensor_id,chemical_id,active)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_cal_points_curve ON calibration_points(curve_id,seq)");
     }
 
     public long save(String ts,String payload){return save(ts,payload,"","");}
@@ -68,6 +79,33 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
         return getWritableDatabase().insert("models",null,v);
     }
     public int modelCount(){try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM models",null)){return c.moveToFirst()?c.getInt(0):0;}}
+
+    /** Saves one calibration curve atomically. Existing active curve for the same sensor/analyte is retained but deactivated. */
+    public long saveCalibrationCurve(int sensorId,int chemicalId,String version,String createdTs,
+                                     String referenceGas,String sourceNote,double r2,
+                                     double[] ppm,double[] ratio,Double tempC,Double rh,
+                                     boolean active){
+        if(ppm==null||ratio==null||ppm.length!=ratio.length||ppm.length<2)
+            throw new IllegalArgumentException("paired calibration points required");
+        SQLiteDatabase db=getWritableDatabase();
+        db.beginTransaction();
+        try{
+            if(active)db.execSQL("UPDATE calibration_curves SET active=0 WHERE sensor_id=? AND chemical_id=?",new Object[]{sensorId,chemicalId});
+            ContentValues cv=new ContentValues();
+            cv.put("sensor_id",sensorId);cv.put("chemical_id",chemicalId);cv.put("version",version);cv.put("created_ts",createdTs);
+            cv.put("reference_gas",referenceGas);cv.put("source_note",sourceNote);if(Double.isFinite(r2))cv.put("r2",r2);cv.put("active",active?1:0);
+            long curveId=db.insertOrThrow("calibration_curves",null,cv);
+            for(int i=0;i<ppm.length;i++){
+                ContentValues p=new ContentValues();p.put("curve_id",curveId);p.put("seq",i);p.put("ppm",ppm[i]);p.put("ratio",ratio[i]);
+                if(tempC!=null)p.put("temp_c",tempC);if(rh!=null)p.put("rh",rh);
+                db.insertOrThrow("calibration_points",null,p);
+            }
+            db.setTransactionSuccessful();
+            return curveId;
+        }finally{db.endTransaction();}
+    }
+
+    public int calibrationCurveCount(){try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM calibration_curves",null)){return c.moveToFirst()?c.getInt(0):0;}}
 
     public void putMeta(String key,String value){
         ContentValues v=new ContentValues();v.put("k",key);v.put("v",value==null?"":value);
