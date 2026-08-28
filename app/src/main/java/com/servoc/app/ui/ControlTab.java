@@ -22,6 +22,7 @@ public final class ControlTab {
     private final TextView drive;
     private final Button flash;
     private final MjpegView video;
+    private final JoystickView joystick;
 
     public ControlTab(Context c,HazRobHost host){
         this.c=c;this.host=host;
@@ -37,7 +38,7 @@ public final class ControlTab {
 
         FrameLayout cameraBox=new FrameLayout(c);cameraBox.setBackgroundColor(Color.BLACK);
         video=new MjpegView(c);cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
-        JoystickView joystick=new JoystickView(c);
+        joystick=new JoystickView(c);
         int size=UiKit.dp(c,150);
         FrameLayout.LayoutParams jp=new FrameLayout.LayoutParams(size,size,Gravity.END|Gravity.BOTTOM);
         jp.setMargins(0,0,UiKit.dp(c,10),UiKit.dp(c,10));cameraBox.addView(joystick,jp);
@@ -55,6 +56,7 @@ public final class ControlTab {
     }
 
     public View view(){return root;}
+    public void resetJoystick(){joystick.reset();}
 
     public void startCamera(){
         String h=host.cameraHost(); if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");
