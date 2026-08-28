@@ -1,5 +1,6 @@
 package com.servoc.app.chemical;
 
+import com.servoc.app.calibration.CalibrationCurveProvider;
 import com.servoc.app.exposure.ExposureLimits;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -8,10 +9,8 @@ import java.util.List;
 
 /**
  * Evidence-weighted analysis layer for the physically installed MQ array.
- *
- * Primary-target contributions carry full weight. Datasheet cross-response
- * contributions can improve fingerprint/consensus evidence but cannot, by
- * themselves, promote a result to validated quantitative status.
+ * Device-specific empirical calibrations are preferred over generic graph fits.
+ * Generic cross-response equations remain supporting evidence only.
  */
 public final class ValidatedGasEngine {
     private ValidatedGasEngine() {}
@@ -22,6 +21,7 @@ public final class ValidatedGasEngine {
         public final double agreement;
         public final int totalContributors;
         public final int primaryContributors;
+        public final int calibratedContributors;
         public final int crossContributors;
         public final int rejectedContributors;
         public final int confidence;
@@ -31,11 +31,13 @@ public final class ValidatedGasEngine {
 
         Result(int chemical, double ppm, double agreement,
                int totalContributors, int primaryContributors,
-               int crossContributors, int rejectedContributors,
-               int confidence, boolean quantitative, int risk, String note) {
+               int calibratedContributors, int crossContributors,
+               int rejectedContributors, int confidence,
+               boolean quantitative, int risk, String note) {
             this.chemical=chemical; this.ppm=ppm; this.agreement=agreement;
             this.totalContributors=totalContributors;
             this.primaryContributors=primaryContributors;
+            this.calibratedContributors=calibratedContributors;
             this.crossContributors=crossContributors;
             this.rejectedContributors=rejectedContributors;
             this.confidence=confidence; this.quantitative=quantitative;
@@ -50,23 +52,61 @@ public final class ValidatedGasEngine {
     }
 
     public static List<Result> analyze(double[] ratios, boolean[] heaterCycleValid) {
+        return analyze(ratios,heaterCycleValid,null,false);
+    }
+
+    public static List<Result> analyze(double[] ratios, boolean[] heaterCycleValid,
+                                       CalibrationCurveProvider calibration,
+                                       boolean identityConfirmed) {
         List<Result> out=new ArrayList<>();
         if(ratios==null) return out;
         for(int chem:GasEngine.SUPPORTED){
-            Result r=analyzeOne(ratios,chem,heaterCycleValid);
+            Result r=analyzeOne(ratios,chem,heaterCycleValid,calibration,identityConfirmed);
             if(r!=null) out.add(r);
         }
         return out;
     }
 
     public static Result analyzeOne(double[] ratios, int chemical, boolean[] heaterCycleValid) {
+        return analyzeOne(ratios,chemical,heaterCycleValid,null,false);
+    }
+
+    public static Result analyzeOne(double[] ratios, int chemical, boolean[] heaterCycleValid,
+                                    CalibrationCurveProvider calibration,
+                                    boolean identityConfirmed) {
         List<GasEngine.Estimate> raw=GasEngine.estimatesForChemical(ratios,chemical);
-        if(raw.isEmpty()) return null;
+        if(raw.isEmpty() && calibration==null) return null;
 
         List<WeightedValue> accepted=new ArrayList<>();
-        int primary=0, cross=0, rejected=0;
+        int primary=0, calibrated=0, cross=0, rejected=0;
+        boolean[] usedSensor=new boolean[Math.max(8,ratios==null?0:ratios.length)];
 
+        // First pass: device-specific calibration has priority and prevents duplicate use
+        // of the generic equation for the same sensor/analyte pair.
+        if(calibration!=null && ratios!=null){
+            for(int sensor=0;sensor<ratios.length && sensor<usedSensor.length;sensor++){
+                double ratio=ratios[sensor];
+                if(!Double.isFinite(ratio)||ratio<=0) continue;
+                CalibrationCurveProvider.Estimate ce=calibration.estimate(sensor,chemical,ratio);
+                if(ce==null||!ce.valid||!ce.referenceValidated||!Double.isFinite(ce.ppm)||ce.ppm<=0) continue;
+                boolean heaterOk=heaterCycleValid==null || sensor>=heaterCycleValid.length || heaterCycleValid[sensor];
+                SensorOperatingEnvelope.Check envelope=SensorOperatingEnvelope.check(sensor,chemical,ce.ppm,heaterOk);
+                if(envelope.status==SensorOperatingEnvelope.OUT_OF_RANGE ||
+                        envelope.status==SensorOperatingEnvelope.HEATER_PROTOCOL_INVALID){
+                    rejected++;
+                    continue;
+                }
+                accepted.add(new WeightedValue(Math.log10(ce.ppm),2.0));
+                usedSensor[sensor]=true;
+                calibrated++;
+                if(envelope.status==SensorOperatingEnvelope.PRIMARY_TARGET) primary++;
+                else cross++;
+            }
+        }
+
+        // Second pass: inherited/datasheet-fit equations are fallback evidence.
         for(GasEngine.Estimate e:raw){
+            if(e.sensor<usedSensor.length && usedSensor[e.sensor]) continue;
             boolean heaterOk=heaterCycleValid==null || e.sensor>=heaterCycleValid.length || heaterCycleValid[e.sensor];
             SensorOperatingEnvelope.Check c=SensorOperatingEnvelope.check(e.sensor,chemical,e.ppm,heaterOk);
             if(c.status==SensorOperatingEnvelope.PRIMARY_TARGET){
@@ -89,19 +129,27 @@ public final class ValidatedGasEngine {
         double mad=weightedMedian(deviations);
         double agreement=Math.max(0,Math.min(100,100*Math.exp(-1.8*mad)));
 
-        boolean quantitative=primary>0;
+        // A calibrated cross-response can become quantitative only after the analyte
+        // identity has been independently confirmed by the fingerprint/classifier.
+        boolean quantitative=primary>0 || (calibrated>0 && identityConfirmed);
         int confidence;
-        if(primary>=2 && agreement>=65) confidence=GasEngine.HIGH;
-        else if(primary>=1 && accepted.size()>=2 && agreement>=45) confidence=GasEngine.STRONG;
+        if((calibrated>=2 || primary>=2) && agreement>=65) confidence=GasEngine.HIGH;
+        else if((calibrated>=1 || primary>=1) && accepted.size()>=2 && agreement>=45) confidence=GasEngine.STRONG;
         else confidence=GasEngine.SUSPECTED;
 
-        // Exposure screening is withheld from cross-response-only estimates.
         int risk=quantitative ? ExposureLimits.screeningRisk(chemical,ppm) : -1;
-        String note=quantitative
-                ? "At least one manufacturer primary-target sensor contributes; cross-response channels are down-weighted."
-                : "Cross-response evidence only: use for fingerprint/research, not quantitative safety decisions.";
+        String note;
+        if(calibrated>0 && quantitative){
+            note="Device-specific reference-gas calibration is active; generic MQ equations are fallback evidence only.";
+        } else if(primary>0){
+            note="Manufacturer primary-target sensor contributes; cross-response channels are down-weighted. Device-specific calibration is still recommended.";
+        } else if(calibrated>0){
+            note="A calibrated cross-response exists, but analyte identity is not independently confirmed; concentration is withheld from safety decisions.";
+        } else {
+            note="Cross-response evidence only: use for fingerprint/research, not quantitative safety decisions.";
+        }
 
-        return new Result(chemical,ppm,agreement,accepted.size(),primary,cross,rejected,
+        return new Result(chemical,ppm,agreement,accepted.size(),primary,calibrated,cross,rejected,
                 confidence,quantitative,risk,note);
     }
 
