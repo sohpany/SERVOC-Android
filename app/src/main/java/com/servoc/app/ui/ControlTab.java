@@ -14,6 +14,7 @@ import android.widget.TextView;
 import com.servoc.app.camera.MjpegRecorder;
 import com.servoc.app.camera.MjpegView;
 import com.servoc.app.control.JoystickView;
+import com.servoc.app.data.EvidenceFileStore;
 import com.servoc.app.data.EvidenceStore;
 import com.servoc.app.vision.FlameEvidenceTracker;
 import com.servoc.app.vision.FlameFrameAnalyzer;
@@ -24,6 +25,7 @@ import java.util.Date;
 import java.util.Locale;
 
 public final class ControlTab {
+    private final Context appContext;
     private final HazRobHost host;
     private final LinearLayout root;
     private final TextView status,drive,recordInfo,flameInfo;
@@ -35,10 +37,14 @@ public final class ControlTab {
     private volatile String recordingSessionId,recordingStartedTs;
     private volatile long recordingStartedElapsed;
     private volatile boolean recordingStopping=false;
+    private volatile String flameEvidenceSessionId;
+    private volatile long flameEvidenceStartedElapsed;
+    private volatile boolean flameEvidenceStandalone=false;
     private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;
+    private FlameFrameAnalyzer.Result lastFlameResult;
 
     public ControlTab(Context c,HazRobHost host){
-        this.host=host;
+        this.appContext=c.getApplicationContext();this.host=host;
         root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,8));root.setBackgroundColor(0xFF0E1116);
 
         LinearLayout header=UiKit.hbox(c);
@@ -87,10 +93,7 @@ public final class ControlTab {
         });
     }
 
-    private synchronized boolean claimSession(String expected){
-        if(expected==null||!expected.equals(recordingSessionId))return false;
-        recordingSessionId=null;recordingStartedTs=null;recordingStartedElapsed=0;return true;
-    }
+    private synchronized boolean claimSession(String expected){if(expected==null||!expected.equals(recordingSessionId))return false;recordingSessionId=null;recordingStartedTs=null;recordingStartedElapsed=0;return true;}
 
     private void persistRecording(String session,String start,String end,String reason,MjpegRecorder.StopResult r){
         JSONObject meta=new JSONObject();try{meta.put("format","HAZROB_RAW_MJPEG_V1");meta.put("frames",r.frames);meta.put("dropped_frames",r.dropped);meta.put("stop_reason",reason);meta.put("camera_host",host.cameraHost());meta.put("clean_close",r.clean());if(r.error!=null)meta.put("io_error",r.error);if(r.index!=null)meta.put("index_uri",Uri.fromFile(r.index).toString());}catch(Exception ignored){}
@@ -98,34 +101,48 @@ public final class ControlTab {
     }
 
     private void showFlame(FlameFrameAnalyzer.Result r){
-        if(r==null||r.frame==null||r.temporal==null)return;
+        if(r==null||r.frame==null||r.temporal==null)return;lastFlameResult=r;
         FlameEvidenceTracker.State now=r.temporal.state,previous=lastFlameState;lastFlameState=now;
         String state=now==FlameEvidenceTracker.State.PERSISTENT?"مستمر":now==FlameEvidenceTracker.State.CANDIDATE?"مرشح":"لا دليل";
-        StringBuilder s=new StringBuilder("دليل اللهب البصري التجريبي: ").append(state)
-                .append(" • score ").append(String.format(Locale.US,"%.0f%%",100*r.frame.score))
-                .append(" • pixels ").append(String.format(Locale.US,"%.1f%%",100*r.frame.candidateRatio))
-                .append(" • EMA ").append(String.format(Locale.US,"%.0f%%",100*r.temporal.ema));
+        StringBuilder s=new StringBuilder("دليل اللهب البصري التجريبي: ").append(state).append(" • score ").append(String.format(Locale.US,"%.0f%%",100*r.frame.score)).append(" • pixels ").append(String.format(Locale.US,"%.1f%%",100*r.frame.candidateRatio)).append(" • EMA ").append(String.format(Locale.US,"%.0f%%",100*r.temporal.ema));
         if(r.frame.hasRegion())s.append(String.format(Locale.US,"\nمنطقة تقريبية L%.2f T%.2f R%.2f B%.2f",r.frame.left,r.frame.top,r.frame.right,r.frame.bottom));
-        flameInfo.setText(s.toString());
-        flameInfo.setTextColor(now==FlameEvidenceTracker.State.PERSISTENT?0xFFFF7043:now==FlameEvidenceTracker.State.CANDIDATE?0xFFFFB74D:0xFF90A4AE);
-        if(now==FlameEvidenceTracker.State.PERSISTENT&&previous!=FlameEvidenceTracker.State.PERSISTENT)persistFlameEvent("flame_visual_onset",r);
-        else if(previous==FlameEvidenceTracker.State.PERSISTENT&&now==FlameEvidenceTracker.State.CLEAR)persistFlameEvent("flame_visual_clear",r);
+        flameInfo.setText(s.toString());flameInfo.setTextColor(now==FlameEvidenceTracker.State.PERSISTENT?0xFFFF7043:now==FlameEvidenceTracker.State.CANDIDATE?0xFFFFB74D:0xFF90A4AE);
+        if(now==FlameEvidenceTracker.State.PERSISTENT&&previous!=FlameEvidenceTracker.State.PERSISTENT)beginFlameEvidence(r);
+        else if(previous==FlameEvidenceTracker.State.PERSISTENT&&now==FlameEvidenceTracker.State.CLEAR)endFlameEvidence(r,"clear");
     }
 
-    private void persistFlameEvent(String type,FlameFrameAnalyzer.Result r){
-        JSONObject p=new JSONObject();try{p.put("observed_utc",EvidenceStore.isoNow());p.put("model","FlameColorModel+TemporalEvidence/0.6");p.put("frame_score",r.frame.score);p.put("candidate_ratio",r.frame.candidateRatio);p.put("bright_candidate_ratio",r.frame.brightCandidateRatio);p.put("ema",r.temporal.ema);p.put("state",r.temporal.state.name());if(r.frame.hasRegion()){p.put("left",r.frame.left);p.put("top",r.frame.top);p.put("right",r.frame.right);p.put("bottom",r.frame.bottom);}}catch(Exception ignored){}
-        final String session=recordingSessionId,payload=p.toString();final long started=recordingStartedElapsed,t=session!=null&&started>0?Math.max(0,r.elapsedMs-started):0;final double confidence=r.temporal.ema;
-        host.io().execute(()->{try{EvidenceStore.saveEvent(host.database(),session,t,type,confidence,payload);}catch(Exception ignored){}});
+    private void beginFlameEvidence(FlameFrameAnalyzer.Result r){
+        String session=recordingSessionId;boolean standalone=false;
+        try{if(session==null){session=EvidenceStore.startStandaloneSession(host.database(),host.operatorRole(),"vision_flame_event");standalone=true;}}
+        catch(Exception e){session=null;}
+        flameEvidenceSessionId=session;flameEvidenceStandalone=standalone;flameEvidenceStartedElapsed=r.elapsedMs;
+        persistFlameEvidence("flame_visual_onset",r,session,eventTime(session,r.elapsedMs),true,false,"persistent");
+    }
+
+    private void endFlameEvidence(FlameFrameAnalyzer.Result r,String reason){
+        final String session=flameEvidenceSessionId;if(session==null)return;final boolean finish=flameEvidenceStandalone;long elapsed=r==null?SystemClock.elapsedRealtime():r.elapsedMs;persistFlameEvidence("flame_visual_clear",r,session,eventTime(session,elapsed),false,finish,reason);flameEvidenceSessionId=null;flameEvidenceStandalone=false;flameEvidenceStartedElapsed=0;
+    }
+
+    private long eventTime(String session,long elapsed){
+        if(session!=null&&session.equals(recordingSessionId)&&recordingStartedElapsed>0)return Math.max(0,elapsed-recordingStartedElapsed);
+        if(session!=null&&session.equals(flameEvidenceSessionId)&&flameEvidenceStartedElapsed>0)return Math.max(0,elapsed-flameEvidenceStartedElapsed);return 0;
+    }
+
+    private void persistFlameEvidence(String type,FlameFrameAnalyzer.Result r,String session,long t,boolean snapshot,boolean finishStandalone,String reason){
+        final String observed=EvidenceStore.isoNow();final byte[] jpeg=snapshot&&r!=null?r.jpeg:null;final double confidence=r==null||r.temporal==null?Double.NaN:r.temporal.ema;
+        host.io().execute(()->{
+            JSONObject p=new JSONObject();try{p.put("observed_utc",observed);p.put("model","FlameColorModel+TemporalEvidence/0.6");p.put("reason",reason);if(r!=null&&r.frame!=null&&r.temporal!=null){p.put("frame_score",r.frame.score);p.put("candidate_ratio",r.frame.candidateRatio);p.put("bright_candidate_ratio",r.frame.brightCandidateRatio);p.put("ema",r.temporal.ema);p.put("state",r.temporal.state.name());if(r.frame.hasRegion()){p.put("left",r.frame.left);p.put("top",r.frame.top);p.put("right",r.frame.right);p.put("bottom",r.frame.bottom);}}if(jpeg!=null){EvidenceFileStore.SavedFile f=EvidenceFileStore.saveJpeg(appContext,"HazRob_flame_"+System.currentTimeMillis(),jpeg);p.put("snapshot_uri",f.uri);p.put("snapshot_sha256",f.sha256);p.put("snapshot_bytes",f.bytes);JSONObject im=new JSONObject();im.put("sha256",f.sha256);im.put("bytes",f.bytes);im.put("event",type);EvidenceStore.saveMedia(host.database(),session,"image/jpeg",f.uri,observed,observed,im.toString());}}catch(Exception e){try{p.put("snapshot_error",e.getClass().getSimpleName());}catch(Exception ignored){}}try{EvidenceStore.saveEvent(host.database(),session,t,type,Double.isFinite(confidence)?confidence:null,p.toString());if(finishStandalone)EvidenceStore.finishStandaloneSession(host.database(),session,p.toString());}catch(Exception ignored){}
+        });
     }
 
     public View view(){return root;}
     public void resetJoystick(){joystick.reset();}
     public void startCamera(){String h=host.cameraHost();if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");}
-    public void stopCamera(){video.stop();flameAnalyzer.reset();lastFlameState=FlameEvidenceTracker.State.CLEAR;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recordingSessionId!=null&&!recordingStopping)requestStopRecording("camera_stop",false);}
+    public void stopCamera(){if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"camera_stop");video.stop();flameAnalyzer.reset();lastFlameState=FlameEvidenceTracker.State.CLEAR;lastFlameResult=null;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recordingSessionId!=null&&!recordingStopping)requestStopRecording("camera_stop",false);}
 
     /** Lifecycle teardown fallback: close and persist synchronously before DB/executor shutdown. */
     public void releaseCamera(){
-        video.stop();flameAnalyzer.release();
+        if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"release");video.stop();flameAnalyzer.release();
         String session=recordingSessionId,start=recordingStartedTs;if(session!=null&&claimSession(session)){MjpegRecorder.StopResult r=recorder.stopNow();persistRecording(session,start,EvidenceStore.isoNow(),"release",r);}recorder.release();video.release();
     }
 
@@ -133,9 +150,7 @@ public final class ControlTab {
         String fm=host.flashMode();flash.setText("الفلاش: "+("on".equals(fm)?"تشغيل":"auto".equals(fm)?"تلقائي":"إيقاف"));
         if(recordingSessionId!=null&&!recordingStopping&&!recorder.isRecording()&&recorder.lastError()!=null){requestStopRecording("io_error",false);return;}
         if(recorder.isRecording())recordInfo.setText("جارٍ التسجيل • "+recorder.frameCount()+" إطار • مسقط "+recorder.droppedFrames()+"\nجلسة "+recordingSessionId);
-        JSONObject d=host.latestDiagnostics();
-        if(d==null){status.setText("الروبوت غير متصل");status.setTextColor(0xFFFFB74D);drive.setText("يسار "+host.driveLeft()+"   يمين "+host.driveRight()+"   أمان الاتصال —");return;}
-        status.setText("متصل • "+d.optInt("clients",0));status.setTextColor(0xFF81C784);
-        JSONObject x=d.optJSONObject("drive");if(x!=null)drive.setText("يسار "+x.optInt("left",host.driveLeft())+"   يمين "+x.optInt("right",host.driveRight())+"   أمان الاتصال "+(x.optBoolean("failsafe",false)?"مفعّل":"سليم"));
+        JSONObject d=host.latestDiagnostics();if(d==null){status.setText("الروبوت غير متصل");status.setTextColor(0xFFFFB74D);drive.setText("يسار "+host.driveLeft()+"   يمين "+host.driveRight()+"   أمان الاتصال —");return;}
+        status.setText("متصل • "+d.optInt("clients",0));status.setTextColor(0xFF81C784);JSONObject x=d.optJSONObject("drive");if(x!=null)drive.setText("يسار "+x.optInt("left",host.driveLeft())+"   يمين "+x.optInt("right",host.driveRight())+"   أمان الاتصال "+(x.optBoolean("failsafe",false)?"مفعّل":"سليم"));
     }
 }
