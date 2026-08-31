@@ -13,6 +13,7 @@ public interface HazRobHost {
     SharedPreferences preferences();
     ExperimentsDb database();
     ExecutorService io();
+    String operatorRole();
     JSONObject latestDiagnostics();
     void setLatestDiagnostics(JSONObject value);
     void showToast(String text);
