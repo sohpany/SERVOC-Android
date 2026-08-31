@@ -1,0 +1,5231 @@
+{
+  "schema": "hazrob.chemical-seed.v1",
+  "generated_utc": "2026-08-31T09:44:32Z",
+  "record_count": 652,
+  "provenance": {
+    "source_kind": "official",
+    "authority": "NIOSH",
+    "authoritative": true,
+    "source": "https://www.cdc.gov/niosh/npg/npgdcas.html",
+    "source_sha256": "f39fbc4fcfcdfe84c331fcdb1f637e1c8a2a1ed3cb8e7c597f6a23844fcf2f52"
+  },
+  "source_sha256": "f39fbc4fcfcdfe84c331fcdb1f637e1c8a2a1ed3cb8e7c597f6a23844fcf2f52",
+  "records": [
+    {
+      "cas": "100-00-5",
+      "name_en": "p-Nitrochlorobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0452.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "100-01-6",
+      "name_en": "p-Nitroaniline",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0449.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "100-25-4",
+      "name_en": "p-Dinitrobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0233.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "100-37-8",
+      "name_en": "2-Diethylaminoethanol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0210.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "100-41-4",
+      "name_en": "Ethyl benzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0264.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "100-42-5",
+      "name_en": "Styrene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0571.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "100-44-7",
+      "name_en": "Benzyl chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0053.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "100-61-8",
+      "name_en": "Monomethyl aniline",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0436.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "100-63-0",
+      "name_en": "Phenylhydrazine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0499.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "100-74-3",
+      "name_en": "N-Ethylmorpholine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0281.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10022-31-8",
+      "name_en": "Barium nitrate (as Ba)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0046.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10024-97-2",
+      "name_en": "Nitrous oxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0465.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10025-67-9",
+      "name_en": "Sulfur monochloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0578.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10025-87-3",
+      "name_en": "Phosphorus oxychloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0508.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10026-13-8",
+      "name_en": "Phosphorus pentachloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0509.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10028-15-6",
+      "name_en": "Ozone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0476.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10035-10-6",
+      "name_en": "Hydrogen bromide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0331.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10049-04-4",
+      "name_en": "Chlorine dioxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0116.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "101-14-4",
+      "name_en": "4,4'-Methylenebis(2-chloroaniline)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0411.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "101-68-8",
+      "name_en": "Methylene bisphenyl isocyanate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0413.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "101-77-9",
+      "name_en": "4,4'-Methylenedianiline",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0415.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "101-84-8",
+      "name_en": "Phenyl ether (vapor)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0496.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10102-43-9",
+      "name_en": "Nitric oxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0448.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10102-44-0",
+      "name_en": "Nitrogen dioxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0454.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "102-54-5",
+      "name_en": "Dicyclopentadienyl iron",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0205.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "102-81-8",
+      "name_en": "2-N-Dibutylaminoethanol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0185.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10210-68-1",
+      "name_en": "Cobalt carbonyl (as Co)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0147.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10294-33-4",
+      "name_en": "Boron tribromide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0061.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "10361-37-2",
+      "name_en": "Barium chloride (as Ba)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0045.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "104-94-9",
+      "name_en": "p-Anisidine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0035.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "105-46-4",
+      "name_en": "sec-Butyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0073.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "105-60-2",
+      "name_en": "Caprolactam",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0097.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-35-4",
+      "name_en": "Ethyl butyl ketone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0266.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-42-3",
+      "name_en": "p-Xylene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0670.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-44-5",
+      "name_en": "p-Cresol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0156.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-46-7",
+      "name_en": "p-Dichlorobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0190.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-49-0",
+      "name_en": "p-Toluidine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0624.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-50-3",
+      "name_en": "p-Phenylene diamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0495.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-51-4",
+      "name_en": "Quinone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0542.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-87-6",
+      "name_en": "Vinyl cyclohexene dioxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0659.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-89-8",
+      "name_en": "Epichlorohydrin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0254.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-92-3",
+      "name_en": "Allyl glycidyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0019.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-93-4",
+      "name_en": "Ethylene dibromide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0270.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-97-8",
+      "name_en": "n-Butane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0068.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "106-99-0",
+      "name_en": "1,3-Butadiene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0067.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-02-8",
+      "name_en": "Acrolein",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0011.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-03-9",
+      "name_en": "1-Propanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0526.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-05-1",
+      "name_en": "Allyl chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0018.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-06-2",
+      "name_en": "Ethylene dichloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0271.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-07-3",
+      "name_en": "Ethylene chlorohydrin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0268.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-12-0",
+      "name_en": "Propionitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0530.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-13-1",
+      "name_en": "Acrylonitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0014.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-15-3",
+      "name_en": "Ethylenediamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0269.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-16-4",
+      "name_en": "Glycolonitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0304.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-18-6",
+      "name_en": "Allyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0017.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-19-7",
+      "name_en": "Propargyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0527.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-20-0",
+      "name_en": "Chloroacetaldehyde",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0118.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-21-1",
+      "name_en": "Ethylene glycol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0272.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-30-2",
+      "name_en": "Chloromethyl methyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0129.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-31-3",
+      "name_en": "Methyl formate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0417.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-41-5",
+      "name_en": "Hexylene glycol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0328.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-49-3",
+      "name_en": "TEPP",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0590.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-66-4",
+      "name_en": "Dibutyl phosphate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0186.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-87-9",
+      "name_en": "2-Pentanone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0488.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "107-98-2",
+      "name_en": "Propylene glycol monomethyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0536.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-03-2",
+      "name_en": "1-Nitropropane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0459.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-05-4",
+      "name_en": "Vinyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0656.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-10-1",
+      "name_en": "Hexone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0326.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-11-2",
+      "name_en": "Methyl isobutyl carbinol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0422.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-18-9",
+      "name_en": "Diisopropylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0217.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-20-3",
+      "name_en": "Isopropyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0362.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-21-4",
+      "name_en": "Isopropyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0358.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-24-7",
+      "name_en": "Acetic anhydride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0003.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-31-6",
+      "name_en": "Maleic anhydride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0376.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-38-3",
+      "name_en": "m-Xylene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0669.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-39-4",
+      "name_en": "m-Cresol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0155.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-44-1",
+      "name_en": "m-Toluidine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0623.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-46-3",
+      "name_en": "Resorcinol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0543.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-67-8",
+      "name_en": "1,3,5-Trimethylbenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0639.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-83-8",
+      "name_en": "Diisobutyl ketone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0216.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-84-9",
+      "name_en": "sec-Hexyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0327.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-87-2",
+      "name_en": "Methylcyclohexane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0406.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-88-3",
+      "name_en": "Toluene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0619.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-90-7",
+      "name_en": "Chlorobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0121.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-91-8",
+      "name_en": "Cyclohexylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0168.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-93-0",
+      "name_en": "Cyclohexanol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0165.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-94-1",
+      "name_en": "Cyclohexanone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0166.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-95-2",
+      "name_en": "Phenol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0493.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "108-98-5",
+      "name_en": "Benzenethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0050.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-59-1",
+      "name_en": "2-Isopropoxyethanol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0357.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-60-4",
+      "name_en": "n-Propyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0532.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-66-0",
+      "name_en": "n-Pentane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0486.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-73-9",
+      "name_en": "n-Butylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0079.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-74-0",
+      "name_en": "n-Butyronitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0086.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-77-3",
+      "name_en": "Malononitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0378.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-79-5",
+      "name_en": "n-Butyl mercaptan",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0083.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-86-4",
+      "name_en": "Methyl Cellosolve®",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0401.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-87-5",
+      "name_en": "Methylal",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0396.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-89-7",
+      "name_en": "Diethylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0209.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-94-4",
+      "name_en": "Ethyl formate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0278.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "109-99-9",
+      "name_en": "Tetrahydrofuran",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0602.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-12-3",
+      "name_en": "Methyl isoamyl ketone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0421.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-19-0",
+      "name_en": "Isobutyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0351.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-43-0",
+      "name_en": "Methyl (n-amyl) ketone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0399.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-49-6",
+      "name_en": "Methyl Cellosolve® acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0402.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-54-3",
+      "name_en": "n-Hexane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0322.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-61-2",
+      "name_en": "Succinonitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0573.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-62-3",
+      "name_en": "n-Valeraldehyde",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0652.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-66-7",
+      "name_en": "1-Pentanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0487.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-80-5",
+      "name_en": "2-Ethoxyethanol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0258.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-82-7",
+      "name_en": "Cyclohexane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0163.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-83-8",
+      "name_en": "Cyclohexene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0167.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-86-1",
+      "name_en": "Pyridine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0541.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "110-91-8",
+      "name_en": "Morpholine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0437.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "11097-69-1",
+      "name_en": "Chlorodiphenyl (54% chlorine)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0126.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-15-9",
+      "name_en": "2-Ethoxyethyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0259.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-30-8",
+      "name_en": "Glutaraldehyde",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0301.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-31-9",
+      "name_en": "n-Hexanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0324.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-40-0",
+      "name_en": "Diethylenetriamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0211.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-42-2",
+      "name_en": "Diethanolamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0208.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-44-4",
+      "name_en": "Dichloroethyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0196.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-65-9",
+      "name_en": "Octane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0470.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-69-3",
+      "name_en": "Adiponitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0015.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-76-2",
+      "name_en": "2-Butoxyethanol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0070.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-84-2",
+      "name_en": "Nonane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0466.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "111-88-6",
+      "name_en": "1-Octanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0471.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "11107-01-0",
+      "name_en": "Tungsten carbide (cemented)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0647.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "112-07-2",
+      "name_en": "2-Butoxyethanol acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0071.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "112-55-0",
+      "name_en": "1-Dodecanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0249.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1120-71-4",
+      "name_en": "Propane sultone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0525.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "114-26-1",
+      "name_en": "Propoxur",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0531.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "115-29-7",
+      "name_en": "Endosulfan",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0251.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "115-77-5",
+      "name_en": "Pentaerythritol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0485.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "115-86-6",
+      "name_en": "Triphenyl phosphate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0644.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "115-90-2",
+      "name_en": "Fensulfothion",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0284.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "117-81-7",
+      "name_en": "Di-sec octyl phthalate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0236.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "118-52-5",
+      "name_en": "1,3-Dichloro-5,5-dimethylhydantoin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0193.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "118-96-7",
+      "name_en": "2,4,6-Trinitrotoluene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0641.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1189-85-1",
+      "name_en": "tert-Butyl chromate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0080.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "119-90-4",
+      "name_en": "o-Dianisidine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0180.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "119-93-7",
+      "name_en": "o-Tolidine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0618.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "120-80-9",
+      "name_en": "Catechol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0109.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "120-82-1",
+      "name_en": "1,2,4-Trichlorobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0627.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "12001-26-2",
+      "name_en": "Mica (containing less than 1% quartz)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0431.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "12079-65-1",
+      "name_en": "Manganese cyclopentadienyl tricarbonyl (as Mn)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0380.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "121-44-8",
+      "name_en": "Triethylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0633.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "121-45-9",
+      "name_en": "Trimethyl phosphite",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0640.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "121-69-7",
+      "name_en": "N,N-Dimethylaniline",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0223.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "121-75-5",
+      "name_en": "Malathion",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0375.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "121-82-4",
+      "name_en": "Cyclonite",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0169.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "12108-13-3",
+      "name_en": "Methyl cyclopentadienyl manganese tricarbonyl (as Mn)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0409.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "12125-02-9",
+      "name_en": "Ammonium chloride fume",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0029.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "12179-04-3",
+      "name_en": "Borates, tetra, sodium salts (Pentahydrate)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0059.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "122-39-4",
+      "name_en": "Diphenylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0240.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "122-60-1",
+      "name_en": "Phenyl glycidyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0498.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "123-19-3",
+      "name_en": "Dipropyl ketone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0242.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "123-31-9",
+      "name_en": "Hydroquinone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0338.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "123-42-2",
+      "name_en": "Diacetone alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0178.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "123-51-3",
+      "name_en": "Isoamyl alcohol (primary)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0348.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "123-86-4",
+      "name_en": "n-Butyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0072.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "123-91-1",
+      "name_en": "Dioxane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0237.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "123-92-2",
+      "name_en": "Isoamyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0347.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "124-38-9",
+      "name_en": "Carbon dioxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0103.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "124-40-3",
+      "name_en": "Dimethylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0219.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "126-73-8",
+      "name_en": "Tributyl phosphate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0625.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "126-98-7",
+      "name_en": "Methylacrylonitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0395.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "126-99-8",
+      "name_en": "beta-Chloroprene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0133.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "12604-58-9",
+      "name_en": "Ferrovanadium dust",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0287.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "127-18-4",
+      "name_en": "Tetrachloroethylene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0599.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "127-19-5",
+      "name_en": "Dimethyl acetamide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0218.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "12718-69-3",
+      "name_en": "Tungsten carbide (cemented)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0647.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "128-37-0",
+      "name_en": "2,6-Di-tert-butyl-p-cresol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0246.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1300-73-8",
+      "name_en": "Xylidine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0672.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1302-74-5",
+      "name_en": "1302-74-5 (corundum)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0250.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1303-86-2",
+      "name_en": "Boron oxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0060.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1303-96-4",
+      "name_en": "Borates, tetra, sodium salts (Decahydrate)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0058.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1304-82-1",
+      "name_en": "Bismuth telluride, undoped",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0056.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1305-62-0",
+      "name_en": "Calcium hydroxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0092.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1305-78-8",
+      "name_en": "Calcium oxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0093.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1306-19-0",
+      "name_en": "1306-19-0 (CdO)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0088.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1309-37-1",
+      "name_en": "Iron oxide dust and fume (as Fe)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0344.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1309-37-1",
+      "name_en": "Rouge",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0549.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1309-48-4",
+      "name_en": "Magnesium oxide fume",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0374.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "131-11-3",
+      "name_en": "Dimethylphthalate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0228.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1310-58-3",
+      "name_en": "Potassium hydroxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0523.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1310-73-2",
+      "name_en": "Sodium hydroxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0565.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "13121-70-5",
+      "name_en": "Cyhexatin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0172.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1314-13-2",
+      "name_en": "Zinc oxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0675.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1314-62-1",
+      "name_en": "Vanadium dust",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0653.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1314-62-1",
+      "name_en": "Vanadium fume",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0654.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1314-80-3",
+      "name_en": "Phosphorus pentasulfide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0510.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1317-35-7",
+      "name_en": "Manganese tetroxide (as Mn)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0381.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1317-38-0",
+      "name_en": "1317-38-0 (CuO)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0151.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1317-65-3",
+      "name_en": "1317-65-3 (natural)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0090.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1317-65-3",
+      "name_en": "Limestone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0369.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1317-65-3",
+      "name_en": "Marble",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0382.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1321-64-8",
+      "name_en": "Pentachloronaphthalene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0483.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1321-65-9",
+      "name_en": "Trichloronaphthalene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0630.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1321-74-0",
+      "name_en": "1321-74-0 (mixed isomers)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0248.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "133-06-2",
+      "name_en": "Captan",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0099.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1330-43-4",
+      "name_en": "Borates, tetra, sodium salts (Anhydrous)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0057.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1332-21-4",
+      "name_en": "Asbestos",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0041.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1332-58-7",
+      "name_en": "Kaolin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0364.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1333-82-0",
+      "name_en": "1333-82-0 (CrO3)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0138.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1333-86-4",
+      "name_en": "Carbon black",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0102.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1335-87-1",
+      "name_en": "Hexachloronaphthalene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0317.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1335-88-2",
+      "name_en": "Tetrachloronaphthalene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0600.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1338-23-4",
+      "name_en": "Methyl ethyl ketone peroxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0416.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "13397-24-5",
+      "name_en": "Gypsum",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0308.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "134-32-7",
+      "name_en": "alpha-Naphthylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0441.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1344-28-1",
+      "name_en": "alpha-Alumina",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0021.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1344-95-2",
+      "name_en": "Calcium silicate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0094.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "13463-39-3",
+      "name_en": "Nickel carbonyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0444.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "13463-40-6",
+      "name_en": "Iron pentacarbonyl (as Fe)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0345.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "13463-67-7",
+      "name_en": "Titanium dioxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0617.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "13494-80-9",
+      "name_en": "Tellurium",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0587.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "135-88-6",
+      "name_en": "N-Phenyl-β-naphthylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0500.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "136-78-7",
+      "name_en": "Crag® herbicide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0153.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "137-05-3",
+      "name_en": "Methyl-2-cyanoacrylate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0405.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "137-26-8",
+      "name_en": "Thiram",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0612.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "138-22-7",
+      "name_en": "n-Butyl lactate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0082.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "13838-16-9",
+      "name_en": "Enflurane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0253.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1395-21-7",
+      "name_en": "1395-21-7 (BPN)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0572.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "140-88-5",
+      "name_en": "Ethyl acrylate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0261.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "141-32-2",
+      "name_en": "Butyl acrylate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0075.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "141-43-5",
+      "name_en": "Ethanolamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0256.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "141-66-2",
+      "name_en": "Dicrotophos",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0203.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "141-78-6",
+      "name_en": "Ethyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0260.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "141-79-7",
+      "name_en": "Mesityl oxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0385.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "142-64-3",
+      "name_en": "Piperazine dihydrochloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0517.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "142-82-5",
+      "name_en": "n-Heptane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0312.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "143-10-2",
+      "name_en": "1-Decanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0176.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "143-33-9",
+      "name_en": "Sodium cyanide (as CN)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0562.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "143-50-0",
+      "name_en": "Kepone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0365.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "144-62-7",
+      "name_en": "Oxalic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0474.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "14484-64-1",
+      "name_en": "Ferbam",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0286.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1455-21-6",
+      "name_en": "1-Nonanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0467.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1477-55-0",
+      "name_en": "m-Xylene-alpha,alpha'-diamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0671.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "148-01-6",
+      "name_en": "Dinitolmide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0230.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "14807-96-6",
+      "name_en": "Talc (containing no asbestos and less than 1% quartz)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0584.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "14808-60-7",
+      "name_en": "Silica, crystalline (as respirable dust)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0684.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "14977-61-8",
+      "name_en": "Chromyl chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0142.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "150-76-5",
+      "name_en": "4-Methoxyphenol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0390.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "15096-52-3",
+      "name_en": "Sodium aluminum fluoride (as F)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0559.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "151-50-8",
+      "name_en": "Potassium cyanide (as CN)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0522.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "151-56-4",
+      "name_en": "Ethyleneimine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0274.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "151-67-7",
+      "name_en": "Halothane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0310.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "156-62-7",
+      "name_en": "Calcium cyanamide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0091.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1563-66-2",
+      "name_en": "Carbofuran",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0101.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1569-69-3",
+      "name_en": "Cyclohexanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0164.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "16219-75-3",
+      "name_en": "Ethylidene norbornene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0279.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1639-09-4",
+      "name_en": "1-Heptanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0313.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "16752-77-5",
+      "name_en": "Methomyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0387.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "16842-03-8",
+      "name_en": "Cobalt hydrocarbonyl (as Co)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0148.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1738-25-6",
+      "name_en": "Dimethylaminopropionitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0222.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1746-01-6",
+      "name_en": "2,3,7,8-Tetrachloro-dibenzo-p-dioxin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0594.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "17702-41-9",
+      "name_en": "Decaborane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0175.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "17804-35-2",
+      "name_en": "Benomyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0048.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "18282-10-5",
+      "name_en": "Tin(IV) oxide (as Sn)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0616.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1910-42-5",
+      "name_en": "Paraquat (Paraquat dichloride)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0478.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1912-24-9",
+      "name_en": "Atrazine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0043.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1918-02-1",
+      "name_en": "Picloram",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0514.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "19287-45-7",
+      "name_en": "Diborane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0183.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "1929-82-4",
+      "name_en": "2-Chloro-6-trichloromethyl pyridine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0136.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "19624-22-7",
+      "name_en": "Pentaborane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0481.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2039-87-4",
+      "name_en": "o-Chlorostyrene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0134.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "20816-12-0",
+      "name_en": "Osmium tetroxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0473.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2104-64-5",
+      "name_en": "EPN",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0255.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "21087-64-9",
+      "name_en": "Metribuzin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0430.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "21351-79-1",
+      "name_en": "Cesium hydroxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0111.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "21651-19-4",
+      "name_en": "Tin(II) oxide (as Sn)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0615.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2179-59-1",
+      "name_en": "Allyl propyl disulfide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0020.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "22224-92-6",
+      "name_en": "Fenamiphos",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0283.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2234-13-1",
+      "name_en": "Octachloronaphthalene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0468.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2238-07-5",
+      "name_en": "Diglycidyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0215.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2425-06-1",
+      "name_en": "Captafol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0098.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2426-08-6",
+      "name_en": "n-Butyl glycidyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0081.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "25013-15-4",
+      "name_en": "25013-15-4 (inhibited)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0663.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "25321-14-6",
+      "name_en": "Dinitrotoluene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0235.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "25376-45-8",
+      "name_en": "Toluenediamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0620.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2551-62-4",
+      "name_en": "Sulfur hexafluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0576.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "25639-42-3",
+      "name_en": "Methylcyclohexanol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0407.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "26499-65-0",
+      "name_en": "Plaster of Paris",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0518.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "26628-22-8",
+      "name_en": "Sodium azide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0560.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "26952-21-6",
+      "name_en": "Isooctyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0354.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2698-41-1",
+      "name_en": "o-Chlorobenzylidene malononitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0122.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2699-79-8",
+      "name_en": "Sulfuryl fluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0581.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "287-92-3",
+      "name_en": "Cyclopentane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0171.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2885-00-9",
+      "name_en": "1-Octadecanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0469.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2917-26-2",
+      "name_en": "1-Hexadecanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0318.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2921-88-2",
+      "name_en": "Chlorpyrifos",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0137.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "2971-90-6",
+      "name_en": "Clopidol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0143.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "298-00-0",
+      "name_en": "Methyl parathion",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0427.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "298-02-2",
+      "name_en": "Phorate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0502.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "298-04-4",
+      "name_en": "Disulfoton",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0245.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "299-84-3",
+      "name_en": "Ronnel",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0546.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "299-86-5",
+      "name_en": "Crufomate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0158.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "300-76-5",
+      "name_en": "Dimethyl-1,2-dibromo-2,2-dichlorethyl phosphate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0225.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "302-01-2",
+      "name_en": "Hydrazine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0329.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "3033-62-3",
+      "name_en": "bis(2-(Dimethylamino)ethyl)ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0221.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "309-00-2",
+      "name_en": "Aldrin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0016.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "314-40-9",
+      "name_en": "Bromacil",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0063.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "3173-72-6",
+      "name_en": "Naphthalene diisocyanate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0440.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "330-54-1",
+      "name_en": "Diuron",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0247.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "333-41-5",
+      "name_en": "Diazinon®",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0181.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "3333-52-6",
+      "name_en": "Tetramethyl succinonitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0604.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "334-88-3",
+      "name_en": "Diazomethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0182.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "3383-96-8",
+      "name_en": "Temephos",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0589.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "34590-94-8",
+      "name_en": "Dipropylene glycol methyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0241.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "353-50-4",
+      "name_en": "Carbonyl fluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0108.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "35400-43-2",
+      "name_en": "Sulprofos",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0582.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "3689-24-5",
+      "name_en": "TEDP",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0586.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "37329-49-0",
+      "name_en": "Tungsten carbide (cemented)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0647.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "4016-14-2",
+      "name_en": "Isopropyl glycidyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0363.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "406-90-6",
+      "name_en": "Fluoroxene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0291.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "409-21-2",
+      "name_en": "Silicon carbide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0555.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "4098-71-9",
+      "name_en": "Isophorone diisocyanate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0356.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "4170-30-3",
+      "name_en": "Crotonaldehyde",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0157.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "420-04-2",
+      "name_en": "Cyanamide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0160.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "460-19-5",
+      "name_en": "Cyanogen",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0161.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "463-51-4",
+      "name_en": "Ketene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0367.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "471-34-1",
+      "name_en": "471-34-1 (synthetic)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0090.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "479-45-8",
+      "name_en": "Tetryl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0607.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "50-00-0",
+      "name_en": "Formaldehyde",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0293.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "50-29-3",
+      "name_en": "DDT",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0174.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "50-78-2",
+      "name_en": "Acetylsalicylic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0010.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "504-29-0",
+      "name_en": "2-Aminopyridine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0026.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "506-77-4",
+      "name_en": "Cyanogen chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0162.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "509-14-8",
+      "name_en": "Tetranitromethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0605.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "5124-30-1",
+      "name_en": "Methylene bis(4-cyclohexylisocyanate)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0412.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "526-73-8",
+      "name_en": "1,2,3-Trimethylbenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0637.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "528-29-0",
+      "name_en": "o-Dinitrobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0231.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "53-96-3",
+      "name_en": "2-Acetylaminofluorene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0007.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "532-27-4",
+      "name_en": "alpha-Chloroacetophenone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0119.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "5332-52-5",
+      "name_en": "1-Undecanethiol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0649.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "534-52-1",
+      "name_en": "Dinitro-o-cresol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0234.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "53469-21-9",
+      "name_en": "Chlorodiphenyl (42% chlorine)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0125.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "54-11-5",
+      "name_en": "Nicotine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0446.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "540-59-0",
+      "name_en": "1,2-Dichloroethylene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0195.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "540-88-5",
+      "name_en": "tert-Butyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0074.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "541-85-5",
+      "name_en": "5-Methyl-3-heptanone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0418.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "542-75-6",
+      "name_en": "1,3-Dichloropropene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0199.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "542-78-9",
+      "name_en": "Malonaldehyde",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0377.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "542-88-1",
+      "name_en": "bis-Chloromethyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0128.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "542-92-7",
+      "name_en": "Cyclopentadiene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0170.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "546-93-0",
+      "name_en": "Magnesite",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0373.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "55-38-9",
+      "name_en": "Fenthion",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0285.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "55-63-0",
+      "name_en": "Nitroglycerine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0456.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "552-30-7",
+      "name_en": "Trimellitic anhydride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0635.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "556-52-5",
+      "name_en": "Glycidol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0303.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "557-05-1",
+      "name_en": "Zinc stearate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0676.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "558-13-4",
+      "name_en": "Carbon tetrabromide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0106.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "56-23-5",
+      "name_en": "Carbon tetrachloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0107.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "56-38-2",
+      "name_en": "Parathion",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0479.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "56-81-5",
+      "name_en": "Glycerin (mist)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0302.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "563-12-2",
+      "name_en": "Ethion",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0257.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "563-80-4",
+      "name_en": "Methyl isopropyl ketone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0424.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "57-14-7",
+      "name_en": "1,1-Dimethylhydrazine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0227.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "57-24-9",
+      "name_en": "Strychnine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0570.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "57-50-1",
+      "name_en": "Sucrose",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0574.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "57-57-8",
+      "name_en": "beta-Propiolactone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0528.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "57-74-9",
+      "name_en": "Chlordane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0112.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "5714-22-7",
+      "name_en": "Sulfur pentafluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0579.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "58-89-9",
+      "name_en": "Lindane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0370.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "581-89-5",
+      "name_en": "2-Nitronaphthalene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0458.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "583-60-8",
+      "name_en": "o-Methylcyclohexanone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0408.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "584-84-9",
+      "name_en": "Toluene-2,4-diisocyanate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0621.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "591-78-6",
+      "name_en": "2-Hexanone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0325.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "593-60-2",
+      "name_en": "Vinyl bromide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0657.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "59355-75-8",
+      "name_en": "Methyl acetylene-propadiene mixture",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0393.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "594-42-3",
+      "name_en": "Perchloromethyl mercaptan",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0489.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "594-72-9",
+      "name_en": "1,1-Dichloro-1-nitroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0198.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "60-11-7",
+      "name_en": "4-Dimethylaminoazobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0220.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "60-29-7",
+      "name_en": "Ethyl ether",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0277.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "60-34-4",
+      "name_en": "Methyl hydrazine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0419.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "60-57-1",
+      "name_en": "Dieldrin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0206.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "600-25-9",
+      "name_en": "1-Chloro-1-nitropropane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0130.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "603-34-9",
+      "name_en": "Triphenylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0643.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "6032-29-7",
+      "name_en": "Isoamyl alcohol (secondary)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0349.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "61-82-5",
+      "name_en": "Amitrole",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0027.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "615-05-4",
+      "name_en": "2,4-Diaminoanisole (and its salts)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0179.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "61788-32-7",
+      "name_en": "Hydrogenated terphenyls",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0330.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "62-53-3",
+      "name_en": "Aniline (and homologs)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0033.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "62-73-7",
+      "name_en": "Dichlorvos",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0202.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "62-74-8",
+      "name_en": "Sodium fluoroacetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0564.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "62-75-9",
+      "name_en": "N-Nitrosodimethylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0461.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "624-83-9",
+      "name_en": "Methyl isocyanate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0423.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "626-17-5",
+      "name_en": "m-Phthalodinitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0513.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "626-38-0",
+      "name_en": "sec-Amyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0032.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "627-13-4",
+      "name_en": "n-Propyl nitrate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0539.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "62765-93-9",
+      "name_en": "Niax® Catalyst ESN",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0443.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "628-63-7",
+      "name_en": "n-Amyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0031.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "628-96-6",
+      "name_en": "Ethylene glycol dinitrate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0273.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "63-25-2",
+      "name_en": "Carbaryl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0100.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "630-08-0",
+      "name_en": "Carbon monoxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0105.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "630-20-6",
+      "name_en": "1,1,1,2-Tetrachloroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0597.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "638-21-1",
+      "name_en": "Phenylphosphine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0501.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "64-17-5",
+      "name_en": "Ethyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0262.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "64-18-6",
+      "name_en": "Formic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0296.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "64-19-7",
+      "name_en": "Acetic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0002.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "6423-43-4",
+      "name_en": "Propylene glycol dinitrate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0535.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "65996-93-2",
+      "name_en": "Coal tar pitch volatiles",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0145.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "65997-15-1",
+      "name_en": "Portland cement",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0521.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "67-56-1",
+      "name_en": "Methyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0397.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "67-63-0",
+      "name_en": "Isopropyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0359.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "67-64-1",
+      "name_en": "Acetone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0004.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "67-66-3",
+      "name_en": "Chloroform",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0127.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "67-72-1",
+      "name_en": "Hexachloroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0316.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "68-11-1",
+      "name_en": "Thioglycolic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0610.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "68-12-2",
+      "name_en": "Dimethylformamide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0226.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "680-31-9",
+      "name_en": "Hexamethyl phosphoramide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0321.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "681-84-5",
+      "name_en": "Methyl silicate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0428.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "684-16-2",
+      "name_en": "Hexafluoroacetone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0319.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "68476-85-7",
+      "name_en": "L.P.G.",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0679.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "68956-68-3",
+      "name_en": "Vegetable oil mist",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0655.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "6923-22-4",
+      "name_en": "Monocrotophos",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0435.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "71-23-8",
+      "name_en": "n-Propyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0533.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "71-36-3",
+      "name_en": "n-Butyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0076.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "71-43-2",
+      "name_en": "Benzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0049.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "71-55-6",
+      "name_en": "Methyl chloroform",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0404.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "72-20-8",
+      "name_en": "Endrin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0252.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "72-43-5",
+      "name_en": "Methoxychlor",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0388.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-83-9",
+      "name_en": "Methyl bromide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0400.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-86-2",
+      "name_en": "Acetylene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0008.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-87-3",
+      "name_en": "Methyl chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0403.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-88-4",
+      "name_en": "Methyl iodide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0420.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-89-5",
+      "name_en": "Methylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0398.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-90-8",
+      "name_en": "Hydrogen cyanide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0333.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-93-1",
+      "name_en": "Methyl mercaptan",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0425.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-96-4",
+      "name_en": "Ethyl bromide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0265.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-97-5",
+      "name_en": "Chlorobromomethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0123.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-98-6",
+      "name_en": "Propane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0524.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "74-99-7",
+      "name_en": "Methyl acetylene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0392.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7429-90-5",
+      "name_en": "Aluminum",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0022.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7439-92-1",
+      "name_en": "Lead",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0368.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7439-96-5",
+      "name_en": "7439-96-5 (metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0379.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7439-97-6",
+      "name_en": "7439-97-6 (metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0383.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7439-98-7",
+      "name_en": "Molybdenum",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0433.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-02-0",
+      "name_en": "7440-02-0 (Metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0445.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-06-4",
+      "name_en": "Platinum",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0519.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-16-6",
+      "name_en": "7440-16-6 (metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0544.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-21-3",
+      "name_en": "Silicon",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0554.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-22-4",
+      "name_en": "7440-22-4 (metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0557.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-25-7",
+      "name_en": "7440-25-7 (metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0585.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-31-5",
+      "name_en": "Tin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0613.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-33-7",
+      "name_en": "Tungsten",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0645.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-36-0",
+      "name_en": "Antimony",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0036.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-38-2",
+      "name_en": "7440-38-2 (metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0038.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-41-7",
+      "name_en": "7440-41-7 (metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0054.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-43-9",
+      "name_en": "7440-43-9 (metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0087.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-44-0",
+      "name_en": "7440-44-0 (synthetic)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0307.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-47-3",
+      "name_en": "Chromium metal",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0141.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-48-4",
+      "name_en": "Cobalt metal dust and fume (as Co)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0146.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-50-8",
+      "name_en": "Copper (dusts and mists, as Cu)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0150.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-58-6",
+      "name_en": "Hafnium",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0309.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-61-1",
+      "name_en": "7440-61-1 (metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0650.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-65-5",
+      "name_en": "Yttrium",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0673.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-67-7",
+      "name_en": "7440-67-7 (Metal)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0677.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7440-74-6",
+      "name_en": "Indium",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0341.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7446-09-5",
+      "name_en": "Sulfur dioxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0575.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-00-3",
+      "name_en": "Ethyl chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0267.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-01-4",
+      "name_en": "Vinyl chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0658.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-02-5",
+      "name_en": "Vinyl fluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0660.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-04-7",
+      "name_en": "Ethylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0263.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-05-8",
+      "name_en": "Acetonitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0006.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-07-0",
+      "name_en": "Acetaldehyde",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0001.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-08-1",
+      "name_en": "Ethyl mercaptan",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0280.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-09-2",
+      "name_en": "Methylene chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0414.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-12-7",
+      "name_en": "Formamide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0295.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-15-0",
+      "name_en": "Carbon disulfide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0104.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-21-8",
+      "name_en": "Ethylene oxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0275.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-25-2",
+      "name_en": "Bromoform",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0066.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-28-5",
+      "name_en": "Isobutane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0350.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-31-0",
+      "name_en": "Isopropylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0360.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-34-3",
+      "name_en": "1,1-Dichloroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0194.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-35-4",
+      "name_en": "Vinylidene chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0661.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-38-7",
+      "name_en": "Vinylidene fluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0662.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-43-4",
+      "name_en": "Dichloromonofluoromethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0197.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-44-5",
+      "name_en": "Phosgene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0504.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-45-6",
+      "name_en": "Chlorodifluoromethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0124.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-47-8",
+      "name_en": "Iodoform",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0343.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-50-3",
+      "name_en": "Trimethylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0636.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-52-5",
+      "name_en": "Nitromethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0457.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-55-8",
+      "name_en": "Propylene imine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0537.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-56-9",
+      "name_en": "Propylene oxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0538.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-61-6",
+      "name_en": "Difluorodibromomethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0214.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-63-8",
+      "name_en": "Trifluorobromomethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0634.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-65-0",
+      "name_en": "tert-Butyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0078.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-69-4",
+      "name_en": "Fluorotrichloromethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0290.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-71-8",
+      "name_en": "Dichlorodifluoromethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0192.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-74-1",
+      "name_en": "Tetramethyl lead (as Pb)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0603.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-86-5",
+      "name_en": "Acetone cyanohydrin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0005.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "75-99-0",
+      "name_en": "2,2-Dichloropropionic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0200.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7553-56-2",
+      "name_en": "Iodine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0342.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7572-29-4",
+      "name_en": "Dichloroacetylene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0188.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7580-67-8",
+      "name_en": "Lithium hydride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0371.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-01-7",
+      "name_en": "Pentachloroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0482.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-03-9",
+      "name_en": "Trichloroacetic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0626.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-06-2",
+      "name_en": "Chloropicrin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0132.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-11-9",
+      "name_en": "1,1,1,2-Tetrachloro-2,2-difluoroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0595.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-12-0",
+      "name_en": "1,1,2,2-Tetrachloro-1,2-difluoroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0596.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-13-1",
+      "name_en": "1,1,2-Trichloro-1,2,2-trifluoroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0632.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-14-2",
+      "name_en": "Dichlorotetrafluoroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0201.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-15-3",
+      "name_en": "Chloropentafluoroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0131.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-22-2",
+      "name_en": "Camphor (synthetic)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0096.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-38-0",
+      "name_en": "Methoxyflurane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0389.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "76-44-8",
+      "name_en": "Heptachlor",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0311.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7616-94-6",
+      "name_en": "Perchloryl fluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0490.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7631-86-9",
+      "name_en": "Silica, amorphous",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0552.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7631-90-5",
+      "name_en": "Sodium bisulfite",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0561.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7637-07-2",
+      "name_en": "Boron trifluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0062.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7646-85-7",
+      "name_en": "Zinc chloride fume",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0674.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7647-01-0",
+      "name_en": "Hydrogen chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0332.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7664-38-2",
+      "name_en": "Phosphoric acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0506.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7664-39-3",
+      "name_en": "Hydrogen fluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0334.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7664-41-7",
+      "name_en": "Ammonia",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0028.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7664-93-9",
+      "name_en": "Sulfuric acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0577.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "768-52-5",
+      "name_en": "N-Isopropylaniline",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0361.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7681-49-4",
+      "name_en": "Sodium fluoride (as F)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0563.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7681-57-4",
+      "name_en": "Sodium metabisulfite",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0566.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7697-37-2",
+      "name_en": "Nitric acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0447.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "77-47-4",
+      "name_en": "Hexachlorocyclopentadiene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0315.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "77-73-6",
+      "name_en": "Dicyclopentadiene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0204.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "77-78-1",
+      "name_en": "Dimethyl sulfate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0229.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7719-09-7",
+      "name_en": "Thionyl chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0611.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7719-12-2",
+      "name_en": "Phosphorus trichloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0511.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7722-84-1",
+      "name_en": "Hydrogen peroxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0335.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7722-88-5",
+      "name_en": "Tetrasodium pyrophosphate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0606.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7723-14-0",
+      "name_en": "Phosphorus (yellow)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0507.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7726-95-6",
+      "name_en": "Bromine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0064.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7727-43-7",
+      "name_en": "Barium sulfate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0047.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7773-06-0",
+      "name_en": "Ammonium sulfamate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0030.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7778-18-9",
+      "name_en": "Calcium sulfate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0095.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7778-44-1",
+      "name_en": "Calcium arsenate (as As)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0089.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7782-41-4",
+      "name_en": "Fluorine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0289.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7782-42-5",
+      "name_en": "Graphite (natural)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0306.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7782-49-2",
+      "name_en": "Selenium",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0550.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7782-50-5",
+      "name_en": "Chlorine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0115.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7782-65-2",
+      "name_en": "Germanium tetrahydride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0300.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7783-06-4",
+      "name_en": "Hydrogen sulfide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0337.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7783-07-5",
+      "name_en": "Hydrogen selenide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0336.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7783-41-7",
+      "name_en": "Oxygen difluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0475.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7783-54-2",
+      "name_en": "Nitrogen trifluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0455.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7783-60-0",
+      "name_en": "Sulfur tetrafluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0580.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7783-79-1",
+      "name_en": "Selenium hexafluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0551.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7783-80-4",
+      "name_en": "Tellurium hexafluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0588.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7784-42-1",
+      "name_en": "Arsine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0040.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7786-34-7",
+      "name_en": "Phosdrin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0503.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7789-30-2",
+      "name_en": "Bromine pentafluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0065.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7790-91-2",
+      "name_en": "Chlorine trifluoride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0117.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-00-2",
+      "name_en": "Tetraethyl lead (as Pb)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0601.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-10-4",
+      "name_en": "Ethyl silicate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0282.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-30-8",
+      "name_en": "Triorthocresyl phosphate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0642.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-34-2",
+      "name_en": "Dioxathion",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0238.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-59-1",
+      "name_en": "Isophorone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0355.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-82-0",
+      "name_en": "Isobutyronitrile",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0353.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-83-1",
+      "name_en": "Isobutyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0352.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-87-5",
+      "name_en": "Propylene dichloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0534.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-92-2",
+      "name_en": "sec-Butyl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0077.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "78-93-3",
+      "name_en": "2-Butanone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0069.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7803-51-2",
+      "name_en": "Phosphine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0505.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7803-52-3",
+      "name_en": "Stibine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0568.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "7803-62-5",
+      "name_en": "Silicon tetrahydride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0556.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-00-5",
+      "name_en": "1,1,2-Trichloroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0628.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-01-6",
+      "name_en": "Trichloroethylene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0629.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-04-9",
+      "name_en": "Chloroacetyl chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0120.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-06-1",
+      "name_en": "Acrylamide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0012.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-09-4",
+      "name_en": "Propionic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0529.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-10-7",
+      "name_en": "Acrylic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0013.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-20-9",
+      "name_en": "Methyl acetate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0391.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-24-3",
+      "name_en": "Nitroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0453.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-27-6",
+      "name_en": "Acetylene tetrabromide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0009.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-34-5",
+      "name_en": "1,1,2,2-Tetrachloroethane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0598.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-41-4",
+      "name_en": "Methacrylic acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0386.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-44-7",
+      "name_en": "Dimethyl carbamoyl chloride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0224.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "79-46-9",
+      "name_en": "2-Nitropropane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0460.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "80-62-6",
+      "name_en": "Methyl methacrylate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0426.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8001-35-2",
+      "name_en": "Chlorinated camphene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0113.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8002-05-9",
+      "name_en": "Petroleum distillates (naphtha)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0492.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8002-74-2",
+      "name_en": "Paraffin wax fume",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0477.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8003-34-7",
+      "name_en": "Pyrethrum",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0685.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8004-13-5",
+      "name_en": "Phenyl ether-biphenyl mixture (vapor)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0683.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8006-61-9",
+      "name_en": "Gasoline",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0299.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8006-64-2",
+      "name_en": "Turpentine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0648.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8008-20-6",
+      "name_en": "Kerosene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0366.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8012-95-1",
+      "name_en": "Oil mist (mineral)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0472.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8022-00-2",
+      "name_en": "Methyl demeton",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0410.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8030-30-6",
+      "name_en": "Naphtha (coal tar)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0438.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8032-32-4",
+      "name_en": "VM & P Naphtha",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0664.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8052-41-3",
+      "name_en": "Stoddard solvent",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0569.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8052-42-4",
+      "name_en": "Asphalt fumes",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0042.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "8065-48-3",
+      "name_en": "Demeton",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0177.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "81-81-2",
+      "name_en": "Warfarin",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0665.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "822-06-0",
+      "name_en": "Hexamethylene diisocyanate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0320.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "83-26-1",
+      "name_en": "Pindone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0516.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "83-79-4",
+      "name_en": "Rotenone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0548.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "84-15-1",
+      "name_en": "o-Terphenyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0591.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "84-66-2",
+      "name_en": "Diethyl phthalate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0213.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "84-74-2",
+      "name_en": "Dibutyl phthalate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0187.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "85-00-7",
+      "name_en": "Diquat (Diquat dibromide)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0243.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "85-44-9",
+      "name_en": "Phthalic anhydride",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0512.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "86-50-0",
+      "name_en": "Azinphos-methyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0681.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "86-88-4",
+      "name_en": "ANTU",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0037.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "87-68-3",
+      "name_en": "Hexachlorobutadiene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0314.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "87-86-5",
+      "name_en": "Pentachlorophenol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0484.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "88-72-2",
+      "name_en": "o-Nitrotoluene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0462.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "88-89-1",
+      "name_en": "Picric acid",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0515.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "89-72-5",
+      "name_en": "o-sec-Butylphenol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0084.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "90-04-0",
+      "name_en": "o-Anisidine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0034.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "9004-34-6",
+      "name_en": "Cellulose",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0110.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "9005-25-8",
+      "name_en": "Starch",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0567.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "9014-01-1",
+      "name_en": "9014-01-1 (Carlsburg)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0572.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "91-20-3",
+      "name_en": "Naphthalene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0439.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "91-59-8",
+      "name_en": "beta-Naphthylamine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0442.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "91-94-1",
+      "name_en": "3,3'-Dichlorobenzidine (and its salts)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0191.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "92-06-8",
+      "name_en": "m-Terphenyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0592.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "92-52-4",
+      "name_en": "Diphenyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0239.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "92-67-1",
+      "name_en": "4-Aminodiphenyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0025.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "92-84-2",
+      "name_en": "Phenothiazine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0494.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "92-87-5",
+      "name_en": "Benzidine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0051.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "92-93-3",
+      "name_en": "4-Nitrobiphenyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0451.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "92-94-4",
+      "name_en": "p-Terphenyl",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0593.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "93-76-5",
+      "name_en": "2,4,5-T",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0583.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "93763-70-3",
+      "name_en": "Perlite",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0491.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "94-36-0",
+      "name_en": "Benzoyl peroxide",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0052.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "94-75-7",
+      "name_en": "2,4-D",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0173.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "944-22-9",
+      "name_en": "Fonofos",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0292.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "95-13-6",
+      "name_en": "Indene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0340.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "95-47-6",
+      "name_en": "o-Xylene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0668.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "95-48-7",
+      "name_en": "o-Cresol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0154.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "95-49-8",
+      "name_en": "o-Chlorotoluene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0135.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "95-50-1",
+      "name_en": "o-Dichlorobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0189.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "95-53-4",
+      "name_en": "o-Toluidine",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0622.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "95-63-6",
+      "name_en": "1,2,4-Trimethylbenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0638.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "95-80-7",
+      "name_en": "95-80-7 (2,4-TDA)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0620.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "96-12-8",
+      "name_en": "1,2-Dibromo-3-chloropropane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0184.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "96-18-4",
+      "name_en": "1,2,3-Trichloropropane",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0631.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "96-22-0",
+      "name_en": "Diethyl ketone",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0212.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "96-33-3",
+      "name_en": "Methyl acrylate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0394.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "96-45-7",
+      "name_en": "Ethylene thiourea",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0276.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "96-69-5",
+      "name_en": "4,4'-Thiobis(6-tert-butyl-m-cresol)",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0609.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "97-77-8",
+      "name_en": "Disulfiram",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0244.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "98-00-0",
+      "name_en": "Furfuryl alcohol",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0298.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "98-01-1",
+      "name_en": "Furfural",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0297.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "98-51-1",
+      "name_en": "p-tert-Butyltoluene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0085.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "98-82-8",
+      "name_en": "Cumene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0159.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "98-83-9",
+      "name_en": "alpha-Methyl styrene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0429.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "98-95-3",
+      "name_en": "Nitrobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0450.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "99-08-1",
+      "name_en": "m-Nitrotoluene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0463.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "99-65-0",
+      "name_en": "m-Dinitrobenzene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0232.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "99-99-0",
+      "name_en": "p-Nitrotoluene",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0464.html",
+      "source_kind": "official",
+      "authoritative": true
+    },
+    {
+      "cas": "999-61-1",
+      "name_en": "2-Hydroxypropyl acrylate",
+      "source_id": "NIOSH_NPG",
+      "source_url": "https://www.cdc.gov/niosh/npg/npgd0339.html",
+      "source_kind": "official",
+      "authoritative": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "file": "osha_z1.json",
+  "sha256": "4dc62e78ef823071c9a998b35730acfe14d11a6a77a2975f3b762f2301c588fd",
+  "source_sha256": "4da220e066c07da7bb2cdb6181325a1ea5444a1c2b716ede8c5c0262d8a80599",
+  "authority": "OSHA",
+  "dataset": "PEL_Z1",
+  "substance_rows": 432,
+  "record_count": 638,
+  "generated_utc": "2026-08-31T09:44:33Z",
+  "authoritative": true,
+  "excluded_columns": [
+    "Cal/OSHA PEL",
+    "NIOSH REL",
+    "ACGIH TLV"
+  ]
+}

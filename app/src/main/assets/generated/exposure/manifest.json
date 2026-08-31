@@ -1,0 +1,11 @@
+{
+  "file": "niosh_idlh.json",
+  "sha256": "9a4f4d06c493c0c539dd5b9926449975b844a34f82451d6ec792ac952b903151",
+  "source_sha256": "5de043036d2c21e59b8f75cbe6f994430fc8b39c54a813adbad9e00def2bf3eb",
+  "authority": "NIOSH",
+  "dataset": "IDLH",
+  "substance_rows": 402,
+  "record_count": 402,
+  "generated_utc": "2026-08-31T09:44:32Z",
+  "authoritative": true
+}

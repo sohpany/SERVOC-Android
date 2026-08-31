@@ -1,0 +1,16 @@
+{
+  "file": "niosh_chemicals.json",
+  "sha256": "7498bd3d8037dd77fb49d3a957d8856ea9f37e48dbc0df3020799e422967dc69",
+  "source_sha256": "f39fbc4fcfcdfe84c331fcdb1f637e1c8a2a1ed3cb8e7c597f6a23844fcf2f52",
+  "source_kind": "official",
+  "authoritative": true,
+  "record_count": 652,
+  "generated_utc": "2026-08-31T09:44:32Z",
+  "provenance": {
+    "source_kind": "official",
+    "authority": "NIOSH",
+    "authoritative": true,
+    "source": "https://www.cdc.gov/niosh/npg/npgdcas.html",
+    "source_sha256": "f39fbc4fcfcdfe84c331fcdb1f637e1c8a2a1ed3cb8e7c597f6a23844fcf2f52"
+  }
+}
