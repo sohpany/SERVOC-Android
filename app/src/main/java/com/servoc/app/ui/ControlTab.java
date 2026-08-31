@@ -16,8 +16,10 @@ import com.servoc.app.camera.MjpegView;
 import com.servoc.app.control.JoystickView;
 import com.servoc.app.data.EvidenceFileStore;
 import com.servoc.app.data.EvidenceStore;
+import com.servoc.app.navigation.GasDirectionEstimator;
 import com.servoc.app.vision.FlameEvidenceTracker;
 import com.servoc.app.vision.FlameFrameAnalyzer;
+import com.servoc.app.vision.HazardOverlayView;
 import org.json.JSONObject;
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -33,6 +35,8 @@ public final class ControlTab {
     private final MjpegView video;
     private final MjpegRecorder recorder;
     private final FlameFrameAnalyzer flameAnalyzer;
+    private final HazardOverlayView overlay;
+    private final GasDirectionEstimator gasDirection=new GasDirectionEstimator();
     private final JoystickView joystick;
     private volatile String recordingSessionId,recordingStartedTs;
     private volatile long recordingStartedElapsed;
@@ -54,6 +58,7 @@ public final class ControlTab {
         FrameLayout cameraBox=new FrameLayout(c);cameraBox.setBackgroundColor(Color.BLACK);cameraBox.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         video=new MjpegView(c);recorder=new MjpegRecorder(c);flameAnalyzer=new FlameFrameAnalyzer(r->root.post(()->showFlame(r)));
         video.setFrameListener((jpeg,t)->{recorder.onJpegFrame(jpeg,t);flameAnalyzer.onJpegFrame(jpeg,t);});cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
+        overlay=new HazardOverlayView(c);cameraBox.addView(overlay,new FrameLayout.LayoutParams(-1,-1));
         joystick=new JoystickView(c);int size=UiKit.dp(c,150);
         FrameLayout.LayoutParams jp=new FrameLayout.LayoutParams(size,size,Gravity.RIGHT|Gravity.BOTTOM);jp.setMargins(0,0,UiKit.dp(c,10),UiKit.dp(c,10));cameraBox.addView(joystick,jp);
         joystick.setListener((l,r,active)->host.setDriveCommand(l,r));
@@ -67,7 +72,7 @@ public final class ControlTab {
         recordInfo=UiKit.small(c,"التسجيل: متوقف");recordInfo.setBackgroundColor(0xFF151A20);root.addView(recordInfo,UiKit.full(c));
         flameInfo=UiKit.small(c,"دليل اللهب البصري التجريبي: بانتظار الفيديو");flameInfo.setBackgroundColor(0xFF151A20);flameInfo.setTextColor(0xFF90A4AE);root.addView(flameInfo,UiKit.full(c));
         drive=UiKit.small(c,"يسار 0   يمين 0   أمان الاتصال —");drive.setBackgroundColor(0xFF151A20);root.addView(drive,UiKit.full(c));
-        root.addView(UiKit.small(c,"يستخدم العرض والتسجيل والتحليل البصري نفس اتصال ESP32-CAM. تحليل اللهب تجريبي/مساعد ولا يرسل أوامر حركة أو قرارات سلامة. تُرسل أوامر القيادة كل 250 ms وتبقى الحماية من فقد الاتصال داخل ESP32."),UiKit.full(c));
+        root.addView(UiKit.small(c,"المربع الأحمر يحدد منطقة اشتباه اللهب بصريًا، والسهم الأخضر يبين اتجاه الغاز المرجح من تغير MQ مع الحركة. كلاهما مساعدان تجريبيان ولا يرسلان أوامر حركة أو قرارات سلامة. تُرسل أوامر القيادة كل 250 ms وتبقى الحماية من فقد الاتصال داخل ESP32."),UiKit.full(c));
     }
 
     private void cycleFlash(){String m=host.flashMode();host.setFlashMode("off".equals(m)?"auto":"auto".equals(m)?"on":"off");}
@@ -103,6 +108,8 @@ public final class ControlTab {
     private void showFlame(FlameFrameAnalyzer.Result r){
         if(r==null||r.frame==null||r.temporal==null)return;lastFlameResult=r;
         FlameEvidenceTracker.State now=r.temporal.state,previous=lastFlameState;lastFlameState=now;
+        boolean showRegion=now!=FlameEvidenceTracker.State.CLEAR&&r.frame.hasRegion();
+        if(showRegion)overlay.setFlameRegion(r.frame.left,r.frame.top,r.frame.right,r.frame.bottom,true);else overlay.clearFlame();
         String state=now==FlameEvidenceTracker.State.PERSISTENT?"مستمر":now==FlameEvidenceTracker.State.CANDIDATE?"مرشح":"لا دليل";
         StringBuilder s=new StringBuilder("دليل اللهب البصري التجريبي: ").append(state).append(" • score ").append(String.format(Locale.US,"%.0f%%",100*r.frame.score)).append(" • pixels ").append(String.format(Locale.US,"%.1f%%",100*r.frame.candidateRatio)).append(" • EMA ").append(String.format(Locale.US,"%.0f%%",100*r.temporal.ema));
         if(r.frame.hasRegion())s.append(String.format(Locale.US,"\nمنطقة تقريبية L%.2f T%.2f R%.2f B%.2f",r.frame.left,r.frame.top,r.frame.right,r.frame.bottom));
@@ -138,11 +145,11 @@ public final class ControlTab {
     public View view(){return root;}
     public void resetJoystick(){joystick.reset();}
     public void startCamera(){String h=host.cameraHost();if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");}
-    public void stopCamera(){if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"camera_stop");video.stop();flameAnalyzer.reset();lastFlameState=FlameEvidenceTracker.State.CLEAR;lastFlameResult=null;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recordingSessionId!=null&&!recordingStopping)requestStopRecording("camera_stop",false);}
+    public void stopCamera(){if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"camera_stop");video.stop();flameAnalyzer.reset();overlay.clearFlame();lastFlameState=FlameEvidenceTracker.State.CLEAR;lastFlameResult=null;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recordingSessionId!=null&&!recordingStopping)requestStopRecording("camera_stop",false);}
 
     /** Lifecycle teardown fallback: close and persist synchronously before DB/executor shutdown. */
     public void releaseCamera(){
-        if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"release");video.stop();flameAnalyzer.release();
+        if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"release");video.stop();flameAnalyzer.release();overlay.clearFlame();overlay.clearGas();gasDirection.reset();
         String session=recordingSessionId,start=recordingStartedTs;if(session!=null&&claimSession(session)){MjpegRecorder.StopResult r=recorder.stopNow();persistRecording(session,start,EvidenceStore.isoNow(),"release",r);}recorder.release();video.release();
     }
 
@@ -150,7 +157,8 @@ public final class ControlTab {
         String fm=host.flashMode();flash.setText("الفلاش: "+("on".equals(fm)?"تشغيل":"auto".equals(fm)?"تلقائي":"إيقاف"));
         if(recordingSessionId!=null&&!recordingStopping&&!recorder.isRecording()&&recorder.lastError()!=null){requestStopRecording("io_error",false);return;}
         if(recorder.isRecording())recordInfo.setText("جارٍ التسجيل • "+recorder.frameCount()+" إطار • مسقط "+recorder.droppedFrames()+"\nجلسة "+recordingSessionId);
-        JSONObject d=host.latestDiagnostics();if(d==null){status.setText("الروبوت غير متصل");status.setTextColor(0xFFFFB74D);drive.setText("يسار "+host.driveLeft()+"   يمين "+host.driveRight()+"   أمان الاتصال —");return;}
+        JSONObject d=host.latestDiagnostics();if(d==null){status.setText("الروبوت غير متصل");status.setTextColor(0xFFFFB74D);drive.setText("يسار "+host.driveLeft()+"   يمين "+host.driveRight()+"   أمان الاتصال —");overlay.clearGas();gasDirection.reset();return;}
         status.setText("متصل • "+d.optInt("clients",0));status.setTextColor(0xFF81C784);JSONObject x=d.optJSONObject("drive");if(x!=null)drive.setText("يسار "+x.optInt("left",host.driveLeft())+"   يمين "+x.optInt("right",host.driveRight())+"   أمان الاتصال "+(x.optBoolean("failsafe",false)?"مفعّل":"سليم"));
+        GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime());if(g.valid)overlay.setGasDirection(g.angleRad,g.confidence);else overlay.clearGas();
     }
 }
