@@ -19,6 +19,7 @@ import android.widget.TextView;
 
 import com.servoc.app.auth.RoleGate;
 import com.servoc.app.camera.CameraApi;
+import com.servoc.app.chemical.ChemicalSeedBootstrap;
 import com.servoc.app.communication.RobotApi;
 import com.servoc.app.communication.WifiRoute;
 import com.servoc.app.data.ExperimentQueries;
@@ -57,7 +58,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     private boolean developerMode=false,entered=false,commsScheduled=false;private FrameLayout page;private TextView globalStatus;private Button[] tabButtons;private int selectedTab=0;private long pendingExperimentId=-1;
     private ControlTab controlTab;private MeasurementAnalysisTab measurementTab;private ReportsTab reportsTab;private ExperimentsTab experimentsTab;private SettingsTab settingsTab;private View[] tabViews;
 
-    @Override public void onCreate(Bundle b){super.onCreate(b);prefs=getSharedPreferences("servoc",MODE_PRIVATE);robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));flashMode=prefs.getString("flash_mode","off");db=new ExperimentsDb(this);telemetryRecorder=new TelemetryRecorder(db);setContentView(RoleGate.build(this,new RoleGate.Listener(){@Override public void onUser(){enter(false);}@Override public void onDeveloper(){enter(true);}}));}
+    @Override public void onCreate(Bundle b){super.onCreate(b);prefs=getSharedPreferences("servoc",MODE_PRIVATE);robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));flashMode=prefs.getString("flash_mode","off");db=new ExperimentsDb(this);telemetryRecorder=new TelemetryRecorder(db);workers.execute(()->{ChemicalSeedBootstrap.ensureNiosh(getApplicationContext(),db);ui.post(this::refreshAllTabs);});setContentView(RoleGate.build(this,new RoleGate.Listener(){@Override public void onUser(){enter(false);}@Override public void onDeveloper(){enter(true);}}));}
     private void enter(boolean developer){developerMode=developer;entered=true;buildTabs();setContentView(buildShell());showTab(0);scheduleComms();if(foreground)controlTab.startCamera();}
     private void buildTabs(){controlTab=new ControlTab(this,this);measurementTab=new MeasurementAnalysisTab(this,this);reportsTab=new ReportsTab(this,this);settingsTab=new SettingsTab(this,this);if(developerMode){experimentsTab=new ExperimentsTab(this,this);tabViews=new View[]{controlTab.view(),measurementTab.view(),reportsTab.view(),experimentsTab.view(),settingsTab.view()};}else{experimentsTab=null;tabViews=new View[]{controlTab.view(),measurementTab.view(),reportsTab.view(),settingsTab.view()};}}
 
