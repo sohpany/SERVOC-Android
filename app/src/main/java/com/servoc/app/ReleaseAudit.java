@@ -19,8 +19,11 @@ public final class ReleaseAudit {
     public static final boolean VIDEO_RECORDING=true;
     public static final boolean FLAME_EVIDENCE_EXPERIMENTAL=true;
     public static final boolean VIDEO_LINKED_TO_MEASUREMENTS=true;
+    public static final boolean SENSOR_HEALTH_DRIFT=true;
+    public static final boolean GAS_DIRECTION_ASSIST=true;
     public static final boolean REFERENCE_BANK_EXPORT=true;
-    public static final boolean DIRECT_GITHUB_PUBLISH=false;
+    public static final boolean DIRECT_GITHUB_PUBLISH=true;
+    public static final boolean GITHUB_CREDENTIAL_PERSISTED=false;
     public static final boolean MOTION_BREADCRUMB_RECORDING=true;
     public static final boolean AUTONOMOUS_BACKTRACK=false;
 }
