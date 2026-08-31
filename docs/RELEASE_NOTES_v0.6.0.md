@@ -19,6 +19,8 @@ Normal USER mode contains:
 
 DEVELOPER mode additionally exposes Experiments & Calibration after the session PIN gate. Developer reference/calibration tools are not present in the normal-user navigation path.
 
+The obsolete standalone v0.5 sensor/chemical/physical tabs were removed from source before the final build; the unified workflow is now the only operational path.
+
 ## Key 0.6 capabilities
 
 - `/diag` + `/data` API-v3 normalization with existing drive/STOP/relay/measurement/config endpoints.
@@ -38,9 +40,9 @@ DEVELOPER mode additionally exposes Experiments & Calibration after the session 
 - Immutable reference JSON export and optional direct publication of APPROVED developer records to the dedicated GitHub `reference-bank` branch using a session-only developer-supplied credential.
 - PDF/XLSX field reports and preserved upgrade signing identity.
 
-## Software validation result
+## Final software validation result
 
-GitHub Actions Build HazRob APK #212, run `33405610001`:
+GitHub Actions Build HazRob APK **#215**, run `33406289224`:
 - pinned scientific dataset checks: PASS
 - unit/regression tests: PASS
 - release build: PASS
@@ -49,18 +51,19 @@ GitHub Actions Build HazRob APK #212, run `33405610001`:
 - artifact upload: PASS
 
 Validated executable-source commit:
-`3accc0fda7af65e9ca004c4618495ab738c02c0f`
+`ddd0633c4f9ffde186e40fad85aa60acec13cab7`
 
 Release APK SHA-256:
-`1b2813614857a4f57562eeef379eae4070eb0d58345afb968283719d563fa1e5`
+`b2c36d30b330ef8ac905fec04ba70759c2cd8373a559226de20d3ba9c4aa5513`
 
 Signing certificate SHA-256:
 `D6:B5:B6:9B:E3:82:F2:AF:A6:DF:4B:46:BA:DE:5B:6F:86:4F:40:60:62:2E:94:90:75:29:3A:C6:20:03:D3:F0`
 
 Artifact:
 - `HazRob-v0.6.0-prototype`
-- ID `9763071045`
-- ZIP SHA-256 `d1b04dbdb74d77f61387f1857861d41ee26ce699b501417a7da6f4460517f4be`
+- ID `9763324750`
+- workflow ZIP size `821416` bytes
+- ZIP SHA-256 `35863326f8cbab981c823a93f1043957f3387191d2c0743f27fc348d5a2bfc79`
 
 ## Experimental / non-validated claims
 
