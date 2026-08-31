@@ -32,8 +32,9 @@ public final class ControlTab {
     private final MjpegRecorder recorder;
     private final FlameFrameAnalyzer flameAnalyzer;
     private final JoystickView joystick;
-    private String recordingSessionId,recordingStartedTs;
-    private long recordingStartedElapsed;
+    private volatile String recordingSessionId,recordingStartedTs;
+    private volatile long recordingStartedElapsed;
+    private volatile boolean recordingStopping=false;
     private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;
 
     public ControlTab(Context c,HazRobHost host){
@@ -66,22 +67,34 @@ public final class ControlTab {
     private void cycleFlash(){String m=host.flashMode();host.setFlashMode("off".equals(m)?"auto":"auto".equals(m)?"on":"off");}
 
     private void toggleRecording(){
-        if(recorder.isRecording()){stopRecording("manual");host.showToast("تم إيقاف تسجيل الفيديو");return;}
+        if(recordingStopping){host.showToast("جارٍ إنهاء التسجيل السابق");return;}
+        if(recordingSessionId!=null){requestStopRecording("manual",true);return;}
         String session=null;
         try{
-            session=EvidenceStore.startStandaloneSession(host.database(),"OPERATOR","video_capture");
+            session=EvidenceStore.startStandaloneSession(host.database(),host.operatorRole(),"video_capture");
             String name="HazRob_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date());File f=recorder.start(name);
             recordingSessionId=session;recordingStartedTs=EvidenceStore.isoNow();recordingStartedElapsed=SystemClock.elapsedRealtime();record.setText("إيقاف التسجيل");recordInfo.setText("جارٍ التسجيل • "+f.getName()+"\nجلسة "+session);host.showToast("بدأ تسجيل الفيديو");
-        }catch(Exception e){if(session!=null){final String s=session;host.io().execute(()->EvidenceStore.finishStandaloneSession(host.database(),s,"{\"terminal_state\":\"start_error\"}"));}host.showToast("تعذر بدء تسجيل الفيديو");recordInfo.setText("التسجيل: خطأ في التخزين");}
+        }catch(Exception e){if(session!=null)EvidenceStore.finishStandaloneSession(host.database(),session,"{\"terminal_state\":\"start_error\"}");host.showToast("تعذر بدء تسجيل الفيديو");recordInfo.setText("التسجيل: خطأ في التخزين");}
     }
 
-    private void stopRecording(String reason){
-        File f=recorder.videoFile(),idx=recorder.indexFile();long frames=recorder.frameCount(),dropped=recorder.droppedFrames();recorder.stop();record.setText("تسجيل الفيديو");
-        final String session=recordingSessionId,start=recordingStartedTs,end=EvidenceStore.isoNow();
-        JSONObject meta=new JSONObject();try{meta.put("format","HAZROB_RAW_MJPEG_V1");meta.put("frames",frames);meta.put("dropped_frames",dropped);meta.put("stop_reason",reason);meta.put("camera_host",host.cameraHost());if(idx!=null)meta.put("index_uri",Uri.fromFile(idx).toString());}catch(Exception ignored){}
-        final String metadata=meta.toString();
-        if(f!=null&&session!=null){final String uri=Uri.fromFile(f).toString();host.io().execute(()->{try{EvidenceStore.saveMedia(host.database(),session,"video/x-hazrob-mjpeg",uri,start,end,metadata);EvidenceStore.finishStandaloneSession(host.database(),session,metadata);}catch(Exception ignored){}});}
-        recordInfo.setText("تم الحفظ • "+frames+" إطار • مسقط "+dropped+"\n"+(f==null?"":f.getName()));recordingSessionId=null;recordingStartedTs=null;recordingStartedElapsed=0;
+    private void requestStopRecording(String reason,boolean toastAfter){
+        final String session=recordingSessionId,start=recordingStartedTs;if(session==null||recordingStopping)return;
+        recordingStopping=true;record.setEnabled(false);recordInfo.setText("جارٍ إنهاء التسجيل وحفظ الإطارات المعلقة...");
+        host.io().execute(()->{
+            MjpegRecorder.StopResult result=recorder.stopGracefully(5000);String end=EvidenceStore.isoNow();boolean mine=claimSession(session);
+            if(mine)persistRecording(session,start,end,reason,result);
+            root.post(()->{recordingStopping=false;record.setEnabled(true);record.setText("تسجيل الفيديو");if(mine){String err=result.error==null?"":" • خطأ "+result.error;recordInfo.setText("تم الحفظ • "+result.frames+" إطار • مسقط "+result.dropped+err+"\n"+(result.video==null?"":result.video.getName()));if(toastAfter)host.showToast(result.clean()?"تم إيقاف تسجيل الفيديو":"تم حفظ التسجيل مع خطأ كتابة");}});
+        });
+    }
+
+    private synchronized boolean claimSession(String expected){
+        if(expected==null||!expected.equals(recordingSessionId))return false;
+        recordingSessionId=null;recordingStartedTs=null;recordingStartedElapsed=0;return true;
+    }
+
+    private void persistRecording(String session,String start,String end,String reason,MjpegRecorder.StopResult r){
+        JSONObject meta=new JSONObject();try{meta.put("format","HAZROB_RAW_MJPEG_V1");meta.put("frames",r.frames);meta.put("dropped_frames",r.dropped);meta.put("stop_reason",reason);meta.put("camera_host",host.cameraHost());meta.put("clean_close",r.clean());if(r.error!=null)meta.put("io_error",r.error);if(r.index!=null)meta.put("index_uri",Uri.fromFile(r.index).toString());}catch(Exception ignored){}
+        String metadata=meta.toString();try{if(r.video!=null)EvidenceStore.saveMedia(host.database(),session,"video/x-hazrob-mjpeg",Uri.fromFile(r.video).toString(),start,end,metadata);EvidenceStore.finishStandaloneSession(host.database(),session,metadata);}catch(Exception ignored){}
     }
 
     private void showFlame(FlameFrameAnalyzer.Result r){
@@ -101,18 +114,24 @@ public final class ControlTab {
 
     private void persistFlameEvent(String type,FlameFrameAnalyzer.Result r){
         JSONObject p=new JSONObject();try{p.put("observed_utc",EvidenceStore.isoNow());p.put("model","FlameColorModel+TemporalEvidence/0.6");p.put("frame_score",r.frame.score);p.put("candidate_ratio",r.frame.candidateRatio);p.put("bright_candidate_ratio",r.frame.brightCandidateRatio);p.put("ema",r.temporal.ema);p.put("state",r.temporal.state.name());if(r.frame.hasRegion()){p.put("left",r.frame.left);p.put("top",r.frame.top);p.put("right",r.frame.right);p.put("bottom",r.frame.bottom);}}catch(Exception ignored){}
-        final String session=recordingSessionId,payload=p.toString();final long t=session!=null&&recordingStartedElapsed>0?Math.max(0,r.elapsedMs-recordingStartedElapsed):0;final double confidence=r.temporal.ema;
+        final String session=recordingSessionId,payload=p.toString();final long started=recordingStartedElapsed,t=session!=null&&started>0?Math.max(0,r.elapsedMs-started):0;final double confidence=r.temporal.ema;
         host.io().execute(()->{try{EvidenceStore.saveEvent(host.database(),session,t,type,confidence,payload);}catch(Exception ignored){}});
     }
 
     public View view(){return root;}
     public void resetJoystick(){joystick.reset();}
     public void startCamera(){String h=host.cameraHost();if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");}
-    public void stopCamera(){video.stop();flameAnalyzer.reset();lastFlameState=FlameEvidenceTracker.State.CLEAR;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recorder.isRecording())stopRecording("camera_stop");}
-    public void releaseCamera(){if(recorder.isRecording())stopRecording("release");flameAnalyzer.release();recorder.release();video.release();}
+    public void stopCamera(){video.stop();flameAnalyzer.reset();lastFlameState=FlameEvidenceTracker.State.CLEAR;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recordingSessionId!=null&&!recordingStopping)requestStopRecording("camera_stop",false);}
+
+    /** Lifecycle teardown fallback: close and persist synchronously before DB/executor shutdown. */
+    public void releaseCamera(){
+        video.stop();flameAnalyzer.release();
+        String session=recordingSessionId,start=recordingStartedTs;if(session!=null&&claimSession(session)){MjpegRecorder.StopResult r=recorder.stopNow();persistRecording(session,start,EvidenceStore.isoNow(),"release",r);}recorder.release();video.release();
+    }
 
     public void refresh(){
         String fm=host.flashMode();flash.setText("الفلاش: "+("on".equals(fm)?"تشغيل":"auto".equals(fm)?"تلقائي":"إيقاف"));
+        if(recordingSessionId!=null&&!recordingStopping&&!recorder.isRecording()&&recorder.lastError()!=null){requestStopRecording("io_error",false);return;}
         if(recorder.isRecording())recordInfo.setText("جارٍ التسجيل • "+recorder.frameCount()+" إطار • مسقط "+recorder.droppedFrames()+"\nجلسة "+recordingSessionId);
         JSONObject d=host.latestDiagnostics();
         if(d==null){status.setText("الروبوت غير متصل");status.setTextColor(0xFFFFB74D);drive.setText("يسار "+host.driveLeft()+"   يمين "+host.driveRight()+"   أمان الاتصال —");return;}
