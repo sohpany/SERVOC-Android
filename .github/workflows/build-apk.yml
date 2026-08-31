@@ -52,6 +52,20 @@ jobs:
           print('NIOSH IDLH source SHA-256:',m['source_sha256'])
           print('IDLH seed SHA-256:',m['sha256'])
           PY
+      - name: Generate authoritative OSHA Z-1 PEL seed
+        run: |
+          python3 tools/build_osha_z1_seed.py app/src/main/assets/generated/exposure/osha_z1
+          python3 - <<'PY'
+          import json
+          p='app/src/main/assets/generated/exposure/osha_z1/manifest.json'
+          m=json.load(open(p,encoding='utf-8'))
+          assert m['authoritative'] is True, m
+          assert m['record_count'] >= 300, m
+          assert 'ACGIH TLV' in m['excluded_columns'], m
+          print('OSHA Z-1 PEL records:',m['record_count'])
+          print('OSHA Z-1 source SHA-256:',m['source_sha256'])
+          print('OSHA seed SHA-256:',m['sha256'])
+          PY
       - name: Restore HazRob prototype signing key
         run: |
           base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
@@ -93,5 +107,6 @@ jobs:
             HazRob-v0.6.0-signing.txt
             app/src/main/assets/generated/niosh/manifest.json
             app/src/main/assets/generated/exposure/manifest.json
+            app/src/main/assets/generated/exposure/osha_z1/manifest.json
           if-no-files-found: error
           retention-days: 30
