@@ -1,6 +1,5 @@
 package com.servoc.app.github;
 
-import android.util.Base64;
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.report.ReferenceBankExporter;
 import org.json.JSONObject;
@@ -13,6 +12,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.Base64;
 import java.util.Locale;
 
 /**
@@ -39,7 +39,7 @@ public final class GitHubReferencePublisher {
         if(record==null)throw new IllegalArgumentException("record required");
         if(!record.approved)throw new IllegalArgumentException("record must be APPROVED before publication");
         String secret=token==null?"":token.trim();if(secret.length()<20)throw new IllegalArgumentException("GitHub token required");
-        String fileName=record.referenceName==null||record.referenceName.trim().isEmpty()?ReferenceBankExporter.fileName(record.id,record.ts):record.referenceName.trim();
+        String fileName=canonicalFileName(record);
         String path=DIRECTORY+"/"+fileName;
         byte[] recordBytes=serialize(record);String payloadHash=sha256(recordBytes);
         JSONObject request=buildRequest(fileName,recordBytes);
@@ -59,10 +59,18 @@ public final class GitHubReferencePublisher {
         String safe=safeError(code,response);return new Result(false,code,path,"",safe,payloadHash);
     }
 
+    /** Canonical path is derived only from immutable experiment identity, never user text. */
+    public static String canonicalFileName(ExperimentQueries.Record record){
+        if(record==null)throw new IllegalArgumentException("record required");
+        return ReferenceBankExporter.fileName(record.id,record.ts);
+    }
+
     /** Request builder is public for deterministic unit tests; it never receives credentials. */
     public static JSONObject buildRequest(String fileName,byte[] recordBytes)throws Exception{
-        if(fileName==null||fileName.trim().isEmpty())throw new IllegalArgumentException("fileName");if(recordBytes==null||recordBytes.length==0)throw new IllegalArgumentException("recordBytes");
-        JSONObject j=new JSONObject();j.put("message","Add HazRob approved reference experiment "+fileName);j.put("content",Base64.encodeToString(recordBytes,Base64.NO_WRAP));j.put("branch",BRANCH);return j;
+        if(fileName==null||fileName.trim().isEmpty())throw new IllegalArgumentException("fileName");
+        if(fileName.contains("/")||fileName.contains("\\")||fileName.contains(".."))throw new IllegalArgumentException("unsafe fileName");
+        if(recordBytes==null||recordBytes.length==0)throw new IllegalArgumentException("recordBytes");
+        JSONObject j=new JSONObject();j.put("message","Add HazRob approved reference experiment "+fileName);j.put("content",Base64.getEncoder().encodeToString(recordBytes));j.put("branch",BRANCH);return j;
     }
 
     private static byte[] serialize(ExperimentQueries.Record r)throws Exception{ByteArrayOutputStream out=new ByteArrayOutputStream(32*1024);ReferenceBankExporter.writeJson(out,r);return out.toByteArray();}
