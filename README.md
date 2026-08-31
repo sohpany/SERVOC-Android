@@ -4,7 +4,7 @@ HazRob is the Android operator, evidence and analytical application for the remo
 
 ## HazRob 0.6 core
 
-- Android application: `com.servoc.app`, versionCode `7`, versionName `0.6.0`.
+- Android application: `com.servoc.app`, versionCode `8`, versionName `0.6.1`.
 - Master ESP32 firmware API v3 is intentionally compact and deterministic: drive, STOP/failsafe, relay control, MQ acquisition, BME/BMP acquisition, measurement sequencing and settings.
 - ESP32-CAM remains an independent camera/flash subsystem; Android receives one MJPEG stream and fans frames out internally to display, recording and experimental vision analysis.
 - Session role gate: normal `USER` mode and PIN-protected `DEVELOPER` mode. Developer experiments/calibration/reference-bank functions are absent from the normal-user UI.
