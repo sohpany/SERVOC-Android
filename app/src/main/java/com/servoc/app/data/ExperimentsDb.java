@@ -9,17 +9,17 @@ import com.servoc.app.chemical.ChemicalCatalog;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Offline-first HazRob database for measurements, experiments, calibration, science and media metadata. */
+/** Offline-first HazRob database for measurements, experiments, calibration and scientific reference data. */
 public final class ExperimentsDb extends SQLiteOpenHelper {
-    public static final int DB_VERSION=6;
+    public static final int DB_VERSION=7;
     public ExperimentsDb(Context c){super(c,"servoc.db",null,DB_VERSION);}
 
     @Override public void onCreate(SQLiteDatabase db){
         db.execSQL("CREATE TABLE experiments(id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, payload TEXT NOT NULL, protocol TEXT, analytics TEXT, approved INTEGER NOT NULL DEFAULT 0, approved_ts TEXT, reference_name TEXT)");
         db.execSQL("CREATE TABLE fingerprints(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, label TEXT NOT NULL, created_ts TEXT NOT NULL, payload TEXT NOT NULL)");
-        db.execSQL("CREATE TABLE captures(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, known_ppm REAL, ts TEXT NOT NULL, session_id TEXT, temp_c REAL, rh REAL, phase TEXT, sensor_payload TEXT NOT NULL, feature_payload TEXT)");
+        db.execSQL("CREATE TABLE captures(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, chemical_uid INTEGER, known_ppm REAL, ts TEXT NOT NULL, session_id TEXT, temp_c REAL, rh REAL, phase TEXT, sensor_payload TEXT NOT NULL, feature_payload TEXT)");
         db.execSQL("CREATE TABLE models(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, model_type TEXT NOT NULL, version TEXT NOT NULL, created_ts TEXT NOT NULL, training_count INTEGER, metrics TEXT, payload TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 0)");
-        createCalibrationTables(db);db.execSQL("CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)");createV6Tables(db);seedLegacyChemicals(db);seedCoreSources(db);
+        createCalibrationTables(db);db.execSQL("CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)");createV6Tables(db);seedLegacyChemicals(db);seedCoreSources(db);createCaptureUidIndex(db);
     }
 
     @Override public void onUpgrade(SQLiteDatabase db,int oldVersion,int newVersion){
@@ -28,7 +28,10 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
         if(oldVersion<4)createCalibrationTables(db);
         if(oldVersion<5){try{db.execSQL("ALTER TABLE experiments ADD COLUMN approved INTEGER NOT NULL DEFAULT 0");}catch(Exception ignored){}try{db.execSQL("ALTER TABLE experiments ADD COLUMN approved_ts TEXT");}catch(Exception ignored){}try{db.execSQL("ALTER TABLE experiments ADD COLUMN reference_name TEXT");}catch(Exception ignored){}}
         if(oldVersion<6){createV6Tables(db);seedLegacyChemicals(db);seedCoreSources(db);}
+        if(oldVersion<7){try{db.execSQL("ALTER TABLE captures ADD COLUMN chemical_uid INTEGER");}catch(Exception ignored){}db.execSQL("UPDATE captures SET chemical_uid=(SELECT uid FROM chemicals WHERE legacy_id=captures.chemical_id) WHERE chemical_uid IS NULL AND chemical_id>=0");createCaptureUidIndex(db);}
     }
+
+    private static void createCaptureUidIndex(SQLiteDatabase db){db.execSQL("CREATE INDEX IF NOT EXISTS idx_captures_chemical_uid ON captures(chemical_uid)");}
 
     private static void createCalibrationTables(SQLiteDatabase db){
         db.execSQL("CREATE TABLE IF NOT EXISTS calibration_curves(id INTEGER PRIMARY KEY AUTOINCREMENT, sensor_id INTEGER NOT NULL, chemical_id INTEGER NOT NULL, version TEXT NOT NULL, created_ts TEXT NOT NULL, reference_gas TEXT, source_note TEXT, r2 REAL, active INTEGER NOT NULL DEFAULT 0)");
@@ -58,9 +61,7 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
 
     private static void seedLegacyChemicals(SQLiteDatabase db){
         try(Cursor c=db.rawQuery("SELECT COUNT(*) FROM chemicals",null)){if(c.moveToFirst()&&c.getInt(0)>0)return;}
-        db.beginTransaction();try{
-            for(int i=0;i<ChemicalCatalog.COUNT;i++){ContentValues v=new ContentValues();v.put("legacy_id",i);v.put("name_en",ChemicalCatalog.NAMES[i]);v.put("formula",ChemicalCatalog.FORMULAS[i]);v.put("record_source","HazRob legacy catalog v0.5");db.insertOrThrow("chemicals",null,v);}db.setTransactionSuccessful();
-        }finally{db.endTransaction();}
+        db.beginTransaction();try{for(int i=0;i<ChemicalCatalog.COUNT;i++){ContentValues v=new ContentValues();v.put("legacy_id",i);v.put("name_en",ChemicalCatalog.NAMES[i]);v.put("formula",ChemicalCatalog.FORMULAS[i]);v.put("record_source","HazRob legacy catalog v0.5");db.insertOrThrow("chemicals",null,v);}db.setTransactionSuccessful();}finally{db.endTransaction();}
     }
 
     private static void seedCoreSources(SQLiteDatabase db){
@@ -87,7 +88,8 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
     public int fingerprintCount(){try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM fingerprints",null)){return c.moveToFirst()?c.getInt(0):0;}}
     public List<String> fingerprintPayloads(){List<String> out=new ArrayList<>();try(Cursor c=getReadableDatabase().rawQuery("SELECT payload FROM fingerprints ORDER BY id",null)){while(c.moveToNext())out.add(c.getString(0));}return out;}
 
-    public long saveCapture(int chemicalId,Double knownPpm,String ts,String sessionId,Double tempC,Double rh,String phase,String sensorPayload,String featurePayload){ContentValues v=new ContentValues();v.put("chemical_id",chemicalId);if(knownPpm!=null)v.put("known_ppm",knownPpm);v.put("ts",ts);v.put("session_id",sessionId);if(tempC!=null)v.put("temp_c",tempC);if(rh!=null)v.put("rh",rh);v.put("phase",phase);v.put("sensor_payload",sensorPayload);v.put("feature_payload",featurePayload);return getWritableDatabase().insert("captures",null,v);}
+    public long saveCapture(int chemicalId,Double knownPpm,String ts,String sessionId,Double tempC,Double rh,String phase,String sensorPayload,String featurePayload){return saveCaptureForChemical(null,chemicalId,knownPpm,ts,sessionId,tempC,rh,phase,sensorPayload,featurePayload);}
+    public long saveCaptureForChemical(Long chemicalUid,Integer legacyId,Double knownPpm,String ts,String sessionId,Double tempC,Double rh,String phase,String sensorPayload,String featurePayload){ContentValues v=new ContentValues();v.put("chemical_id",legacyId==null?-1:legacyId);if(chemicalUid!=null)v.put("chemical_uid",chemicalUid);if(knownPpm!=null)v.put("known_ppm",knownPpm);v.put("ts",ts);v.put("session_id",sessionId);if(tempC!=null)v.put("temp_c",tempC);if(rh!=null)v.put("rh",rh);v.put("phase",phase);v.put("sensor_payload",sensorPayload);v.put("feature_payload",featurePayload);return getWritableDatabase().insert("captures",null,v);}
     public int captureCount(){try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM captures",null)){return c.moveToFirst()?c.getInt(0):0;}}
     public long saveModel(int chemicalId,String modelType,String version,String createdTs,int trainingCount,String metrics,String payload,boolean active){if(active)getWritableDatabase().execSQL("UPDATE models SET active=0 WHERE chemical_id=? AND model_type=?",new Object[]{chemicalId,modelType});ContentValues v=new ContentValues();v.put("chemical_id",chemicalId);v.put("model_type",modelType);v.put("version",version);v.put("created_ts",createdTs);v.put("training_count",trainingCount);v.put("metrics",metrics);v.put("payload",payload);v.put("active",active?1:0);return getWritableDatabase().insert("models",null,v);}
     public int modelCount(){try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM models",null)){return c.moveToFirst()?c.getInt(0):0;}}
