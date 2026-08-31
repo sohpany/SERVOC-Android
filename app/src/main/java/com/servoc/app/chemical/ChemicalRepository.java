@@ -19,7 +19,7 @@ public final class ChemicalRepository {
     public int count(){return db.chemicalCount();}
 
     public List<Chemical> search(String query,int limit){
-        String q=query==null?"":query.trim();int n=Math.max(1,Math.min(limit,500));List<Chemical> out=new ArrayList<>();
+        String q=query==null?"":query.trim();int n=Math.max(1,Math.min(limit,5000));List<Chemical> out=new ArrayList<>();
         String sql;String[] args;
         if(q.isEmpty()){sql="SELECT uid,legacy_id,cas,name_en,name_ar,formula,record_source FROM chemicals WHERE active=1 ORDER BY name_en LIMIT "+n;args=null;}
         else{sql="SELECT DISTINCT c.uid,c.legacy_id,c.cas,c.name_en,c.name_ar,c.formula,c.record_source FROM chemicals c LEFT JOIN chemical_synonyms s ON s.chemical_uid=c.uid LEFT JOIN chemical_identifiers i ON i.chemical_uid=c.uid WHERE c.active=1 AND (c.name_en LIKE ? OR c.name_ar LIKE ? OR c.cas LIKE ? OR c.formula LIKE ? OR s.synonym LIKE ? OR i.value LIKE ?) ORDER BY c.name_en LIMIT "+n;String x="%"+q+"%";args=new String[]{x,x,x,x,x,x};}
