@@ -39,6 +39,19 @@ jobs:
           print('NIOSH source SHA-256:',m['source_sha256'])
           print('Seed SHA-256:',m['sha256'])
           PY
+      - name: Generate authoritative NIOSH IDLH seed
+        run: |
+          python3 tools/build_niosh_idlh_seed.py app/src/main/assets/generated/exposure
+          python3 - <<'PY'
+          import json
+          p='app/src/main/assets/generated/exposure/manifest.json'
+          m=json.load(open(p,encoding='utf-8'))
+          assert m['authoritative'] is True, m
+          assert m['record_count'] >= 300, m
+          print('NIOSH IDLH records:',m['record_count'])
+          print('NIOSH IDLH source SHA-256:',m['source_sha256'])
+          print('IDLH seed SHA-256:',m['sha256'])
+          PY
       - name: Restore HazRob prototype signing key
         run: |
           base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
@@ -79,5 +92,6 @@ jobs:
             HazRob-v0.6.0-sha256.txt
             HazRob-v0.6.0-signing.txt
             app/src/main/assets/generated/niosh/manifest.json
+            app/src/main/assets/generated/exposure/manifest.json
           if-no-files-found: error
           retention-days: 30
