@@ -12,6 +12,7 @@ import com.servoc.app.analytics.AnalyticsSnapshot;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.chemical.ValidatedGasEngine;
 import com.servoc.app.exposure.ExposureRepository;
+import com.servoc.app.measurement.SensorHealthEngine;
 import com.servoc.app.sensors.RobotTelemetry;
 import org.json.JSONObject;
 import java.text.SimpleDateFormat;
@@ -36,7 +37,7 @@ public final class MeasurementAnalysisTab {
 
         LinearLayout runCard=UiKit.card(c);runCard.addView(UiKit.title(c,"دورة MQ"),UiKit.full(c));cycle=UiKit.text(c,"الحالة: خامل");cycle.setBackgroundColor(0xFF151A20);runCard.addView(cycle,UiKit.full(c));LinearLayout buttons=UiKit.hbox(c);Button start=UiKit.button(c,"بدء القياس");start.setOnClickListener(v->measurement(true));buttons.addView(start,UiKit.weight(1));Button cancel=UiKit.button(c,"إلغاء");cancel.setOnClickListener(v->measurement(false));buttons.addView(cancel,UiKit.weight(1));Button save=UiKit.button(c,"حفظ النتيجة");save.setOnClickListener(v->save());buttons.addView(save,UiKit.weight(1));runCard.addView(buttons,UiKit.full(c));root.addView(runCard,UiKit.full(c));
 
-        LinearLayout mqCard=UiKit.card(c);mqCard.addView(UiKit.title(c,"حالة مصفوفة MQ"),UiKit.full(c));for(int i=0;i<mqRows.length;i++){mqRows[i]=UiKit.small(c,RobotTelemetry.MQ_KEYS[i].toUpperCase(Locale.US)+" —");mqRows[i].setBackgroundColor((i&1)==0?0xFF161C23:0xFF1B222B);mqRows[i].setTextIsSelectable(true);mqCard.addView(mqRows[i],UiKit.full(c));}mqCard.addView(UiKit.small(c,"Raw وVadc وVao وRs وRs/R0 هي بيانات استحواذ. عدم وجود معايرة مرجعية موثقة يمنع تحويلها إلى PPM كمي."),UiKit.full(c));root.addView(mqCard,UiKit.full(c));
+        LinearLayout mqCard=UiKit.card(c);mqCard.addView(UiKit.title(c,"حالة مصفوفة MQ"),UiKit.full(c));for(int i=0;i<mqRows.length;i++){mqRows[i]=UiKit.small(c,RobotTelemetry.MQ_KEYS[i].toUpperCase(Locale.US)+" —");mqRows[i].setBackgroundColor((i&1)==0?0xFF161C23:0xFF1B222B);mqRows[i].setTextIsSelectable(true);mqCard.addView(mqRows[i],UiKit.full(c));}mqCard.addView(UiKit.small(c,"Raw وVadc وVao وRs وRs/R0 هي بيانات استحواذ. صحة القناة ترصد فقد البيانات/التشبع/الثبات/التذبذب. انحراف baseline لا يُقيّم إلا مقابل مرجع هواء نظيف اعتمده المطور. عدم وجود معايرة مرجعية موثقة يمنع تحويل القراءة إلى PPM كمي."),UiKit.full(c));root.addView(mqCard,UiKit.full(c));
 
         LinearLayout chemCard=UiKit.card(c);chemCard.addView(UiKit.title(c,"التحليل الكيميائي وحدود التعرض"),UiKit.full(c));coverage=UiKit.small(c,"");chemCard.addView(coverage,UiKit.full(c));chem=UiKit.text(c,"لا توجد بيانات تحليل بعد.");chem.setTextIsSelectable(true);chem.setBackgroundColor(0xFF151A20);chemCard.addView(chem,UiKit.full(c));root.addView(chemCard,UiKit.full(c));
 
@@ -52,13 +53,22 @@ public final class MeasurementAnalysisTab {
 
     public void refresh(){
         coverage.setText("قاعدة المركبات: "+chemicals.count()+" سجلًا • حدود التعرض الديناميكية: "+exposures.count()+" سجلًا • كل حد يحتفظ بجهته ومصدره ومراجعته.");
-        JSONObject d=host.latestDiagnostics();if(d==null){env.setText("الروبوت غير متصل");cycle.setText("الحالة: غير متصل");chem.setText("لا توجد بيانات تحليل.");physical.setText("—");for(int i=0;i<mqRows.length;i++)mqRows[i].setText(RobotTelemetry.MQ_KEYS[i].toUpperCase(Locale.US)+" —");return;}
+        JSONObject d=host.latestDiagnostics();if(d==null){env.setText("الروبوت غير متصل");cycle.setText("الحالة: غير متصل");chem.setText("لا توجد بيانات تحليل.");physical.setText("—");for(int i=0;i<mqRows.length;i++){String key=RobotTelemetry.MQ_KEYS[i];SensorHealthEngine.Snapshot h=host.sensorHealth(key);mqRows[i].setText(key.toUpperCase(Locale.US)+" — • صحة "+SensorHealthEngine.compact(h));}return;}
         refreshEnv(d);refreshCycleAndMq(d);refreshChemistry(d);refreshPhysical(d);
     }
 
     private void refreshEnv(JSONObject d){JSONObject e=d.optJSONObject("env");if(e==null||!e.optBoolean("ok",false)){env.setText("الحساس البيئي غير متاح. BME/BMP يعمل مباشرة على I²C ولا يعتمد على دورة MQ.");env.setTextColor(0xFFFFB74D);return;}String type=e.optString("type","ENV");String h=Double.isFinite(e.optDouble("humidity",Double.NaN))?String.format(Locale.US,"%.1f %%RH",e.optDouble("humidity")):"الرطوبة غير متاحة";env.setText(String.format(Locale.US,"%s • %s • Chip %s\nالحرارة %.2f °C • %s • الضغط %.1f hPa",type,e.optString("address","—"),e.optString("chip_id","—"),e.optDouble("temperature",Double.NaN),h,e.optDouble("pressure",Double.NaN)));env.setTextColor(0xFF81C784);}
 
-    private void refreshCycleAndMq(JSONObject d){JSONObject m=d.optJSONObject("measurement");String state=m==null?"idle":m.optString("state","idle");int group=m==null?0:m.optInt("group",0);cycle.setText("الحالة: "+stateAr(state)+(group>0?" • مجموعة "+group:""));cycle.setTextColor("ready".equals(state)?0xFF81C784:Color.WHITE);JSONObject source=d.optJSONObject("mq");if(m!=null&&"ready".equals(state)&&m.optJSONObject("mq")!=null)source=m.optJSONObject("mq");for(int i=0;i<mqRows.length;i++){String key=RobotTelemetry.MQ_KEYS[i];JSONObject r=source==null?null:source.optJSONObject(key);if(r==null){mqRows[i].setText(key.toUpperCase(Locale.US)+" • غير مركب/غير مرسل");mqRows[i].setTextColor(0xFF78909C);continue;}boolean ok=r.optBoolean("valid",r.optBoolean("ok",false));StringBuilder s=new StringBuilder(key.toUpperCase(Locale.US)).append(ok?" • صالح":" • غير صالح");if(!r.isNull("raw"))s.append(" • raw ").append((int)Math.round(r.optDouble("raw",0)));add(s,r,"adc","Vadc");add(s,r,"ao","Vao");add(s,r,"rs","Rs");add(s,r,"ratio","Rs/R0");mqRows[i].setText(s.toString());mqRows[i].setTextColor(ok?Color.WHITE:0xFF78909C);}}
+    private void refreshCycleAndMq(JSONObject d){
+        JSONObject m=d.optJSONObject("measurement");String state=m==null?"idle":m.optString("state","idle");int group=m==null?0:m.optInt("group",0);cycle.setText("الحالة: "+stateAr(state)+(group>0?" • مجموعة "+group:""));cycle.setTextColor("ready".equals(state)?0xFF81C784:Color.WHITE);JSONObject source=d.optJSONObject("mq");if(m!=null&&"ready".equals(state)&&m.optJSONObject("mq")!=null)source=m.optJSONObject("mq");
+        for(int i=0;i<mqRows.length;i++){
+            String key=RobotTelemetry.MQ_KEYS[i];JSONObject r=source==null?null:source.optJSONObject(key);SensorHealthEngine.Snapshot h=host.sensorHealth(key);
+            if(r==null){mqRows[i].setText(key.toUpperCase(Locale.US)+" • غير مركب/غير مرسل • صحة "+SensorHealthEngine.compact(h));mqRows[i].setTextColor(healthColor(h,false));continue;}
+            boolean ok=r.optBoolean("valid",r.optBoolean("ok",false));StringBuilder s=new StringBuilder(key.toUpperCase(Locale.US)).append(ok?" • صالح":" • غير صالح");if(!r.isNull("raw"))s.append(" • raw ").append((int)Math.round(r.optDouble("raw",0)));add(s,r,"adc","Vadc");add(s,r,"ao","Vao");add(s,r,"rs","Rs");add(s,r,"ratio","Rs/R0");s.append(" • صحة ").append(SensorHealthEngine.compact(h));mqRows[i].setText(s.toString());mqRows[i].setTextColor(healthColor(h,ok));
+        }
+    }
+
+    private static int healthColor(SensorHealthEngine.Snapshot h,boolean readingOk){if(h==null)return readingOk?Color.WHITE:0xFF78909C;switch(h.state){case MISSING:case INVALID:case SATURATED:return 0xFFEF5350;case STUCK:case UNSTABLE:case DRIFT_WARNING:return 0xFFFFB74D;case HEALTHY:return readingOk?0xFFB0BEC5:0xFF78909C;default:return readingOk?Color.WHITE:0xFF78909C;}}
 
     private void refreshChemistry(JSONObject d){
         Map<Integer,ValidatedGasEngine.Result> map=AnalyticsSnapshot.analyze(d);List<ValidatedGasEngine.Result> rows=new ArrayList<>(map.values());rows.sort(Comparator.<ValidatedGasEngine.Result>comparingInt(r->r.quantitative?1:0).reversed().thenComparingInt(r->r.confidence).reversed().thenComparingDouble(r->r.agreement).reversed());
