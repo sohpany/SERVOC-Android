@@ -12,6 +12,8 @@ import android.widget.TextView;
 import com.servoc.app.camera.MjpegRecorder;
 import com.servoc.app.camera.MjpegView;
 import com.servoc.app.control.JoystickView;
+import com.servoc.app.vision.FlameEvidenceTracker;
+import com.servoc.app.vision.FlameFrameAnalyzer;
 import org.json.JSONObject;
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -21,10 +23,11 @@ import java.util.Locale;
 public final class ControlTab {
     private final HazRobHost host;
     private final LinearLayout root;
-    private final TextView status,drive,recordInfo;
+    private final TextView status,drive,recordInfo,flameInfo;
     private final Button flash,record;
     private final MjpegView video;
     private final MjpegRecorder recorder;
+    private final FlameFrameAnalyzer flameAnalyzer;
     private final JoystickView joystick;
 
     public ControlTab(Context c,HazRobHost host){
@@ -36,7 +39,8 @@ public final class ControlTab {
         status=UiKit.text(c,"الروبوت غير متصل");status.setTextColor(0xFFFFB74D);status.setGravity(Gravity.END);header.addView(status,new LinearLayout.LayoutParams(-2,-2));root.addView(header,UiKit.full(c));
 
         FrameLayout cameraBox=new FrameLayout(c);cameraBox.setBackgroundColor(Color.BLACK);cameraBox.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        video=new MjpegView(c);recorder=new MjpegRecorder(c);video.setFrameListener(recorder);cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
+        video=new MjpegView(c);recorder=new MjpegRecorder(c);flameAnalyzer=new FlameFrameAnalyzer(r->root.post(()->showFlame(r)));
+        video.setFrameListener((jpeg,t)->{recorder.onJpegFrame(jpeg,t);flameAnalyzer.onJpegFrame(jpeg,t);});cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
         joystick=new JoystickView(c);int size=UiKit.dp(c,150);
         FrameLayout.LayoutParams jp=new FrameLayout.LayoutParams(size,size,Gravity.RIGHT|Gravity.BOTTOM);jp.setMargins(0,0,UiKit.dp(c,10),UiKit.dp(c,10));cameraBox.addView(joystick,jp);
         joystick.setListener((l,r,active)->host.setDriveCommand(l,r));
@@ -48,8 +52,9 @@ public final class ControlTab {
         record=UiKit.button(c,"تسجيل الفيديو");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1f));root.addView(actions,UiKit.full(c));
 
         recordInfo=UiKit.small(c,"التسجيل: متوقف");recordInfo.setBackgroundColor(0xFF151A20);root.addView(recordInfo,UiKit.full(c));
+        flameInfo=UiKit.small(c,"دليل اللهب البصري التجريبي: بانتظار الفيديو");flameInfo.setBackgroundColor(0xFF151A20);flameInfo.setTextColor(0xFF90A4AE);root.addView(flameInfo,UiKit.full(c));
         drive=UiKit.small(c,"يسار 0   يمين 0   أمان الاتصال —");drive.setBackgroundColor(0xFF151A20);root.addView(drive,UiKit.full(c));
-        root.addView(UiKit.small(c,"يستخدم العرض والتسجيل نفس اتصال ESP32-CAM. تُرسل أوامر القيادة كل 250 ms، وتبقى الحماية من فقد الاتصال داخل ESP32."),UiKit.full(c));
+        root.addView(UiKit.small(c,"يستخدم العرض والتسجيل والتحليل البصري نفس اتصال ESP32-CAM. تحليل اللهب تجريبي/مساعد ولا يرسل أوامر حركة أو قرارات سلامة. تُرسل أوامر القيادة كل 250 ms وتبقى الحماية من فقد الاتصال داخل ESP32."),UiKit.full(c));
     }
 
     private void cycleFlash(){String m=host.flashMode();host.setFlashMode("off".equals(m)?"auto":"auto".equals(m)?"on":"off");}
@@ -63,11 +68,23 @@ public final class ControlTab {
         }catch(Exception e){host.showToast("تعذر بدء تسجيل الفيديو");recordInfo.setText("التسجيل: خطأ في التخزين");}
     }
 
+    private void showFlame(FlameFrameAnalyzer.Result r){
+        if(r==null||r.frame==null||r.temporal==null)return;
+        String state=r.temporal.state==FlameEvidenceTracker.State.PERSISTENT?"مستمر":r.temporal.state==FlameEvidenceTracker.State.CANDIDATE?"مرشح":"لا دليل";
+        StringBuilder s=new StringBuilder("دليل اللهب البصري التجريبي: ").append(state)
+                .append(" • score ").append(String.format(Locale.US,"%.0f%%",100*r.frame.score))
+                .append(" • pixels ").append(String.format(Locale.US,"%.1f%%",100*r.frame.candidateRatio))
+                .append(" • EMA ").append(String.format(Locale.US,"%.0f%%",100*r.temporal.ema));
+        if(r.frame.hasRegion())s.append(String.format(Locale.US,"\nمنطقة تقريبية L%.2f T%.2f R%.2f B%.2f",r.frame.left,r.frame.top,r.frame.right,r.frame.bottom));
+        flameInfo.setText(s.toString());
+        flameInfo.setTextColor(r.temporal.state==FlameEvidenceTracker.State.PERSISTENT?0xFFFF7043:r.temporal.state==FlameEvidenceTracker.State.CANDIDATE?0xFFFFB74D:0xFF90A4AE);
+    }
+
     public View view(){return root;}
     public void resetJoystick(){joystick.reset();}
     public void startCamera(){String h=host.cameraHost();if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");}
-    public void stopCamera(){video.stop();if(recorder.isRecording()){recorder.stop();record.setText("تسجيل الفيديو");recordInfo.setText("تم إيقاف التسجيل مع إيقاف الكاميرا • "+recorder.frameCount()+" إطار");}}
-    public void releaseCamera(){recorder.release();video.release();}
+    public void stopCamera(){video.stop();flameAnalyzer.reset();flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recorder.isRecording()){recorder.stop();record.setText("تسجيل الفيديو");recordInfo.setText("تم إيقاف التسجيل مع إيقاف الكاميرا • "+recorder.frameCount()+" إطار");}}
+    public void releaseCamera(){flameAnalyzer.release();recorder.release();video.release();}
 
     public void refresh(){
         String fm=host.flashMode();flash.setText("الفلاش: "+("on".equals(fm)?"تشغيل":"auto".equals(fm)?"تلقائي":"إيقاف"));
