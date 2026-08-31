@@ -6,7 +6,10 @@ import static org.junit.Assert.*;
 public class FlameEvidenceTrackerTest {
     @Test public void singleHotFrameNeverBecomesPersistent(){
         FlameEvidenceTracker t=new FlameEvidenceTracker(.7,.4,.5,3,500,1000);
-        assertEquals(FlameEvidenceTracker.State.CANDIDATE,t.update(.95,0).state);
+        FlameEvidenceTracker.Snapshot s=t.update(.95,0);
+        assertEquals(FlameEvidenceTracker.State.CANDIDATE,s.state);
+        assertEquals(.95,s.evidenceScore,1e-12);
+        assertEquals(s.evidenceScore,s.probability,0); // compatibility alias only
         assertNotEquals(FlameEvidenceTracker.State.PERSISTENT,t.update(.1,100).state);
     }
 
@@ -15,7 +18,7 @@ public class FlameEvidenceTrackerTest {
         t.update(.85,0);t.update(.88,250);
         FlameEvidenceTracker.Snapshot s=t.update(.90,550);
         assertEquals(FlameEvidenceTracker.State.PERSISTENT,s.state);
-        assertTrue(s.ema>.4);assertEquals(3,s.positiveFrames);
+        assertTrue(s.ema>.4);assertEquals(3,s.positiveFrames);assertTrue(s.peak>=s.evidenceScore);
     }
 
     @Test public void hysteresisDoesNotClearPersistentEvidenceOnOneModerateFrame(){
