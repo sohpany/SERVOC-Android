@@ -92,7 +92,7 @@ Developer:
 
 Developer PIN for the current prototype workflow is `1166`. It is session-only and is explicitly treated as a UI/workflow barrier, not as cryptographic protection. The Android manifest exports only `MainActivity`; the developer laboratory is not exposed as an independently launchable activity.
 
-The previous separate sensor/chemical/measurement workflows are consolidated into one Measurement & Analysis tab.
+The previous separate sensor/chemical/measurement workflows are consolidated into one Measurement & Analysis tab. The obsolete v0.5 `SensorsTab`, `ChemicalsTab` and `PhysicalTab` source files were removed before the final validation build, and CI confirmed there is no hidden runtime dependency on them.
 
 ## 5. Chemical knowledge and occupational-exposure data
 
@@ -196,23 +196,25 @@ This result is advisory only. It is not odometry and is never converted into aut
 
 ## 11. CI and release verification
 
-Latest code-validation workflow:
-- GitHub Actions: Build HazRob APK **#212**
-- run ID: `33405610001`
-- code-validation head commit: `3accc0fda7af65e9ca004c4618495ab738c02c0f`
+Final executable-source validation workflow:
+- GitHub Actions: Build HazRob APK **#215**
+- run ID: `33406289224`
+- executable-source head commit: `ddd0633c4f9ffde186e40fad85aa60acec13cab7`
 - scientific dataset integrity/provenance validation: **PASS**
-- analytics/protocol/reference-publication unit tests: **PASS**
+- analytics/protocol/reference-publication/vision/navigation unit tests: **PASS**
 - signed release APK build: **PASS**
+- release lint-vital path: **PASS**
 - signing-certificate verification: **PASS**
 - artifact upload: **PASS**
 
-The commits after the validation head update Markdown documentation only; no Android/firmware executable source changed after the validated code commit.
+This audit update follows the validated executable commit and changes documentation only.
 
 Artifact:
 - name: `HazRob-v0.6.0-prototype`
-- artifact ID: `9763071045`
-- artifact ZIP digest SHA-256: `d1b04dbdb74d77f61387f1857861d41ee26ce699b501417a7da6f4460517f4be`
-- release APK SHA-256: `1b2813614857a4f57562eeef379eae4070eb0d58345afb968283719d563fa1e5`
+- artifact ID: `9763324750`
+- artifact size: `821416` bytes (workflow ZIP artifact)
+- artifact ZIP digest SHA-256: `35863326f8cbab981c823a93f1043957f3387191d2c0743f27fc348d5a2bfc79`
+- release APK SHA-256: `b2c36d30b330ef8ac905fec04ba70759c2cd8373a559226de20d3ba9c4aa5513`
 
 Signing certificate SHA-256:
 `D6:B5:B6:9B:E3:82:F2:AF:A6:DF:4B:46:BA:DE:5B:6F:86:4F:40:60:62:2E:94:90:75:29:3A:C6:20:03:D3:F0`
@@ -220,11 +222,12 @@ Signing certificate SHA-256:
 The CI certificate check normalized that value to lowercase/colon-free form and matched it exactly. The release APK signature verifies successfully.
 
 Non-blocking build-tool technical debt observed by CI:
-- `WifiRoute.java` uses an Android API marked deprecated;
-- current GitHub Actions dependencies emit Node 20 migration/deprecation warnings;
+- `WifiRoute.java` uses an Android API marked deprecated; it is retained in 0.6 because it explicitly binds local robot/camera HTTP traffic to Wi-Fi even when cellular data is active, and its lifecycle replacement requires target-device network testing;
+- one vision unit test also touches an Android API reported deprecated by the compiler;
+- current GitHub Actions dependencies emit Node 20 migration/deprecation warnings, including the already-deprecated `actions/setup-java@v4` action;
 - Gradle reports features that should be cleaned before Gradle 10 migration.
 
-None of those warnings caused a test, lint-vital, signing or release-build failure in run #212.
+None of those warnings caused a unit-test, lint-vital, signing or release-build failure in run #215.
 
 ## 12. Remaining physical acceptance before promotion to conference/demo release
 
