@@ -9,16 +9,22 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.servoc.app.camera.MjpegRecorder;
 import com.servoc.app.camera.MjpegView;
 import com.servoc.app.control.JoystickView;
 import org.json.JSONObject;
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 public final class ControlTab {
     private final HazRobHost host;
     private final LinearLayout root;
-    private final TextView status,drive;
-    private final Button flash;
+    private final TextView status,drive,recordInfo;
+    private final Button flash,record;
     private final MjpegView video;
+    private final MjpegRecorder recorder;
     private final JoystickView joystick;
 
     public ControlTab(Context c,HazRobHost host){
@@ -30,7 +36,7 @@ public final class ControlTab {
         status=UiKit.text(c,"الروبوت غير متصل");status.setTextColor(0xFFFFB74D);status.setGravity(Gravity.END);header.addView(status,new LinearLayout.LayoutParams(-2,-2));root.addView(header,UiKit.full(c));
 
         FrameLayout cameraBox=new FrameLayout(c);cameraBox.setBackgroundColor(Color.BLACK);cameraBox.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        video=new MjpegView(c);cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
+        video=new MjpegView(c);recorder=new MjpegRecorder(c);video.setFrameListener(recorder);cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
         joystick=new JoystickView(c);int size=UiKit.dp(c,150);
         FrameLayout.LayoutParams jp=new FrameLayout.LayoutParams(size,size,Gravity.RIGHT|Gravity.BOTTOM);jp.setMargins(0,0,UiKit.dp(c,10),UiKit.dp(c,10));cameraBox.addView(joystick,jp);
         joystick.setListener((l,r,active)->host.setDriveCommand(l,r));
@@ -38,21 +44,34 @@ public final class ControlTab {
 
         LinearLayout actions=UiKit.hbox(c);
         Button stop=UiKit.button(c,"إيقاف طارئ");stop.setTextColor(Color.WHITE);stop.setBackgroundColor(0xFFC62828);stop.setOnClickListener(v->host.emergencyStop());actions.addView(stop,UiKit.weight(1.3f));
-        flash=UiKit.button(c,"الفلاش: إيقاف");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1f));root.addView(actions,UiKit.full(c));
+        flash=UiKit.button(c,"الفلاش: إيقاف");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1f));
+        record=UiKit.button(c,"تسجيل الفيديو");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1f));root.addView(actions,UiKit.full(c));
 
+        recordInfo=UiKit.small(c,"التسجيل: متوقف");recordInfo.setBackgroundColor(0xFF151A20);root.addView(recordInfo,UiKit.full(c));
         drive=UiKit.small(c,"يسار 0   يمين 0   أمان الاتصال —");drive.setBackgroundColor(0xFF151A20);root.addView(drive,UiKit.full(c));
-        root.addView(UiKit.small(c,"تُرسل أوامر القيادة كل 250 ms أثناء بقاء HazRob في الواجهة. تبقى الحماية من فقد الاتصال والتسارع/التباطؤ وعكس الاتجاه داخل ESP32."),UiKit.full(c));
+        root.addView(UiKit.small(c,"يستخدم العرض والتسجيل نفس اتصال ESP32-CAM. تُرسل أوامر القيادة كل 250 ms، وتبقى الحماية من فقد الاتصال داخل ESP32."),UiKit.full(c));
     }
 
     private void cycleFlash(){String m=host.flashMode();host.setFlashMode("off".equals(m)?"auto":"auto".equals(m)?"on":"off");}
+
+    private void toggleRecording(){
+        if(recorder.isRecording()){
+            File f=recorder.videoFile();recorder.stop();record.setText("تسجيل الفيديو");recordInfo.setText("تم الحفظ • "+recorder.frameCount()+" إطار • مسقط "+recorder.droppedFrames()+"\n"+(f==null?"":f.getName()));host.showToast("تم إيقاف تسجيل الفيديو");return;
+        }
+        try{
+            String name="HazRob_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date());File f=recorder.start(name);record.setText("إيقاف التسجيل");recordInfo.setText("جارٍ التسجيل • "+f.getName());host.showToast("بدأ تسجيل الفيديو");
+        }catch(Exception e){host.showToast("تعذر بدء تسجيل الفيديو");recordInfo.setText("التسجيل: خطأ في التخزين");}
+    }
+
     public View view(){return root;}
     public void resetJoystick(){joystick.reset();}
     public void startCamera(){String h=host.cameraHost();if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");}
-    public void stopCamera(){video.stop();}
-    public void releaseCamera(){video.release();}
+    public void stopCamera(){video.stop();if(recorder.isRecording()){recorder.stop();record.setText("تسجيل الفيديو");recordInfo.setText("تم إيقاف التسجيل مع إيقاف الكاميرا • "+recorder.frameCount()+" إطار");}}
+    public void releaseCamera(){recorder.release();video.release();}
 
     public void refresh(){
         String fm=host.flashMode();flash.setText("الفلاش: "+("on".equals(fm)?"تشغيل":"auto".equals(fm)?"تلقائي":"إيقاف"));
+        if(recorder.isRecording())recordInfo.setText("جارٍ التسجيل • "+recorder.frameCount()+" إطار • مسقط "+recorder.droppedFrames());
         JSONObject d=host.latestDiagnostics();
         if(d==null){status.setText("الروبوت غير متصل");status.setTextColor(0xFFFFB74D);drive.setText("يسار "+host.driveLeft()+"   يمين "+host.driveRight()+"   أمان الاتصال —");return;}
         status.setText("متصل • "+d.optInt("clients",0));status.setTextColor(0xFF81C784);
