@@ -1,0 +1,69 @@
+name: Pin HazRob Scientific Data
+
+on:
+  push:
+    branches:
+      - dev/hazrob-0.6
+    paths:
+      - '.github/workflows/pin-scientific-data.yml'
+      - 'tools/build_niosh_seed.py'
+      - 'tools/build_niosh_idlh_seed.py'
+      - 'tools/build_osha_z1_seed.py'
+
+permissions:
+  contents: write
+
+jobs:
+  pin-data:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout development branch
+        uses: actions/checkout@v4
+        with:
+          ref: dev/hazrob-0.6
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Generate official scientific datasets
+        run: |
+          set -euo pipefail
+          rm -rf app/src/main/assets/generated
+          python tools/build_niosh_seed.py app/src/main/assets/generated/niosh
+          python tools/build_niosh_idlh_seed.py app/src/main/assets/generated/exposure
+          python tools/build_osha_z1_seed.py app/src/main/assets/generated/exposure/osha_z1
+
+      - name: Validate generated payloads
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          paths = [
+              Path('app/src/main/assets/generated/niosh/niosh_chemicals.json'),
+              Path('app/src/main/assets/generated/exposure/niosh_idlh.json'),
+              Path('app/src/main/assets/generated/exposure/osha_z1/osha_z1.json'),
+          ]
+          for path in paths:
+              obj = json.loads(path.read_text(encoding='utf-8'))
+              assert obj.get('record_count', 0) > 0, path
+              assert obj.get('authoritative') is True, (path, obj.get('authoritative'))
+              print(path, obj.get('record_count'), obj.get('source'))
+          PY
+
+      - name: Commit pinned datasets
+        run: |
+          set -euo pipefail
+          git config user.name 'hazrob-science-bot'
+          git config user.email 'hazrob-science-bot@users.noreply.github.com'
+          git add app/src/main/assets/generated
+          if git diff --cached --quiet; then
+            echo 'Pinned scientific datasets already match generated sources.'
+            exit 0
+          fi
+          git commit -m 'Pin authoritative HazRob 0.6 scientific datasets [pin-data]'
+          git push origin HEAD:dev/hazrob-0.6
