@@ -61,7 +61,7 @@ public final class MainActivity extends Activity implements HazRobHost {
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);prefs=getSharedPreferences("servoc",MODE_PRIVATE);robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));flashMode=prefs.getString("flash_mode","off");db=new ExperimentsDb(this);telemetryRecorder=new TelemetryRecorder(db);
-        workers.execute(()->{ChemicalSeedBootstrap.ensureNiosh(getApplicationContext(),db);ExposureSeedBootstrap.ensureNioshIdlh(getApplicationContext(),db);ui.post(this::refreshAllTabs);});
+        workers.execute(()->{ChemicalSeedBootstrap.ensureNiosh(getApplicationContext(),db);ExposureSeedBootstrap.ensureNioshIdlh(getApplicationContext(),db);ExposureSeedBootstrap.ensureOshaZ1(getApplicationContext(),db);ui.post(this::refreshAllTabs);});
         setContentView(RoleGate.build(this,new RoleGate.Listener(){@Override public void onUser(){enter(false);}@Override public void onDeveloper(){enter(true);}}));
     }
 
