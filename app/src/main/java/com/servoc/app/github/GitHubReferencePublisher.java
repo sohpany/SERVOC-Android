@@ -12,6 +12,8 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.Locale;
 
 /**
  * Publishes an already APPROVED immutable experiment record to the dedicated
@@ -29,8 +31,8 @@ public final class GitHubReferencePublisher {
     public static final class Result {
         public final boolean success;
         public final int httpCode;
-        public final String path,commitSha,message;
-        Result(boolean success,int httpCode,String path,String commitSha,String message){this.success=success;this.httpCode=httpCode;this.path=path;this.commitSha=commitSha;this.message=message;}
+        public final String path,commitSha,message,payloadSha256;
+        Result(boolean success,int httpCode,String path,String commitSha,String message,String payloadSha256){this.success=success;this.httpCode=httpCode;this.path=path;this.commitSha=commitSha;this.message=message;this.payloadSha256=payloadSha256;}
     }
 
     public static Result publish(String token,ExperimentQueries.Record record)throws Exception{
@@ -39,7 +41,7 @@ public final class GitHubReferencePublisher {
         String secret=token==null?"":token.trim();if(secret.length()<20)throw new IllegalArgumentException("GitHub token required");
         String fileName=record.referenceName==null||record.referenceName.trim().isEmpty()?ReferenceBankExporter.fileName(record.id,record.ts):record.referenceName.trim();
         String path=DIRECTORY+"/"+fileName;
-        byte[] recordBytes=serialize(record);
+        byte[] recordBytes=serialize(record);String payloadHash=sha256(recordBytes);
         JSONObject request=buildRequest(fileName,recordBytes);
 
         URL url=new URL("https://api.github.com/repos/"+REPOSITORY+"/contents/"+path);
@@ -53,8 +55,8 @@ public final class GitHubReferencePublisher {
         byte[] body=request.toString().getBytes(StandardCharsets.UTF_8);c.setFixedLengthStreamingMode(body.length);
         try(OutputStream out=c.getOutputStream()){out.write(body);out.flush();}
         int code=c.getResponseCode();String response=read(code>=200&&code<300?c.getInputStream():c.getErrorStream());c.disconnect();
-        if(code==201){JSONObject j=json(response);String sha="";JSONObject commit=j.optJSONObject("commit");if(commit!=null)sha=commit.optString("sha","");return new Result(true,code,path,sha,"published");}
-        String safe=safeError(code,response);return new Result(false,code,path,"",safe);
+        if(code==201){JSONObject j=json(response);String sha="";JSONObject commit=j.optJSONObject("commit");if(commit!=null)sha=commit.optString("sha","");return new Result(true,code,path,sha,"published",payloadHash);}
+        String safe=safeError(code,response);return new Result(false,code,path,"",safe,payloadHash);
     }
 
     /** Request builder is public for deterministic unit tests; it never receives credentials. */
@@ -64,6 +66,7 @@ public final class GitHubReferencePublisher {
     }
 
     private static byte[] serialize(ExperimentQueries.Record r)throws Exception{ByteArrayOutputStream out=new ByteArrayOutputStream(32*1024);ReferenceBankExporter.writeJson(out,r);return out.toByteArray();}
+    private static String sha256(byte[] data)throws Exception{byte[] h=MessageDigest.getInstance("SHA-256").digest(data);StringBuilder s=new StringBuilder(64);for(byte b:h)s.append(String.format(Locale.US,"%02x",b&255));return s.toString();}
     private static JSONObject json(String s){try{return s==null||s.isEmpty()?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
     private static String safeError(int code,String response){JSONObject j=json(response);String m=j.optString("message","");if(m.length()>180)m=m.substring(0,180);if(m.isEmpty())m="GitHub HTTP "+code;return m;}
     private static String read(InputStream in)throws Exception{if(in==null)return"";StringBuilder s=new StringBuilder();try(BufferedReader r=new BufferedReader(new InputStreamReader(in,StandardCharsets.UTF_8))){String line;while((line=r.readLine())!=null&&s.length()<16_384)s.append(line);}return s.toString();}
