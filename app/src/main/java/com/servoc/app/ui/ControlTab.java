@@ -11,6 +11,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -67,33 +68,47 @@ public final class ControlTab {
 
     public ControlTab(Context c,HazRobHost host){
         this.appContext=c.getApplicationContext();this.host=host;this.chemicals=new ChemicalRepository(host.database());
-        root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,8));root.setBackgroundColor(0xFF0E1116);
-
-        LinearLayout header=UiKit.hbox(c);
-        TextView title=UiKit.title(c,"التحكم / الكاميرا");header.addView(title,new LinearLayout.LayoutParams(0,-2,1f));
-        status=UiKit.text(c,"الروبوت غير متصل");status.setTextColor(0xFFFFB74D);status.setGravity(Gravity.END);header.addView(status,new LinearLayout.LayoutParams(-2,-2));root.addView(header,UiKit.full(c));
+        final boolean landscape=c.getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;
+        root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4));root.setBackgroundColor(0xFF0E1116);
 
         FrameLayout cameraBox=new FrameLayout(c);cameraBox.setBackgroundColor(Color.BLACK);cameraBox.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
         video=new MjpegView(c);recorder=new MjpegRecorder(c);flameAnalyzer=new FlameFrameAnalyzer(r->root.post(()->showFlame(r)));
         video.setFrameListener((jpeg,t)->{recorder.onJpegFrame(jpeg,t);flameAnalyzer.onJpegFrame(jpeg,t);});cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
         overlay=new HazardOverlayView(c);cameraBox.addView(overlay,new FrameLayout.LayoutParams(-1,-1));
-        joystick=new JoystickView(c);int size=UiKit.dp(c,150);
+        joystick=new JoystickView(c);int size=UiKit.dp(c,landscape?120:150);
         FrameLayout.LayoutParams jp=new FrameLayout.LayoutParams(size,size,Gravity.RIGHT|Gravity.BOTTOM);jp.setMargins(0,0,UiKit.dp(c,10),UiKit.dp(c,10));cameraBox.addView(joystick,jp);
         joystick.setListener((l,r,active)->host.setDriveCommand(l,r));
-        LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,0,1f);cp.height=0;root.addView(cameraBox,cp);
+
+        status=UiKit.small(c,"الروبوت غير متصل");status.setTextColor(0xFFFFB74D);status.setBackgroundColor(0xCC151A20);status.setPadding(UiKit.dp(c,8),UiKit.dp(c,4),UiKit.dp(c,8),UiKit.dp(c,4));
+        FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.TOP);sp.setMargins(0,UiKit.dp(c,6),UiKit.dp(c,6),0);cameraBox.addView(status,sp);
+
+        ScrollView detailsScroll=new ScrollView(c);detailsScroll.setFillViewport(false);detailsScroll.setBackgroundColor(0xFF10151B);detailsScroll.setVisibility(View.GONE);
+        LinearLayout details=UiKit.vbox(c);details.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4));
+
+        recordInfo=UiKit.small(c,"التسجيل: متوقف • MP4/H.264 • الحفظ في معرض الهاتف");recordInfo.setBackgroundColor(0xFF151A20);details.addView(recordInfo,UiKit.full(c));
+        flameInfo=UiKit.small(c,"دليل اللهب البصري التجريبي: بانتظار الفيديو");flameInfo.setBackgroundColor(0xFF151A20);flameInfo.setTextColor(0xFF90A4AE);details.addView(flameInfo,UiKit.full(c));
+
+        LinearLayout gasCard=UiKit.card(c);gasCard.addView(UiKit.title(c,"تتبع مصدر الغاز"),UiKit.full(c));
+        gasCard.addView(UiKit.small(c,"اختر من المركبات التي اكتشفها محرك التحليل في القياسات الحية. السهم يحسب اتجاهًا نسبيًا خاصًا بالمركب المختار باستخدام قنوات MQ ذات الصلة به."),UiKit.full(c));
+        gasTarget=new Spinner(c);gasTarget.setBackgroundColor(0xFF252B33);gasCard.addView(gasTarget,UiKit.full(c));
+        gasTrackInfo=UiKit.small(c,"لا يوجد هدف محدد للتتبع");gasTrackInfo.setBackgroundColor(0xFF151A20);gasCard.addView(gasTrackInfo,UiKit.full(c));details.addView(gasCard,UiKit.full(c));
+        details.addView(UiKit.small(c,"المربع الأحمر يحدد منطقة اشتباه اللهب بصريًا. السهم الأخضر يبين اتجاه المصدر المرجح للغاز المختار فقط من تغير MQ مع الحركة. هذه مساعدة اتجاهية ولا ترسل أوامر قيادة ذاتية؛ أوامر القيادة تبقى بيد المشغل وتبقى حماية فقد الاتصال داخل ESP32."),UiKit.full(c));
+        detailsScroll.addView(details,new ScrollView.LayoutParams(-1,-2));
+
+        Button detailsToggle=UiKit.button(c,"التتبع");
+        FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(UiKit.dp(c,landscape?92:105),UiKit.dp(c,44),Gravity.LEFT|Gravity.TOP);tp.setMargins(UiKit.dp(c,6),UiKit.dp(c,6),0,0);cameraBox.addView(detailsToggle,tp);
+        detailsToggle.setOnClickListener(v->{boolean show=detailsScroll.getVisibility()!=View.VISIBLE;detailsScroll.setVisibility(show?View.VISIBLE:View.GONE);detailsToggle.setText(show?"إغلاق":"التتبع");});
+
+        LinearLayout.LayoutParams cp=new LinearLayout.LayoutParams(-1,0,1f);root.addView(cameraBox,cp);
 
         LinearLayout actions=UiKit.hbox(c);
         Button stop=UiKit.button(c,"إيقاف طارئ");stop.setTextColor(Color.WHITE);stop.setBackgroundColor(0xFFC62828);stop.setOnClickListener(v->host.emergencyStop());actions.addView(stop,UiKit.weight(1.3f));
         flash=UiKit.button(c,"الفلاش: إيقاف");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1f));
         record=UiKit.button(c,"تسجيل الفيديو");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1f));root.addView(actions,UiKit.full(c));
 
-        recordInfo=UiKit.small(c,"التسجيل: متوقف • MP4/H.264 • الحفظ في معرض الهاتف");recordInfo.setBackgroundColor(0xFF151A20);root.addView(recordInfo,UiKit.full(c));
-        flameInfo=UiKit.small(c,"دليل اللهب البصري التجريبي: بانتظار الفيديو");flameInfo.setBackgroundColor(0xFF151A20);flameInfo.setTextColor(0xFF90A4AE);root.addView(flameInfo,UiKit.full(c));
+        drive=UiKit.small(c,"يسار 0   يمين 0   أمان الاتصال —");drive.setBackgroundColor(0xFF151A20);root.addView(drive,UiKit.full(c));
+        LinearLayout.LayoutParams dp=new LinearLayout.LayoutParams(-1,UiKit.dp(c,landscape?108:190));root.addView(detailsScroll,dp);
 
-        LinearLayout gasCard=UiKit.card(c);gasCard.addView(UiKit.title(c,"تتبع مصدر الغاز"),UiKit.full(c));
-        gasCard.addView(UiKit.small(c,"اختر من المركبات التي اكتشفها محرك التحليل في القياسات الحية. السهم يحسب اتجاهًا نسبيًا خاصًا بالمركب المختار باستخدام قنوات MQ ذات الصلة به."),UiKit.full(c));
-        gasTarget=new Spinner(c);gasTarget.setBackgroundColor(0xFF252B33);gasCard.addView(gasTarget,UiKit.full(c));
-        gasTrackInfo=UiKit.small(c,"لا يوجد هدف محدد للتتبع");gasTrackInfo.setBackgroundColor(0xFF151A20);gasCard.addView(gasTrackInfo,UiKit.full(c));root.addView(gasCard,UiKit.full(c));
         gasTarget.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             @Override public void onItemSelected(AdapterView<?> p,View v,int pos,long id){
                 if(updatingGasTarget||pos<0||pos>=gasTargetIds.size())return;
@@ -102,9 +117,6 @@ public final class ControlTab {
             }
             @Override public void onNothingSelected(AdapterView<?> p){}
         });
-
-        drive=UiKit.small(c,"يسار 0   يمين 0   أمان الاتصال —");drive.setBackgroundColor(0xFF151A20);root.addView(drive,UiKit.full(c));
-        root.addView(UiKit.small(c,"المربع الأحمر يحدد منطقة اشتباه اللهب بصريًا. السهم الأخضر يبين اتجاه المصدر المرجح للغاز المختار فقط من تغير MQ مع الحركة. هذه مساعدة اتجاهية ولا ترسل أوامر قيادة ذاتية؛ أوامر القيادة تبقى بيد المشغل وتبقى حماية فقد الاتصال داخل ESP32."),UiKit.full(c));
     }
 
     private void cycleFlash(){String m=host.flashMode();host.setFlashMode("off".equals(m)?"auto":"auto".equals(m)?"on":"off");}
