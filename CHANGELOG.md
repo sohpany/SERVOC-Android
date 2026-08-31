@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.1 — 2026-08-31
+- Packaged the current post-0.6 migration state as versionCode `8` / versionName `0.6.1`.
+- Preserved the latest API-v3 integration, unified measurement workflow, schema-v7 scientific database, pinned NIOSH/OSHA datasets, MQ validity gates, time-series/health analysis, phone-side video recording, experimental flame evidence, gas-direction assistance and developer Reference Bank publication workflow.
+- Removed versioning inconsistency that still labeled the latest signed build as 0.6.0.
+- Revalidated pinned scientific datasets, analytics/unit regression tests, signed release build and signing certificate in GitHub Actions run `33416169828`.
+- Release APK SHA-256: `d71e7be0d9908ae1c3f6db6af04be2f1ea8b2cf87de514b5ade1f3e4c5ceb067`.
+
 ## 0.6.0 — 2026-08-31
 - Migrated Android communication to compact HazRob master ESP32 API v3 (`/diag` + `/data`) while retaining the existing drive/STOP/relay/measurement/config endpoints.
 - Added startup USER/DEVELOPER role gate; developer laboratory requires session PIN `1166` and is hidden from the normal-user interface.
