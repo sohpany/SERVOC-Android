@@ -5,7 +5,9 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.pdf.PdfDocument;
 
+import com.servoc.app.chemical.ChemicalCatalog;
 import com.servoc.app.data.ExperimentQueries;
+import com.servoc.app.measurements.PhysicalCatalog;
 import com.servoc.app.sensors.RobotTelemetry;
 
 import org.json.JSONArray;
@@ -13,138 +15,57 @@ import org.json.JSONObject;
 
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-/** Native structured XLSX/PDF exporter. No CSV masquerading as Excel and no external report library. */
+/** Professional one-experiment XLSX/PDF report containing all 144 chemical rows. */
 public final class ReportExporter {
     private ReportExporter(){}
 
-    public static void writeXlsx(OutputStream out,List<ExperimentQueries.Record> rows)throws Exception{
+    public static void writeXlsx(OutputStream out,ExperimentQueries.Record r)throws Exception{
+        if(r==null)throw new IllegalArgumentException("record");
         ZipOutputStream z=new ZipOutputStream(out);
         entry(z,"[Content_Types].xml",contentTypes());
         entry(z,"_rels/.rels","<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>");
-        entry(z,"xl/workbook.xml",workbook());
-        entry(z,"xl/_rels/workbook.xml.rels",workbookRels());
-        entry(z,"xl/worksheets/sheet1.xml",summarySheet(rows));
-        entry(z,"xl/worksheets/sheet2.xml",mqSheet(rows));
-        entry(z,"xl/worksheets/sheet3.xml",chemicalSheet(rows));
-        z.finish();z.flush();
+        entry(z,"xl/workbook.xml",workbook());entry(z,"xl/_rels/workbook.xml.rels",workbookRels());entry(z,"xl/styles.xml",styles());
+        entry(z,"xl/worksheets/sheet1.xml",summarySheet(r));entry(z,"xl/worksheets/sheet2.xml",physicalSheet(r));entry(z,"xl/worksheets/sheet3.xml",mqSheet(r));entry(z,"xl/worksheets/sheet4.xml",chemicalSheet(r));z.finish();z.flush();
     }
+    public static void writeXlsx(OutputStream out,List<ExperimentQueries.Record> rows)throws Exception{if(rows==null||rows.isEmpty())throw new IllegalArgumentException("no experiment");writeXlsx(out,rows.get(0));}
 
-    private static String contentTypes(){
-        return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\">"+
-                "<Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/>"+
-                "<Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/>"+
-                "<Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"+
-                "<Override PartName=\"/xl/worksheets/sheet2.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/>"+
-                "<Override PartName=\"/xl/worksheets/sheet3.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/></Types>";
-    }
+    public static void writePdf(OutputStream out,ExperimentQueries.Record r)throws Exception{if(r==null)throw new IllegalArgumentException("record");PdfDocument pdf=new PdfDocument();PdfReport p=new PdfReport(pdf);JSONObject d=json(r.payload),a=json(r.analytics);p.summary(r,d,a);p.physical(d);p.mq(d);p.chemicals(a);p.finish();pdf.writeTo(out);pdf.close();}
+    public static void writePdf(OutputStream out,List<ExperimentQueries.Record> rows)throws Exception{if(rows==null||rows.isEmpty())throw new IllegalArgumentException("no experiment");writePdf(out,rows.get(0));}
 
-    private static String workbook(){
-        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets>"+
-                "<sheet name=\"Experiments\" sheetId=\"1\" r:id=\"rId1\"/><sheet name=\"MQ Readings\" sheetId=\"2\" r:id=\"rId2\"/><sheet name=\"Chemical Results\" sheetId=\"3\" r:id=\"rId3\"/></sheets></workbook>";
-    }
+    private static String contentTypes(){return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Types xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\"><Default Extension=\"rels\" ContentType=\"application/vnd.openxmlformats-package.relationships+xml\"/><Default Extension=\"xml\" ContentType=\"application/xml\"/><Override PartName=\"/xl/workbook.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml\"/><Override PartName=\"/xl/styles.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml\"/><Override PartName=\"/xl/worksheets/sheet1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/worksheets/sheet2.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/worksheets/sheet3.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/><Override PartName=\"/xl/worksheets/sheet4.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml\"/></Types>";}
+    private static String workbook(){return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><workbook xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><sheets><sheet name=\"ملخص الفحص\" sheetId=\"1\" r:id=\"rId1\"/><sheet name=\"القياسات الفيزيائية\" sheetId=\"2\" r:id=\"rId2\"/><sheet name=\"قراءات MQ\" sheetId=\"3\" r:id=\"rId3\"/><sheet name=\"المركبات 144\" sheetId=\"4\" r:id=\"rId4\"/></sheets></workbook>";}
+    private static String workbookRels(){return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/><Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet2.xml\"/><Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet3.xml\"/><Relationship Id=\"rId4\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet4.xml\"/><Relationship Id=\"rId5\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/></Relationships>";}
+    private static String styles(){return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><fonts count=\"2\"><font><sz val=\"10\"/><name val=\"Arial\"/></font><font><b/><color rgb=\"FFFFFFFF\"/><sz val=\"10\"/><name val=\"Arial\"/></font></fonts><fills count=\"8\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF263238\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF1B5E20\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF43A047\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFF9A825\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFEF6C00\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFC62828\"/></patternFill></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"8\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"3\" borderId=\"0\" xfId=\"0\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"4\" borderId=\"0\" xfId=\"0\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"0\" fillId=\"5\" borderId=\"0\" xfId=\"0\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"6\" borderId=\"0\" xfId=\"0\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"7\" borderId=\"0\" xfId=\"0\" applyFill=\"1\"/><xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"0\" xfId=\"0\" applyFill=\"1\"/></cellXfs></styleSheet>";}
 
-    private static String workbookRels(){
-        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"+
-                "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet1.xml\"/>"+
-                "<Relationship Id=\"rId2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet2.xml\"/>"+
-                "<Relationship Id=\"rId3\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet\" Target=\"worksheets/sheet3.xml\"/></Relationships>";
-    }
+    private static String summarySheet(ExperimentQueries.Record r){JSONObject d=json(r.payload),m=d.optJSONObject("measurement"),e=env(d),a=json(r.analytics);StringBuilder s=sheetStart();row(s,1,new String[]{"HazRob v0.5 - تقرير فحص","القيمة"},1);int x=2;row(s,x++,new String[]{"رقم التجربة",String.valueOf(r.id)},0);row(s,x++,new String[]{"تاريخ الفحص UTC",n(r.ts)},0);row(s,x++,new String[]{"البروتوكول",n(r.protocol)},0);row(s,x++,new String[]{"الحالة المرجعية",r.approved?"معتمدة":"غير معتمدة"},0);row(s,x++,new String[]{"Firmware",d.optString("firmware","إصدار قديم غير معرّف")},0);row(s,x++,new String[]{"API",String.valueOf(d.optInt("api_version",1))},0);row(s,x++,new String[]{"حالة دورة MQ",m==null?"":m.optString("state","")},0);row(s,x++,new String[]{"نوع الحساس البيئي",e==null?"غير مكتشف":e.optString("type",e.optString("sensor","BME280"))},0);row(s,x++,new String[]{"نتائج التحليل المسجلة",String.valueOf(a.optJSONArray("results")==null?0:a.optJSONArray("results").length())+" / 144"},0);row(s,x++,new String[]{"ملاحظة","ألوان الخطر هي Screening داخل HazRob وتُفسر ضمن حدود النماذج والمعايرة المعتمدة للمشروع."},0);return sheetEnd(s);}
+    private static String physicalSheet(ExperimentQueries.Record r){JSONObject d=json(r.payload),e=env(d);StringBuilder s=sheetStart();row(s,1,new String[]{"#","القياس","القيمة","الوحدة","المصدر / الحالة"},1);for(int i=0;i<PhysicalCatalog.COUNT;i++){String value="",source="غير مركب";if(e!=null&&e.optBoolean("ok",false)){String type=e.optString("type",e.optString("sensor","BME280"));if(i==0){value=num(e,"temperature");source=type;}else if(i==1){value=num(e,"humidity");source=value.isEmpty()?"غير متاحة في "+type:type;}else if(i==2){value=num(e,"pressure");source=type;}else if(i==14){double p=e.optDouble("pressure",Double.NaN);if(Double.isFinite(p)&&p>0){value=fmt(44330.0*(1.0-Math.pow(p/1013.25,0.1903)));source="مشتق من الضغط @ 1013.25 hPa";}}}row(s,i+2,new String[]{String.valueOf(i+1),PhysicalCatalog.NAMES_AR[i],value,PhysicalCatalog.UNITS[i],source},0);}return sheetEnd(s);}
+    private static String mqSheet(ExperimentQueries.Record r){JSONObject d=json(r.payload),m=d.optJSONObject("measurement");boolean averaged=m!=null&&"ready".equalsIgnoreCase(m.optString("state"))&&m.optJSONObject("mq")!=null;JSONObject src=averaged?m.optJSONObject("mq"):d.optJSONObject("mq");StringBuilder s=sheetStart();row(s,1,new String[]{"الحساس","الحالة","Raw","ADC V","AO V","Rs","Rs/R0","متوسط دورة مكتملة"},1);int rr=2;if(src!=null)for(String key:RobotTelemetry.MQ_KEYS){JSONObject q=src.optJSONObject(key);if(q==null)continue;String status=q.has("status")?q.optString("status",""):(q.has("valid")?(q.optBoolean("valid")?"صالح":"غير صالح"):"");row(s,rr++,new String[]{key.toUpperCase(Locale.US),status,num(q,"raw"),num(q,"adc"),num(q,"ao"),num(q,"rs"),num(q,"ratio"),averaged?"نعم":"لا"},0);}return sheetEnd(s);}
+    private static String chemicalSheet(ExperimentQueries.Record r){JSONObject a=json(r.analytics);Map<Integer,JSONObject> map=resultMap(a);StringBuilder s=sheetStart();row(s,1,new String[]{"#","المركب","الصيغة","PPM","التوافق %","الثقة","الخطر","كمي","المساهمون","ملاحظة النموذج"},1);for(int i=0;i<ChemicalCatalog.COUNT;i++){JSONObject q=map.get(i);boolean quant=q!=null&&q.optBoolean("quantitative",false);int risk=quant?q.optInt("risk",0):0;int style=riskStyle(risk);String[] v={String.valueOf(i+1),ChemicalCatalog.NAMES[i],ChemicalCatalog.FORMULAS[i],q==null?"":num(q,"ppm"),q==null?"":num(q,"agreement"),q==null?"—":stars(q.optInt("confidence",0)),q==null?"غير متاح":risk>0?riskName(risk):"تمهيدي",quant?"نعم":"لا",q==null?"0":String.valueOf(q.optInt("contributors",0)),q==null?"":q.optString("note","")};row(s,i+2,v,style);}return sheetEnd(s);}
 
-    private static String summarySheet(List<ExperimentQueries.Record> rows){
-        StringBuilder s=sheetStart();
-        String[] h={"Experiment ID","Timestamp UTC","Protocol","Measurement state","Temperature °C","Humidity %RH","Pressure hPa","Altitude derived m","Reported MQ channels","Safety interpretation"};
-        row(s,1,h);int r=2;
-        for(ExperimentQueries.Record x:rows){
-            JSONObject d=json(x.payload);JSONObject m=d.optJSONObject("measurement");JSONObject b=d.optJSONObject("bme");
-            double p=b==null?Double.NaN:b.optDouble("pressure",Double.NaN);
-            double alt=Double.isFinite(p)&&p>0?44330.0*(1.0-Math.pow(p/1013.25,0.1903)):Double.NaN;
-            String[] v={String.valueOf(x.id),n(x.ts),n(x.protocol),m==null?"":m.optString("state",""),
-                    num(b,"temperature"),num(b,"humidity"),num(b,"pressure"),fmt(alt),String.valueOf(RobotTelemetry.availableMqCount(d)),"DISABLED until device calibration is validated"};
-            row(s,r++,v);
-        }
-        return sheetEnd(s);
-    }
-
-    private static String mqSheet(List<ExperimentQueries.Record> rows){
-        StringBuilder s=sheetStart();
-        row(s,1,new String[]{"Experiment ID","Timestamp UTC","Sensor","Status","Raw","ADC V","AO V","Rs","Rs/R0","Completed average"});int r=2;
-        for(ExperimentQueries.Record x:rows){
-            JSONObject d=json(x.payload);JSONObject m=d.optJSONObject("measurement");boolean averaged=m!=null&&"ready".equalsIgnoreCase(m.optString("state"))&&m.optJSONObject("mq")!=null;
-            JSONObject src=averaged?m.optJSONObject("mq"):d.optJSONObject("mq");if(src==null)continue;
-            for(String key:RobotTelemetry.MQ_KEYS){
-                JSONObject q=src.optJSONObject(key);if(q==null)continue;
-                String status=q.has("status")?q.optString("status",""):(q.has("valid")?(q.optBoolean("valid")?"valid":"invalid"):"");
-                row(s,r++,new String[]{String.valueOf(x.id),n(x.ts),key.toUpperCase(Locale.US),status,num(q,"raw"),num(q,"adc"),num(q,"ao"),num(q,"rs"),num(q,"ratio"),averaged?"yes":"no"});
-            }
-        }
-        return sheetEnd(s);
-    }
-
-    private static String chemicalSheet(List<ExperimentQueries.Record> rows){
-        StringBuilder s=sheetStart();
-        row(s,1,new String[]{"Experiment ID","Timestamp UTC","Chemical ID","Name","Formula","PPM model estimate","Agreement %","Confidence","Risk","Quantitative","Contributors","Primary","Manufacturer cross","Community cross","Model note"});int r=2;
-        for(ExperimentQueries.Record x:rows){
-            JSONObject a=json(x.analytics);JSONArray results=a.optJSONArray("results");if(results==null)continue;
-            for(int i=0;i<results.length();i++){
-                JSONObject q=results.optJSONObject(i);if(q==null)continue;
-                int confidence=q.optInt("confidence",0),risk=q.optInt("risk",-1);
-                row(s,r++,new String[]{String.valueOf(x.id),n(x.ts),String.valueOf(q.optInt("chemical_id",-1)+1),q.optString("name",""),q.optString("formula",""),num(q,"ppm"),num(q,"agreement"),stars(confidence),riskName(risk),String.valueOf(q.optBoolean("quantitative",false)),String.valueOf(q.optInt("contributors",0)),String.valueOf(q.optInt("primary",0)),String.valueOf(q.optInt("manufacturer_cross",0)),String.valueOf(q.optInt("community_cross",0)),q.optString("note","")});
-            }
-        }
-        return sheetEnd(s);
-    }
-
-    public static void writePdf(OutputStream out,List<ExperimentQueries.Record> rows)throws Exception{
-        PdfDocument pdf=new PdfDocument();Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(Color.BLACK);p.setTextSize(9.5f);
-        PdfWriter w=new PdfWriter(pdf,p);
-        w.heading("HazRob Experiment Report",16);
-        w.line("Accepted experiments: "+rows.size());
-        w.line("Safety note: quantitative hazard interpretation remains disabled until device-specific calibration is validated.");w.space(8);
-        for(ExperimentQueries.Record x:rows){
-            JSONObject d=json(x.payload);JSONObject b=d.optJSONObject("bme");JSONObject m=d.optJSONObject("measurement");
-            w.heading("Experiment #"+x.id+"  "+n(x.ts),12);
-            w.line("Protocol: "+n(x.protocol));
-            if(m!=null)w.line("Measurement: "+m.optString("state","")+" | samples "+m.optInt("samples1",0)+"/"+m.optInt("samples2",0)+"/"+m.optInt("samples3",0));
-            if(b!=null&&b.optBoolean("ok",false))w.line("Environment: "+num(b,"temperature")+" °C | "+num(b,"humidity")+" %RH | "+num(b,"pressure")+" hPa");
-
-            JSONObject src=m!=null&&"ready".equalsIgnoreCase(m.optString("state"))&&m.optJSONObject("mq")!=null?m.optJSONObject("mq"):d.optJSONObject("mq");
-            if(src!=null){w.line("MQ readings:");for(String key:RobotTelemetry.MQ_KEYS){JSONObject q=src.optJSONObject(key);if(q==null)continue;w.line("  "+key.toUpperCase(Locale.US)+"  raw="+num(q,"raw")+"  Rs="+num(q,"rs")+"  Rs/R0="+num(q,"ratio"));}}
-
-            JSONObject a=json(x.analytics);JSONArray results=a.optJSONArray("results");
-            if(results!=null&&results.length()>0){w.line("Chemical model results:");for(int i=0;i<results.length();i++){JSONObject q=results.optJSONObject(i);if(q==null)continue;w.line("  "+q.optString("name","")+"  "+num(q,"ppm")+" ppm  "+stars(q.optInt("confidence",0))+"  "+riskName(q.optInt("risk",-1)));}}
-            w.space(12);
-        }
-        w.finish();pdf.writeTo(out);pdf.close();
-    }
-
-    private static final class PdfWriter {
-        final PdfDocument pdf;final Paint p;PdfDocument.Page page;Canvas canvas;int pageNo=0;float y=0;
-        PdfWriter(PdfDocument pdf,Paint p){this.pdf=pdf;this.p=p;newPage();}
-        void newPage(){if(page!=null)pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,++pageNo).create());canvas=page.getCanvas();y=30;}
-        void ensure(float need){if(y+need>815)newPage();}
-        void heading(String s,float size){ensure(28);float old=p.getTextSize();p.setTextSize(size);draw(s);p.setTextSize(old);y+=5;}
-        void line(String s){draw(s);}
-        void space(float n){y+=n;}
-        void draw(String text){if(text==null)text="";String remaining=text;int guard=0;do{ensure(14);int cut=remaining.length();while(cut>1&&p.measureText(remaining.substring(0,cut))>535)cut--;if(cut<remaining.length()){int sp=remaining.lastIndexOf(' ',cut);if(sp>8)cut=sp;}String part=remaining.substring(0,cut);canvas.drawText(part,28,y,p);y+=13;remaining=remaining.substring(cut).trim();}while(!remaining.isEmpty()&&guard++<60);}
+    private static final class PdfReport {
+        final PdfDocument pdf;final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);PdfDocument.Page page;Canvas c;int pageNo=0;float y;
+        PdfReport(PdfDocument pdf){this.pdf=pdf;p.setTypeface(android.graphics.Typeface.create("sans",android.graphics.Typeface.NORMAL));}
+        void newPage(String title){if(page!=null)pdf.finishPage(page);page=pdf.startPage(new PdfDocument.PageInfo.Builder(842,595,++pageNo).create());c=page.getCanvas();c.drawColor(Color.WHITE);p.setTextAlign(Paint.Align.RIGHT);p.setColor(0xFF0D47A1);p.setTextSize(17);c.drawText(title,812,30,p);p.setTextAlign(Paint.Align.LEFT);p.setColor(Color.DKGRAY);p.setTextSize(8);c.drawText("HazRob v0.5 • page "+pageNo,30,30,p);y=52;}
+        void summary(ExperimentQueries.Record r,JSONObject d,JSONObject a){newPage("تقرير فحص HazRob");lineR("رقم التجربة: "+r.id);lineR("تاريخ الفحص UTC: "+n(r.ts));lineR("البروتوكول: "+n(r.protocol));lineR("الحالة المرجعية: "+(r.approved?"معتمدة":"غير معتمدة"));lineR("Firmware: "+d.optString("firmware","إصدار قديم غير معرّف")+"   API: "+d.optInt("api_version",1));JSONObject m=d.optJSONObject("measurement");if(m!=null)lineR("دورة MQ: "+m.optString("state","")+"   العينات "+m.optInt("samples1",0)+"/"+m.optInt("samples2",0)+"/"+m.optInt("samples3",0));JSONObject e=env(d);if(e!=null&&e.optBoolean("ok",false))lineR("الحساس البيئي: "+e.optString("type",e.optString("sensor","BME280"))+"   "+num(e,"temperature")+" °C   "+num(e,"humidity")+" %RH   "+num(e,"pressure")+" hPa");lineR("عدد عناصر مكتبة المركبات: 144");y+=8;note("ملاحظة: ألوان المخاطر هي أداة Screening ضمن HazRob وليست شهادة امتثال مستقلة عن معايرة المنظومة وحدود المراجع المهنية.");}
+        void physical(JSONObject d){newPage("القياسات الفيزيائية والبيئية");header(new String[]{"#","القياس","القيمة","الوحدة","المصدر / الحالة"},new float[]{30,260,120,80,260});JSONObject e=env(d);for(int i=0;i<PhysicalCatalog.COUNT;i++){String value="",source="غير مركب";if(e!=null&&e.optBoolean("ok",false)){String type=e.optString("type",e.optString("sensor","BME280"));if(i==0){value=num(e,"temperature");source=type;}else if(i==1){value=num(e,"humidity");source=value.isEmpty()?"غير متاحة في "+type:type;}else if(i==2){value=num(e,"pressure");source=type;}else if(i==14){double pr=e.optDouble("pressure",Double.NaN);if(Double.isFinite(pr)&&pr>0){value=fmt(44330.0*(1.0-Math.pow(pr/1013.25,0.1903)));source="مشتق من الضغط";}}}tableRow(new String[]{String.valueOf(i+1),PhysicalCatalog.NAMES_AR[i],value,PhysicalCatalog.UNITS[i],source},new float[]{30,260,120,80,260},0);}}
+        void mq(JSONObject d){newPage("قراءات حساسات MQ");header(new String[]{"الحساس","الحالة","Raw","Vadc","Vao","Rs","Rs/R0"},new float[]{90,120,80,100,100,120,120});JSONObject m=d.optJSONObject("measurement");JSONObject src=m!=null&&"ready".equalsIgnoreCase(m.optString("state"))&&m.optJSONObject("mq")!=null?m.optJSONObject("mq"):d.optJSONObject("mq");if(src!=null)for(String key:RobotTelemetry.MQ_KEYS){JSONObject q=src.optJSONObject(key);if(q==null)continue;String st=q.has("status")?q.optString("status",""):(q.optBoolean("valid",false)?"صالح":"غير صالح");tableRow(new String[]{key.toUpperCase(Locale.US),st,num(q,"raw"),num(q,"adc"),num(q,"ao"),num(q,"rs"),num(q,"ratio")},new float[]{90,120,80,100,100,120,120},0);}}
+        void chemicals(JSONObject a){Map<Integer,JSONObject> map=resultMap(a);String[] h={"#","المركب","الصيغة","PPM","الثقة","الخطر"};float[] w={30,320,100,120,100,120};newPage("جدول المركبات والغازات • 144");header(h,w);for(int i=0;i<ChemicalCatalog.COUNT;i++){if(y>560){newPage("جدول المركبات والغازات • 144 (تابع)");header(h,w);}JSONObject q=map.get(i);boolean quant=q!=null&&q.optBoolean("quantitative",false);int risk=quant?q.optInt("risk",0):0;tableRow(new String[]{String.valueOf(i+1),ChemicalCatalog.NAMES[i],ChemicalCatalog.FORMULAS[i],q==null?"—":num(q,"ppm"),q==null?"—":stars(q.optInt("confidence",0)),q==null?"غير متاح":risk>0?riskName(risk):"تمهيدي"},w,risk);}}
+        void header(String[] v,float[] widths){p.setTextSize(9);float x=20;for(int i=0;i<v.length;i++){p.setColor(0xFF263238);c.drawRect(x,y,x+widths[i],y+20,p);p.setColor(Color.WHITE);p.setTextAlign(Paint.Align.CENTER);c.drawText(v[i],x+widths[i]/2,y+14,p);x+=widths[i];}y+=20;}
+        void tableRow(String[] v,float[] widths,int risk){float x=20;int bg=riskColor(risk);for(int i=0;i<v.length;i++){p.setColor(i==v.length-1&&risk>0?bg:0xFFF5F7F8);c.drawRect(x,y,x+widths[i],y+18,p);p.setColor(i==v.length-1&&risk==3?Color.BLACK:Color.DKGRAY);p.setTextSize(8);p.setTextAlign(Paint.Align.CENTER);String t=v[i]==null?"":v[i];if(t.length()>42)t=t.substring(0,41)+"…";c.drawText(t,x+widths[i]/2,y+12,p);x+=widths[i];}y+=18;}
+        void lineR(String s){p.setColor(Color.DKGRAY);p.setTextSize(11);p.setTextAlign(Paint.Align.RIGHT);c.drawText(s,812,y,p);y+=19;}
+        void note(String s){p.setColor(0xFF455A64);p.setTextSize(9);p.setTextAlign(Paint.Align.RIGHT);String[] parts=s.split(" ");StringBuilder line=new StringBuilder();for(String word:parts){String test=line.length()==0?word:line+" "+word;if(p.measureText(test)>760){c.drawText(line.toString(),812,y,p);y+=15;line=new StringBuilder(word);}else{if(line.length()>0)line.append(' ');line.append(word);}}if(line.length()>0)c.drawText(line.toString(),812,y,p);y+=15;}
         void finish(){if(page!=null){pdf.finishPage(page);page=null;}}
     }
 
-    private static StringBuilder sheetStart(){return new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetData>");}
-    private static String sheetEnd(StringBuilder s){return s.append("</sheetData></worksheet>").toString();}
-    private static void row(StringBuilder s,int row,String[] values){s.append("<row r=\"").append(row).append("\">");for(int i=0;i<values.length;i++)cell(s,col(i)+row,values[i]);s.append("</row>");}
-    private static void cell(StringBuilder s,String ref,String v){s.append("<c r=\"").append(ref).append("\" t=\"inlineStr\"><is><t xml:space=\"preserve\">").append(xml(v)).append("</t></is></c>");}
-    private static String col(int i){StringBuilder s=new StringBuilder();int n=i+1;while(n>0){int r=(n-1)%26;s.insert(0,(char)('A'+r));n=(n-1)/26;}return s.toString();}
-    private static void entry(ZipOutputStream z,String name,String text)throws Exception{z.putNextEntry(new ZipEntry(name));z.write(text.getBytes(StandardCharsets.UTF_8));z.closeEntry();}
-    private static JSONObject json(String s){try{return s==null||s.trim().isEmpty()?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
-    private static String num(JSONObject o,String key){if(o==null)return"";double v=o.optDouble(key,Double.NaN);return fmt(v);}
-    private static String fmt(double v){if(!Double.isFinite(v))return"";return String.format(Locale.US,Math.abs(v)>=1000?"%.0f":Math.abs(v)>=10?"%.2f":"%.4f",v);}
-    private static String stars(int c){return c<=0?"—":c==1?"★☆☆":c==2?"★★☆":"★★★";}
-    private static String riskName(int r){switch(r){case 1:return"VERY SAFE";case 2:return"SAFE";case 3:return"ALERT";case 4:return"DANGER";case 5:return"CRITICAL";default:return"N/A / PROVISIONAL";}}
-    private static String n(String s){return s==null?"":s;}
-    private static String xml(String s){if(s==null)return"";return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\"","&quot;").replace("'","&apos;");}
+    private static Map<Integer,JSONObject> resultMap(JSONObject a){Map<Integer,JSONObject> m=new HashMap<>();JSONArray r=a.optJSONArray("results");if(r!=null)for(int i=0;i<r.length();i++){JSONObject q=r.optJSONObject(i);if(q!=null){int id=q.optInt("chemical_id",-1);if(id>=0&&id<ChemicalCatalog.COUNT)m.put(id,q);}}return m;}
+    private static JSONObject env(JSONObject d){JSONObject e=d.optJSONObject("env");return e!=null?e:d.optJSONObject("bme");}
+    private static int riskStyle(int r){return r>=1&&r<=5?r+1:7;}private static int riskColor(int r){switch(r){case 1:return 0xFF1B5E20;case 2:return 0xFF43A047;case 3:return 0xFFF9A825;case 4:return 0xFFEF6C00;case 5:return 0xFFC62828;default:return 0xFF607D8B;}}private static String riskName(int r){switch(r){case 1:return"آمن جدًا";case 2:return"آمن";case 3:return"تنبيه";case 4:return"خطر";case 5:return"حرج";default:return"غير متاح";}}private static String stars(int c){return c<=0?"—":c==1?"★☆☆":c==2?"★★☆":"★★★";}
+    private static StringBuilder sheetStart(){return new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\" rightToLeft=\"1\"/></sheetViews><sheetData>");}private static String sheetEnd(StringBuilder s){return s.append("</sheetData></worksheet>").toString();}private static void row(StringBuilder s,int row,String[] values,int style){s.append("<row r=\"").append(row).append("\">");for(int i=0;i<values.length;i++)cell(s,col(i)+row,values[i],style);s.append("</row>");}private static void cell(StringBuilder s,String ref,String v,int style){s.append("<c r=\"").append(ref).append("\" t=\"inlineStr\"");if(style>0)s.append(" s=\"").append(style).append("\"");s.append("><is><t xml:space=\"preserve\">").append(xml(v)).append("</t></is></c>");}private static String col(int i){StringBuilder s=new StringBuilder();int n=i+1;while(n>0){int r=(n-1)%26;s.insert(0,(char)('A'+r));n=(n-1)/26;}return s.toString();}private static void entry(ZipOutputStream z,String name,String text)throws Exception{z.putNextEntry(new ZipEntry(name));z.write(text.getBytes(StandardCharsets.UTF_8));z.closeEntry();}private static JSONObject json(String s){try{return s==null||s.trim().isEmpty()?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}private static String num(JSONObject o,String key){if(o==null)return"";double v=o.optDouble(key,Double.NaN);return fmt(v);}private static String fmt(double v){if(!Double.isFinite(v))return"";return String.format(Locale.US,Math.abs(v)>=1000?"%.0f":Math.abs(v)>=10?"%.2f":"%.4f",v);}private static String n(String s){return s==null?"":s;}private static String xml(String s){if(s==null)return"";return s.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace("\"","&quot;").replace("'","&apos;");}
 }

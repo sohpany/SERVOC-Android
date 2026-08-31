@@ -8,30 +8,19 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.data.ExperimentQueries;
+import com.servoc.app.report.ReferenceBankExporter;
+import org.json.JSONObject;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
+import java.util.TimeZone;
 
 public final class ExperimentsTab {
-    private final Context c;private final HazRobHost host;private final ScrollView scroll;private final LinearLayout root;private final LinearLayout list;private final TextView summary;private final TextView details;
-
-    public ExperimentsTab(Context c,HazRobHost host){
-        this.c=c;this.host=host;scroll=new ScrollView(c);scroll.setFillViewport(true);root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,12));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
-        root.addView(UiKit.title(c,"EXPERIMENTS / REPORTS"),UiKit.full(c));
-        summary=UiKit.text(c,"Accepted experiments: 0");summary.setBackgroundColor(0xFF151A20);root.addView(summary,UiKit.full(c));
-
-        LinearLayout export=UiKit.hbox(c);Button xlsx=UiKit.button(c,"EXPORT EXCEL (.xlsx)");xlsx.setOnClickListener(v->host.requestExport("xlsx"));export.addView(xlsx,UiKit.weight(1));Button pdf=UiKit.button(c,"EXPORT PDF");pdf.setOnClickListener(v->host.requestExport("pdf"));export.addView(pdf,UiKit.weight(1));root.addView(export,UiKit.full(c));
-        details=UiKit.text(c,"Select an accepted measurement to inspect its stored telemetry and analytics.");details.setTextIsSelectable(true);details.setBackgroundColor(0xFF11171D);root.addView(details,UiKit.full(c));
-        list=UiKit.vbox(c);root.addView(list,UiKit.full(c));
-    }
-    public View view(){return scroll;}
-
-    public void refresh(){
-        list.removeAllViews();List<ExperimentQueries.Record> rows=ExperimentQueries.recent(host.database(),100);summary.setText("Accepted experiments: "+host.database().count()+" • showing latest "+rows.size());
-        if(rows.isEmpty()){list.addView(UiKit.small(c,"No accepted measurements yet. Use SENSORS → ACCEPT after a completed measurement cycle."),UiKit.full(c));return;}
-        for(ExperimentQueries.Record r:rows){
-            Button b=UiKit.button(c,"#"+r.id+"   "+r.ts+"   "+(r.protocol==null?"":r.protocol));
-            b.setOnClickListener(v->details.setText("EXPERIMENT #"+r.id+"\nTimestamp: "+r.ts+"\nProtocol: "+n(r.protocol)+"\n\nTELEMETRY\n"+n(r.payload)+"\n\nANALYTICS\n"+n(r.analytics)));
-            list.addView(b,UiKit.full(c));
-        }
-    }
-    private static String n(String s){return s==null?"":s;}
+    private final HazRobHost host;private final ScrollView scroll;private final LinearLayout list;private final TextView summary,details;private final Button pdf,xlsx,approve;private long selectedId=-1;
+    public ExperimentsTab(Context c,HazRobHost host){this.host=host;scroll=new ScrollView(c);scroll.setFillViewport(true);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,12));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);root.addView(UiKit.title(c,"التجارب والتقارير"),UiKit.full(c));summary=UiKit.text(c,"التجارب المعتمدة: 0");summary.setBackgroundColor(0xFF151A20);root.addView(summary,UiKit.full(c));details=UiKit.text(c,"اختر تجربة محفوظة لعرض ملخصها ثم إصدار التقرير أو اعتمادها للبنك المرجعي.");details.setTextIsSelectable(true);details.setBackgroundColor(0xFF11171D);root.addView(details,UiKit.full(c));LinearLayout export=UiKit.hbox(c);pdf=UiKit.button(c,"تقرير PDF");pdf.setOnClickListener(v->export("pdf"));export.addView(pdf,UiKit.weight(1));xlsx=UiKit.button(c,"تقرير Excel");xlsx.setOnClickListener(v->export("xlsx"));export.addView(xlsx,UiKit.weight(1));root.addView(export,UiKit.full(c));approve=UiKit.button(c,"اعتماد للبنك المرجعي GitHub");approve.setOnClickListener(v->approveSelected());root.addView(approve,UiKit.full(c));root.addView(UiKit.small(c,"الاعتماد ينشئ ملف JSON معياريًا موقّعًا ببصمات SHA-256 لرفعه إلى reference_bank/approved_experiments. لا تُحفظ أي GitHub token داخل التطبيق."),UiKit.full(c));list=UiKit.vbox(c);root.addView(list,UiKit.full(c));setActionState(false);}
+    public View view(){return scroll;}public void refresh(){list.removeAllViews();List<ExperimentQueries.Record> rows=ExperimentQueries.recent(host.database(),100);summary.setText("إجمالي التجارب: "+host.database().count()+" • المعتمدة مرجعيًا: "+host.database().approvedCount()+" • المعروض: "+rows.size());if(rows.isEmpty()){selectedId=-1;setActionState(false);list.addView(UiKit.small(list.getContext(),"لا توجد تجارب محفوظة. استخدم الحساسات ← اعتماد القياس بعد اكتمال دورة MQ."),UiKit.full(list.getContext()));return;}if(selectedId<0)selectedId=rows.get(0).id;boolean still=false;for(ExperimentQueries.Record r:rows){if(r.id==selectedId)still=true;Button b=UiKit.button(list.getContext(),(r.approved?"✓ مرجعي  ":"")+"#"+r.id+"   "+r.ts+"   "+n(r.protocol));b.setOnClickListener(v->select(r.id));list.addView(b,UiKit.full(list.getContext()));}if(!still)selectedId=rows.get(0).id;showSelected();}
+    private void select(long id){selectedId=id;showSelected();}private void showSelected(){ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){setActionState(false);return;}setActionState(true);JSONObject d=json(r.payload),m=d.optJSONObject("measurement"),e=d.optJSONObject("env");if(e==null)e=d.optJSONObject("bme");JSONObject a=json(r.analytics);int results=a.optJSONArray("results")==null?0:a.optJSONArray("results").length();StringBuilder s=new StringBuilder("التجربة #").append(r.id).append("\nتاريخ الفحص UTC: ").append(n(r.ts)).append("\nالبروتوكول: ").append(n(r.protocol)).append("\nالحالة المرجعية: ").append(r.approved?"معتمدة":"غير معتمدة");if(r.approved)s.append("\nتاريخ الاعتماد: ").append(n(r.approvedTs)).append("\nاسم الملف المرجعي: ").append(n(r.referenceName));if(m!=null)s.append("\nحالة دورة MQ: ").append(m.optString("state",""));if(e!=null&&e.optBoolean("ok",false))s.append("\nالبيئة: ").append(e.optString("type",e.optString("sensor","BME280"))).append(" • ").append(fmt(e.optDouble("temperature",Double.NaN))).append(" °C • ").append(fmt(e.optDouble("humidity",Double.NaN))).append(" %RH • ").append(fmt(e.optDouble("pressure",Double.NaN))).append(" hPa");s.append("\nنتائج المركبات المسجلة: ").append(results).append(" / 144");details.setText(s.toString());approve.setText(r.approved?"إعادة تصدير ملف الاعتماد المرجعي":"اعتماد للبنك المرجعي GitHub");}
+    private void setActionState(boolean on){pdf.setEnabled(on);xlsx.setEnabled(on);approve.setEnabled(on);}private void export(String format){if(selectedId<0){host.showToast("اختر تجربة أولًا");return;}host.requestExport(format,selectedId);}private void approveSelected(){if(selectedId<0)return;ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null)return;if(!r.approved){String ts=isoNow(),name=ReferenceBankExporter.fileName(r.id,r.ts);if(!host.database().approveExperiment(r.id,ts,name)){host.showToast("تعذر اعتماد التجربة");return;}host.showToast("تم اعتماد التجربة محليًا؛ اختر مكان حفظ ملف البنك المرجعي");}host.refreshAllTabs();host.requestReferenceBankExport(selectedId);}
+    private static JSONObject json(String s){try{return s==null?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}private static String n(String s){return s==null?"":s;}private static String fmt(double v){return Double.isFinite(v)?String.format(Locale.US,"%.2f",v):"—";}private static String isoNow(){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
 }

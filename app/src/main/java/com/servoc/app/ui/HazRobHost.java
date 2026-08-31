@@ -22,8 +22,9 @@ public interface HazRobHost {
     void setCameraHost(String host);
     String cameraHost();
     boolean cameraReachable();
-    void setFlash(boolean on);
-    boolean flashState();
-    void requestExport(String format);
+    void setFlashMode(String mode);
+    String flashMode();
+    void requestExport(String format,long experimentId);
+    void requestReferenceBankExport(long experimentId);
     void refreshAllTabs();
 }

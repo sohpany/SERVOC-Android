@@ -9,6 +9,11 @@ public final class PhysicalCatalog {
             "Noise", "Vibration", "Ionizing Radiation", "UV Index", "PM1",
             "PM2.5", "PM10", "Wind Speed", "Wind Direction", "Altitude"
     };
+    public static final String[] NAMES_AR = {
+            "درجة الحرارة", "الرطوبة", "الضغط الجوي", "شدة الاستضاءة", "التدفق الضوئي",
+            "الضوضاء", "الاهتزاز", "الإشعاع المؤين", "مؤشر الأشعة فوق البنفسجية", "الجسيمات PM1",
+            "الجسيمات PM2.5", "الجسيمات PM10", "سرعة الرياح", "اتجاه الرياح", "الارتفاع"
+    };
 
     public static final String[] UNITS = {
             "°C", "%RH", "hPa", "lux", "lm",

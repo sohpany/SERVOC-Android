@@ -4,7 +4,7 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-/** Small ESP32-CAM HTTP control client. Stream remains independent. */
+/** ESP32-CAM HTTP control client. Stream remains independent from control traffic. */
 public final class CameraApi {
     private volatile String host;
     public CameraApi(String host){setHost(host);}
@@ -14,21 +14,28 @@ public final class CameraApi {
     }
     public String host(){return host;}
 
-    /** Checks the ESP32-CAM control server without opening the MJPEG stream. */
     public boolean ping(){
-        if(get("/status"))return true; // Arduino CameraWebServer
-        return get("/");              // lightweight/custom firmware fallback
+        if(get("/status"))return true;
+        return get("/");
     }
 
-    public boolean flash(boolean on){
-        int level=on?255:0;
-        // Newer Arduino/Espressif CameraWebServer variants.
+    /**
+     * Flash modes: off / auto / on.
+     * The first endpoint is the exact contract used by the historical SERVOC camera UI.
+     */
+    public boolean flash(String mode){
+        String m=normalizeMode(mode);
+        if(get("/flash?mode="+m))return true;
+        if("auto".equals(m))return false;
+        boolean on="on".equals(m);int level=on?255:0;
         if(get("/control?var=led_intensity&val="+level))return true;
-        // Common custom CameraWebServer naming.
         if(get("/control?var=flash&val="+(on?1:0)))return true;
-        // Lightweight custom firmware fallback.
-        if(get("/flash?on="+(on?1:0)))return true;
-        return false;
+        return get("/flash?on="+(on?1:0));
+    }
+
+    public static String normalizeMode(String mode){
+        if(mode==null)return "off";String m=mode.trim().toLowerCase();
+        return "on".equals(m)||"auto".equals(m)?m:"off";
     }
 
     private boolean get(String path){
@@ -36,7 +43,7 @@ public final class CameraApi {
         HttpURLConnection c=null;
         try{
             c=(HttpURLConnection)new URL("http://"+host+path).openConnection();
-            c.setConnectTimeout(700);c.setReadTimeout(700);c.setUseCaches(false);c.setRequestMethod("GET");
+            c.setConnectTimeout(900);c.setReadTimeout(900);c.setUseCaches(false);c.setRequestMethod("GET");
             int code=c.getResponseCode();
             InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();
             if(in!=null)try{byte[] b=new byte[256];while(in.read(b)!=-1){} }finally{in.close();}
