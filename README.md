@@ -6,7 +6,7 @@ HazRob is the Android operator and analytical application for the remote hazard-
 
 - Android application: `com.servoc.app`, versionCode `7`, versionName `0.6.0`.
 - Master ESP32 firmware API v3 is kept small and deterministic: drive, STOP/failsafe, relay control, MQ acquisition, BME/BMP acquisition, measurement sequencing and settings.
-- ESP32-CAM remains an independent camera/flash subsystem; video is not coupled to measurement records in the 0.6 core.
+- ESP32-CAM remains an independent camera/flash subsystem; video is not coupled to MQ measurement records.
 - Session role gate: normal `USER` mode and PIN-protected `DEVELOPER` mode. Developer tools are hidden from normal users.
 - One unified **Measurement & Analysis** workflow replaces separate sensor/chemical/measurement tabs.
 - Offline-first SQLite knowledge database is no longer structurally limited to 144 chemicals.
@@ -14,6 +14,10 @@ HazRob is the Android operator and analytical application for the remote hazard-
 - Developer reference captures accept dynamic database UID, CAS or exact chemical name rather than being limited to legacy IDs 1–144.
 - MQ time-series/feature extraction and sensor-health/drift support are retained for developer validation workflows.
 - PDF/XLSX measurement export and developer reference-bank JSON export remain local/offline.
+
+## Camera features
+
+Camera display and flash remain independent of the master ESP32 analytical path. The branch also contains optional local MJPEG recording and an experimental visual flame-evidence module. These consume the camera stream independently and are **not linked to MQ measurement records, PPM calculations or safety-critical drive decisions**. Their presence does not change the 0.6 measurement acceptance path.
 
 ## Analytical validity
 
@@ -42,4 +46,4 @@ Scientific-library design, source provenance and the wider research bibliography
 
 ## Deferred beyond the 0.6 core
 
-Video recording, flame/smoke AI, 4G/VPN transport, autonomous gas-source tracking, autonomous return-on-link-loss, thermal sensing and direct GitHub publishing are separate development layers. They are intentionally not placed in the measurement/control critical path of this core release.
+4G/VPN transport, autonomous gas-source tracking, autonomous return-on-link-loss, thermal sensing and direct authenticated GitHub publishing remain separate development layers. They are intentionally excluded from the measurement/control critical path of this release.
