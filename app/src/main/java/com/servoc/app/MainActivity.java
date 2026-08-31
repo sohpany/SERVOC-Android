@@ -63,7 +63,7 @@ public final class MainActivity extends Activity implements HazRobHost {
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);prefs=getSharedPreferences("servoc",MODE_PRIVATE);robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));flashMode=prefs.getString("flash_mode","off");db=new ExperimentsDb(this);telemetryRecorder=new TelemetryRecorder(db);loadSensorBaselines();
-        workers.execute(()->{ChemicalSeedBootstrap.ensureNiosh(getApplicationContext(),db);ExposureSeedBootstrap.ensureNioshIdlh(getApplicationContext(),db);ExposureSeedBootstrap.ensureOshaZ1(getApplicationContext(),db);ui.post(this::refreshAllTabs);});
+        workers.execute(()->{ChemicalSeedBootstrap.ensureNiosh(getApplicationContext(),db);ExposureSeedBootstrap.ensureOshaZ1(getApplicationContext(),db);ui.post(this::refreshAllTabs);});
         setContentView(RoleGate.build(this,new RoleGate.Listener(){@Override public void onUser(){enter(false);}@Override public void onDeveloper(){enter(true);}}));
     }
 
@@ -84,9 +84,9 @@ public final class MainActivity extends Activity implements HazRobHost {
 
     @Override protected void onResume(){super.onResume();WifiRoute.bindConnectedWifi(this);foreground=true;if(entered&&selectedTab==0)controlTab.startCamera();if(entered)refreshVisibleTab();}
     @Override protected void onPause(){foreground=false;if(entered){controlTab.stopCamera();emergencyStop();}super.onPause();}
-    @Override protected void onDestroy(){workers.shutdownNow();if(controlTab!=null)controlTab.releaseCamera();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
+    @Override protected void onDestroy(){if(controlTab!=null)controlTab.releaseCamera();workers.shutdownNow();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
 
-    @Override public RobotApi robotApi(){return robotApi;}@Override public SharedPreferences preferences(){return prefs;}@Override public ExperimentsDb database(){return db;}@Override public ExecutorService io(){return workers;}@Override public JSONObject latestDiagnostics(){return latestDiag;}@Override public void setLatestDiagnostics(JSONObject value){latestDiag=value;}@Override public void showToast(String text){ui.post(()->android.widget.Toast.makeText(this,text,android.widget.Toast.LENGTH_SHORT).show());}
+    @Override public RobotApi robotApi(){return robotApi;}@Override public SharedPreferences preferences(){return prefs;}@Override public ExperimentsDb database(){return db;}@Override public ExecutorService io(){return workers;}@Override public String operatorRole(){return developerMode?"DEVELOPER":"USER";}@Override public JSONObject latestDiagnostics(){return latestDiag;}@Override public void setLatestDiagnostics(JSONObject value){latestDiag=value;}@Override public void showToast(String text){ui.post(()->android.widget.Toast.makeText(this,text,android.widget.Toast.LENGTH_SHORT).show());}
     @Override public void emergencyStop(){left=right=0;motionHistory.record(0,0,SystemClock.elapsedRealtime());if(controlTab!=null)controlTab.resetJoystick();workers.execute(()->{try{robotApi.stop();}catch(Exception ignored){}try{robotApi.cancelMeasurement();}catch(Exception ignored){}});}
     @Override public void setDriveCommand(int l,int r){int nl=Math.max(-100,Math.min(100,l)),nr=Math.max(-100,Math.min(100,r));left=nl;right=nr;motionHistory.record(nl,nr,SystemClock.elapsedRealtime());}
     @Override public int driveLeft(){return left;}@Override public int driveRight(){return right;}
