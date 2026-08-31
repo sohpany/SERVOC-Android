@@ -11,6 +11,7 @@ import android.widget.TableRow;
 import android.widget.TextView;
 
 import com.servoc.app.analytics.AnalyticsSnapshot;
+import com.servoc.app.chemical.CandidateRanker;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.chemical.ValidatedGasEngine;
 import com.servoc.app.exposure.ExposureRepository;
@@ -20,7 +21,6 @@ import com.servoc.app.sensors.RobotTelemetry;
 import org.json.JSONObject;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -30,6 +30,11 @@ import java.util.TimeZone;
 /** Single operational workflow for environment, MQ acquisition, chemical interpretation and field measurements. */
 public final class MeasurementAnalysisTab {
     private final HazRobHost host;private final ChemicalRepository chemicals;private final ExposureRepository exposures;private final ScrollView scroll;private final TextView env,cycle,chem,coverage;private final TextView[] mqRows=new TextView[RobotTelemetry.MQ_KEYS.length];private final TextView[] physicalValues=new TextView[PhysicalCatalog.COUNT],physicalStates=new TextView[PhysicalCatalog.COUNT];
+
+    private static final class RankedCandidate{
+        final ValidatedGasEngine.Result result;final ChemicalRepository.Chemical chemical;final ExposureRepository.Limit idlh;final double idlhRatio;
+        RankedCandidate(ValidatedGasEngine.Result result,ChemicalRepository.Chemical chemical,ExposureRepository.Limit idlh,double idlhRatio){this.result=result;this.chemical=chemical;this.idlh=idlh;this.idlhRatio=idlhRatio;}
+    }
 
     public MeasurementAnalysisTab(Context c,HazRobHost host){
         this.host=host;chemicals=new ChemicalRepository(host.database());exposures=new ExposureRepository(host.database());scroll=new ScrollView(c);scroll.setFillViewport(true);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
@@ -56,7 +61,7 @@ public final class MeasurementAnalysisTab {
     private void save(){JSONObject d=host.latestDiagnostics();if(d==null){host.showToast("لا توجد بيانات حية");return;}JSONObject m=d.optJSONObject("measurement");if(m==null||!"ready".equalsIgnoreCase(m.optString("state"))){host.showToast("أكمل دورة MQ قبل حفظ القياس");return;}String ts=isoNow(),payload=d.toString(),analytics=AnalyticsSnapshot.toJson(d);host.io().execute(()->{try{long id=host.database().save(ts,payload,"HazRob 0.6 field measurement",analytics);host.showToast("تم حفظ القياس #"+id);host.refreshAllTabs();}catch(Exception e){host.showToast("تعذر حفظ القياس");}});}
 
     public void refresh(){
-        coverage.setText("قاعدة المركبات: "+chemicals.count()+" سجلًا • حدود التعرض الديناميكية: "+exposures.count()+" سجلًا • كل حد يحتفظ بجهته ومصدره ومراجعته.");
+        coverage.setText("قاعدة المعرفة الكيميائية: "+chemicals.count()+" سجلًا • حدود التعرض: "+exposures.count()+" سجلًا • القائمة أدناه تعرض المرشحات ذات الدليل الحسي فقط، لا جميع مواد القاعدة.");
         JSONObject d=host.latestDiagnostics();if(d==null){env.setText("الروبوت غير متصل");cycle.setText("الحالة: غير متصل");chem.setText("لا توجد بيانات تحليل.");setPhysicalUnavailable("غير متصل");for(int i=0;i<mqRows.length;i++){String key=RobotTelemetry.MQ_KEYS[i];SensorHealthEngine.Snapshot h=host.sensorHealth(key);mqRows[i].setText(key.toUpperCase(Locale.US)+" — • صحة "+SensorHealthEngine.compact(h));}return;}
         refreshEnv(d);refreshCycleAndMq(d);refreshChemistry(d);refreshPhysical(d);
     }
@@ -75,19 +80,28 @@ public final class MeasurementAnalysisTab {
     private static int healthColor(SensorHealthEngine.Snapshot h,boolean readingOk){if(h==null)return readingOk?Color.WHITE:0xFF78909C;switch(h.state){case MISSING:case INVALID:case SATURATED:return 0xFFEF5350;case STUCK:case UNSTABLE:case DRIFT_WARNING:return 0xFFFFB74D;case HEALTHY:return readingOk?0xFFB0BEC5:0xFF78909C;default:return readingOk?Color.WHITE:0xFF78909C;}}
 
     private void refreshChemistry(JSONObject d){
-        Map<Integer,ValidatedGasEngine.Result> map=AnalyticsSnapshot.analyze(d);List<ValidatedGasEngine.Result> rows=new ArrayList<>(map.values());rows.sort(Comparator.<ValidatedGasEngine.Result>comparingInt(r->r.quantitative?1:0).reversed().thenComparingInt(r->r.confidence).reversed().thenComparingDouble(r->r.agreement).reversed());
-        if(rows.isEmpty()){chem.setText("لا توجد أدلة كافية من القنوات الحالية.");return;}
-        StringBuilder s=new StringBuilder();int shown=0;
-        for(ValidatedGasEngine.Result r:rows){
-            ChemicalRepository.Chemical c=chemicals.byLegacyId(r.chemical);if(c==null)continue;if(shown++>=12)break;
-            s.append(shown).append(". ").append(c.arabicName!=null&&!c.arabicName.isEmpty()?c.arabicName:c.name);if(c.formula!=null&&!c.formula.isEmpty())s.append(" • ").append(c.formula);if(c.cas!=null&&!c.cas.isEmpty())s.append(" • CAS ").append(c.cas);
-            s.append("\n   الثقة ").append(UiKit.stars(r.confidence)).append(" • اتفاق ").append(String.format(Locale.US,"%.0f%%",r.agreement));
-            if(r.quantitative)s.append(" • تقدير ").append(String.format(Locale.US,"%.2f ppm",r.ppm));else s.append(" • تعريف/بصمة فقط — PPM غير معتمد");
-            ExposureRepository.Limit idlh=currentNioshIdlh(c.uid);if(idlh!=null){s.append("\n   NIOSH IDLH: ").append(limitText(idlh));if(r.quantitative&&"ppm".equalsIgnoreCase(idlh.unit)&&idlh.numeric()&&idlh.value>0)s.append(String.format(Locale.US," • التقدير %.1f%% من IDLH",100.0*r.ppm/idlh.value));}
-            s.append('\n');
+        Map<Integer,ValidatedGasEngine.Result> map=AnalyticsSnapshot.analyze(d);List<RankedCandidate> rows=new ArrayList<>();
+        for(ValidatedGasEngine.Result r:map.values()){
+            if(r==null||r.totalContributors<=0)continue;ChemicalRepository.Chemical c=chemicals.byLegacyId(r.chemical);if(c==null)continue;ExposureRepository.Limit idlh=currentNioshIdlh(c.uid);double ratio=Double.NaN;
+            if(idlh!=null&&r.quantitative&&"ppm".equalsIgnoreCase(idlh.unit)&&idlh.numeric()&&idlh.value>0&&Double.isFinite(r.ppm))ratio=r.ppm/idlh.value;
+            rows.add(new RankedCandidate(r,c,idlh,ratio));
         }
-        chem.setText(s.length()>0?s.toString().trim():"لا توجد نتائج مرتبطة بسجل كيميائي محلي صالح.");
+        rows.sort((a,b)->{int c=Integer.compare(hazardBand(b.idlhRatio),hazardBand(a.idlhRatio));if(c!=0)return c;c=Double.compare(safeRatio(b.idlhRatio),safeRatio(a.idlhRatio));if(c!=0)return c;return CandidateRanker.COMPARATOR.compare(a.result,b.result);});
+        if(rows.isEmpty()){chem.setText("لا توجد أدلة كافية من القنوات الحالية.");return;}
+        StringBuilder s=new StringBuilder("المرشحات الحسية: ").append(rows.size()).append(" • مرتبة تنازليًا حسب الخطر الفوري القابل للحساب ثم قوة الدليل والتحقق بين الحساسات.\n\n");int shown=0;
+        for(RankedCandidate x:rows){
+            ValidatedGasEngine.Result r=x.result;ChemicalRepository.Chemical c=x.chemical;shown++;
+            s.append(shown).append(". ").append(c.arabicName!=null&&!c.arabicName.isEmpty()?c.arabicName:c.name);if(c.formula!=null&&!c.formula.isEmpty())s.append(" • ").append(c.formula);if(c.cas!=null&&!c.cas.isEmpty())s.append(" • CAS ").append(c.cas);
+            s.append("\n   الدليل: ").append(CandidateRanker.evidenceLabel(r)).append(" • الثقة ").append(UiKit.stars(r.confidence)).append(" • اتفاق ").append(String.format(Locale.US,"%.0f%%",r.agreement));
+            if(r.quantitative)s.append(" • تقدير ").append(String.format(Locale.US,"%.2f ppm",r.ppm));else s.append(" • تعريف/بصمة فقط — PPM غير معتمد");
+            if(x.idlh!=null){s.append("\n   NIOSH IDLH: ").append(limitText(x.idlh));if(Double.isFinite(x.idlhRatio))s.append(String.format(Locale.US," • التقدير %.1f%% من IDLH",100.0*x.idlhRatio));}
+            s.append("\n\n");
+        }
+        chem.setText(s.toString().trim());
     }
+
+    private static int hazardBand(double ratio){if(!Double.isFinite(ratio)||ratio<=0)return 0;if(ratio>=1.0)return 4;if(ratio>=0.5)return 3;if(ratio>=0.1)return 2;return 1;}
+    private static double safeRatio(double ratio){return Double.isFinite(ratio)?ratio:-1;}
 
     private ExposureRepository.Limit currentNioshIdlh(long uid){
         ExposureRepository.Limit fallback=null;for(ExposureRepository.Limit l:exposures.forChemical(uid,"NIOSH")){if(!"IDLH".equalsIgnoreCase(l.type))continue;if(fallback==null)fallback=l;if(l.notation!=null&&l.notation.startsWith("CURRENT POLICY"))return l;}return fallback;
