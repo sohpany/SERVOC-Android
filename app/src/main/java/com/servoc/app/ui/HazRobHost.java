@@ -3,6 +3,7 @@ package com.servoc.app.ui;
 import android.content.SharedPreferences;
 import com.servoc.app.communication.RobotApi;
 import com.servoc.app.data.ExperimentsDb;
+import com.servoc.app.measurement.SensorHealthEngine;
 import org.json.JSONObject;
 import java.util.concurrent.ExecutorService;
 
@@ -24,6 +25,10 @@ public interface HazRobHost {
     boolean cameraReachable();
     void setFlashMode(String mode);
     String flashMode();
+    SensorHealthEngine.Snapshot sensorHealth(String key);
+    int captureCleanAirBaseline();
+    int evaluateCleanAirDrift();
+    String cleanAirBaselineTimestamp();
     void requestExport(String format,long experimentId);
     void requestReferenceBankExport(long experimentId);
     void refreshAllTabs();
