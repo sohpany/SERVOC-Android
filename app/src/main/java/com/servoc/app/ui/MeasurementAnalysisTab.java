@@ -6,6 +6,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.TableLayout;
+import android.widget.TableRow;
 import android.widget.TextView;
 
 import com.servoc.app.analytics.AnalyticsSnapshot;
@@ -13,6 +15,7 @@ import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.chemical.ValidatedGasEngine;
 import com.servoc.app.exposure.ExposureRepository;
 import com.servoc.app.measurement.SensorHealthEngine;
+import com.servoc.app.measurements.PhysicalCatalog;
 import com.servoc.app.sensors.RobotTelemetry;
 import org.json.JSONObject;
 import java.text.SimpleDateFormat;
@@ -26,7 +29,7 @@ import java.util.TimeZone;
 
 /** Single operational workflow for environment, MQ acquisition, chemical interpretation and field measurements. */
 public final class MeasurementAnalysisTab {
-    private final HazRobHost host;private final ChemicalRepository chemicals;private final ExposureRepository exposures;private final ScrollView scroll;private final TextView env,cycle,chem,physical,coverage;private final TextView[] mqRows=new TextView[RobotTelemetry.MQ_KEYS.length];
+    private final HazRobHost host;private final ChemicalRepository chemicals;private final ExposureRepository exposures;private final ScrollView scroll;private final TextView env,cycle,chem,coverage;private final TextView[] mqRows=new TextView[RobotTelemetry.MQ_KEYS.length];private final TextView[] physicalValues=new TextView[PhysicalCatalog.COUNT],physicalStates=new TextView[PhysicalCatalog.COUNT];
 
     public MeasurementAnalysisTab(Context c,HazRobHost host){
         this.host=host;chemicals=new ChemicalRepository(host.database());exposures=new ExposureRepository(host.database());scroll=new ScrollView(c);scroll.setFillViewport(true);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
@@ -41,10 +44,11 @@ public final class MeasurementAnalysisTab {
 
         LinearLayout chemCard=UiKit.card(c);chemCard.addView(UiKit.title(c,"التحليل الكيميائي وحدود التعرض"),UiKit.full(c));coverage=UiKit.small(c,"");chemCard.addView(coverage,UiKit.full(c));chem=UiKit.text(c,"لا توجد بيانات تحليل بعد.");chem.setTextIsSelectable(true);chem.setBackgroundColor(0xFF151A20);chemCard.addView(chem,UiKit.full(c));root.addView(chemCard,UiKit.full(c));
 
-        LinearLayout phyCard=UiKit.card(c);phyCard.addView(UiKit.title(c,"القياسات الفيزيائية والبيئية"),UiKit.full(c));physical=UiKit.text(c,"—");physical.setBackgroundColor(0xFF151A20);phyCard.addView(physical,UiKit.full(c));root.addView(phyCard,UiKit.full(c));
+        LinearLayout phyCard=UiKit.card(c);phyCard.addView(UiKit.title(c,"القياسات الفيزيائية والبيئية"),UiKit.full(c));TableLayout table=new TableLayout(c);table.setStretchAllColumns(true);table.setShrinkAllColumns(true);TableRow head=new TableRow(c);head.addView(tableCell(c,"القياس",true));head.addView(tableCell(c,"القيمة",true));head.addView(tableCell(c,"الوحدة",true));head.addView(tableCell(c,"الحالة",true));table.addView(head,new TableLayout.LayoutParams(TableLayout.LayoutParams.MATCH_PARENT,TableLayout.LayoutParams.WRAP_CONTENT));for(int i=0;i<PhysicalCatalog.COUNT;i++){TableRow row=new TableRow(c);row.setBackgroundColor((i&1)==0?0xFF161C23:0xFF1B222B);row.addView(tableCell(c,PhysicalCatalog.NAMES_AR[i],false));physicalValues[i]=tableCell(c,"—",false);row.addView(physicalValues[i]);row.addView(tableCell(c,PhysicalCatalog.UNITS[i],false));physicalStates[i]=tableCell(c,"غير مركب",false);row.addView(physicalStates[i]);table.addView(row,new TableLayout.LayoutParams(TableLayout.LayoutParams.MATCH_PARENT,TableLayout.LayoutParams.WRAP_CONTENT));}phyCard.addView(table,UiKit.full(c));phyCard.addView(UiKit.small(c,"القيم غير المركبة تبقى ظاهرة في الجدول لتوضيح تغطية المنصة الحالية وما يمكن إضافته لاحقًا."),UiKit.full(c));root.addView(phyCard,UiKit.full(c));
         root.addView(UiKit.small(c,"بعد حفظ القياس يمكن إصدار PDF/Excel من تبويب السجل والتقارير."),UiKit.full(c));
     }
 
+    private static TextView tableCell(Context c,String text,boolean header){TextView v=new TextView(c);v.setText(text);v.setTextColor(header?Color.WHITE:0xFFCFD8DC);v.setTextSize(header?13:12);v.setPadding(UiKit.dp(c,5),UiKit.dp(c,7),UiKit.dp(c,5),UiKit.dp(c,7));if(header){v.setBackgroundColor(0xFF263238);v.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);}return v;}
     public View view(){return scroll;}
 
     private void measurement(boolean start){host.io().execute(()->{try{if(start)host.robotApi().startMeasurement();else host.robotApi().cancelMeasurement();host.showToast(start?"بدأت دورة MQ":"أُلغيت دورة MQ");}catch(Exception e){host.showToast("تعذر إرسال أمر القياس");}});}
@@ -53,7 +57,7 @@ public final class MeasurementAnalysisTab {
 
     public void refresh(){
         coverage.setText("قاعدة المركبات: "+chemicals.count()+" سجلًا • حدود التعرض الديناميكية: "+exposures.count()+" سجلًا • كل حد يحتفظ بجهته ومصدره ومراجعته.");
-        JSONObject d=host.latestDiagnostics();if(d==null){env.setText("الروبوت غير متصل");cycle.setText("الحالة: غير متصل");chem.setText("لا توجد بيانات تحليل.");physical.setText("—");for(int i=0;i<mqRows.length;i++){String key=RobotTelemetry.MQ_KEYS[i];SensorHealthEngine.Snapshot h=host.sensorHealth(key);mqRows[i].setText(key.toUpperCase(Locale.US)+" — • صحة "+SensorHealthEngine.compact(h));}return;}
+        JSONObject d=host.latestDiagnostics();if(d==null){env.setText("الروبوت غير متصل");cycle.setText("الحالة: غير متصل");chem.setText("لا توجد بيانات تحليل.");setPhysicalUnavailable("غير متصل");for(int i=0;i<mqRows.length;i++){String key=RobotTelemetry.MQ_KEYS[i];SensorHealthEngine.Snapshot h=host.sensorHealth(key);mqRows[i].setText(key.toUpperCase(Locale.US)+" — • صحة "+SensorHealthEngine.compact(h));}return;}
         refreshEnv(d);refreshCycleAndMq(d);refreshChemistry(d);refreshPhysical(d);
     }
 
@@ -91,7 +95,9 @@ public final class MeasurementAnalysisTab {
 
     private static String limitText(ExposureRepository.Limit l){StringBuilder s=new StringBuilder();if(l.numeric())s.append(String.format(Locale.US,"%.4g",l.value));else s.append("—");if(l.unit!=null&&!l.unit.isEmpty())s.append(' ').append(l.unit);if(l.revision!=null&&!l.revision.isEmpty())s.append(" • ").append(l.revision);return s.toString();}
 
-    private void refreshPhysical(JSONObject d){JSONObject e=d.optJSONObject("env");if(e==null||!e.optBoolean("ok",false)){physical.setText("لا توجد قياسات بيئية صالحة.");return;}double t=e.optDouble("temperature",Double.NaN),h=e.optDouble("humidity",Double.NaN),p=e.optDouble("pressure",Double.NaN);StringBuilder s=new StringBuilder();if(Double.isFinite(t))s.append(String.format(Locale.US,"الحرارة: %.2f °C\n",t));if(Double.isFinite(h))s.append(String.format(Locale.US,"الرطوبة: %.2f %%RH\n",h));if(Double.isFinite(p)){s.append(String.format(Locale.US,"الضغط: %.2f hPa",p));double alt=44330.0*(1.0-Math.pow(p/1013.25,0.1903));s.append(String.format(Locale.US,"\nالارتفاع البارومتري التقريبي: %.1f m",alt));}physical.setText(s.toString());}
+    private void refreshPhysical(JSONObject d){setPhysicalUnavailable("غير مركب");JSONObject e=d.optJSONObject("env");if(e==null||!e.optBoolean("ok",false)){physicalStates[0].setText("الحساس البيئي غير متاح");physicalStates[1].setText("الحساس البيئي غير متاح");physicalStates[2].setText("الحساس البيئي غير متاح");physicalStates[14].setText("يتطلب ضغطًا صالحًا");return;}String type=e.optString("type","ENV");setPhysical(0,e.optDouble("temperature",Double.NaN),type);setPhysical(1,e.optDouble("humidity",Double.NaN),Double.isFinite(e.optDouble("humidity",Double.NaN))?type:"غير متاحة في "+type);double p=e.optDouble("pressure",Double.NaN);setPhysical(2,p,type);if(Double.isFinite(p)&&p>0)setPhysical(14,44330.0*(1.0-Math.pow(p/1013.25,0.1903)),"مشتق من الضغط @ 1013.25 hPa");else physicalStates[14].setText("ضغط غير صالح");}
+    private void setPhysicalUnavailable(String state){for(int i=0;i<PhysicalCatalog.COUNT;i++){physicalValues[i].setText("—");physicalStates[i].setText(state);physicalStates[i].setTextColor(0xFF90A4AE);}}
+    private void setPhysical(int index,double value,String state){if(Double.isFinite(value)){physicalValues[index].setText(String.format(Locale.US,index==14?"%.1f":"%.2f",value));physicalStates[index].setText(state);physicalStates[index].setTextColor(0xFF81C784);}else{physicalValues[index].setText("—");physicalStates[index].setText(state);physicalStates[index].setTextColor(0xFFFFB74D);}}
 
     private static void add(StringBuilder s,JSONObject r,String key,String label){double v=r.optDouble(key,Double.NaN);if(Double.isFinite(v))s.append(String.format(Locale.US," • %s %.3f",label,v));}
     private static String stateAr(String s){if("idle".equals(s))return"خامل";if("warmup".equals(s))return"تسخين";if("measuring".equals(s))return"قياس";if("ready".equals(s))return"جاهز";if("error".equals(s))return"خطأ";return s;}
