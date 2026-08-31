@@ -34,7 +34,7 @@ public final class ControlTab {
     private final JoystickView joystick;
     private String recordingSessionId,recordingStartedTs;
     private long recordingStartedElapsed;
-    private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.NONE;
+    private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;
 
     public ControlTab(Context c,HazRobHost host){
         this.host=host;
@@ -96,7 +96,7 @@ public final class ControlTab {
         flameInfo.setText(s.toString());
         flameInfo.setTextColor(now==FlameEvidenceTracker.State.PERSISTENT?0xFFFF7043:now==FlameEvidenceTracker.State.CANDIDATE?0xFFFFB74D:0xFF90A4AE);
         if(now==FlameEvidenceTracker.State.PERSISTENT&&previous!=FlameEvidenceTracker.State.PERSISTENT)persistFlameEvent("flame_visual_onset",r);
-        else if(previous==FlameEvidenceTracker.State.PERSISTENT&&now==FlameEvidenceTracker.State.NONE)persistFlameEvent("flame_visual_clear",r);
+        else if(previous==FlameEvidenceTracker.State.PERSISTENT&&now==FlameEvidenceTracker.State.CLEAR)persistFlameEvent("flame_visual_clear",r);
     }
 
     private void persistFlameEvent(String type,FlameFrameAnalyzer.Result r){
@@ -108,7 +108,7 @@ public final class ControlTab {
     public View view(){return root;}
     public void resetJoystick(){joystick.reset();}
     public void startCamera(){String h=host.cameraHost();if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");}
-    public void stopCamera(){video.stop();flameAnalyzer.reset();lastFlameState=FlameEvidenceTracker.State.NONE;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recorder.isRecording())stopRecording("camera_stop");}
+    public void stopCamera(){video.stop();flameAnalyzer.reset();lastFlameState=FlameEvidenceTracker.State.CLEAR;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recorder.isRecording())stopRecording("camera_stop");}
     public void releaseCamera(){if(recorder.isRecording())stopRecording("release");flameAnalyzer.release();recorder.release();video.release();}
 
     public void refresh(){
