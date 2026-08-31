@@ -1,7 +1,6 @@
 package com.servoc.app.data;
 
 import android.content.ContentValues;
-import android.database.sqlite.SQLiteDatabase;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -11,8 +10,8 @@ import java.util.TimeZone;
 public final class EvidenceStore {
     private EvidenceStore(){}
 
-    public static String startStandaloneSession(ExperimentsDb db,boolean developer,String kind){
-        String id="MEDIA-"+System.currentTimeMillis();ContentValues v=new ContentValues();v.put("session_id",id);v.put("started_ts",isoNow());v.put("kind",kind==null?"media_capture":kind);v.put("operator_role",developer?"DEVELOPER":"USER");db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);return id;
+    public static String startStandaloneSession(ExperimentsDb db,String operatorRole,String kind){
+        String id="MEDIA-"+System.currentTimeMillis();ContentValues v=new ContentValues();v.put("session_id",id);v.put("started_ts",isoNow());v.put("kind",kind==null?"media_capture":kind);v.put("operator_role",operatorRole==null?"OPERATOR":operatorRole);db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);return id;
     }
 
     public static void finishStandaloneSession(ExperimentsDb db,String sessionId,String payload){
