@@ -17,6 +17,7 @@ import android.widget.TextView;
 import com.servoc.app.analytics.AnalyticsSnapshot;
 import com.servoc.app.camera.MjpegRecorder;
 import com.servoc.app.camera.MjpegView;
+import com.servoc.app.chemical.CandidateRanker;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.chemical.GasEngine;
 import com.servoc.app.chemical.MqSensorAffinity;
@@ -32,7 +33,6 @@ import org.json.JSONObject;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -87,7 +87,7 @@ public final class ControlTab {
         flash=UiKit.button(c,"الفلاش: إيقاف");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1f));
         record=UiKit.button(c,"تسجيل الفيديو");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1f));root.addView(actions,UiKit.full(c));
 
-        recordInfo=UiKit.small(c,"التسجيل: متوقف");recordInfo.setBackgroundColor(0xFF151A20);root.addView(recordInfo,UiKit.full(c));
+        recordInfo=UiKit.small(c,"التسجيل: متوقف • MP4/H.264 • الحفظ في معرض الهاتف");recordInfo.setBackgroundColor(0xFF151A20);root.addView(recordInfo,UiKit.full(c));
         flameInfo=UiKit.small(c,"دليل اللهب البصري التجريبي: بانتظار الفيديو");flameInfo.setBackgroundColor(0xFF151A20);flameInfo.setTextColor(0xFF90A4AE);root.addView(flameInfo,UiKit.full(c));
 
         LinearLayout gasCard=UiKit.card(c);gasCard.addView(UiKit.title(c,"تتبع مصدر الغاز"),UiKit.full(c));
@@ -115,26 +115,26 @@ public final class ControlTab {
         String session=null;
         try{
             session=EvidenceStore.startStandaloneSession(host.database(),host.operatorRole(),"video_capture");
-            String name="HazRob_"+new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US).format(new Date());File f=recorder.start(name);
-            recordingSessionId=session;recordingStartedTs=EvidenceStore.isoNow();recordingStartedElapsed=SystemClock.elapsedRealtime();record.setText("إيقاف التسجيل");recordInfo.setText("جارٍ التسجيل • "+f.getName()+"\nجلسة "+session);host.showToast("بدأ تسجيل الفيديو");
+            String name="HazRob_"+new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss",Locale.US).format(new Date());File f=recorder.start(name);
+            recordingSessionId=session;recordingStartedTs=EvidenceStore.isoNow();recordingStartedElapsed=SystemClock.elapsedRealtime();record.setText("إيقاف التسجيل");recordInfo.setText("جارٍ التسجيل • MP4/H.264 • "+f.getName()+"\nجلسة "+session);host.showToast("بدأ تسجيل الفيديو");
         }catch(Exception e){if(session!=null)EvidenceStore.finishStandaloneSession(host.database(),session,"{\"terminal_state\":\"start_error\"}");host.showToast("تعذر بدء تسجيل الفيديو");recordInfo.setText("التسجيل: خطأ في التخزين");}
     }
 
     private void requestStopRecording(String reason,boolean toastAfter){
         final String session=recordingSessionId,start=recordingStartedTs;if(session==null||recordingStopping)return;
-        recordingStopping=true;record.setEnabled(false);recordInfo.setText("جارٍ إنهاء التسجيل وحفظ الإطارات المعلقة...");
+        recordingStopping=true;record.setEnabled(false);recordInfo.setText("جارٍ إنهاء MP4 وحفظه في معرض الهاتف...");
         host.io().execute(()->{
-            MjpegRecorder.StopResult result=recorder.stopGracefully(5000);String end=EvidenceStore.isoNow();boolean mine=claimSession(session);
+            MjpegRecorder.StopResult result=recorder.stopGracefully(8000);String end=EvidenceStore.isoNow();boolean mine=claimSession(session);
             if(mine)persistRecording(session,start,end,reason,result);
-            root.post(()->{recordingStopping=false;record.setEnabled(true);record.setText("تسجيل الفيديو");if(mine){String err=result.error==null?"":" • خطأ "+result.error;recordInfo.setText("تم الحفظ • "+result.frames+" إطار • مسقط "+result.dropped+err+"\n"+(result.video==null?"":result.video.getName()));if(toastAfter)host.showToast(result.clean()?"تم إيقاف تسجيل الفيديو":"تم حفظ التسجيل مع خطأ كتابة");}});
+            root.post(()->{recordingStopping=false;record.setEnabled(true);record.setText("تسجيل الفيديو");if(mine){String err=result.error==null?"":" • خطأ "+result.error;String location=result.galleryUri!=null?" • المعرض/Movies/HazRob":" • نسخة التطبيق فقط";recordInfo.setText("تم الحفظ • "+result.frames+" إطار • مسقط "+result.dropped+location+err+"\n"+(result.displayName==null?"":result.displayName));if(toastAfter)host.showToast(result.galleryUri!=null?"تم حفظ الفيديو في معرض الهاتف":result.clean()?"تم إيقاف التسجيل":"تم حفظ التسجيل مع خطأ");}});
         });
     }
 
     private synchronized boolean claimSession(String expected){if(expected==null||!expected.equals(recordingSessionId))return false;recordingSessionId=null;recordingStartedTs=null;recordingStartedElapsed=0;return true;}
 
     private void persistRecording(String session,String start,String end,String reason,MjpegRecorder.StopResult r){
-        JSONObject meta=new JSONObject();try{meta.put("format","HAZROB_RAW_MJPEG_V1");meta.put("frames",r.frames);meta.put("dropped_frames",r.dropped);meta.put("stop_reason",reason);meta.put("camera_host",host.cameraHost());meta.put("clean_close",r.clean());if(r.error!=null)meta.put("io_error",r.error);if(r.index!=null)meta.put("index_uri",Uri.fromFile(r.index).toString());}catch(Exception ignored){}
-        String metadata=meta.toString();try{if(r.video!=null)EvidenceStore.saveMedia(host.database(),session,"video/x-hazrob-mjpeg",Uri.fromFile(r.video).toString(),start,end,metadata);EvidenceStore.finishStandaloneSession(host.database(),session,metadata);}catch(Exception ignored){}
+        JSONObject meta=new JSONObject();try{meta.put("format","MP4_H264");meta.put("container","video/mp4");meta.put("video_codec","H.264/AVC");meta.put("frames",r.frames);meta.put("dropped_frames",r.dropped);meta.put("stop_reason",reason);meta.put("camera_host",host.cameraHost());meta.put("clean_close",r.clean());meta.put("display_name",r.displayName);if(r.galleryUri!=null)meta.put("gallery_uri",r.galleryUri.toString());if(r.error!=null)meta.put("io_error",r.error);if(r.index!=null)meta.put("frame_timing_index_uri",Uri.fromFile(r.index).toString());}catch(Exception ignored){}
+        String mediaUri=r.galleryUri!=null?r.galleryUri.toString():r.video!=null?Uri.fromFile(r.video).toString():null;String metadata=meta.toString();try{if(mediaUri!=null)EvidenceStore.saveMedia(host.database(),session,"video/mp4",mediaUri,start,end,metadata);EvidenceStore.finishStandaloneSession(host.database(),session,metadata);}catch(Exception ignored){}
     }
 
     private void showFlame(FlameFrameAnalyzer.Result r){
@@ -188,7 +188,7 @@ public final class ControlTab {
     public void refresh(){
         String fm=host.flashMode();flash.setText("الفلاش: "+("on".equals(fm)?"تشغيل":"auto".equals(fm)?"تلقائي":"إيقاف"));
         if(recordingSessionId!=null&&!recordingStopping&&!recorder.isRecording()&&recorder.lastError()!=null){requestStopRecording("io_error",false);return;}
-        if(recorder.isRecording())recordInfo.setText("جارٍ التسجيل • "+recorder.frameCount()+" إطار • مسقط "+recorder.droppedFrames()+"\nجلسة "+recordingSessionId);
+        if(recorder.isRecording())recordInfo.setText("جارٍ التسجيل • MP4/H.264 • "+recorder.frameCount()+" إطار • مسقط "+recorder.droppedFrames()+"\nجلسة "+recordingSessionId);
         JSONObject d=host.latestDiagnostics();if(d==null){status.setText("الروبوت غير متصل");status.setTextColor(0xFFFFB74D);drive.setText("يسار "+host.driveLeft()+"   يمين "+host.driveRight()+"   أمان الاتصال —");overlay.clearGas();gasDirection.reset();gasTrackInfo.setText(selectedGas<0?"لا يوجد هدف محدد للتتبع":"الهدف: "+selectedGasName+" • الاتصال بالروبوت مفقود");return;}
         status.setText("متصل • "+d.optInt("clients",0));status.setTextColor(0xFF81C784);JSONObject x=d.optJSONObject("drive");if(x!=null)drive.setText("يسار "+x.optInt("left",host.driveLeft())+"   يمين "+x.optInt("right",host.driveRight())+"   أمان الاتصال "+(x.optBoolean("failsafe",false)?"مفعّل":"سليم"));
         refreshGasTargets(d);
@@ -201,11 +201,11 @@ public final class ControlTab {
     private void refreshGasTargets(JSONObject d){
         Map<Integer,ValidatedGasEngine.Result> map=AnalyticsSnapshot.analyze(d);List<ValidatedGasEngine.Result> rows=new ArrayList<>();
         for(ValidatedGasEngine.Result r:map.values())if(r!=null&&r.totalContributors>0&&r.confidence>=GasEngine.SUSPECTED&&MqSensorAffinity.forChemical(r.chemical).mask!=0)rows.add(r);
-        rows.sort(Comparator.comparingInt((ValidatedGasEngine.Result r)->r.confidence).reversed().thenComparing(Comparator.comparingDouble((ValidatedGasEngine.Result r)->r.agreement).reversed()));
+        rows.sort(CandidateRanker.COMPARATOR);
         if(rows.size()>10)rows=rows.subList(0,10);
         StringBuilder sig=new StringBuilder();for(ValidatedGasEngine.Result r:rows)sig.append(r.chemical).append(',');if(sig.toString().equals(gasTargetSignature))return;gasTargetSignature=sig.toString();
         int keep=selectedGas,keepPos=0;ArrayList<String> labels=new ArrayList<>();gasTargetIds.clear();labels.add(rows.isEmpty()?"— لا توجد مركبات مكتشفة حاليًا —":"— اختر المركب المراد تتبع مصدره —");gasTargetIds.add(-1);
-        for(ValidatedGasEngine.Result r:rows){int id=r.chemical;String name=chemicalName(id),level=r.confidence>=GasEngine.HIGH?"ثقة مرتفعة":r.confidence>=GasEngine.STRONG?"ثقة قوية":"مرشح";String label=name+" • "+level+String.format(Locale.US," • اتفاق %.0f%%",r.agreement);labels.add(label);gasTargetIds.add(id);if(id==keep)keepPos=labels.size()-1;}
+        for(ValidatedGasEngine.Result r:rows){int id=r.chemical;String name=chemicalName(id),level=CandidateRanker.evidenceLabel(r);String label=name+" • "+level+String.format(Locale.US," • اتفاق %.0f%%",r.agreement);labels.add(label);gasTargetIds.add(id);if(id==keep)keepPos=labels.size()-1;}
         updatingGasTarget=true;ArrayAdapter<String> a=new ArrayAdapter<>(appContext,android.R.layout.simple_spinner_item,labels);a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);gasTarget.setAdapter(a);gasTarget.setSelection(keepPos,false);updatingGasTarget=false;
         if(keep>=0&&keepPos==0){selectedGas=-1;selectedGasName="";gasDirection.reset();overlay.clearGas();}
     }
