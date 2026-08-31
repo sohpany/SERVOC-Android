@@ -19,7 +19,9 @@ public final class FlameFrameAnalyzer implements MjpegView.FrameListener {
         public final long elapsedMs;
         public final FlameColorModel.Result frame;
         public final FlameEvidenceTracker.Snapshot temporal;
-        Result(long elapsedMs,FlameColorModel.Result frame,FlameEvidenceTracker.Snapshot temporal){this.elapsedMs=elapsedMs;this.frame=frame;this.temporal=temporal;}
+        /** Original camera JPEG for auditable event snapshots; never modified by the analyzer. */
+        public final byte[] jpeg;
+        Result(long elapsedMs,FlameColorModel.Result frame,FlameEvidenceTracker.Snapshot temporal,byte[] jpeg){this.elapsedMs=elapsedMs;this.frame=frame;this.temporal=temporal;this.jpeg=jpeg;}
     }
 
     private final ExecutorService worker=Executors.newSingleThreadExecutor();
@@ -46,12 +48,12 @@ public final class FlameFrameAnalyzer implements MjpegView.FrameListener {
         Bitmap b=null;
         try{
             b=BitmapFactory.decodeByteArray(jpeg,0,jpeg.length,options);
-            if(b==null){emit(new Result(elapsedMs,FlameColorModel.analyze(null,0,0),tracker.missing(elapsedMs)));return;}
+            if(b==null){emit(new Result(elapsedMs,FlameColorModel.analyze(null,0,0),tracker.missing(elapsedMs),null));return;}
             int w=b.getWidth(),h=b.getHeight();int[] pixels=new int[w*h];b.getPixels(pixels,0,w,0,0,w,h);
             FlameColorModel.Result frame=FlameColorModel.analyze(pixels,w,h);
             FlameEvidenceTracker.Snapshot temporal=tracker.update(frame.score,elapsedMs);
-            emit(new Result(elapsedMs,frame,temporal));
-        }catch(Exception ignored){emit(new Result(elapsedMs,FlameColorModel.analyze(null,0,0),tracker.missing(elapsedMs)));}
+            emit(new Result(elapsedMs,frame,temporal,jpeg));
+        }catch(Exception ignored){emit(new Result(elapsedMs,FlameColorModel.analyze(null,0,0),tracker.missing(elapsedMs),null));}
         finally{if(b!=null)b.recycle();}
     }
 
