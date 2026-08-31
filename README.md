@@ -6,18 +6,21 @@ HazRob is the Android operator and analytical application for the remote hazard-
 
 - Android application: `com.servoc.app`, versionCode `7`, versionName `0.6.0`.
 - Master ESP32 firmware API v3 is kept small and deterministic: drive, STOP/failsafe, relay control, MQ acquisition, BME/BMP acquisition, measurement sequencing and settings.
-- ESP32-CAM remains an independent camera/flash subsystem; video is not coupled to MQ measurement records.
+- ESP32-CAM remains an independent camera/flash subsystem; the Android app receives one MJPEG stream and distributes decoded evidence internally to display, recording and visual analysis.
 - Session role gate: normal `USER` mode and PIN-protected `DEVELOPER` mode. Developer tools are hidden from normal users.
 - One unified **Measurement & Analysis** workflow replaces separate sensor/chemical/measurement tabs.
 - Offline-first SQLite knowledge database is no longer structurally limited to 144 chemicals.
 - Bundled pinned scientific datasets currently include 652 NIOSH chemical identity/CAS records, 402 NIOSH IDLH records and 638 OSHA Table Z-1 exposure-limit records, each with source provenance and SHA-256 manifests.
 - Developer reference captures accept dynamic database UID, CAS or exact chemical name rather than being limited to legacy IDs 1–144.
 - MQ time-series/feature extraction and sensor-health/drift support are retained for developer validation workflows.
+- H.264/MP4 camera recording and experimental flame evidence are linked to the active MQ measurement session when one exists; otherwise a separate media-evidence session is created.
 - PDF/XLSX measurement export and developer reference-bank JSON export remain local/offline.
 
-## Camera features
+## Camera and evidence features
 
-Camera display and flash remain independent of the master ESP32 analytical path. The branch also contains optional local MJPEG recording and an experimental visual flame-evidence module. These consume the camera stream independently and are **not linked to MQ measurement records, PPM calculations or safety-critical drive decisions**. Their presence does not change the 0.6 measurement acceptance path.
+Camera display and flash remain independent of the master ESP32 control path. A single MJPEG connection feeds display, optional H.264/MP4 recording and the experimental visual flame-evidence pipeline. Recording retains frame timing metadata, and persistent visual-flame events can be stored with timestamped snapshots and confidence evidence.
+
+When media capture occurs during an active MQ cycle, video and visual events reuse that measurement `session_id`, allowing later correlation with environmental, MQ and motion telemetry. Outside a measurement cycle, media remains valid as a standalone evidence session. Visual flame evidence is not used to command motors or to validate chemical PPM.
 
 ## Analytical validity
 
