@@ -25,47 +25,40 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Generate NIOSH chemical seed
+
+      - name: Validate pinned scientific datasets
         run: |
-          python3 tools/build_niosh_seed.py app/src/main/assets/generated/niosh
           python3 - <<'PY'
+          import hashlib
           import json
-          p='app/src/main/assets/generated/niosh/manifest.json'
-          m=json.load(open(p,encoding='utf-8'))
-          assert m['record_count'] >= 500, m
-          print('NIOSH records:',m['record_count'])
-          print('Source kind:',m['source_kind'])
-          print('Authoritative:',m['authoritative'])
-          print('NIOSH source SHA-256:',m['source_sha256'])
-          print('Seed SHA-256:',m['sha256'])
+          from pathlib import Path
+
+          datasets = [
+              (Path('app/src/main/assets/generated/niosh/niosh_chemicals.json'), Path('app/src/main/assets/generated/niosh/manifest.json'), 500, 'NIOSH'),
+              (Path('app/src/main/assets/generated/exposure/niosh_idlh.json'), Path('app/src/main/assets/generated/exposure/manifest.json'), 300, 'NIOSH'),
+              (Path('app/src/main/assets/generated/exposure/osha_z1/osha_z1.json'), Path('app/src/main/assets/generated/exposure/osha_z1/manifest.json'), 300, 'OSHA'),
+          ]
+          for payload_path, manifest_path, minimum, authority in datasets:
+              payload = json.loads(payload_path.read_text(encoding='utf-8'))
+              manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+              count = payload.get('record_count', 0)
+              assert count >= minimum, (payload_path, count)
+              assert manifest.get('record_count') == count, (payload_path, manifest.get('record_count'), count)
+              assert manifest.get('authoritative') is True, (manifest_path, manifest.get('authoritative'))
+              actual = hashlib.sha256(payload_path.read_bytes()).hexdigest()
+              assert actual == manifest.get('sha256'), (payload_path, actual, manifest.get('sha256'))
+              provenance = payload.get('provenance')
+              if provenance is not None:
+                  assert provenance.get('authoritative') is True, (payload_path, provenance)
+                  assert provenance.get('authority') == authority, (payload_path, provenance.get('authority'))
+              else:
+                  assert payload.get('authority') == authority, (payload_path, payload.get('authority'))
+              print(f'{authority}: {count} records, SHA-256 {actual}')
+
+          osha_manifest = json.loads(Path('app/src/main/assets/generated/exposure/osha_z1/manifest.json').read_text(encoding='utf-8'))
+          assert 'ACGIH TLV' in osha_manifest.get('excluded_columns', []), osha_manifest
           PY
-      - name: Generate authoritative NIOSH IDLH seed
-        run: |
-          python3 tools/build_niosh_idlh_seed.py app/src/main/assets/generated/exposure
-          python3 - <<'PY'
-          import json
-          p='app/src/main/assets/generated/exposure/manifest.json'
-          m=json.load(open(p,encoding='utf-8'))
-          assert m['authoritative'] is True, m
-          assert m['record_count'] >= 300, m
-          print('NIOSH IDLH records:',m['record_count'])
-          print('NIOSH IDLH source SHA-256:',m['source_sha256'])
-          print('IDLH seed SHA-256:',m['sha256'])
-          PY
-      - name: Generate authoritative OSHA Z-1 PEL seed
-        run: |
-          python3 tools/build_osha_z1_seed.py app/src/main/assets/generated/exposure/osha_z1
-          python3 - <<'PY'
-          import json
-          p='app/src/main/assets/generated/exposure/osha_z1/manifest.json'
-          m=json.load(open(p,encoding='utf-8'))
-          assert m['authoritative'] is True, m
-          assert m['record_count'] >= 300, m
-          assert 'ACGIH TLV' in m['excluded_columns'], m
-          print('OSHA Z-1 PEL records:',m['record_count'])
-          print('OSHA Z-1 source SHA-256:',m['source_sha256'])
-          print('OSHA seed SHA-256:',m['sha256'])
-          PY
+
       - name: Restore HazRob prototype signing key
         run: |
           base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
