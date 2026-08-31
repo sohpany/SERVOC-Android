@@ -3,7 +3,7 @@ package com.servoc.app;
 /** Build markers for the HazRob 0.6 architecture migration. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.6.1";
+    public static final String VERSION="0.6.2";
     public static final int DATABASE_SCHEMA=7;
     public static final String ESP32_API="HazRob API v3: compact /diag + /data adapter";
     public static final boolean PRECALIBRATED_MQ=false;
