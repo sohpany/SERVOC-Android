@@ -1,13 +1,12 @@
 package com.servoc.app.chemical;
 
 import com.servoc.app.calibration.CalibrationCurveProvider;
-import com.servoc.app.exposure.ExposureLimits;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-/** Evidence-weighted analysis for the installed MQ array. Generic curves are identification/research evidence until device-specific calibration is validated. */
+/** Evidence-weighted MQ analysis. Exposure interpretation is intentionally handled by authority-aware repositories outside this engine. */
 public final class ValidatedGasEngine {
     private ValidatedGasEngine() {}
 
@@ -37,7 +36,8 @@ public final class ValidatedGasEngine {
         double center=weightedMedian(accepted),ppm=Math.pow(10.0,center);List<WeightedValue> deviations=new ArrayList<>();for(WeightedValue v:accepted)deviations.add(new WeightedValue(Math.abs(v.value-center),v.weight));double mad=weightedMedian(deviations);double agreement=Math.max(0,Math.min(100,100*Math.exp(-1.8*mad)));
         boolean quantitative=calibratedPrimary>0||(calibrated>0&&identityConfirmed);
         int confidence;if((calibrated>=2||primary>=2)&&agreement>=65)confidence=GasEngine.HIGH;else if((calibrated>=1||primary>=1)&&accepted.size()>=2&&agreement>=45)confidence=GasEngine.STRONG;else confidence=GasEngine.SUSPECTED;
-        int risk=quantitative?ExposureLimits.screeningRisk(chemical,ppm):-1;
+        // Retained for binary/source compatibility with v0.5 callers. Risk is no longer computed here.
+        int risk=-1;
         String note;if(calibratedPrimary>0)note="Device-specific reference-gas calibration is active on a manufacturer-target channel; generic equations are secondary evidence.";else if(calibrated>0&&identityConfirmed)note="Device-specific cross-response calibration is active and analyte identity is independently confirmed.";else if(calibrated>0)note="A calibrated cross-response exists, but analyte identity is not independently confirmed; quantitative safety interpretation is withheld.";else if(primary>0)note="Manufacturer-target response is present, but this physical sensor has no validated reference-gas calibration; use for identification/fingerprint research only.";else if(manufacturerCross>0)note="Manufacturer graph cross-response only: fingerprint/research evidence, not selective quantitative safety use.";else note="Community/research curve evidence only: fingerprint comparison; no quantitative safety interpretation.";
         return new Result(chemical,ppm,agreement,accepted.size(),primary,calibrated,manufacturerCross,communityCross,rejected,confidence,quantitative,risk,note);
     }
