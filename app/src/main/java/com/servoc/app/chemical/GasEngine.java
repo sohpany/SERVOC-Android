@@ -3,6 +3,7 @@ package com.servoc.app.chemical;
 import com.servoc.app.exposure.ExposureLimits;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 /** Direct Android port of GasProfiles.h + GasAnalyzer.cpp. */
@@ -28,8 +29,17 @@ public final class GasEngine {
         new Curve(MQ135,20,605.18,-3.937), new Curve(MQ135,103,77.255,-3.180), new Curve(MQ135,23,110.47,-2.862), new Curve(MQ135,95,44.947,-3.445), new Curve(MQ135,21,102.20,-2.473), new Curve(MQ135,110,34.668,-3.369)
     };
 
-    /** Chemicals for which at least one inherited/community power-law record exists. */
-    public static final int[] SUPPORTED={75,135,20,103,78,76,139,34,84,23,95,21,110};
+    /**
+     * Compatibility view of the analyzable legacy IDs. It is derived from the registered
+     * curve table instead of being an independently maintained fixed list.
+     */
+    public static final int[] SUPPORTED=supportedFromRegisteredCurves();
+
+    private static int[] supportedFromRegisteredCurves(){
+        LinkedHashSet<Integer> ids=new LinkedHashSet<>();
+        for(Curve c:CURVES)ids.add(c.chem);
+        int[] out=new int[ids.size()];int i=0;for(Integer id:ids)out[i++]=id;return out;
+    }
 
     public static int curveCount(){ return CURVES.length; }
     public static boolean hasCurve(int sensor,int chemical){
