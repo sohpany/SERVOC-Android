@@ -3,6 +3,7 @@ package com.servoc.app.camera;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.SystemClock;
 import android.widget.ImageView;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -11,18 +12,24 @@ import java.net.URL;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/** Single ESP32-CAM MJPEG connection shared by display and optional raw-frame consumers. */
 public final class MjpegView extends ImageView {
+    public interface FrameListener { void onJpegFrame(byte[] jpeg,long elapsedMs); }
+
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
     private volatile boolean running = false;
     private volatile boolean released = false;
     private volatile HttpURLConnection connection;
     private volatile long generation = 0;
+    private volatile FrameListener frameListener;
 
     public MjpegView(Context c) {
         super(c);
         setScaleType(ScaleType.FIT_CENTER);
         setBackgroundColor(0xFF000000);
     }
+
+    public void setFrameListener(FrameListener listener){frameListener=listener;}
 
     public synchronized void start(String url) {
         if(released)return;
@@ -31,7 +38,6 @@ public final class MjpegView extends ImageView {
         HttpURLConnection c = connection;
         if (c != null) c.disconnect();
         connection = null;
-
         running = true;
         final long token = generation;
         worker.execute(() -> stream(url, token));
@@ -49,6 +55,7 @@ public final class MjpegView extends ImageView {
         if(released)return;
         stop();
         released=true;
+        frameListener=null;
         worker.shutdownNow();
     }
 
@@ -77,6 +84,8 @@ public final class MjpegView extends ImageView {
                             if (frame.size() > 1024 * 1024) frame = null;
                             else if (prev == 0xFF && cur == 0xD9) {
                                 byte[] bytes = frame.toByteArray();
+                                FrameListener listener=frameListener;
+                                if(listener!=null&&active(token))try{listener.onJpegFrame(bytes,SystemClock.elapsedRealtime());}catch(Exception ignored){}
                                 Bitmap bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
                                 if (bitmap != null && active(token)) post(() -> { if(active(token)) setImageBitmap(bitmap); });
                                 frame = null;
