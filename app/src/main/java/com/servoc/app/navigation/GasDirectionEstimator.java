@@ -10,16 +10,23 @@ import java.util.Deque;
  * It does not claim absolute source localization. It correlates recent target-specific
  * MQ response change with the robot's commanded travel direction and returns a relative
  * bearing hypothesis. The selected chemical determines which MQ channels participate.
+ *
+ * Direction confidence is an internal evidence-coherence score, not a calibrated
+ * probability that the physical gas source lies at the reported bearing. Until wheel
+ * odometry/IMU feedback is available, heading is dead-reckoned from drive commands.
  */
 public final class GasDirectionEstimator {
     public static final class Result {
-        public final boolean valid;public final double angleRad,confidence,score;
-        Result(boolean valid,double angleRad,double confidence,double score){this.valid=valid;this.angleRad=angleRad;this.confidence=confidence;this.score=score;}
-        public static Result none(double score){return new Result(false,Double.NaN,0,score);}
+        public final boolean valid;
+        public final double angleRad,confidence,score,coherence,evidenceStrength;
+        public final int voteCount;
+        Result(boolean valid,double angleRad,double confidence,double score,double coherence,double evidenceStrength,int voteCount){this.valid=valid;this.angleRad=angleRad;this.confidence=confidence;this.score=score;this.coherence=coherence;this.evidenceStrength=evidenceStrength;this.voteCount=voteCount;}
+        public static Result none(double score){return new Result(false,Double.NaN,0,score,0,0,0);}
     }
 
     private static final String[] KEYS={"mq2","mq3","mq4","mq5","mq7","mq8","mq9","mq135"};
     private static final long VOTE_WINDOW_MS=30_000L;
+    /** Engineering dead-reckoning placeholder until measured angular velocity is available. */
     private static final double TURN_RATE_RAD_S=1.35;
     private final double[] baseline=new double[KEYS.length];
     private final boolean[] baselineReady=new boolean[KEYS.length];
@@ -52,9 +59,9 @@ public final class GasDirectionEstimator {
         double x=0,y=0,sum=0;for(Vote v:votes){double age=Math.max(0,nowMs-v.at)/1000.0,decay=Math.exp(-age/16.0);x+=v.x*decay;y+=v.y*decay;sum+=v.w*decay;}
         double mag=Math.hypot(x,y);if(sum<0.008||mag<1e-6)return Result.none(score);
         double coherence=Math.min(1,mag/sum),strength=Math.min(1,sum/0.055),confidence=coherence*strength;
-        if(confidence<0.18)return Result.none(score);
+        if(confidence<0.18)return new Result(false,Double.NaN,confidence,score,coherence,strength,votes.size());
         double global=Math.atan2(y,x),relative=wrap(global-heading);
-        return new Result(true,relative,confidence,score);
+        return new Result(true,relative,confidence,score,coherence,strength,votes.size());
     }
 
     public synchronized void reset(){targetChemical=Integer.MIN_VALUE;resetState();}
@@ -73,10 +80,10 @@ public final class GasDirectionEstimator {
             if(!baselineReady[i]){baseline[i]=ratio;baselineReady[i]=true;continue;}
             double b=baseline[i];if(!Double.isFinite(b)||b<=0){baseline[i]=ratio;continue;}
             double response=Math.log(b/ratio);
-            // Primary channels in an affinity plan are not explicitly ranked here; each relevant
-            // channel contributes one vote so fingerprint/cross-response information is retained.
+            // Each target-relevant channel contributes evidence; the mask is chemical-specific.
             if(response>0){sum+=Math.min(2.0,response);weightSum+=1.0;}
             else weightSum+=0.35;
+            // Very slow adaptive baseline reduces long-term drift without following a rapid plume rise.
             double a=response>0.08?0.0005:0.003;baseline[i]=b*(1-a)+ratio*a;
         }
         return weightSum==0?Double.NaN:sum/weightSum;
