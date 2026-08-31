@@ -25,6 +25,7 @@ import com.servoc.app.communication.WifiRoute;
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
+import com.servoc.app.measurement.SensorHealthEngine;
 import com.servoc.app.measurement.TelemetryRecorder;
 import com.servoc.app.navigation.MotionHistory;
 import com.servoc.app.report.ReferenceBankExporter;
@@ -54,17 +55,19 @@ public final class MainActivity extends Activity implements HazRobHost {
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final ScheduledExecutorService workers=Executors.newScheduledThreadPool(6);
     private final MotionHistory motionHistory=new MotionHistory();
+    private final SensorHealthEngine sensorHealth=new SensorHealthEngine();
     private SharedPreferences prefs;private RobotApi robotApi;private CameraApi cameraApi;private ExperimentsDb db;private TelemetryRecorder telemetryRecorder;
     private volatile JSONObject latestDiag;private volatile int left=0,right=0;private volatile boolean foreground=false;private volatile String flashMode="off";
     private boolean developerMode=false,entered=false,commsScheduled=false;private FrameLayout page;private TextView globalStatus;private Button[] tabButtons;private int selectedTab=0;private long pendingExperimentId=-1;
     private ControlTab controlTab;private MeasurementAnalysisTab measurementTab;private ReportsTab reportsTab;private ExperimentsTab experimentsTab;private SettingsTab settingsTab;private View[] tabViews;
 
     @Override public void onCreate(Bundle b){
-        super.onCreate(b);prefs=getSharedPreferences("servoc",MODE_PRIVATE);robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));flashMode=prefs.getString("flash_mode","off");db=new ExperimentsDb(this);telemetryRecorder=new TelemetryRecorder(db);
+        super.onCreate(b);prefs=getSharedPreferences("servoc",MODE_PRIVATE);robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));flashMode=prefs.getString("flash_mode","off");db=new ExperimentsDb(this);telemetryRecorder=new TelemetryRecorder(db);loadSensorBaselines();
         workers.execute(()->{ChemicalSeedBootstrap.ensureNiosh(getApplicationContext(),db);ExposureSeedBootstrap.ensureNioshIdlh(getApplicationContext(),db);ExposureSeedBootstrap.ensureOshaZ1(getApplicationContext(),db);ui.post(this::refreshAllTabs);});
         setContentView(RoleGate.build(this,new RoleGate.Listener(){@Override public void onUser(){enter(false);}@Override public void onDeveloper(){enter(true);}}));
     }
 
+    private void loadSensorBaselines(){for(String key:SensorHealthEngine.INSTALLED){String v=db.getMeta("health_baseline_"+key,"");try{double q=Double.parseDouble(v);if(Double.isFinite(q)&&q>0)sensorHealth.setBaseline(key,q);}catch(Exception ignored){}}}
     private void enter(boolean developer){developerMode=developer;entered=true;buildTabs();setContentView(buildShell());showTab(0);scheduleComms();if(foreground)controlTab.startCamera();}
     private void buildTabs(){controlTab=new ControlTab(this,this);measurementTab=new MeasurementAnalysisTab(this,this);reportsTab=new ReportsTab(this,this);settingsTab=new SettingsTab(this,this);if(developerMode){experimentsTab=new ExperimentsTab(this,this);tabViews=new View[]{controlTab.view(),measurementTab.view(),reportsTab.view(),experimentsTab.view(),settingsTab.view()};}else{experimentsTab=null;tabViews=new View[]{controlTab.view(),measurementTab.view(),reportsTab.view(),settingsTab.view()};}}
 
@@ -75,7 +78,7 @@ public final class MainActivity extends Activity implements HazRobHost {
 
     private void showTab(int index){if(!entered||index<0||index>=tabViews.length)return;if(selectedTab==0&&index!=0)controlTab.stopCamera();selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}if(index==0&&foreground)controlTab.startCamera();refreshVisibleTab();}
 
-    private void scheduleComms(){if(commsScheduled)return;commsScheduled=true;workers.scheduleAtFixedRate(()->{if(!foreground||!entered)return;try{robotApi.drive(left,right);}catch(Exception ignored){}},0,250,TimeUnit.MILLISECONDS);workers.scheduleAtFixedRate(()->{if(!foreground||!entered)return;try{JSONObject snap=robotApi.snapshot(left,right);latestDiag=snap;telemetryRecorder.accept(snap,left,right,developerMode);ui.post(this::onTelemetryUpdated);}catch(Exception e){latestDiag=null;ui.post(this::onTelemetryUpdated);}},0,1,TimeUnit.SECONDS);}
+    private void scheduleComms(){if(commsScheduled)return;commsScheduled=true;workers.scheduleAtFixedRate(()->{if(!foreground||!entered)return;try{robotApi.drive(left,right);}catch(Exception ignored){}},0,250,TimeUnit.MILLISECONDS);workers.scheduleAtFixedRate(()->{if(!foreground||!entered)return;try{JSONObject snap=robotApi.snapshot(left,right);latestDiag=snap;sensorHealth.accept(snap,SystemClock.elapsedRealtime());telemetryRecorder.accept(snap,left,right,developerMode);ui.post(this::onTelemetryUpdated);}catch(Exception e){latestDiag=null;ui.post(this::onTelemetryUpdated);}},0,1,TimeUnit.SECONDS);}
     private void onTelemetryUpdated(){JSONObject d=latestDiag;if(globalStatus==null)return;if(d==null){globalStatus.setText("غير متصل");globalStatus.setTextColor(0xFFFFB74D);}else{globalStatus.setText("متصل • "+d.optInt("clients",0));globalStatus.setTextColor(0xFF81C784);}refreshVisibleTab();}
     private void refreshVisibleTab(){if(!entered)return;if(selectedTab==0)controlTab.refresh();else if(selectedTab==1)measurementTab.refresh();else if(selectedTab==2)reportsTab.refresh();else if(developerMode&&selectedTab==3)experimentsTab.refresh();else settingsTab.refresh();}
 
@@ -90,10 +93,17 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override public void setCameraHost(String host){cameraApi.setHost(host);prefs.edit().putString("camera",cameraApi.host()).apply();if(entered&&selectedTab==0&&foreground)controlTab.startCamera();}@Override public String cameraHost(){return cameraApi.host();}@Override public boolean cameraReachable(){return cameraApi.ping();}
     @Override public String flashMode(){return flashMode;}@Override public void setFlashMode(String mode){final String requested=CameraApi.normalizeMode(mode);workers.execute(()->{boolean ok=cameraApi.flash(requested);if(ok){flashMode=requested;prefs.edit().putString("flash_mode",requested).apply();if(controlTab!=null)ui.post(controlTab::refresh);showToast("وضع الفلاش: "+flashAr(requested));}else showToast("أمر الفلاش غير مدعوم في Firmware الكاميرا الحالي");});}
 
+    @Override public SensorHealthEngine.Snapshot sensorHealth(String key){return sensorHealth.snapshot(key);}
+    @Override public int captureCleanAirBaseline(){if(!developerMode)return 0;JSONObject d=latestDiag;int n=sensorHealth.captureCleanAirBaseline(d);if(n>0){for(String key:SensorHealthEngine.INSTALLED){double q=sensorHealth.baseline(key);if(Double.isFinite(q)&&q>0)db.putMeta("health_baseline_"+key,Double.toString(q));}db.putMeta("health_baseline_ts",isoNow());}return n;}
+    @Override public int evaluateCleanAirDrift(){if(!developerMode)return 0;return sensorHealth.evaluateCleanAirDrift(latestDiag);}
+    @Override public String cleanAirBaselineTimestamp(){return db==null?"":db.getMeta("health_baseline_ts","");}
+
     @Override public void requestExport(String format,long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Report_%06d_%s%s",r.id,fileStamp(),pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_PDF:EXPORT_XLSX);}
     @Override public void requestReferenceBankExport(long experimentId){if(!developerMode){showToast("هذه الوظيفة متاحة للمطور فقط");return;}ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("التجربة غير موجودة");return;}pendingExperimentId=experimentId;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,r.referenceName==null||r.referenceName.isEmpty()?ReferenceBankExporter.fileName(r.id,r.ts):r.referenceName);startActivityForResult(i,EXPORT_REFERENCE);}
     @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;if(requestCode!=EXPORT_PDF&&requestCode!=EXPORT_XLSX&&requestCode!=EXPORT_REFERENCE)return;final Uri uri=data.getData();final int req=requestCode;final long id=pendingExperimentId;workers.execute(()->{ExperimentQueries.Record r=ExperimentQueries.byId(db,id);if(r==null){showToast("تعذر العثور على السجل");return;}try(OutputStream out=getContentResolver().openOutputStream(uri,"w")){if(out==null)throw new IllegalStateException("output stream");if(req==EXPORT_PDF)ReportExporter.writePdf(out,r);else if(req==EXPORT_XLSX)ReportExporter.writeXlsx(out,r);else ReferenceBankExporter.writeJson(out,r);showToast(req==EXPORT_PDF?"تم تصدير PDF":req==EXPORT_XLSX?"تم تصدير Excel":"تم تصدير سجل البنك المرجعي");}catch(Exception e){showToast("فشل التصدير: "+e.getClass().getSimpleName());}});}
     @Override public void refreshAllTabs(){if(Looper.myLooper()!=Looper.getMainLooper()){ui.post(this::refreshAllTabs);return;}refreshVisibleTab();}
 
-    private static String flashAr(String m){return"on".equals(m)?"تشغيل":"auto".equals(m)?"تلقائي":"إيقاف";}private static String fileStamp(){SimpleDateFormat f=new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US);f.setTimeZone(TimeZone.getDefault());return f.format(new Date());}
+    private static String flashAr(String m){return"on".equals(m)?"تشغيل":"auto".equals(m)?"تلقائي":"إيقاف";}
+    private static String fileStamp(){SimpleDateFormat f=new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US);f.setTimeZone(TimeZone.getDefault());return f.format(new Date());}
+    private static String isoNow(){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
 }
