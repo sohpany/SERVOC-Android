@@ -9,7 +9,7 @@ Version: `0.6.0` (`versionCode 7`)
 
 HazRob 0.6 is the migration release from the older Servoc-oriented ESP32/application contract to the compact HazRob master firmware API v3. The release also separates normal operator workflow from developer-only chemical experiments and removes the structural 144-compound limit from the chemical knowledge database.
 
-This audit covers the **core release only**. Video recording, flame/smoke AI, 4G/VPN, autonomous gas-source localization, autonomous return-on-link-loss and direct GitHub publishing are not required for the 0.6 core and are not coupled to measurement records.
+This audit covers the **core measurement/control release**. Optional local camera recording and experimental flame evidence are present but isolated from MQ measurement records and are not release-gating analytical functions. 4G/VPN, autonomous gas-source localization, autonomous return-on-link-loss and direct authenticated GitHub publishing remain deferred.
 
 ## 2. System boundary
 
@@ -43,7 +43,7 @@ Arduino IDE verification reported for the current four-tab firmware:
 
 ### ESP32-CAM
 
-The camera remains independent. The master stores the camera host address but does not proxy video. Android controls the camera/flash directly. The 0.6 core does not attach video to measurements or analytical sessions.
+The camera remains independent. The master stores the camera host address but does not proxy video. Android controls camera stream/flash directly. Optional recording and visual flame evidence use a separate camera evidence path; neither is attached to MQ measurement records or used in compound/PPM/exposure computation.
 
 ### Android
 
@@ -166,9 +166,11 @@ The Android layer records measurement telemetry and supports transient features/
 
 These functions support experimental validation; they do not convert an uncalibrated MQ channel into a compliant quantitative instrument.
 
-## 9. Reports
+## 9. Reports and camera independence
 
 Normal users can save completed READY measurements and export PDF/XLSX reports. Developer reference approval/export controls are intentionally absent from the normal-user reports tab.
+
+Camera recordings and experimental flame evidence have an independent lifecycle and are not embedded into measurement reports or chemical analytics in 0.6.
 
 ## 10. CI/release verification
 
