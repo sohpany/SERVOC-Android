@@ -26,8 +26,8 @@ public final class GasDirectionEstimator {
 
     public synchronized Result update(JSONObject snapshot,int left,int right,long nowMs){
         if(snapshot==null){return Result.none(Double.NaN);}double dt=lastMs>0?Math.max(0,Math.min(1.5,(nowMs-lastMs)/1000.0)):0;lastMs=nowMs;
-        // Integrate only heading; no fake metric position is created.
-        if(dt>0){double turn=(right-left)/200.0;heading=wrap(heading+turn*TURN_RATE_RAD_S*dt);}
+        // Joystick convention: positive X => left command > right command => turn right.
+        if(dt>0){double turn=(left-right)/200.0;heading=wrap(heading+turn*TURN_RATE_RAD_S*dt);}
         double score=gasScore(snapshot.optJSONObject("mq"));
         trim(nowMs);
         if(Double.isFinite(score)&&Double.isFinite(lastScore)&&dt>0){
@@ -36,7 +36,7 @@ public final class GasDirectionEstimator {
                 double travel=wrap(heading+(linear<0?Math.PI:0));
                 double bearing=delta>0?travel:wrap(travel+Math.PI);
                 double weight=Math.min(0.25,Math.abs(delta))*Math.min(1.0,speed);
-                if(delta<0)weight*=0.55; // rising evidence is more informative than falling evidence.
+                if(delta<0)weight*=0.55;
                 if(weight>0.001)votes.addLast(new Vote(nowMs,Math.cos(bearing)*weight,Math.sin(bearing)*weight,weight));
             }
         }
@@ -59,9 +59,8 @@ public final class GasDirectionEstimator {
             double ratio=r.optDouble("ratio",Double.NaN);if(!Double.isFinite(ratio)||ratio<=0)continue;
             if(!baselineReady[i]){baseline[i]=ratio;baselineReady[i]=true;continue;}
             double b=baseline[i];if(!Double.isFinite(b)||b<=0){baseline[i]=ratio;continue;}
-            double response=Math.log(b/ratio); // MQ reducing-gas response normally lowers Rs/R0.
+            double response=Math.log(b/ratio);
             if(response>0)sum+=Math.min(2.0,response);n++;
-            // Very slow baseline adaptation limits long-term drift without following short exposure peaks.
             double a=response>0.08?0.0005:0.003;baseline[i]=b*(1-a)+ratio*a;
         }
         return n==0?Double.NaN:sum/n;
