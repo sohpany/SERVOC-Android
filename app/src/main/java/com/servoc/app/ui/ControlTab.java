@@ -43,7 +43,7 @@ public final class ControlTab {
     private final Context appContext;
     private final HazRobHost host;
     private final LinearLayout root;
-    private final TextView status,drive,recordInfo,flameInfo,gasTrackInfo;
+    private final TextView status,drive,recordInfo,flameInfo,flameBadge,gasTrackInfo;
     private final Button flash,record;
     private final Spinner gasTarget;
     private final ArrayList<Integer> gasTargetIds=new ArrayList<>();
@@ -81,6 +81,9 @@ public final class ControlTab {
 
         status=UiKit.small(c,"الروبوت غير متصل");status.setTextColor(0xFFFFB74D);status.setBackgroundColor(0xCC151A20);status.setPadding(UiKit.dp(c,8),UiKit.dp(c,4),UiKit.dp(c,8),UiKit.dp(c,4));
         FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.TOP);sp.setMargins(0,UiKit.dp(c,6),UiKit.dp(c,6),0);cameraBox.addView(status,sp);
+
+        flameBadge=UiKit.small(c,"🔥 اللهب: بانتظار الفيديو");flameBadge.setTextColor(0xFF90A4AE);flameBadge.setBackgroundColor(0xCC151A20);flameBadge.setPadding(UiKit.dp(c,8),UiKit.dp(c,4),UiKit.dp(c,8),UiKit.dp(c,4));
+        FrameLayout.LayoutParams fbp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.BOTTOM);fbp.setMargins(UiKit.dp(c,6),0,0,UiKit.dp(c,6));cameraBox.addView(flameBadge,fbp);
 
         ScrollView detailsScroll=new ScrollView(c);detailsScroll.setFillViewport(false);detailsScroll.setBackgroundColor(0xFF10151B);detailsScroll.setVisibility(View.GONE);
         LinearLayout details=UiKit.vbox(c);details.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4));
@@ -155,9 +158,11 @@ public final class ControlTab {
         boolean showRegion=now!=FlameEvidenceTracker.State.CLEAR&&r.frame.hasRegion();
         if(showRegion)overlay.setFlameRegion(r.frame.left,r.frame.top,r.frame.right,r.frame.bottom,true);else overlay.clearFlame();
         String state=now==FlameEvidenceTracker.State.PERSISTENT?"مستمر":now==FlameEvidenceTracker.State.CANDIDATE?"مرشح":"لا دليل";
+        int flameColor=now==FlameEvidenceTracker.State.PERSISTENT?0xFFFF7043:now==FlameEvidenceTracker.State.CANDIDATE?0xFFFFB74D:0xFF90A4AE;
+        flameBadge.setText("🔥 اللهب: "+state);flameBadge.setTextColor(flameColor);
         StringBuilder s=new StringBuilder("دليل اللهب البصري التجريبي: ").append(state).append(" • score ").append(String.format(Locale.US,"%.0f%%",100*r.frame.score)).append(" • pixels ").append(String.format(Locale.US,"%.1f%%",100*r.frame.candidateRatio)).append(" • EMA ").append(String.format(Locale.US,"%.0f%%",100*r.temporal.ema));
         if(r.frame.hasRegion())s.append(String.format(Locale.US,"\nمنطقة تقريبية L%.2f T%.2f R%.2f B%.2f",r.frame.left,r.frame.top,r.frame.right,r.frame.bottom));
-        flameInfo.setText(s.toString());flameInfo.setTextColor(now==FlameEvidenceTracker.State.PERSISTENT?0xFFFF7043:now==FlameEvidenceTracker.State.CANDIDATE?0xFFFFB74D:0xFF90A4AE);
+        flameInfo.setText(s.toString());flameInfo.setTextColor(flameColor);
         if(now==FlameEvidenceTracker.State.PERSISTENT&&previous!=FlameEvidenceTracker.State.PERSISTENT)beginFlameEvidence(r);
         else if(previous==FlameEvidenceTracker.State.PERSISTENT&&now==FlameEvidenceTracker.State.CLEAR)endFlameEvidence(r,"clear");
     }
@@ -188,12 +193,12 @@ public final class ControlTab {
 
     public View view(){return root;}
     public void resetJoystick(){joystick.reset();}
-    public void startCamera(){String h=host.cameraHost();if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");}
-    public void stopCamera(){if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"camera_stop");video.stop();flameAnalyzer.reset();overlay.clearFlame();lastFlameState=FlameEvidenceTracker.State.CLEAR;lastFlameResult=null;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);if(recordingSessionId!=null&&!recordingStopping)requestStopRecording("camera_stop",false);}
+    public void startCamera(){flameBadge.setText("🔥 اللهب: بانتظار الفيديو");flameBadge.setTextColor(0xFF90A4AE);String h=host.cameraHost();if(h!=null&&!h.trim().isEmpty())video.start("http://"+h.trim()+":81/stream");}
+    public void stopCamera(){if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"camera_stop");video.stop();flameAnalyzer.reset();overlay.clearFlame();lastFlameState=FlameEvidenceTracker.State.CLEAR;lastFlameResult=null;flameInfo.setText("دليل اللهب البصري التجريبي: متوقف مع الكاميرا");flameInfo.setTextColor(0xFF90A4AE);flameBadge.setText("🔥 اللهب: متوقف");flameBadge.setTextColor(0xFF90A4AE);if(recordingSessionId!=null&&!recordingStopping)requestStopRecording("camera_stop",false);}
 
     /** Lifecycle teardown fallback: close and persist synchronously before DB/executor shutdown. */
     public void releaseCamera(){
-        if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"release");video.stop();flameAnalyzer.release();overlay.clearFlame();overlay.clearGas();gasDirection.reset();
+        if(lastFlameState==FlameEvidenceTracker.State.PERSISTENT)endFlameEvidence(lastFlameResult,"release");video.stop();flameAnalyzer.release();overlay.clearFlame();overlay.clearGas();gasDirection.reset();flameBadge.setText("🔥 اللهب: متوقف");
         String session=recordingSessionId,start=recordingStartedTs;if(session!=null&&claimSession(session)){MjpegRecorder.StopResult r=recorder.stopNow();persistRecording(session,start,EvidenceStore.isoNow(),"release",r);}recorder.release();video.release();
     }
 
