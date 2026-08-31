@@ -6,7 +6,7 @@ HazRob 0.6 separates deterministic robot control from computationally intensive 
 
 **Master ESP32** owns real-time actuator I/O, local drive fail-safe, acceleration/deceleration/reversal handling, relay exclusivity, direct ADC/I2C acquisition and compact HTTP telemetry. It does not identify gases or calculate exposure risk.
 
-**ESP32-CAM** remains an independent camera subsystem. Android talks to it directly for stream display and flash control; the master ESP32 does not proxy the stream. In the 0.6 core, video is not attached to measurement sessions or analytical records.
+**ESP32-CAM** remains an independent camera subsystem. Android talks to it directly for stream display and flash control; the master ESP32 does not proxy the stream. Optional local recording and experimental flame evidence use this camera path independently and are not attached to MQ measurement records.
 
 **HazRob Android** owns telemetry normalization, operator workflow, chemical analysis, developer experiments/calibration, scientific reference data, local persistence and reports.
 
@@ -17,14 +17,15 @@ HazRob 0.6 separates deterministic robot control from computationally intensive 
 - `control/` — joystick/heartbeat; safety-critical loss-of-command behavior remains local to ESP32.
 - `measurement/` — telemetry recording, transient features and sensor-health/drift analysis.
 - `navigation/` — motion-command history as an expansion point; 0.6 does not autonomously replay commands.
-- `camera/` — independent ESP32-CAM stream/flash transport.
+- `camera/` — independent ESP32-CAM stream/flash and optional local recording.
+- `vision/` — experimental visual flame evidence only; it does not issue drive or safety commands.
 - `chemical/` — dynamic chemical knowledge repository plus evidence-weighted analytical models.
 - `exposure/` — authority/jurisdiction-aware exposure data.
 - `calibration/` — device-specific reference-gas calibration and quality metadata.
 - `fingerprint/` — trainable chemical signatures/classifiers.
 - `models/` — algorithm registry/runtime status, including the pinned MQDataScience 76-model catalogue.
 - `analytics/` — evidence fusion and result snapshots.
-- `data/` — offline-first SQLite storage for measurements, experiments, scientific sources and reference publication state.
+- `data/` — offline-first SQLite storage for measurements, experiments, scientific sources and independent evidence metadata.
 - `report/` — PDF/XLSX/reference-bank exports.
 - `ui/` — control, unified measurement/analysis, reports, developer laboratory and settings.
 
@@ -51,6 +52,10 @@ Current legacy/default MQ `R0` values are not treated as proof of physical refer
 
 Robot operation, measurement capture, local analysis and report generation remain functional without Internet access. External source refresh, cloud services and repository publication are optional future layers and must not sit in the drive-control path.
 
+## Camera independence rule
+
+Video/vision data and MQ measurement data have separate lifecycles in 0.6. A video recording or flame-evidence event does not become part of a chemical measurement merely because both occur at the same time. No video/vision result is used to calculate compound identity, PPM or exposure limits in the 0.6 core.
+
 ## Deferred expansion
 
-Video recording, flame/smoke inference, thermal sensing, MUX expansion, ESP-NOW nodes, 4G/VPN transport, gas-plume/source localization and safe autonomous return-to-link are outside the 0.6 core. They can be added later through separate modules without coupling them to measurement storage or inflating the ESP32 firmware.
+Thermal sensing, MUX expansion, ESP-NOW nodes, 4G/VPN transport, gas-plume/source localization, safe autonomous return-to-link and direct authenticated GitHub publication remain outside the 0.6 core acceptance path.
