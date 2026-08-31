@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Generate official NIOSH chemical seed
+      - name: Generate NIOSH chemical seed
         run: |
           python3 tools/build_niosh_seed.py app/src/main/assets/generated/niosh
           python3 - <<'PY'
@@ -34,6 +34,8 @@ jobs:
           m=json.load(open(p,encoding='utf-8'))
           assert m['record_count'] >= 500, m
           print('NIOSH records:',m['record_count'])
+          print('Source kind:',m['source_kind'])
+          print('Authoritative:',m['authoritative'])
           print('NIOSH source SHA-256:',m['source_sha256'])
           print('Seed SHA-256:',m['sha256'])
           PY
@@ -66,16 +68,16 @@ jobs:
           EXPECTED=d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0
           ACTUAL=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$APK" | awk -F': ' '/SHA-256 digest/ {print $2; exit}' | tr -d ': ' | tr 'A-F' 'a-f')
           test "$ACTUAL" = "$EXPECTED"
-          sha256sum "$APK" | tee HazRob-v0.5.0-sha256.txt
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" > HazRob-v0.5.0-signing.txt
-      - name: Upload HazRob v0.5.0 artifact
+          sha256sum "$APK" | tee HazRob-v0.6.0-sha256.txt
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" > HazRob-v0.6.0-signing.txt
+      - name: Upload HazRob v0.6.0 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-v0.5.0-prototype
+          name: HazRob-v0.6.0-prototype
           path: |
             app/build/outputs/apk/release/app-release.apk
-            HazRob-v0.5.0-sha256.txt
-            HazRob-v0.5.0-signing.txt
+            HazRob-v0.6.0-sha256.txt
+            HazRob-v0.6.0-signing.txt
             app/src/main/assets/generated/niosh/manifest.json
           if-no-files-found: error
           retention-days: 30
