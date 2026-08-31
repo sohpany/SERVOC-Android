@@ -3,6 +3,7 @@ package com.servoc.app.exposure;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import com.servoc.app.chemical.ChemicalIdentityResolver;
 import com.servoc.app.chemical.ChemicalIdentitySchema;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -26,10 +27,14 @@ public final class ExposureSeedImporter {
         if(!"hazrob.exposure-seed.v1".equals(root.optString("schema")))throw new IllegalArgumentException("unsupported exposure seed schema");
         if(!"NIOSH".equals(root.optString("authority"))||!"IDLH".equals(root.optString("dataset")))throw new IllegalArgumentException("not a NIOSH IDLH seed");
         JSONArray rows=root.getJSONArray("records");if(rows.length()<300||root.optInt("record_count",-1)!=rows.length())throw new IllegalArgumentException("incomplete IDLH seed");
+        String datasetUrl=clean(root.optString("source","https://www.cdc.gov/niosh/idlh/intridl4.html"));
         int inserted=0,unmatched=0;db.beginTransaction();try{
             ensureNioshSource(db);db.delete("exposure_limits","source_id=?",new String[]{"NIOSH_IDLH"});
             for(int i=0;i<rows.length();i++){
-                JSONObject r=rows.getJSONObject(i);String cas=clean(r.optString("cas",null)),name=clean(r.optString("name_en",null));Long uid=findChemical(db,cas,name);if(uid==null){unmatched++;continue;}
+                JSONObject r=rows.getJSONObject(i);String cas=clean(r.optString("cas",null)),name=clean(r.optString("name_en",null));
+                if(name==null){unmatched++;continue;}
+                Long uid;
+                try{uid=ChemicalIdentityResolver.resolveOrCreate(db,"NIOSH_IDLH",ChemicalIdentityResolver.stableSourceKey(cas,name),datasetUrl,hash,cas,name);}catch(Exception identityError){unmatched++;continue;}
                 ContentValues v=new ContentValues();v.put("chemical_uid",uid);v.put("authority","NIOSH");v.put("jurisdiction","US");v.put("limit_type","IDLH");
                 if(!r.isNull("value"))v.put("value",r.getDouble("value"));if(!r.isNull("unit"))v.put("unit",r.getString("unit"));if(!r.isNull("duration_min"))v.put("duration_min",r.getDouble("duration_min"));
                 String notation=clean(r.optString("notation",null));if(r.optBoolean("current_policy",false))notation="CURRENT POLICY | "+(notation==null?"":notation);if(notation!=null)v.put("notation",notation);
@@ -45,10 +50,14 @@ public final class ExposureSeedImporter {
         if(!"hazrob.exposure-seed.v1".equals(root.optString("schema")))throw new IllegalArgumentException("unsupported exposure seed schema");
         if(!"OSHA".equals(root.optString("authority"))||!"PEL_Z1".equals(root.optString("dataset")))throw new IllegalArgumentException("not an OSHA Z-1 seed");
         JSONArray rows=root.getJSONArray("records");if(rows.length()<300||root.optInt("record_count",-1)!=rows.length())throw new IllegalArgumentException("incomplete OSHA Z-1 seed");
+        String datasetUrl=clean(root.optString("source","https://www.osha.gov/annotated-pels/table-z-1"));
         int inserted=0,unmatched=0;db.beginTransaction();try{
             ensureOshaSource(db);db.delete("exposure_limits","source_id=?",new String[]{"OSHA_Z1"});
             for(int i=0;i<rows.length();i++){
-                JSONObject r=rows.getJSONObject(i);String cas=clean(r.optString("cas",null)),name=clean(r.optString("name_en",null));Long uid=findChemical(db,cas,name);if(uid==null){unmatched++;continue;}
+                JSONObject r=rows.getJSONObject(i);String cas=clean(r.optString("cas",null)),name=clean(r.optString("name_en",null));
+                if(name==null){unmatched++;continue;}
+                String rowUrl=clean(r.optString("source_url",datasetUrl));Long uid;
+                try{uid=ChemicalIdentityResolver.resolveOrCreate(db,"OSHA_Z1",ChemicalIdentityResolver.stableSourceKey(cas,name),rowUrl,hash,cas,name);}catch(Exception identityError){unmatched++;continue;}
                 String type=clean(r.optString("limit_type",null));if(type==null)type="TWA";
                 ContentValues v=new ContentValues();v.put("chemical_uid",uid);v.put("authority","OSHA");v.put("jurisdiction",r.optString("jurisdiction","US"));v.put("limit_type",type);
                 if(!r.isNull("value"))v.put("value",r.getDouble("value"));if(!r.isNull("unit"))v.put("unit",r.getString("unit"));if(!r.isNull("duration_min"))v.put("duration_min",r.getDouble("duration_min"));
@@ -65,14 +74,6 @@ public final class ExposureSeedImporter {
     private static void ensureNioshSource(SQLiteDatabase db){ContentValues v=new ContentValues();v.put("source_id","NIOSH_IDLH");v.put("title","NIOSH Immediately Dangerous to Life or Health (IDLH) Values");v.put("authority","NIOSH/CDC");v.put("url","https://www.cdc.gov/niosh/idlh/intridl4.html");v.put("evidence_tier","A");v.put("version","current online table + historical 1994 values");v.put("notes","Where both values exist, CIB 66/newer value is NIOSH current policy; historical value remains retained separately.");db.insertWithOnConflict("scientific_sources",null,v,SQLiteDatabase.CONFLICT_REPLACE);}
     private static void ensureOshaSource(SQLiteDatabase db){ContentValues v=new ContentValues();v.put("source_id","OSHA_Z1");v.put("title","OSHA 29 CFR 1910.1000 Table Z-1 Limits for Air Contaminants");v.put("authority","OSHA");v.put("url","https://www.osha.gov/annotated-pels/table-z-1");v.put("evidence_tier","A");v.put("version","29 CFR 1910.1000 Table Z-1");v.put("notes","Only OSHA regulatory PEL columns are imported; Cal/OSHA, NIOSH REL and ACGIH TLV columns are excluded.");db.insertWithOnConflict("scientific_sources",null,v,SQLiteDatabase.CONFLICT_REPLACE);}
 
-    private static Long findChemical(SQLiteDatabase db,String cas,String name){
-        if(cas!=null){Long uid=findByIdentifier(db,"CAS",cas,name);if(uid!=null)return uid;uid=findByPrimaryCas(db,cas,name);if(uid!=null)return uid;}
-        return name==null?null:findByName(db,name);
-    }
-    private static Long findByIdentifier(SQLiteDatabase db,String scheme,String value,String name){try(Cursor c=db.rawQuery("SELECT c.uid,c.name_en FROM chemical_identifiers i JOIN chemicals c ON c.uid=i.chemical_uid WHERE i.scheme=? AND i.value=? AND c.active=1 ORDER BY c.uid",new String[]{scheme,value})){return chooseCandidate(c,name);}}
-    private static Long findByPrimaryCas(SQLiteDatabase db,String cas,String name){try(Cursor c=db.rawQuery("SELECT uid,name_en FROM chemicals WHERE cas=? AND active=1 ORDER BY uid",new String[]{cas})){return chooseCandidate(c,name);}}
-    private static Long chooseCandidate(Cursor c,String name){Long only=null,exact=null;int count=0,exactCount=0;while(c.moveToNext()){long uid=c.getLong(0);String n=clean(c.getString(1));count++;only=uid;if(name!=null&&n!=null&&n.equalsIgnoreCase(name)){exact=uid;exactCount++;}}if(count==1)return only;if(exactCount==1)return exact;return null;}
-    private static Long findByName(SQLiteDatabase db,String name){try(Cursor c=db.rawQuery("SELECT uid FROM chemicals WHERE lower(trim(name_en))=lower(trim(?)) AND active=1",new String[]{name})){Long uid=null;int n=0;while(c.moveToNext()){uid=c.getLong(0);n++;}return n==1?uid:null;}}
     private static void putMeta(SQLiteDatabase db,String k,String val){ContentValues v=new ContentValues();v.put("k",k);v.put("v",val==null?"":val);db.insertWithOnConflict("meta",null,v,SQLiteDatabase.CONFLICT_REPLACE);}
     private static String clean(String s){if(s==null)return null;s=s.trim().replaceAll("\\s+"," ");return s.isEmpty()?null:s;}
     private static byte[] readAll(InputStream in)throws Exception{try(InputStream x=in;ByteArrayOutputStream out=new ByteArrayOutputStream(256*1024)){byte[] b=new byte[8192];int n;while((n=x.read(b))!=-1)out.write(b,0,n);return out.toByteArray();}}
