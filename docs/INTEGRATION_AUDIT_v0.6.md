@@ -174,9 +174,9 @@ Camera recordings and experimental flame evidence have an independent lifecycle 
 
 ## 10. CI/release verification
 
-Validated workflow run:
-- GitHub Actions run: `33382885466` (Build HazRob APK #174)
-- tested head commit: `3feb5ea94dd27b301121332a99135548799713c5`
+Final validated workflow run:
+- GitHub Actions run: `33383476256` (Build HazRob APK #175)
+- tested head commit: `954a8d98374c49a4421e04461808dbe2a68cff37`
 - scientific dataset validation: PASS
 - analytics/protocol unit tests: PASS
 - signed release APK build: PASS
@@ -185,9 +185,9 @@ Validated workflow run:
 
 Artifact:
 - name: `HazRob-v0.6.0-prototype`
-- artifact ID: `9754478767`
-- artifact ZIP digest: `dffcf12f65a4258da30994fc58458546456b9d0d98dcfcca70accbd8aad1d29e`
-- release APK SHA-256: `071cf7c65dbc2eb0cb256ebdc570a34eb57de373e90f96dee501063f6b6b07cb`
+- artifact ID: `9754694469`
+- artifact ZIP digest: `c1e4edbb350b513da8a1880b7fbbb0dd27973676b5da920b759251c354698955`
+- release APK SHA-256: `ae9f23a4773490a210e7647cf50b6243a986b7d411a4017ba11231cef6455a85`
 
 Signing certificate SHA-256:
 `D6:B5:B6:9B:E3:82:F2:AF:A6:DF:4B:46:BA:DE:5B:6F:86:4F:40:60:62:2E:94:90:75:29:3A:C6:20:03:D3:F0`
