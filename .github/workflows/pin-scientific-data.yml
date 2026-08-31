@@ -37,22 +37,30 @@ jobs:
           python tools/build_niosh_idlh_seed.py app/src/main/assets/generated/exposure
           python tools/build_osha_z1_seed.py app/src/main/assets/generated/exposure/osha_z1
 
-      - name: Validate generated payloads
+      - name: Validate generated payloads and manifests
         run: |
           python - <<'PY'
+          import hashlib
           import json
           from pathlib import Path
 
-          paths = [
-              Path('app/src/main/assets/generated/niosh/niosh_chemicals.json'),
-              Path('app/src/main/assets/generated/exposure/niosh_idlh.json'),
-              Path('app/src/main/assets/generated/exposure/osha_z1/osha_z1.json'),
+          pairs = [
+              (Path('app/src/main/assets/generated/niosh/niosh_chemicals.json'), Path('app/src/main/assets/generated/niosh/manifest.json')),
+              (Path('app/src/main/assets/generated/exposure/niosh_idlh.json'), Path('app/src/main/assets/generated/exposure/manifest.json')),
+              (Path('app/src/main/assets/generated/exposure/osha_z1/osha_z1.json'), Path('app/src/main/assets/generated/exposure/osha_z1/manifest.json')),
           ]
-          for path in paths:
-              obj = json.loads(path.read_text(encoding='utf-8'))
-              assert obj.get('record_count', 0) > 0, path
-              assert obj.get('authoritative') is True, (path, obj.get('authoritative'))
-              print(path, obj.get('record_count'), obj.get('source'))
+          for payload_path, manifest_path in pairs:
+              payload = json.loads(payload_path.read_text(encoding='utf-8'))
+              manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+              assert payload.get('record_count', 0) > 0, payload_path
+              assert manifest.get('record_count') == payload.get('record_count'), (payload_path, manifest.get('record_count'), payload.get('record_count'))
+              assert manifest.get('authoritative') is True, (manifest_path, manifest.get('authoritative'))
+              actual = hashlib.sha256(payload_path.read_bytes()).hexdigest()
+              assert manifest.get('sha256') == actual, (payload_path, manifest.get('sha256'), actual)
+              provenance = payload.get('provenance')
+              if provenance is not None:
+                  assert provenance.get('authoritative') is True, (payload_path, provenance)
+              print(payload_path, payload.get('record_count'), manifest.get('authority') or (provenance or {}).get('authority'), actual)
           PY
 
       - name: Commit pinned datasets
