@@ -6,13 +6,21 @@ import android.net.Uri;
 import android.os.SystemClock;
 import android.view.Gravity;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.servoc.app.analytics.AnalyticsSnapshot;
 import com.servoc.app.camera.MjpegRecorder;
 import com.servoc.app.camera.MjpegView;
+import com.servoc.app.chemical.ChemicalRepository;
+import com.servoc.app.chemical.GasEngine;
+import com.servoc.app.chemical.MqSensorAffinity;
+import com.servoc.app.chemical.ValidatedGasEngine;
 import com.servoc.app.control.JoystickView;
 import com.servoc.app.data.EvidenceFileStore;
 import com.servoc.app.data.EvidenceStore;
@@ -23,15 +31,22 @@ import com.servoc.app.vision.HazardOverlayView;
 import org.json.JSONObject;
 import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public final class ControlTab {
     private final Context appContext;
     private final HazRobHost host;
     private final LinearLayout root;
-    private final TextView status,drive,recordInfo,flameInfo;
+    private final TextView status,drive,recordInfo,flameInfo,gasTrackInfo;
     private final Button flash,record;
+    private final Spinner gasTarget;
+    private final ArrayList<Integer> gasTargetIds=new ArrayList<>();
+    private final ChemicalRepository chemicals;
     private final MjpegView video;
     private final MjpegRecorder recorder;
     private final FlameFrameAnalyzer flameAnalyzer;
@@ -46,9 +61,12 @@ public final class ControlTab {
     private volatile boolean flameEvidenceStandalone=false;
     private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;
     private FlameFrameAnalyzer.Result lastFlameResult;
+    private String gasTargetSignature="",selectedGasName="";
+    private int selectedGas=-1;
+    private boolean updatingGasTarget=false;
 
     public ControlTab(Context c,HazRobHost host){
-        this.appContext=c.getApplicationContext();this.host=host;
+        this.appContext=c.getApplicationContext();this.host=host;this.chemicals=new ChemicalRepository(host.database());
         root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,8));root.setBackgroundColor(0xFF0E1116);
 
         LinearLayout header=UiKit.hbox(c);
@@ -71,8 +89,22 @@ public final class ControlTab {
 
         recordInfo=UiKit.small(c,"التسجيل: متوقف");recordInfo.setBackgroundColor(0xFF151A20);root.addView(recordInfo,UiKit.full(c));
         flameInfo=UiKit.small(c,"دليل اللهب البصري التجريبي: بانتظار الفيديو");flameInfo.setBackgroundColor(0xFF151A20);flameInfo.setTextColor(0xFF90A4AE);root.addView(flameInfo,UiKit.full(c));
+
+        LinearLayout gasCard=UiKit.card(c);gasCard.addView(UiKit.title(c,"تتبع مصدر الغاز"),UiKit.full(c));
+        gasCard.addView(UiKit.small(c,"اختر من المركبات التي اكتشفها محرك التحليل في القياسات الحية. السهم يحسب اتجاهًا نسبيًا خاصًا بالمركب المختار باستخدام قنوات MQ ذات الصلة به."),UiKit.full(c));
+        gasTarget=new Spinner(c);gasTarget.setBackgroundColor(0xFF252B33);gasCard.addView(gasTarget,UiKit.full(c));
+        gasTrackInfo=UiKit.small(c,"لا يوجد هدف محدد للتتبع");gasTrackInfo.setBackgroundColor(0xFF151A20);gasCard.addView(gasTrackInfo,UiKit.full(c));root.addView(gasCard,UiKit.full(c));
+        gasTarget.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            @Override public void onItemSelected(AdapterView<?> p,View v,int pos,long id){
+                if(updatingGasTarget||pos<0||pos>=gasTargetIds.size())return;
+                int next=gasTargetIds.get(pos);if(next==selectedGas)return;selectedGas=next;selectedGasName=next<0?"":chemicalName(next);gasDirection.reset();overlay.clearGas();
+                gasTrackInfo.setText(next<0?"لا يوجد هدف محدد للتتبع":"الهدف: "+selectedGasName+" • ابدأ الحركة للحصول على تدرج اتجاهي");
+            }
+            @Override public void onNothingSelected(AdapterView<?> p){}
+        });
+
         drive=UiKit.small(c,"يسار 0   يمين 0   أمان الاتصال —");drive.setBackgroundColor(0xFF151A20);root.addView(drive,UiKit.full(c));
-        root.addView(UiKit.small(c,"المربع الأحمر يحدد منطقة اشتباه اللهب بصريًا، والسهم الأخضر يبين اتجاه الغاز المرجح من تغير MQ مع الحركة. كلاهما مساعدان تجريبيان ولا يرسلان أوامر حركة أو قرارات سلامة. تُرسل أوامر القيادة كل 250 ms وتبقى الحماية من فقد الاتصال داخل ESP32."),UiKit.full(c));
+        root.addView(UiKit.small(c,"المربع الأحمر يحدد منطقة اشتباه اللهب بصريًا. السهم الأخضر يبين اتجاه المصدر المرجح للغاز المختار فقط من تغير MQ مع الحركة. هذه مساعدة اتجاهية ولا ترسل أوامر قيادة ذاتية؛ أوامر القيادة تبقى بيد المشغل وتبقى حماية فقد الاتصال داخل ESP32."),UiKit.full(c));
     }
 
     private void cycleFlash(){String m=host.flashMode();host.setFlashMode("off".equals(m)?"auto":"auto".equals(m)?"on":"off");}
@@ -157,8 +189,27 @@ public final class ControlTab {
         String fm=host.flashMode();flash.setText("الفلاش: "+("on".equals(fm)?"تشغيل":"auto".equals(fm)?"تلقائي":"إيقاف"));
         if(recordingSessionId!=null&&!recordingStopping&&!recorder.isRecording()&&recorder.lastError()!=null){requestStopRecording("io_error",false);return;}
         if(recorder.isRecording())recordInfo.setText("جارٍ التسجيل • "+recorder.frameCount()+" إطار • مسقط "+recorder.droppedFrames()+"\nجلسة "+recordingSessionId);
-        JSONObject d=host.latestDiagnostics();if(d==null){status.setText("الروبوت غير متصل");status.setTextColor(0xFFFFB74D);drive.setText("يسار "+host.driveLeft()+"   يمين "+host.driveRight()+"   أمان الاتصال —");overlay.clearGas();gasDirection.reset();return;}
+        JSONObject d=host.latestDiagnostics();if(d==null){status.setText("الروبوت غير متصل");status.setTextColor(0xFFFFB74D);drive.setText("يسار "+host.driveLeft()+"   يمين "+host.driveRight()+"   أمان الاتصال —");overlay.clearGas();gasDirection.reset();gasTrackInfo.setText(selectedGas<0?"لا يوجد هدف محدد للتتبع":"الهدف: "+selectedGasName+" • الاتصال بالروبوت مفقود");return;}
         status.setText("متصل • "+d.optInt("clients",0));status.setTextColor(0xFF81C784);JSONObject x=d.optJSONObject("drive");if(x!=null)drive.setText("يسار "+x.optInt("left",host.driveLeft())+"   يمين "+x.optInt("right",host.driveRight())+"   أمان الاتصال "+(x.optBoolean("failsafe",false)?"مفعّل":"سليم"));
-        GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime());if(g.valid)overlay.setGasDirection(g.angleRad,g.confidence);else overlay.clearGas();
+        refreshGasTargets(d);
+        if(selectedGas<0){overlay.clearGas();gasDirection.reset();gasTrackInfo.setText("اختر غازًا/مركبًا من القائمة لبدء حساب اتجاه مصدره");return;}
+        GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime(),selectedGas);
+        if(g.valid){overlay.setGasDirection(g.angleRad,g.confidence);gasTrackInfo.setText("الهدف: "+selectedGasName+" • اتجاه نسبي "+bearingName(g.angleRad)+String.format(Locale.US," (%+.0f°) • ثقة اتجاه %.0f%%",Math.toDegrees(g.angleRad),100*g.confidence));}
+        else{overlay.clearGas();gasTrackInfo.setText("الهدف: "+selectedGasName+" • نجمع تغير الاستجابة أثناء الحركة لبناء اتجاه موثوق");}
     }
+
+    private void refreshGasTargets(JSONObject d){
+        Map<Integer,ValidatedGasEngine.Result> map=AnalyticsSnapshot.analyze(d);List<ValidatedGasEngine.Result> rows=new ArrayList<>();
+        for(ValidatedGasEngine.Result r:map.values())if(r!=null&&r.totalContributors>0&&r.confidence>=GasEngine.SUSPECTED&&MqSensorAffinity.forChemical(r.chemical).mask!=0)rows.add(r);
+        rows.sort(Comparator.comparingInt((ValidatedGasEngine.Result r)->r.confidence).reversed().thenComparing(Comparator.comparingDouble((ValidatedGasEngine.Result r)->r.agreement).reversed()));
+        if(rows.size()>10)rows=rows.subList(0,10);
+        StringBuilder sig=new StringBuilder();for(ValidatedGasEngine.Result r:rows)sig.append(r.chemical).append(',');if(sig.toString().equals(gasTargetSignature))return;gasTargetSignature=sig.toString();
+        int keep=selectedGas,keepPos=0;ArrayList<String> labels=new ArrayList<>();gasTargetIds.clear();labels.add(rows.isEmpty()?"— لا توجد مركبات مكتشفة حاليًا —":"— اختر المركب المراد تتبع مصدره —");gasTargetIds.add(-1);
+        for(ValidatedGasEngine.Result r:rows){int id=r.chemical;String name=chemicalName(id),level=r.confidence>=GasEngine.HIGH?"ثقة مرتفعة":r.confidence>=GasEngine.STRONG?"ثقة قوية":"مرشح";String label=name+" • "+level+String.format(Locale.US," • اتفاق %.0f%%",r.agreement);labels.add(label);gasTargetIds.add(id);if(id==keep)keepPos=labels.size()-1;}
+        updatingGasTarget=true;ArrayAdapter<String> a=new ArrayAdapter<>(appContext,android.R.layout.simple_spinner_item,labels);a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);gasTarget.setAdapter(a);gasTarget.setSelection(keepPos,false);updatingGasTarget=false;
+        if(keep>=0&&keepPos==0){selectedGas=-1;selectedGasName="";gasDirection.reset();overlay.clearGas();}
+    }
+
+    private String chemicalName(int legacyId){ChemicalRepository.Chemical c=chemicals.byLegacyId(legacyId);if(c==null)return "Chemical #"+legacyId;String ar=c.arabicName==null?"":c.arabicName.trim(),en=c.name==null?"":c.name.trim();return !ar.isEmpty()?ar:!en.isEmpty()?en:"Chemical #"+legacyId;}
+    private static String bearingName(double a){double d=Math.toDegrees(a);if(d>=-22.5&&d<22.5)return"أمام";if(d>=22.5&&d<67.5)return"أمام-يمين";if(d>=67.5&&d<112.5)return"يمين";if(d>=112.5&&d<157.5)return"خلف-يمين";if(d>=157.5||d<-157.5)return"خلف";if(d>=-157.5&&d<-112.5)return"خلف-يسار";if(d>=-112.5&&d<-67.5)return"يسار";return"أمام-يسار";}
 }
