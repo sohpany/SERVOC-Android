@@ -18,7 +18,7 @@ public final class ReleaseAudit {
     public static final boolean OSHA_Z1_PEL_SEED=true;
     public static final boolean VIDEO_RECORDING=true;
     public static final boolean FLAME_EVIDENCE_EXPERIMENTAL=true;
-    public static final boolean VIDEO_LINKED_TO_MEASUREMENTS=false;
+    public static final boolean VIDEO_LINKED_TO_MEASUREMENTS=true;
     public static final boolean REFERENCE_BANK_EXPORT=true;
     public static final boolean DIRECT_GITHUB_PUBLISH=false;
     public static final boolean MOTION_BREADCRUMB_RECORDING=true;
