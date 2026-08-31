@@ -11,7 +11,9 @@ import java.util.TimeZone;
 public final class EvidenceStore {
     private EvidenceStore(){}
 
+    /** Reuses an active MQ measurement session when possible; otherwise creates a media-only session. */
     public static String startStandaloneSession(ExperimentsDb db,String operatorRole,String kind){
+        String active=activeMeasurementSession(db);if(active!=null)return active;
         String id="MEDIA-"+System.currentTimeMillis();ContentValues v=new ContentValues();v.put("session_id",id);v.put("started_ts",isoNow());v.put("kind",kind==null?"media_capture":kind);v.put("operator_role",operatorRole==null?"OPERATOR":operatorRole);db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);return id;
     }
 
@@ -22,8 +24,9 @@ public final class EvidenceStore {
         catch(Exception ignored){return null;}
     }
 
+    /** Finishes only media-owned sessions. MQ sessions remain owned by TelemetryRecorder. */
     public static void finishStandaloneSession(ExperimentsDb db,String sessionId,String payload){
-        if(sessionId==null)return;ContentValues v=new ContentValues();v.put("ended_ts",isoNow());if(payload!=null)v.put("payload",payload);db.getWritableDatabase().update("measurement_sessions",v,"session_id=?",new String[]{sessionId});
+        if(sessionId==null)return;ContentValues v=new ContentValues();v.put("ended_ts",isoNow());if(payload!=null)v.put("payload",payload);db.getWritableDatabase().update("measurement_sessions",v,"session_id=? AND kind NOT IN ('field_mq_cycle','developer_mq_cycle')",new String[]{sessionId});
     }
 
     public static long saveMedia(ExperimentsDb db,String sessionId,String mediaType,String uri,String startedTs,String endedTs,String metadata){
