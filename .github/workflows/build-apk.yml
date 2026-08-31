@@ -9,6 +9,7 @@ on:
       - 'fix/**'
     paths:
       - 'app/**'
+      - 'tools/**'
       - 'signing/**'
       - '*.gradle'
       - 'gradle.properties'
@@ -24,6 +25,18 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Generate official NIOSH chemical seed
+        run: |
+          python3 tools/build_niosh_seed.py app/src/main/assets/generated/niosh
+          python3 - <<'PY'
+          import json
+          p='app/src/main/assets/generated/niosh/manifest.json'
+          m=json.load(open(p,encoding='utf-8'))
+          assert m['record_count'] >= 500, m
+          print('NIOSH records:',m['record_count'])
+          print('NIOSH source SHA-256:',m['source_sha256'])
+          print('Seed SHA-256:',m['sha256'])
+          PY
       - name: Restore HazRob prototype signing key
         run: |
           base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
@@ -63,5 +76,6 @@ jobs:
             app/build/outputs/apk/release/app-release.apk
             HazRob-v0.5.0-sha256.txt
             HazRob-v0.5.0-signing.txt
+            app/src/main/assets/generated/niosh/manifest.json
           if-no-files-found: error
           retention-days: 30
