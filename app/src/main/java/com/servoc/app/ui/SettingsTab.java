@@ -31,18 +31,18 @@ public final class SettingsTab {
         Button saveNet=UiKit.button(c,"حفظ وتطبيق إعدادات الشبكة");saveNet.setOnClickListener(v->saveNetwork());net.addView(saveNet,UiKit.full(c));
         Button testNet=UiKit.button(c,"اختبار الروبوت والكاميرا");testNet.setOnClickListener(v->testConnections());net.addView(testNet,UiKit.full(c));
         cameraState=UiKit.small(c,"تشخيص الكاميرا: لم يُختبر بعد");cameraState.setBackgroundColor(0xFF151A20);net.addView(cameraState,UiKit.full(c));
-        net.addView(UiKit.small(c,"HazRob 0.7.1 يختبر تحكم الكاميرا على HTTP 80 والبث على 81 ويجرب عدة مسارات MJPEG. إذا نجح الروبوت وفشلت الكاميرا فغالبًا ESP-CAM لم تنضم إلى HazRob/Servoc أو ما زالت على Firmware قديم."),UiKit.full(c));
+        net.addView(UiKit.small(c,"HazRob 0.7.1 يختبر تحكم الكاميرا على HTTP 80 والبث على 81 ويقيس FPS وزمن تحويل JPEG داخل ESP-CAM. إذا نجح الروبوت وفشلت الكاميرا فافحص SSID/Firmware الكاميرا قبل استنتاج أن الفلاش غير مدعوم."),UiKit.full(c));
         root.addView(net,UiKit.full(c));
 
         LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"إعدادات ESP32"),UiKit.full(c));
         speed=field(c,cfg,"حد السرعة % (20–100)",String.valueOf(host.preferences().getInt("speed",100)));
         nl=field(c,cfg,"Neutral للمحرك الأيسر µs (1400–1600)",String.valueOf(host.preferences().getInt("nl",1500)));
         nr=field(c,cfg,"Neutral للمحرك الأيمن µs (1400–1600)",String.valueOf(host.preferences().getInt("nr",1500)));
-        warm=field(c,cfg,"زمن تسخين MQ بالثواني (0–3600)",String.valueOf(host.preferences().getInt("warm",60)));
-        measure=field(c,cfg,"زمن القياس بالثواني (5–600)",String.valueOf(host.preferences().getInt("measure",30)));
+        warm=field(c,cfg,"زمن تسخين كل مرحلة MQ بالثواني (0–3600)",String.valueOf(host.preferences().getInt("warm",60)));
+        measure=field(c,cfg,"زمن قياس كل مرحلة بالثواني (5–600)",String.valueOf(host.preferences().getInt("measure",30)));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة من ESP32");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق على ESP32");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
-        LinearLayout compat=UiKit.card(c);compat.addView(UiKit.title(c,"حالة التوافق"),UiKit.full(c));compatibility=UiKit.text(c,"Firmware: غير معروف بعد");compat.addView(compatibility,UiKit.full(c));compat.addView(UiKit.small(c,"HazRob 0.7.1 يستخدم API v3 للروبوت مع إضافات relayMask/ADS1115/IR/sound/retrace، بينما الفيديو والفلاش يتصلان مباشرة بـESP32-CAM على 192.168.4.2."),UiKit.full(c));root.addView(compat,UiKit.full(c));
+        LinearLayout compat=UiKit.card(c);compat.addView(UiKit.title(c,"حالة التوافق"),UiKit.full(c));compatibility=UiKit.text(c,"Firmware: غير معروف بعد");compat.addView(compatibility,UiKit.full(c));compat.addView(UiKit.small(c,"HazRob 0.7.1 يستخدم API v3 مع أربعة صفوف MQ عبر relayMask، وحد أقصى صفين نشطين، وADS1115×2 وIR/LDR/MAX4466/retrace. الفيديو والفلاش يتصلان مباشرة بـESP32-CAM على 192.168.4.2."),UiKit.full(c));root.addView(compat,UiKit.full(c));
 
         LinearLayout science=UiKit.card(c);science.addView(UiKit.title(c,"المكتبة العلمية"),UiKit.full(c));science.addView(UiKit.small(c,"قاعدة المعرفة قابلة للتوسعة، بينما التغطية التحليلية تبقى مرتبطة بالدليل والمعايرة لكل حساس/مركب."),UiKit.full(c));Button info=UiKit.button(c,"عرض ملخص المكتبة العلمية");science.addView(info,UiKit.full(c));libraryInfo=UiKit.small(c,"");libraryInfo.setVisibility(View.GONE);science.addView(libraryInfo,UiKit.full(c));info.setOnClickListener(v->{boolean show=libraryInfo.getVisibility()!=View.VISIBLE;libraryInfo.setVisibility(show?View.VISIBLE:View.GONE);if(show)libraryInfo.setText("قاعدة المعرفة المحلية: "+host.database().chemicalCount()+" سجلًا\nMQDataScience: "+MqDataScience76Catalog.COUNT+" نموذجًا مسجلًا (v"+MqDataScience76Catalog.VERSION+")\nالنماذج Android Native حاليًا: "+ModelRuntimeRegistry.nativeCount()+"\nPPM الكمي يتطلب معايرة مرجعية صالحة؛ R0 الافتراضي لا يُعد معايرة.");});root.addView(science,UiKit.full(c));
     }
@@ -50,7 +50,7 @@ public final class SettingsTab {
     private EditText field(Context c,LinearLayout p,String label,String value){p.addView(UiKit.small(c,label),UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
     public View view(){return scroll;}
 
-    public void refresh(){JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware: لا يوجد اتصال بالروبوت");return;}JSONObject adc=d.optJSONObject("adc");compatibility.setText("Firmware: "+d.optString("firmware","غير معرّف")+" • API "+d.optInt("api_version",0)+" • Heap "+d.optLong("heap",0)+"\nADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+" • ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—"));}
+    public void refresh(){JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware: لا يوجد اتصال بالروبوت");return;}JSONObject adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay");compatibility.setText("Firmware: "+d.optString("firmware","غير معرّف")+" • API "+d.optInt("api_version",0)+" • Heap "+d.optLong("heap",0)+"\nADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+" • ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—")+" • MQ rows "+d.optInt("mq_rows",4)+" • max active "+d.optInt("max_active_rows",2)+" • mask "+(relay==null?0:relay.optInt("mask",0)));}
 
     private void saveNetwork(){host.emergencyStop();String rh=robot.getText().toString().trim(),ch=camera.getText().toString().trim();host.robotApi().setRobotHost(rh);host.setCameraHost(ch);camera.setText(host.cameraHost());host.preferences().edit().putString("robot",host.robotApi().getRobotHost()).putString("camera",host.cameraHost()).apply();host.showToast("تم تطبيق الشبكة وإيقاف الحركة احترازيًا");host.refreshAllTabs();}
 
@@ -63,10 +63,14 @@ public final class SettingsTab {
             new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{
                 if(cdiag!=null){
                     boolean sensorOk=cdiag.optBoolean("camera_ok",cdiag.optBoolean("ok",true));
-                    String fw=cdiag.optString("fw","ESP32-CAM"),ssid=cdiag.optString("ssid","—"),ip=cdiag.optString("ip",ch),pid=cdiag.has("pid")?String.format(Locale.US,"0x%04X",cdiag.optInt("pid",0)):"—";
+                    String fw=cdiag.optString("fw","ESP32-CAM"),ssid=cdiag.optString("ssid","—"),ip=cdiag.optString("ip",ch),sensor=cdiag.optString("sensor","—");
+                    String pid=cdiag.has("pid")?String.format(Locale.US,"0x%04X",cdiag.optInt("pid",0)):"—";
                     String fps=cdiag.has("fps")?String.format(Locale.US,"%.2f",cdiag.optDouble("fps",0)):"—";
-                    String err=cdiag.has("camera_error")?" • err "+cdiag.optString("camera_error",""):"";
-                    cameraState.setText("تشخيص الكاميرا: "+fw+" • "+(sensorOk?"sensor OK":"sensor FAIL")+"\nSSID "+ssid+" • IP "+ip+" • PID "+pid+" • FPS "+fps+err);
+                    String enc=cdiag.has("encode_ms")?String.format(Locale.US,"%.1f ms",cdiag.optDouble("encode_ms",0)):"—";
+                    String jpg=cdiag.has("jpeg_bytes")?cdiag.optLong("jpeg_bytes",0)+" B":"—";
+                    String rssi=cdiag.has("rssi")?cdiag.optInt("rssi",0)+" dBm":"—";
+                    String err=cdiag.has("camera_error")?cdiag.optString("camera_error",""):"—";
+                    cameraState.setText("تشخيص الكاميرا: "+fw+" • "+(sensorOk?"sensor OK":"sensor FAIL")+" • "+sensor+" / "+pid+"\nSSID "+ssid+" • IP "+ip+" • RSSI "+rssi+"\nCamera FPS "+fps+" • JPEG "+enc+" • "+jpg+" • capErr "+cdiag.optLong("capture_errors",0)+" • encErr "+cdiag.optLong("encode_errors",0)+" • err "+err);
                     cameraState.setTextColor(sensorOk?0xFF81C784:0xFFFF7043);
                 }else{
                     cameraState.setText("تشخيص الكاميرا: "+(cOk?"استجابة HTTP قديمة بدون /status":"لا استجابة من "+ch+" على المنافذ المتوقعة"));cameraState.setTextColor(cOk?0xFFFFB74D:0xFFFF7043);
