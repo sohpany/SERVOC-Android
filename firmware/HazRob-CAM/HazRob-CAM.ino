@@ -5,13 +5,13 @@
 #include "esp32-hal-psram.h"
 
 constexpr char WIFI1[]="HazRob";
-constexpr char WIFI2[]="Servoc";   // backward compatibility while migrating hardware
+constexpr char WIFI2[]="Servoc";
 constexpr char FW[]="HazRob-CAM 0.7.1";
 constexpr uint8_t FLASH_PIN=4;
 constexpr size_t JPG_CAP=160*1024;
 constexpr uint8_t JPG_QUALITY=35;
 
-// AI-Thinker ESP32-CAM pins
+// AI-Thinker ESP32-CAM pin map
 constexpr int PWDN=32,RESET=-1,XCLK=0,SIOD=26,SIOC=27;
 constexpr int Y9=35,Y8=34,Y7=39,Y6=36,Y5=21,Y4=19,Y3=18,Y2=5;
 constexpr int VSYNC=25,HREF=23,PCLK=22;
@@ -25,6 +25,10 @@ volatile size_t jpgLen=0;
 volatile uint32_t fps100=0,frameCounter=0;
 uint32_t fpsAt=0,lastFrames=0,wifiAt=0;
 uint8_t wifiChoice=0;
+bool cameraOk=false,psramOk=false;
+esp_err_t cameraError=ESP_OK;
+uint16_t cameraPid=0;
+
 enum FlashMode:uint8_t{F_OFF,F_AUTO,F_ON};
 volatile FlashMode flashMode=F_OFF;
 
@@ -78,14 +82,38 @@ void updateFps(){
   fpsAt=now;lastFrames=frameCounter;
 }
 
+bool cameraBegin(){
+  psramOk=psramFound();
+  if(!psramOk){cameraError=ESP_ERR_NO_MEM;Serial.println("CAM: PSRAM missing");return false;}
+  jpgBuf=(uint8_t*)ps_malloc(JPG_CAP);
+  if(!jpgBuf){cameraError=ESP_ERR_NO_MEM;Serial.println("CAM: JPEG buffer allocation failed");return false;}
+
+  camera_config_t c={};
+  c.ledc_channel=LEDC_CHANNEL_0;c.ledc_timer=LEDC_TIMER_0;
+  c.pin_d0=Y2;c.pin_d1=Y3;c.pin_d2=Y4;c.pin_d3=Y5;c.pin_d4=Y6;c.pin_d5=Y7;c.pin_d6=Y8;c.pin_d7=Y9;
+  c.pin_xclk=XCLK;c.pin_pclk=PCLK;c.pin_vsync=VSYNC;c.pin_href=HREF;c.pin_sccb_sda=SIOD;c.pin_sccb_scl=SIOC;
+  c.pin_pwdn=PWDN;c.pin_reset=RESET;c.xclk_freq_hz=20000000;
+  c.pixel_format=PIXFORMAT_RGB565;c.frame_size=FRAMESIZE_QVGA;c.jpeg_quality=12;
+  c.fb_count=1;c.grab_mode=CAMERA_GRAB_WHEN_EMPTY;c.fb_location=CAMERA_FB_IN_PSRAM;
+
+  cameraError=esp_camera_init(&c);
+  if(cameraError!=ESP_OK){Serial.printf("CAM: init failed 0x%X\n",(unsigned)cameraError);return false;}
+
+  sensor_t *s=esp_camera_sensor_get();
+  if(s){cameraPid=s->id.PID;s->set_framesize(s,FRAMESIZE_QVGA);Serial.printf("CAM: PID 0x%04X\n",cameraPid);}
+  Serial.println("CAM: initialized");
+  return true;
+}
+
 void streamTask(void*){
   for(;;){
     WiFiClient c=mjpeg.available();
     if(!c){vTaskDelay(pdMS_TO_TICKS(2));continue;}
     c.setNoDelay(true);discardRequest(c);
+    if(!cameraOk){writeAll(c,"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nCAMERA INIT FAILED\n");c.stop();continue;}
     if(!writeAll(c,"HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-cache, no-store, must-revalidate\r\nPragma: no-cache\r\nConnection: close\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n")){c.stop();continue;}
 
-    while(c.connected()&&WiFi.status()==WL_CONNECTED){
+    while(c.connected()&&WiFi.status()==WL_CONNECTED&&cameraOk){
       camera_fb_t *fb=esp_camera_fb_get();
       if(!fb){vTaskDelay(pdMS_TO_TICKS(5));continue;}
       jpgLen=0;bool ok=frame2jpg_cb(fb,JPG_QUALITY,jpgOut,nullptr);esp_camera_fb_return(fb);
@@ -100,72 +128,48 @@ void streamTask(void*){
   }
 }
 
-void cameraBegin(){
-  camera_config_t c={};
-  c.ledc_channel=LEDC_CHANNEL_0;c.ledc_timer=LEDC_TIMER_0;
-  c.pin_d0=Y2;c.pin_d1=Y3;c.pin_d2=Y4;c.pin_d3=Y5;c.pin_d4=Y6;c.pin_d5=Y7;c.pin_d6=Y8;c.pin_d7=Y9;
-  c.pin_xclk=XCLK;c.pin_pclk=PCLK;c.pin_vsync=VSYNC;c.pin_href=HREF;c.pin_sccb_sda=SIOD;c.pin_sccb_scl=SIOC;
-  c.pin_pwdn=PWDN;c.pin_reset=RESET;c.xclk_freq_hz=20000000;
-  c.pixel_format=PIXFORMAT_RGB565;c.frame_size=FRAMESIZE_QVGA;c.jpeg_quality=12;
-  c.fb_count=1;c.grab_mode=CAMERA_GRAB_WHEN_EMPTY;c.fb_location=CAMERA_FB_IN_PSRAM;
-  if(esp_camera_init(&c)!=ESP_OK)ESP.restart();
-  sensor_t *s=esp_camera_sensor_get();if(s)s->set_framesize(s,FRAMESIZE_QVGA);
-}
-
 void connectWifi(){
   const char* ssid=wifiChoice?WIFI2:WIFI1;wifiChoice^=1;
-  WiFi.disconnect(true,false);delay(20);
+  WiFi.disconnect(false,false);delay(20);
   WiFi.config(localIP,gateway,subnet);WiFi.begin(ssid);
-  wifiAt=millis();
+  wifiAt=millis();Serial.printf("WiFi: trying %s\n",ssid);
 }
 
-void wifiBegin(){
-  WiFi.persistent(false);WiFi.mode(WIFI_STA);WiFi.setSleep(false);connectWifi();
-}
+void wifiBegin(){WiFi.persistent(false);WiFi.mode(WIFI_STA);WiFi.setSleep(false);connectWifi();}
 
 void sendStatus(){
-  sensor_t *s=esp_camera_sensor_get();uint16_t pid=s?s->id.PID:0;
-  String j="{\"ok\":true,\"fw\":\""+String(FW)+"\",\"ip\":\""+WiFi.localIP().toString()+"\",\"ssid\":\""+WiFi.SSID()+"\",\"pid\":"+String(pid)+",\"width\":320,\"height\":240,\"format\":\"MJPEG/RGB565-SWJPEG\",\"stream\":\"http://"+WiFi.localIP().toString()+":81/stream\",\"fps\":"+String(fps100/100.0f,2)+",\"rssi\":"+String(WiFi.RSSI())+",\"flash\":\""+flashName()+"\"}";
+  String err=String("0x")+String((uint32_t)cameraError,HEX);err.toUpperCase();
+  String j="{\"ok\":true,\"camera_ok\":"+String(cameraOk?"true":"false")+",\"camera_error\":\""+err+"\",\"psram\":"+String(psramOk?"true":"false")+",\"fw\":\""+String(FW)+"\",\"ip\":\""+WiFi.localIP().toString()+"\",\"ssid\":\""+WiFi.SSID()+"\",\"pid\":"+String(cameraPid)+",\"width\":320,\"height\":240,\"format\":\"MJPEG/RGB565-SWJPEG\",\"stream\":\"http://"+WiFi.localIP().toString()+":81/stream\",\"fps\":"+String(fps100/100.0f,2)+",\"frames\":"+String(frameCounter)+",\"rssi\":"+String(WiFi.RSSI())+",\"flash\":\""+flashName()+"\"}";
   web.sendHeader("Access-Control-Allow-Origin","*");web.send(200,"application/json",j);
 }
 
 void setup(){
+  Serial.begin(115200);delay(150);Serial.println();Serial.println(FW);
   pinMode(FLASH_PIN,OUTPUT);digitalWrite(FLASH_PIN,LOW);
-  if(!psramFound())ESP.restart();
-  jpgBuf=(uint8_t*)ps_malloc(JPG_CAP);if(!jpgBuf)ESP.restart();
-  cameraBegin();wifiBegin();
+  cameraOk=cameraBegin();
+  wifiBegin();
 
   web.on("/",[]{web.send(200,"text/plain",FW);});
   web.on("/status",sendStatus);
-  web.on("/stream",[]{
-    String u="http://"+WiFi.localIP().toString()+":81/stream";
-    web.sendHeader("Location",u,true);web.send(302,"text/plain","stream");
-  });
+  web.on("/stream",[]{String u="http://"+WiFi.localIP().toString()+":81/stream";web.sendHeader("Location",u,true);web.send(302,"text/plain","stream");});
   web.on("/flash",[]{
     if(web.hasArg("mode")){String m=web.arg("mode");if(m!="off"&&m!="auto"&&m!="on")return web.send(400,"text/plain","BAD");setFlashText(m);}
     else if(web.hasArg("on"))setFlashText(web.arg("on"));
     else return web.send(400,"text/plain","BAD");
     web.send(200,"text/plain","OK");
   });
-  web.on("/led",[]{
-    if(web.hasArg("on"))setFlashText(web.arg("on"));
-    else if(web.hasArg("state"))setFlashText(web.arg("state"));
-    else return web.send(400,"text/plain","BAD");
-    web.send(200,"text/plain","OK");
-  });
-  web.on("/control",[]{
-    String v=web.arg("var"),x=web.arg("val");
-    if(v=="led_intensity"||v=="flash"||v=="led"){setFlashText(x);return web.send(200,"text/plain","OK");}
-    web.send(400,"text/plain","BAD");
-  });
+  web.on("/led",[]{if(web.hasArg("on"))setFlashText(web.arg("on"));else if(web.hasArg("state"))setFlashText(web.arg("state"));else return web.send(400,"text/plain","BAD");web.send(200,"text/plain","OK");});
+  web.on("/control",[]{String v=web.arg("var"),x=web.arg("val");if(v=="led_intensity"||v=="flash"||v=="led"){setFlashText(x);return web.send(200,"text/plain","OK");}web.send(400,"text/plain","BAD");});
   web.onNotFound([]{web.send(404,"text/plain","NOT FOUND");});
 
   web.begin();mjpeg.begin();
   xTaskCreatePinnedToCore(streamTask,"mjpeg",6144,nullptr,1,nullptr,1);
+  Serial.printf("HTTP: status/control :80, stream :81 | camera=%s\n",cameraOk?"OK":"FAIL");
 }
 
 void loop(){
   web.handleClient();updateFps();
   if(WiFi.status()!=WL_CONNECTED&&millis()-wifiAt>4500)connectWifi();
+  static wl_status_t last=WL_NO_SHIELD;wl_status_t now=WiFi.status();if(now!=last){last=now;if(now==WL_CONNECTED)Serial.printf("WiFi: connected %s, IP %s, RSSI %d\n",WiFi.SSID().c_str(),WiFi.localIP().toString().c_str(),WiFi.RSSI());}
   delay(2);
 }
