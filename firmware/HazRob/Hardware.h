@@ -9,7 +9,7 @@ void hwUpdate();
 void driveSet(int left,int right);
 void stopAll();
 
-void relaySetMask(uint8_t mask);
+bool relaySetMask(uint8_t mask);
 void measureStart();
 void measureCancel();
 
