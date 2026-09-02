@@ -3,7 +3,7 @@ package com.servoc.app.communication;
 import org.json.JSONObject;
 import java.util.Locale;
 
-/** Normalizes the compact HazRob ESP32 API v3 payload and additive hardware-sync fields. */
+/** Normalizes the compact HazRob ESP32 API v3 payload and additive 0.7.1 hardware fields. */
 public final class RobotProtocolV3 {
     private RobotProtocolV3(){}
 
@@ -17,6 +17,8 @@ public final class RobotProtocolV3 {
             out.put("api_version",diag.has("api")?diag.optInt("api",3):diag.optInt("api_version",3));
             out.put("heap",diag.optLong("heap",0));
             out.put("clients",diag.optInt("clients",0));
+            out.put("mq_rows",diag.optInt("mqRows",4));
+            out.put("max_active_rows",diag.optInt("maxActiveRows",2));
 
             boolean retrace=diag.optBoolean("retrace",data.optBoolean("retrace",false));
             JSONObject drive=new JSONObject();
@@ -31,6 +33,7 @@ public final class RobotProtocolV3 {
             out.put("relay",relay(diag,data));
             out.put("sound",sound(data.optJSONObject("sound")));
             out.put("ir",ir(diag,data.optJSONObject("ir")));
+            out.put("ldr",ldr(diag,data.optJSONObject("ldr")));
             out.put("adc",adc(diag));
             out.put("mq",mq(data.optJSONObject("mq"),false));
             out.put("measurement",measurement(data.optJSONObject("measurement")));
@@ -75,6 +78,8 @@ public final class RobotProtocolV3 {
             int group=Integer.bitCount(mask)==1?Integer.numberOfTrailingZeros(mask)+1:0;
             x.put("mask",mask);
             x.put("group",group);
+            x.put("active_rows",Integer.bitCount(mask));
+            x.put("max_active_rows",diag==null?2:diag.optInt("maxActiveRows",2));
             x.put("group1",(mask&1)!=0);
             x.put("group2",(mask&2)!=0);
             x.put("group3",(mask&4)!=0);
@@ -100,7 +105,19 @@ public final class RobotProtocolV3 {
         try{
             boolean warning=i!=null?i.optBoolean("warning",diag.optBoolean("ir",false)):diag.optBoolean("ir",false);
             x.put("warning",warning);
+            x.put("level",i==null?JSONObject.NULL:i.optInt("level",-1));
             x.put("drive_interlock",false);
+        }catch(Exception ignored){}
+        return x;
+    }
+
+    private static JSONObject ldr(JSONObject diag,JSONObject i){
+        JSONObject x=new JSONObject();
+        try{
+            boolean active=i!=null?i.optBoolean("active",diag.optBoolean("ldr",false)):diag.optBoolean("ldr",false);
+            x.put("active",active);
+            x.put("level",i==null?JSONObject.NULL:i.optInt("level",-1));
+            x.put("quantitative_lux",false);
         }catch(Exception ignored){}
         return x;
     }
@@ -120,6 +137,8 @@ public final class RobotProtocolV3 {
             x.put("state",state);
             x.put("state_code",code);
             x.put("group",m.optInt("group",0));
+            x.put("phase",m.optInt("phase",0));
+            x.put("mask",m.optInt("mask",0)&15);
             x.put("mq",mq(m.optJSONObject("mq"),true));
         }catch(Exception ignored){}
         return x;
@@ -136,6 +155,10 @@ public final class RobotProtocolV3 {
                 boolean ok=r.optBoolean("ok",r.optBoolean("valid",false));
                 x.put("ok",ok);x.put("valid",ok);x.put("status",ok?(averaged?"AVERAGED":"OK"):"INACTIVE");
                 copy(r,x,"raw");copy(r,x,"adc");copy(r,x,"ao");copy(r,x,"rs");copy(r,x,"ratio");
+                if(r.has("row"))x.put("row",r.optInt("row",0));
+                if(r.has("ads"))x.put("ads",r.optInt("ads",0));
+                if(r.has("ch"))x.put("ch",r.optInt("ch",0));
+                x.put("r0_calibrated",r.optBoolean("r0_calibrated",false));
                 out.put(key,x);
             }catch(Exception ignored){}
         }
