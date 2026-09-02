@@ -3,7 +3,7 @@ name: Pin HazRob Scientific Data
 on:
   push:
     branches:
-      - dev/hazrob-0.6
+      - main
     paths:
       - '.github/workflows/pin-scientific-data.yml'
       - 'tools/build_niosh_seed.py'
@@ -18,10 +18,10 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout development branch
+      - name: Checkout main baseline
         uses: actions/checkout@v4
         with:
-          ref: dev/hazrob-0.6
+          ref: main
           fetch-depth: 0
 
       - name: Set up Python
@@ -73,5 +73,5 @@ jobs:
             echo 'Pinned scientific datasets already match generated sources.'
             exit 0
           fi
-          git commit -m 'Pin authoritative HazRob 0.6 scientific datasets [pin-data]'
-          git push origin HEAD:dev/hazrob-0.6
+          git commit -m 'Pin authoritative HazRob scientific datasets [pin-data]'
+          git push origin HEAD:main
