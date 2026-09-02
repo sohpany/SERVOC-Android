@@ -52,30 +52,32 @@ void setup(){
     reply(200,"OK");
   });
 
-  // Manual MQ power. Installed groups are R1/R2 only; R3/R4 are reserved.
+  // Manual MQ power. R1/R2 are installed; R3/R4 remain reserved in v0.8.
   web.on("/relay",[]{
     uint8_t mask=0;
 
     if(web.hasArg("mask")){
       int v=web.arg("mask").toInt();
-      if(v<0||v>15)return reply(400,"BAD");
+      if(v<0||v>Cfg::MQ_INSTALLED_MASK)
+        return reply(409,"ONLY R1/R2 ARE INSTALLED MQ GROUPS");
       mask=(uint8_t)v;
     }else if(web.hasArg("g")){
       int g=web.arg("g").toInt();
-      if(g<0||g>4)return reply(400,"BAD");
+      if(g<0||g>2)
+        return reply(409,"ONLY R1/R2 ARE INSTALLED MQ GROUPS");
       mask=g==0?0:(uint8_t)(1U<<(g-1));
     }else{
       return reply(400,"BAD");
     }
 
     if(!relaySetMask(mask))
-      return reply(409,"ONLY R1/R2 ARE INSTALLED MQ GROUPS");
+      return reply(409,"RELAY MASK REJECTED");
 
     reply(200,"OK");
   });
 
-  // Averaging never changes MQ power in HazRob 0.8.
-  // Operator selects R1/R2 and decides warm-up duration before cmd=start.
+  // Averaging never switches MQ power. The operator selects R1/R2 first.
+  // warm is an operator-configured wait time; firmware only counts it before sampling.
   web.on("/measure",[]{
     String c=web.arg("cmd");
     if(c=="start")measureStart();
@@ -112,8 +114,7 @@ void setup(){
       save=true;
     }
     if(web.hasArg("warm")){
-      // Stored as the operator's chosen/recorded warm-up value.
-      // Firmware does not autonomously wait or switch relays from this value.
+      // Operator-defined warm-up interval used by /measure after power is selected manually.
       settings.warm=constrain(web.arg("warm").toInt(),0L,3600L);
       save=true;
     }
