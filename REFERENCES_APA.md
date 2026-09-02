@@ -1,8 +1,8 @@
-# HazRob / SERVOC — Research References and Source Provenance
+# HazRob — Research References and Source Provenance
 
-This document records the external sources, technical documentation, standards, software libraries, and research references used in the HazRob/SERVOC project. References are formatted as closely as practicable to **APA 7th edition**. Dynamic web resources include a retrieval date where useful. Versioned manuals and software are cited with the exact version used by the project when known.
+This document is the research-reference baseline for **HazRob 0.8.0**. It records manufacturer documentation, authoritative occupational-safety data, standards, software/model provenance, and peer-reviewed literature used to design, interpret, validate, or discuss the HazRob sensing platform. References are formatted as closely as practicable to **APA 7th edition**.
 
-> **Research-integrity note:** HazRob combines manufacturer documentation, public occupational-exposure databases, community-derived MQ response-curve fits, and project-specific algorithms. A manufacturer sensitivity graph or a community regression must not be presented as an individual-sensor calibration certificate. Likewise, HazRob's five-level color visualization is a project-defined screening layer; the underlying TWA/STEL/Ceiling/IDLH/LEL values are sourced separately below.
+> **Research-integrity rule:** manufacturer sensitivity graphs, literature-derived regressions, community curve fits, and sensor-response-derived targets are research evidence; they are not substitutes for traceable calibration of the individual physical sensor. HazRob therefore separates chemical identity/safety knowledge, sensor affinity, research curves, experimental calibration, and validated quantitative PPM.
 
 ## 1. Primary MQ sensor manufacturer documentation
 
@@ -40,7 +40,7 @@ Zhengzhou Winsen Electronics Technology Co., Ltd. (n.d.). *MQ-9B MOS sensor for 
 
 Zhengzhou Winsen Electronics Technology Co., Ltd. (n.d.). *MQ135 semiconductor sensor for air quality*. Retrieved August 28, 2026, from https://www.winsen-sensor.com/product/mq135.html
 
-## 2. MQ curve extraction, regression, and community software sources
+## 2. MQ curve extraction, calibration software, and model provenance
 
 Califa Urquiza, M. A., Contreras Contreras, G., & Carrillo Amado, Y. R. (2019). *miguel5612/MQSensorsLib: Arduino Preview V1.03* (Version 1.0.3) [Computer software]. Zenodo. https://doi.org/10.5281/zenodo.3384301
 
@@ -48,11 +48,44 @@ MQSensorsLib project repository: https://github.com/miguel5612/MQSensorsLib
 
 abcdaaaaaaaaa. (2026). *MQDataScience* (Version 6.0.0) [Computer software]. GitHub. https://github.com/abcdaaaaaaaaa/MQDataScience
 
-**Pinned MQDataScience snapshot used by HazRob:** commit `e88f876140587a708ee84a4d4d3acbd5720274ee`. HazRob uses this source for comparison power-law curves, temperature/relative-humidity correction research models, and the catalog of 76 regression/machine-learning models. The majority of those 76 models are registered as upstream models and are not all native Android runtime implementations in HazRob v0.4.0.
+**Pinned MQDataScience snapshot used by HazRob:** commit `e88f876140587a708ee84a4d4d3acbd5720274ee`. The complete upstream catalog of **76 models is adopted** by HazRob 0.8. Runtime implementation is tracked separately as `UPSTREAM-VERIFIED`, `APPROXIMATION`, or `PORT PENDING`; adoption of a model does not imply that it is already executed natively on Android.
 
-## 3. Statistical and machine-learning methodological references
+## 3. Peer-reviewed MQ/MOX calibration, measurement, sensing, IoT, and sensor-fusion literature
 
-The following references are useful when describing the algorithms represented in HazRob and/or the upstream MQDataScience model catalog. They are methodological references rather than proof that every model is currently executed natively in the Android application.
+Carrillo-Amado, Y. R., Califa-Urquiza, M. A., & Ramón-Valencia, J. A. (2020). Calibration and standardization of air quality measurements using MQ sensors. *Respuestas, 25*(1), 70–77. https://doi.org/10.22463/0122820X.2408
+
+Kaunkid, S., Aurasopon, A., Khamsen, W., Takeang, C., Piladaeng, N., & Lloret, J. (2024). Resistive measurement method for MQ sensors based on ADCs of microcontrollers. *IEEE Access, 12*, 144364–144376. https://doi.org/10.1109/ACCESS.2024.3472697
+
+Honeycutt, W. T., Ley, M. T., & Materer, N. F. (2019). Precision and limits of detection for selected commercially available, low-cost carbon dioxide and methane gas sensors. *Sensors, 19*(14), 3157. https://doi.org/10.3390/s19143157
+
+Easterline, L. M., Putri, A. A.-Z. R., Atmaja, P. S., Dewi, A. L., & Prasetyo, A. (2024). Smart air monitoring with IoT-based MQ-2, MQ-7, MQ-8, and MQ-135 sensors using NodeMCU ESP32. *Procedia Computer Science, 245*, 815–824. https://doi.org/10.1016/j.procs.2024.10.308
+
+Sari, I. P., Yulitha, K. R., Lailatushifa, Saputra, M. A., Nadia Ita P., Wahyuni, A., & Hayat, M. (2026). Detecting potential gas hazards in laboratory environments with Arduino Uno and MQ multigas sensors. *Journal of Natural Sciences and Applications, 1*(1), 1–12. https://doi.org/10.58421/jnsa.v1i1.1263
+
+> The published author string **“Nadia Ita P”** is retained because the source does not make the family-name parsing sufficiently clear to normalize it more aggressively without risking a citation error.
+
+Poeta, E., Núñez-Carmona, E., & Sberveglieri, V. (2025). A review: Applications of MOX sensors from air quality monitoring to biomedical diagnosis and agro-food quality control. *Journal of Sensor and Actuator Networks, 14*(3), 50. https://doi.org/10.3390/jsan14030050
+
+Zong, B., Wu, S., Yang, Y., Li, Q., Tao, T., & Mao, S. (2025). Smart gas sensors: Recent developments and future prospective. *Nano-Micro Letters, 17*, 54. https://doi.org/10.1007/s40820-024-01543-w
+
+Nasution, T. I., Asrosa, R., & Nainggolan, I. (2018). Application of MQ-138 semiconductor sensor for breath acetone detection. *Journal of Physics: Conference Series, 1116*, 032023. https://doi.org/10.1088/1742-6596/1116/3/032023
+
+Mousa, A. J., ALsobhani, A., & Abdul-Rahaim, L. A. (2026). Sensor-response-based multi-gas classification using low-cost MQ sensors and a lightweight neural network. *Results in Engineering, 32*, 112284. https://doi.org/10.1016/j.rineng.2026.112284
+
+Ahmad, A., Sendra, S., Lloret, J., Bai, J., Rosskopf, E., & Di Gioia, F. (2026). The promise of low-cost metal-oxide semiconductor gas sensors for precision agriculture. *Advanced Sensor Research, 5*, e00112. https://doi.org/10.1002/adsr.202500112
+
+### How these papers should be used in a HazRob publication
+
+- **Carrillo-Amado et al. (2020)** supports discussion of Rs/R0-based mathematical calibration and conversion of manufacturer curves into computable models; it does not prove calibration of the individual HazRob sensors.
+- **Kaunkid et al. (2024)** is directly relevant to resistance-measurement uncertainty, ADC error, reference resistance, and supply-voltage effects. It is especially useful when discussing the reason for using external ADC acquisition and careful electrical characterization.
+- **Honeycutt et al. (2019)** supports controlled-gas calibration, precision, limit-of-detection, baseline drift, and the importance of environmental control for low-cost chemiresistive sensors.
+- **Easterline et al. (2024)** and **Sari et al. (2026)** are system/application references for multi-MQ monitoring and microcontroller-based warning architectures. Claims in those papers about target gases should not replace the appropriate manufacturer manual.
+- **Poeta et al. (2025)** and **Zong et al. (2025)** are broad contemporary review sources for MOX sensing, cross-sensitivity, temperature/humidity effects, smart sensor arrays, data integrity, AI and IoT integration.
+- **Nasution et al. (2018)** is a useful example of an MQ/MOS sensor in a specialized acetone application, but MQ-138 is not part of the current HazRob eight-sensor array.
+- **Mousa et al. (2026)** is particularly relevant to HazRob's sensor-fusion direction because it explicitly distinguishes manufacturer-curve-derived concentration targets from certified reference-grade concentrations.
+- **Ahmad et al. (2026)** supports broader discussion of low-cost MOS sensor arrays, E-nose approaches, AI/ML, selectivity, drift, durability, signal stability, and the need for robust labeled datasets.
+
+## 4. Statistical and machine-learning methodological references
 
 Hoerl, A. E., & Kennard, R. W. (1970). Ridge regression: Biased estimation for nonorthogonal problems. *Technometrics, 12*(1), 55–67. https://doi.org/10.1080/00401706.1970.10488634
 
@@ -66,7 +99,7 @@ Ke, G., Meng, Q., Finley, T., Wang, T., Chen, W., Ma, W., Ye, Q., & Liu, T.-Y. (
 
 Prokhorenkova, L., Gusev, G., Vorobev, A., Dorogush, A. V., & Gulin, A. (2018). CatBoost: Unbiased boosting with categorical features. In *Advances in Neural Information Processing Systems 31*. https://proceedings.neurips.cc/paper/2018/hash/14491b756b3a51daac41c24863285549-Abstract.html
 
-## 4. Occupational exposure limits, IDLH, and flammability screening
+## 5. Occupational exposure limits and chemical identity
 
 Centers for Disease Control and Prevention, National Institute for Occupational Safety and Health. (2020). *NIOSH Pocket Guide to Chemical Hazards*. https://www.cdc.gov/niosh/npg/default.html
 
@@ -78,17 +111,17 @@ Occupational Safety and Health Administration. (n.d.). *Permissible exposure lim
 
 Occupational Safety and Health Administration. (n.d.). *Air contaminants, 29 C.F.R. § 1910.1000*. Retrieved August 28, 2026, from https://www.osha.gov/laws-regs/regulations/standardnumber/1910/1910.1000
 
-### Important interpretation note
+National Institute of Standards and Technology. (n.d.). *NIST Chemistry WebBook, SRD 69*. https://webbook.nist.gov/chemistry/
 
-HazRob's `VERY_SAFE / SAFE / ALERT / DANGER / CRITICAL` color bands are **project-defined screening categories** calculated from referenced exposure/flammability values. They are not themselves OSHA or NIOSH categories and must not be cited as such. Regulatory or occupational-hygiene conclusions must be based on the original agency limits and an appropriately calibrated and validated measurement chain.
+National Library of Medicine. (n.d.). *PubChem*. https://pubchem.ncbi.nlm.nih.gov/
 
-## 5. Environmental sensor documentation
+HazRob's `VERY_SAFE / SAFE / ALERT / DANGER / CRITICAL` bands are project-defined screening categories. They must not be described as OSHA or NIOSH categories.
+
+## 6. Environmental sensor documentation
 
 Bosch Sensortec GmbH. (2016). *BME280 combined humidity and pressure sensor: Final data sheet* (Revision 1.3; Document BST-BME280-DS001-12). Bosch Sensortec. https://www.bosch-sensortec.com/products/environmental-sensors/humidity-sensors-bme280/
 
-The BME280 is used in the robot firmware for ambient temperature, relative humidity, and barometric pressure. HazRob also derives an approximate altitude from barometric pressure for display; that derived altitude is not a direct BME280 measurement.
-
-## 6. ESP32 / ESP32-CAM implementation references
+## 7. ESP32 / ESP32-CAM implementation references
 
 Espressif Systems. (n.d.). *Arduino-ESP32 CameraWebServer example* [Source code]. GitHub. Retrieved August 28, 2026, from https://github.com/espressif/arduino-esp32/tree/master/libraries/ESP32/examples/Camera/CameraWebServer
 
@@ -96,9 +129,9 @@ Espressif Systems. (n.d.). *CameraWebServer.ino* [Source code]. GitHub. Retrieve
 
 Espressif Systems. (n.d.). *Arduino-ESP32 WebServer examples* [Source code]. GitHub. Retrieved August 28, 2026, from https://github.com/espressif/arduino-esp32/tree/master/libraries/WebServer/examples
 
-These sources informed compatibility with the standard ESP32-CAM MJPEG streaming/control pattern. The HazRob robot-control API itself (`/drive`, `/stop`, `/diag`, `/measure`, `/relay`, `/cfg`) is project-specific firmware rather than an Espressif standard API.
+The HazRob robot-control API (`/drive`, `/stop`, `/diag`, `/measure`, `/relay`, `/cfg`) is project-specific firmware and is not an Espressif standard API.
 
-## 7. Android platform and application implementation references
+## 8. Android and report-format references
 
 Google. (n.d.). *ConnectivityManager* [Android API reference]. Android Developers. Retrieved August 28, 2026, from https://developer.android.com/reference/android/net/ConnectivityManager
 
@@ -110,13 +143,7 @@ Google. (n.d.). *SQLiteOpenHelper* [Android API reference]. Android Developers. 
 
 Google. (n.d.). *Sign your app*. Android Developers. Retrieved August 28, 2026, from https://developer.android.com/studio/publish/app-signing
 
-The Android signing reference is specifically relevant to HazRob's fixed prototype signing certificate and the requirement that later APK versions retain a compatible signing identity to install as updates over earlier HazRob versions.
-
-## 8. XLSX / report-generation format reference
-
 Ecma International. (2021). *ECMA-376: Office Open XML file formats* (5th ed.). https://ecma-international.org/publications-and-standards/standards/ecma-376/
-
-HazRob creates `.xlsx` workbooks using the Office Open XML packaging/SpreadsheetML structure rather than exporting a CSV file with an `.xlsx` extension.
 
 ## 9. Build and continuous-integration references
 
@@ -124,11 +151,7 @@ GitHub. (n.d.). *actions/upload-artifact* [Computer software]. GitHub. Retrieved
 
 GitHub. (n.d.). *GitHub Actions documentation*. Retrieved August 28, 2026, from https://docs.github.com/actions
 
-HazRob's CI builds the signed APK, runs regression tests, verifies the APK signing certificate, and uploads the release artifact.
-
-## 10. Engineering and calibration standards referenced in the broader HazRob system design
-
-These standards are design/reference standards for the wider robot, calibration workflow, enclosure, electrical safety, battery system, and potential hazardous-area deployment. Compliance with a standard must not be claimed merely because the standard was consulted.
+## 10. Engineering, calibration, and hazardous-area standards
 
 International Organization for Standardization. (2010). *ISO 12100:2010 Safety of machinery—General principles for design—Risk assessment and risk reduction*. https://www.iso.org/standard/51528.html
 
@@ -140,7 +163,7 @@ International Electrotechnical Commission. (2026). *IEC 60079-0:2026: Explosive 
 
 International Electrotechnical Commission. (2020). *IEC 60079-10-1:2020: Explosive atmospheres—Part 10-1: Classification of areas—Explosive gas atmospheres* (Edition 3.0). https://webstore.iec.ch/en/publication/63327
 
-International Electrotechnical Commission. (2023). *IEC 60079-11:2023: Explosive atmospheres—Part 11: Equipment protection by intrinsic safety “i”* (Edition 7.0; corrected version incorporating later corrigenda/interpretation sheets where applicable). https://webstore.iec.ch/en/publication/60654
+International Electrotechnical Commission. (2023). *IEC 60079-11:2023: Explosive atmospheres—Part 11: Equipment protection by intrinsic safety “i”* (Edition 7.0). https://webstore.iec.ch/en/publication/60654
 
 International Organization for Standardization, & International Electrotechnical Commission. (2017). *ISO/IEC 17025:2017 General requirements for the competence of testing and calibration laboratories* (3rd ed.). https://www.iso.org/standard/66912.html
 
@@ -152,29 +175,26 @@ International Electrotechnical Commission. (2022). *IEC 62619:2022 Secondary cel
 
 International Organization for Standardization. (2023). *ISO 13849-1:2023 Safety of machinery—Safety-related parts of control systems—Part 1: General principles for design* (4th ed.). https://www.iso.org/standard/73481.html
 
-### Hazardous-area status note
+> Referencing IEC 60079 does **not** mean that the current HazRob prototype is Ex-certified. Any hazardous-area claim requires the applicable protection concept, verified design, testing, documentation, and certification.
 
-The current prototype ESP32/ESP32-CAM/MQ/repeater/battery architecture is **not automatically Ex-certified** by referencing IEC 60079 documents. Any future claim of suitability for explosive atmospheres requires an appropriate protection concept, component selection, design verification, testing, documentation, and certification against the applicable current standards.
+## 11. Internal project sources and software citation
 
-## 11. Internal project sources
+The application contains historical HazRob/SERVOC chemical catalogs, physical-measurement definitions, MQ evidence/curve records, consensus logic and project-specific control/analysis algorithms. These are internal project artifacts, not independent scientific authorities.
 
-The Android application also contains material migrated from the earlier SERVOC ESP32 firmware, including the original chemical catalog, physical measurement catalog, MQ curve records, consensus logic, exposure-limit table, sensor-acquisition contract, and HTTP control endpoints. These are **internal project artifacts**, not independent external scientific references. Where those internal files themselves derive data from external sources, the external source should be cited from the sections above.
+Suggested software citation for the current baseline:
 
-Suggested software citation for the current application:
+Sohpany. (2026). *HazRob Android application* (Version 0.8.0) [Computer software]. GitHub. https://github.com/sohpany/SERVOC-Android
 
-Sohpany. (2026). *HazRob Android application* (Version 0.4.0) [Computer software]. GitHub. https://github.com/sohpany/SERVOC-Android
+## 12. Recommended citation hierarchy for a journal paper or conference paper
 
-## 12. Recommended citation hierarchy for papers/theses
-
-When writing a research paper based on HazRob, prefer citations in this order:
-
-1. **Manufacturer manual** for sensor target gas, electrical conditions, heater protocol, detection range, preheat, and typical sensitivity behavior.
-2. **NIOSH/OSHA primary sources** for occupational exposure values and IDLH information.
-3. **ISO/IEC/IEC standards** for calibration, machinery safety, electrical safety, enclosure/IP, battery, or explosive-atmosphere design claims.
-4. **Peer-reviewed publications / canonical algorithm references** for statistical or machine-learning methods.
-5. **MQSensorsLib / MQDataScience** for community digitization, fitted response equations, environmental-correction models, and software implementation provenance.
-6. **HazRob source code** for project-specific fusion logic, UI risk mapping, experimental calibration workflow, and system integration.
+1. **Manufacturer manual** for the sensor's electrical conditions, heater protocol, nominal range and typical sensitivity behavior.
+2. **Traceable calibration standard/method and actual experiment record** for quantitative concentration claims.
+3. **NIOSH/OSHA primary sources** for occupational exposure values and IDLH information.
+4. **ISO/IEC standards** for calibration, safety, enclosure, battery or hazardous-area design claims.
+5. **Peer-reviewed experimental/review literature** for MOS/MQ measurement behavior, uncertainty, drift, sensor fusion and AI/ML methodology.
+6. **MQSensorsLib / MQDataScience** for software implementation provenance and community-derived curve/model methods.
+7. **HazRob source code and exact Git commit** for project-specific integration, data acquisition, analytical logic and UI/report behavior.
 
 ## 13. Version-control provenance
 
-For reproducibility, publications should record the exact HazRob release and, where relevant, the Git commit used for analysis. The reference set in this file was reviewed for HazRob **v0.4.0** on **August 28, 2026**. MQDataScience is explicitly pinned in HazRob source code to version **6.0.0**, commit **e88f876140587a708ee84a4d4d3acbd5720274ee**.
+For reproducibility, publications should record the exact HazRob release and Git commit used for data acquisition and analysis. This reference baseline was updated for **HazRob v0.8.0** on **September 2, 2026**. MQDataScience is pinned to version **6.0.0**, commit **e88f876140587a708ee84a4d4d3acbd5720274ee**. The authoritative NIOSH/OSHA datasets bundled with the application include provenance manifests and SHA-256 integrity checks performed by CI before APK build.
