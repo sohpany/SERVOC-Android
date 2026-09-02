@@ -23,14 +23,14 @@ public final class ModelRuntimeRegistry {
             CalibrationRegressionModels.POLY2,
             CalibrationRegressionModels.POLY3,
             CalibrationRegressionModels.POLY4,
-            CalibrationRegressionModels.LOGARITHMIC
+            CalibrationRegressionModels.EXPONENTIAL,
+            CalibrationRegressionModels.LOGARITHMIC,
+            CalibrationRegressionModels.POWER
     };
 
     private static final int[] APPROXIMATION={
             CalibrationRegressionModels.HUBER,
-            CalibrationRegressionModels.THEIL_SEN,
-            CalibrationRegressionModels.EXPONENTIAL,
-            CalibrationRegressionModels.POWER
+            CalibrationRegressionModels.THEIL_SEN
     };
 
     public static boolean isAdopted(int zeroBasedIndex){
