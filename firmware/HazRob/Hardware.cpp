@@ -103,16 +103,25 @@ void driveUpdate(){
 const uint8_t rp[]={Cfg::RELAY1,Cfg::RELAY2,Cfg::RELAY3,Cfg::RELAY4};
 uint8_t relayMask=0;
 
+uint8_t bitCount4(uint8_t x){
+  x&=0x0F;
+  uint8_t n=0;
+  while(x){n+=x&1U;x>>=1;}
+  return n;
+}
+
+bool relayAllowed(uint8_t mask){return (mask&0xF0)==0&&bitCount4(mask)<=Cfg::MAX_ACTIVE_ROWS;}
+
 void relayRaw(uint8_t mask){
   mask&=0x0F;
-  for(uint8_t i=0;i<4;i++)digitalWrite(rp[i],mask&(1<<i)?Cfg::RELAY_ON:Cfg::RELAY_OFF);
+  for(uint8_t i=0;i<4;i++)digitalWrite(rp[i],mask&(1U<<i)?Cfg::RELAY_ON:Cfg::RELAY_OFF);
   relayMask=mask;
 }
 
-bool rowOn(uint8_t row){return row>=1&&row<=4&&(relayMask&(1<<(row-1)));}
+bool rowOn(uint8_t row){return row>=1&&row<=4&&(relayMask&(1U<<(row-1)));}
 
-uint8_t legacyRelayGroup(){
-  for(uint8_t i=0;i<4;i++)if(relayMask==(1U<<i))return i+1;
+uint8_t singleRelayGroup(uint8_t mask){
+  for(uint8_t i=0;i<4;i++)if(mask==(1U<<i))return i+1;
   return 0;
 }
 
@@ -153,6 +162,7 @@ void readMQ(uint8_t i){
   r.adc=volts/Cfg::ADC_SAMPLES;
   r.ao=r.adc;
 
+  // ADS full-scale range does not override its VDD input limit.
   if(r.ao<=.01f||r.ao>=Cfg::MQ_VCC){r.ok=false;return;}
   r.rs=Cfg::RL*(Cfg::MQ_VCC-r.ao)/r.ao;
   r.ratio=r.rs/c.r0;
@@ -162,7 +172,7 @@ void readMQ(uint8_t i){
 void mqUpdate(){
   uint32_t now=millis();
   uint16_t slot=Cfg::MQ_PERIOD/Cfg::MQ_N;
-  if(slot<2)slot=2;
+  if(slot<5)slot=5;
   if(now-mqAt<slot)return;
   mqAt=now;
   readMQ(mqIndex);
@@ -227,20 +237,27 @@ void soundUpdate(){
   soundP2P=(hi-lo)*V;
 }
 
-/* IR WARNING ONLY */
-bool irWarning=false;
-uint32_t irAt=0;
+/* DIGITAL WARNING SENSORS */
+bool irWarning=false,ldrActive=false;
+uint8_t irLevel=HIGH,ldrLevel=HIGH;
+uint32_t irAt=0,ldrAt=0;
+
 void irUpdate(){
   uint32_t now=millis();
   if(now-irAt<Cfg::IR_PERIOD)return;
-  irAt=now;
-  irWarning=digitalRead(Cfg::IR_PIN)==Cfg::IR_ACTIVE;
+  irAt=now;irLevel=digitalRead(Cfg::IR_PIN);irWarning=irLevel==Cfg::IR_ACTIVE;
+}
+
+void ldrUpdate(){
+  uint32_t now=millis();
+  if(now-ldrAt<Cfg::LDR_PERIOD)return;
+  ldrAt=now;ldrLevel=digitalRead(Cfg::LDR_PIN);ldrActive=ldrLevel==Cfg::LDR_ACTIVE;
 }
 
 /* MEASUREMENT */
 enum Stage:uint8_t{IDLE,WARM,MEASURE,READY,ERROR};
 Stage stage=IDLE;
-uint8_t row=0;
+uint8_t phase=0xFF,measureMask=0;
 uint32_t stageAt=0,sampleAt=0;
 uint32_t rawSum[Cfg::MQ_N]={};
 float adcSum[Cfg::MQ_N]={},aoSum[Cfg::MQ_N]={},rsSum[Cfg::MQ_N]={},logSum[Cfg::MQ_N]={};
@@ -248,24 +265,27 @@ uint16_t cnt[Cfg::MQ_N]={},rcnt[Cfg::MQ_N]={};
 
 void clearMeasure(){
   memset(rawSum,0,sizeof(rawSum));memset(adcSum,0,sizeof(adcSum));memset(aoSum,0,sizeof(aoSum));
-  memset(rsSum,0,sizeof(rsSum));memset(logSum,0,sizeof(logSum));memset(cnt,0,sizeof(cnt));memset(rcnt,0,sizeof(rcnt));row=0;
+  memset(rsSum,0,sizeof(rsSum));memset(logSum,0,sizeof(logSum));memset(cnt,0,sizeof(cnt));memset(rcnt,0,sizeof(rcnt));
+  phase=0xFF;measureMask=0;
 }
 
-bool hasRow(uint8_t r){for(uint8_t i=0;i<Cfg::MQ_N;i++)if(Cfg::mq[i].row==r)return true;return false;}
+void finishMeasure(){
+  relayRaw(0);measureMask=0;phase=0xFF;
+  bool ok=false;for(uint8_t i=0;i<Cfg::MQ_N;i++)if(cnt[i]){ok=true;break;}
+  stage=ok?READY:ERROR;
+}
 
-void nextRow(uint8_t r){
+void nextPhase(uint8_t p){
   relayRaw(0);
-  while(r<=Cfg::MQ_ROWS&&!hasRow(r))r++;
-  if(r>Cfg::MQ_ROWS){
-    bool ok=false;for(uint8_t i=0;i<Cfg::MQ_N;i++)if(cnt[i])ok=true;
-    row=0;stage=ok?READY:ERROR;return;
-  }
-  row=r;relayRaw(1<<(row-1));stage=WARM;stageAt=millis();
+  if(p>=Cfg::MEASURE_PHASES){finishMeasure();return;}
+  uint8_t mask=Cfg::MEASURE_MASKS[p];
+  if(!relayAllowed(mask)){stage=ERROR;phase=0xFF;measureMask=0;return;}
+  phase=p;measureMask=mask;relayRaw(mask);stage=WARM;stageAt=millis();sampleAt=stageAt;
 }
 
 void collect(){
   for(uint8_t i=0;i<Cfg::MQ_N;i++){
-    if(Cfg::mq[i].row!=row||!mq[i].ok)continue;
+    if(!rowOn(Cfg::mq[i].row)||!mq[i].ok)continue;
     rawSum[i]+=mq[i].raw;adcSum[i]+=mq[i].adc;aoSum[i]+=mq[i].ao;rsSum[i]+=mq[i].rs;cnt[i]++;
     if(mq[i].ratio>0){logSum[i]+=logf(mq[i].ratio);rcnt[i]++;}
   }
@@ -279,7 +299,7 @@ void measureUpdate(){
     return;
   }
   if(now-sampleAt>=Cfg::SAMPLE_PERIOD){sampleAt=now;collect();}
-  if(now-stageAt>=(uint32_t)settings.measure*1000UL)nextRow(row+1);
+  if(now-stageAt>=(uint32_t)settings.measure*1000UL)nextPhase((uint8_t)(phase+1));
 }
 
 /* SETTINGS + JSON */
@@ -315,6 +335,7 @@ String mqJson(bool avg){
       j+="\"ok\":";j+=mq[i].ok?"true":"false";j+=",\"raw\":"+String(mq[i].raw);j+=",\"adc\":"+num(mq[i].adc,3);
       j+=",\"ao\":"+num(mq[i].ao,3);j+=",\"rs\":"+num(mq[i].rs,3);j+=",\"ratio\":"+num(mq[i].ratio,3);
     }
+    j+=",\"row\":"+String(Cfg::mq[i].row)+",\"ads\":"+String(Cfg::mq[i].ads+1)+",\"ch\":"+String(Cfg::mq[i].ch)+",\"r0_calibrated\":false";
     j+="}";
   }
   return j+"}";
@@ -325,10 +346,11 @@ String mqJson(bool avg){
 /* PUBLIC */
 void hwBegin(){
   loadSettings();
-  for(uint8_t p:rp){pinMode(p,OUTPUT);digitalWrite(p,Cfg::RELAY_OFF);}
+
+  for(uint8_t p:rp){digitalWrite(p,Cfg::RELAY_OFF);pinMode(p,OUTPUT);}
   relayRaw(0);
 
-  pinMode(Cfg::IR_PIN,INPUT);pinMode(Cfg::SOUND_PIN,INPUT);
+  pinMode(Cfg::IR_PIN,INPUT);pinMode(Cfg::LDR_PIN,INPUT);pinMode(Cfg::SOUND_PIN,INPUT);
   analogReadResolution(12);analogSetPinAttenuation(Cfg::SOUND_PIN,ADC_11db);
 
   sL.setPeriodHertz(50);sR.setPeriodHertz(50);
@@ -342,7 +364,7 @@ void hwBegin(){
   envBegin();
 }
 
-void hwUpdate(){driveUpdate();mqUpdate();envUpdate();soundUpdate();irUpdate();measureUpdate();}
+void hwUpdate(){driveUpdate();mqUpdate();envUpdate();soundUpdate();irUpdate();ldrUpdate();measureUpdate();}
 
 void driveSet(int l,int r){
   if(retracing||fs)clearHistory();
@@ -355,8 +377,13 @@ void stopAll(){
   clearHistory();driveWrite();measureCancel();
 }
 
-void relaySetMask(uint8_t mask){measureCancel();relayRaw(mask&0x0F);}
-void measureStart(){clearMeasure();nextRow(1);}
+bool relaySetMask(uint8_t mask){
+  if(!relayAllowed(mask))return false;
+  measureCancel();relayRaw(mask);return true;
+}
+
+void measureStart(){clearMeasure();nextPhase(0);}
+
 void measureCancel(){relayRaw(0);clearMeasure();stage=IDLE;}
 
 void saveSettings(){
@@ -371,19 +398,27 @@ String settingsJson(){
 
 String dataJson(){
   String j="{\"env\":";j+=envJson();
-  j+=",\"sound\":{\"rms\":"+num(soundRms,3)+",\"p2p\":"+num(soundP2P,3)+"}";
-  j+=",\"ir\":{\"warning\":";j+=irWarning?"true":"false";j+="}";
-  j+=",\"relay\":"+String(legacyRelayGroup());j+=",\"relayMask\":"+String(relayMask);
+  j+=",\"sound\":{\"rms\":"+num(soundRms,4)+",\"p2p\":"+num(soundP2P,4)+"}";
+  j+=",\"ir\":{\"warning\":";j+=irWarning?"true":"false";j+=",\"level\":"+String(irLevel)+"}";
+  j+=",\"ldr\":{\"active\":";j+=ldrActive?"true":"false";j+=",\"level\":"+String(ldrLevel)+"}";
+  j+=",\"relay\":"+String(singleRelayGroup(relayMask));j+=",\"relayMask\":"+String(relayMask);
   j+=",\"retrace\":";j+=retracing?"true":"false";
   j+=",\"mq\":"+mqJson(false);
-  j+=",\"measurement\":{\"state\":"+String((uint8_t)stage);j+=",\"group\":"+String(row);j+=",\"mq\":"+mqJson(true)+"}}";
+  j+=",\"measurement\":{\"state\":"+String((uint8_t)stage);
+  j+=",\"group\":"+String(singleRelayGroup(measureMask));
+  j+=",\"phase\":"+String(phase==0xFF?0:phase+1);
+  j+=",\"mask\":"+String(measureMask);
+  j+=",\"mq\":"+mqJson(true)+"}}";
   return j;
 }
 
 String diagJson(){
-  String j="{\"fw\":\"HazRob\",\"api\":3";j+=",\"heap\":"+String(ESP.getFreeHeap());j+=",\"clients\":"+String(WiFi.softAPgetStationNum());
+  String j="{\"fw\":\"HazRob 0.7.1\",\"api\":3";
+  j+=",\"heap\":"+String(ESP.getFreeHeap());j+=",\"clients\":"+String(WiFi.softAPgetStationNum());
   j+=",\"failsafe\":";j+=fs?"true":"false";j+=",\"retrace\":";j+=retracing?"true":"false";j+=",\"history\":"+String(histCount);
-  j+=",\"relayMask\":"+String(relayMask);j+=",\"ads1\":";j+=ads1ok?"true":"false";j+=",\"ads2\":";j+=ads2ok?"true":"false";
-  j+=",\"ir\":";j+=irWarning?"true":"false";j+=",\"envType\":"+String(envType);j+=",\"envAddr\":"+String(envAddr);j+=",\"envId\":"+String(envId);
+  j+=",\"relayMask\":"+String(relayMask);j+=",\"mqRows\":"+String(Cfg::MQ_ROWS);j+=",\"maxActiveRows\":"+String(Cfg::MAX_ACTIVE_ROWS);
+  j+=",\"ads1\":";j+=ads1ok?"true":"false";j+=",\"ads2\":";j+=ads2ok?"true":"false";
+  j+=",\"ir\":";j+=irWarning?"true":"false";j+=",\"ldr\":";j+=ldrActive?"true":"false";
+  j+=",\"envType\":"+String(envType);j+=",\"envAddr\":"+String(envAddr);j+=",\"envId\":"+String(envId);
   return j+"}";
 }
