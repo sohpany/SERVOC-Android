@@ -11,8 +11,14 @@ void startAP(){
   WiFi.persistent(false);
   WiFi.mode(WIFI_AP);
   WiFi.setSleep(false);
+
   IPAddress ip(192,168,4,1);
-  WiFi.softAPConfig(ip,ip,IPAddress(255,255,255,0));
+  IPAddress subnet(255,255,255,0);
+  IPAddress dhcpStart(192,168,4,100);
+
+  // Reserve 192.168.4.2 for the ESP-CAM. DHCP clients (phone, etc.)
+  // start at .100 so they can never collide with the camera's static IP.
+  WiFi.softAPConfig(ip,ip,subnet,dhcpStart);
   WiFi.softAP(Cfg::SSID);
 }
 
