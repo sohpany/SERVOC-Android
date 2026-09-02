@@ -1,9 +1,9 @@
 package com.servoc.app;
 
-/** Build markers for the HazRob 0.7 hardware/application integration. */
+/** Build markers for the HazRob 0.7.1 hardware/application integration. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.7.0";
+    public static final String VERSION="0.7.1";
     public static final int DATABASE_SCHEMA=7;
     public static final String ESP32_API="HazRob API v3 + relayMask/ADS1115/IR/sound/retrace extensions";
     public static final boolean PRECALIBRATED_MQ=false;
@@ -22,8 +22,10 @@ public final class ReleaseAudit {
     public static final boolean OSHA_Z1_PEL_SEED=true;
     public static final boolean VIDEO_RECORDING=true;
     public static final boolean DIRECT_ESP_CAM_MJPEG=true;
+    public static final boolean CAMERA_ENDPOINT_FALLBACK=true;
+    public static final boolean VIDEO_STANDALONE_FROM_REPORTS=true;
     public static final boolean FLAME_EVIDENCE_EXPERIMENTAL=true;
-    public static final boolean VIDEO_LINKED_TO_MEASUREMENTS=true;
+    public static final boolean VIDEO_LINKED_TO_MEASUREMENTS=false;
     public static final boolean SENSOR_HEALTH_DRIFT=true;
     public static final boolean GAS_DIRECTION_ASSIST=true;
     public static final boolean GAS_TRACKING_RELAY_BANK_CONTROL=true;
