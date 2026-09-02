@@ -9,6 +9,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
@@ -22,7 +23,7 @@ public final class SettingsTab {
     private final TextView compatibility,cameraState,libraryInfo,mqPowerState;
 
     public SettingsTab(Context c,HazRobHost host){
-        this.host=host;scroll=new ScrollView(c);scroll.setFillViewport(true);
+        this.host=host;ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
         LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
         root.addView(UiKit.title(c,"الإعدادات • HazRob 0.8"),UiKit.full(c));
 
@@ -70,48 +71,14 @@ public final class SettingsTab {
     private EditText field(Context c,LinearLayout p,String label,String value){p.addView(UiKit.small(c,label),UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
     public View view(){return scroll;}
 
-    public void refresh(){
-        JSONObject d=host.latestDiagnostics();
-        if(d==null){compatibility.setText("Firmware: لا يوجد اتصال بالروبوت");mqPowerState.setText("حالة MQ: غير متصل");mqPowerState.setTextColor(0xFFFFB74D);return;}
-        JSONObject adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay");int mask=relay==null?0:relay.optInt("mask",0)&3;
-        compatibility.setText("Firmware: "+d.optString("firmware","غير معرّف")+" • API "+d.optInt("api_version",0)+" • Heap "+d.optLong("heap",0)+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+" • ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+" • ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—")+" • MQ groups 2 • relay mask "+mask);
-        mqPowerState.setText("حالة MQ: "+HazRobHardwareProfile.groupLabel(mask)+" • mask "+mask+" • تحكم يدوي");
-        mqPowerState.setTextColor(mask==0?Color.LTGRAY:0xFF81C784);
-    }
+    public void refresh(){JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware: لا يوجد اتصال بالروبوت");mqPowerState.setText("حالة MQ: غير متصل");mqPowerState.setTextColor(0xFFFFB74D);return;}JSONObject adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay");int mask=relay==null?0:relay.optInt("mask",0)&3;compatibility.setText("Firmware: "+d.optString("firmware","غير معرّف")+" • API "+d.optInt("api_version",0)+" • Heap "+d.optLong("heap",0)+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+" • ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+" • ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—")+" • MQ groups 2 • relay mask "+mask);mqPowerState.setText("حالة MQ: "+HazRobHardwareProfile.groupLabel(mask)+" • mask "+mask+" • تحكم يدوي");mqPowerState.setTextColor(mask==0?Color.LTGRAY:0xFF81C784);}
 
-    private void setMqPower(int mask){
-        host.io().execute(()->{try{host.robotApi().relayMask(mask);host.showToast("MQ: "+HazRobHardwareProfile.groupLabel(mask));host.refreshAllTabs();}catch(Exception e){host.showToast("تعذر تطبيق طاقة MQ");}});
-    }
-
+    private void setMqPower(int mask){host.io().execute(()->{try{host.robotApi().relayMask(mask);host.showToast("MQ: "+HazRobHardwareProfile.groupLabel(mask));host.refreshAllTabs();}catch(Exception e){host.showToast("تعذر تطبيق طاقة MQ");}});}
     private void saveNetwork(){host.emergencyStop();String rh=robot.getText().toString().trim(),ch=camera.getText().toString().trim();host.robotApi().setRobotHost(rh);host.setCameraHost(ch);camera.setText(host.cameraHost());host.preferences().edit().putString("robot",host.robotApi().getRobotHost()).putString("camera",host.cameraHost()).apply();host.showToast("تم تطبيق الشبكة وإيقاف الحركة احترازيًا");host.refreshAllTabs();}
 
-    private void testConnections(){
-        host.io().execute(()->{
-            boolean robotOk=false;try{robotOk=host.robotApi().diagnostics()!=null;}catch(Exception ignored){}
-            JSONObject cam=null;try{cam=host.cameraDiagnostics();}catch(Exception ignored){}
-            boolean cameraOk=cam!=null;if(!cameraOk)try{cameraOk=host.cameraReachable();}catch(Exception ignored){}
-            final boolean rOk=robotOk,cOk=cameraOk;final JSONObject cdiag=cam;final String ch=host.cameraHost();
-            new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{
-                if(cdiag!=null){
-                    boolean sensorOk=cdiag.optBoolean("camera_ok",cdiag.optBoolean("ok",true));
-                    String fw=cdiag.optString("fw","ESP32-CAM"),ssid=cdiag.optString("ssid","—"),ip=cdiag.optString("ip",ch),sensor=cdiag.optString("sensor","—");
-                    String pid=cdiag.has("pid")?String.format(Locale.US,"0x%04X",cdiag.optInt("pid",0)):"—";
-                    String fps=cdiag.has("fps")?String.format(Locale.US,"%.2f",cdiag.optDouble("fps",0)):"—";
-                    String enc=cdiag.has("encode_ms")?String.format(Locale.US,"%.1f ms",cdiag.optDouble("encode_ms",0)):"—";
-                    String jpg=cdiag.has("jpeg_bytes")?cdiag.optLong("jpeg_bytes",0)+" B":"—";
-                    String rssi=cdiag.has("rssi")?cdiag.optInt("rssi",0)+" dBm":"—";
-                    cameraState.setText("تشخيص الكاميرا: "+fw+" • "+(sensorOk?"sensor OK":"sensor FAIL")+" • "+sensor+" / "+pid+"\nSSID "+ssid+" • IP "+ip+" • RSSI "+rssi+"\nCamera FPS "+fps+" • JPEG "+enc+" • "+jpg+" • capErr "+cdiag.optLong("capture_errors",0)+" • encErr "+cdiag.optLong("encode_errors",0));
-                    cameraState.setTextColor(sensorOk?0xFF81C784:0xFFFF7043);
-                }else{cameraState.setText("تشخيص الكاميرا: "+(cOk?"استجابة HTTP قديمة بدون /status":"لا استجابة من "+ch+" على المنافذ المتوقعة"));cameraState.setTextColor(cOk?0xFFFFB74D:0xFFFF7043);}
-                host.showToast("الروبوت "+(rOk?"متصل":"فشل")+" • الكاميرا "+(cOk?"متصلة":"فشل"));
-            });
-        });
-    }
-
+    private void testConnections(){host.io().execute(()->{boolean robotOk=false;try{robotOk=host.robotApi().diagnostics()!=null;}catch(Exception ignored){}JSONObject cam=null;try{cam=host.cameraDiagnostics();}catch(Exception ignored){}boolean cameraOk=cam!=null;if(!cameraOk)try{cameraOk=host.cameraReachable();}catch(Exception ignored){}final boolean rOk=robotOk,cOk=cameraOk;final JSONObject cdiag=cam;final String ch=host.cameraHost();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{if(cdiag!=null){boolean sensorOk=cdiag.optBoolean("camera_ok",cdiag.optBoolean("ok",true));String fw=cdiag.optString("fw","ESP32-CAM"),ssid=cdiag.optString("ssid","—"),ip=cdiag.optString("ip",ch),sensor=cdiag.optString("sensor","—");String pid=cdiag.has("pid")?String.format(Locale.US,"0x%04X",cdiag.optInt("pid",0)):"—";String fps=cdiag.has("fps")?String.format(Locale.US,"%.2f",cdiag.optDouble("fps",0)):"—";String enc=cdiag.has("encode_ms")?String.format(Locale.US,"%.1f ms",cdiag.optDouble("encode_ms",0)):"—";String jpg=cdiag.has("jpeg_bytes")?cdiag.optLong("jpeg_bytes",0)+" B":"—";String rssi=cdiag.has("rssi")?cdiag.optInt("rssi",0)+" dBm":"—";cameraState.setText("تشخيص الكاميرا: "+fw+" • "+(sensorOk?"sensor OK":"sensor FAIL")+" • "+sensor+" / "+pid+"\nSSID "+ssid+" • IP "+ip+" • RSSI "+rssi+"\nCamera FPS "+fps+" • JPEG "+enc+" • "+jpg+" • capErr "+cdiag.optLong("capture_errors",0)+" • encErr "+cdiag.optLong("encode_errors",0));cameraState.setTextColor(sensorOk?0xFF81C784:0xFFFF7043);}else{cameraState.setText("تشخيص الكاميرا: "+(cOk?"استجابة HTTP قديمة بدون /status":"لا استجابة من "+ch+" على المنافذ المتوقعة"));cameraState.setTextColor(cOk?0xFFFFB74D:0xFFFF7043);}host.showToast("الروبوت "+(rOk?"متصل":"فشل")+" • الكاميرا "+(cOk?"متصلة":"فشل"));});});}
     private void sync(){host.io().execute(()->{try{JSONObject x=host.robotApi().config();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showConfig(x));}catch(Exception e){host.showToast("تعذر قراءة إعدادات ESP32");}});}
-
     private void apply(){host.emergencyStop();final int s=clamp(num(speed,100),20,100),l=clamp(num(nl,1500),1400,1600),r=clamp(num(nr,1500),1400,1600),w=clamp(num(warm,60),0,3600),m=clamp(num(measure,30),5,600);host.setCameraHost(camera.getText().toString().trim());final String cam=host.cameraHost();camera.setText(cam);host.io().execute(()->{try{JSONObject x=host.robotApi().setConfig(cam,s,l,r,w,m);host.preferences().edit().putInt("speed",s).putInt("nl",l).putInt("nr",r).putInt("warm",w).putInt("measure",m).apply();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showConfig(x));host.showToast("تم تطبيق إعدادات ESP32");}catch(Exception e){host.showToast("فشل تطبيق إعدادات ESP32");}});}
-
     private void showConfig(JSONObject x){if(x==null)return;camera.setText(x.optString("cam",camera.getText().toString()));speed.setText(String.valueOf(x.optInt("speed",100)));nl.setText(String.valueOf(x.optInt("nl",1500)));nr.setText(String.valueOf(x.optInt("nr",1500)));warm.setText(String.valueOf(x.optInt("warm",60)));measure.setText(String.valueOf(x.optInt("measure",30)));}
     private int num(EditText e,int f){try{return Integer.parseInt(e.getText().toString().trim());}catch(Exception x){return f;}}
     private static int clamp(int v,int lo,int hi){return Math.max(lo,Math.min(hi,v));}
