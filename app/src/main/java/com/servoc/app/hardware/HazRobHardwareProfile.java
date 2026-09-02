@@ -6,7 +6,7 @@ import com.servoc.app.chemical.GasEngine;
 public final class HazRobHardwareProfile {
     private HazRobHardwareProfile(){}
 
-    public static final String ID="hazrob-0.8-2g8mq-v1";
+    public static final String ID="hazrob_2g8mq_v1";
     public static final int MQ_GROUPS=2;
     public static final int RELAY_CHANNELS=4;
     public static final int INSTALLED_RELAY_MASK=0x03; // R1/R2 installed, R3/R4 reserved.
