@@ -54,12 +54,12 @@ public final class CalibrationRegressionModels {
         public double predict(double x){
             if(!Double.isFinite(x))return Double.NaN;
             switch(kind){
-                case 0:return coefficients[0]+coefficients[1]*x; // intercept + slope*x
+                case 0:return coefficients[0]+coefficients[1]*x;
                 case 1:{double y=0,p=1;for(double c:coefficients){y+=c*p;p*=x;}return y;}
-                case 2:return Math.exp(coefficients[0]+coefficients[1]*x); // Android approximation
+                case 2:{double z=clip(coefficients[1]*x,-50,50);return coefficients[0]*Math.exp(z)+coefficients[2];}
                 case 3:return x>0?coefficients[0]+coefficients[1]*Math.log(x):Double.NaN;
-                case 4:return x>0?Math.exp(coefficients[0]+coefficients[1]*Math.log(x)):Double.NaN; // approximation
-                case 5:return coefficients[0]*x; // upstream FGLS has no intercept
+                case 4:{double xx=Math.max(x,1e-8);return coefficients[0]*Math.pow(xx,coefficients[1])+coefficients[2];}
+                case 5:return coefficients[0]*x;
                 default:return Double.NaN;
             }
         }
@@ -75,9 +75,9 @@ public final class CalibrationRegressionModels {
                 }
                 return s.toString();
             }
-            if(kind==2)return "ppm ≈ exp("+f(coefficients[0])+" + "+f(coefficients[1])+"·x)";
+            if(kind==2)return "ppm = "+f(coefficients[0])+"·exp("+f(coefficients[1])+"·x) + "+f(coefficients[2]);
             if(kind==3)return "ppm = "+f(coefficients[0])+" + "+f(coefficients[1])+"·ln(x)";
-            if(kind==4)return "ppm ≈ "+f(Math.exp(coefficients[0]))+"·x^"+f(coefficients[1]);
+            if(kind==4)return "ppm = "+f(coefficients[0])+"·x^"+f(coefficients[1])+" + "+f(coefficients[2]);
             if(kind==5)return "ppm = "+f(coefficients[0])+"·x";
             return "";
         }
@@ -127,9 +127,9 @@ public final class CalibrationRegressionModels {
         if(catalogIndex==POLY2)return polynomial(catalogIndex,x,y,2);
         if(catalogIndex==POLY3)return polynomial(catalogIndex,x,y,3);
         if(catalogIndex==POLY4)return polynomial(catalogIndex,x,y,4);
-        if(catalogIndex==EXPONENTIAL)return transformed(catalogIndex,x,y,2);
-        if(catalogIndex==LOGARITHMIC)return transformed(catalogIndex,x,y,3);
-        if(catalogIndex==POWER)return transformed(catalogIndex,x,y,4);
+        if(catalogIndex==EXPONENTIAL)return nonlinear3(EXPONENTIAL,x,y,2);
+        if(catalogIndex==LOGARITHMIC)return logarithmic(x,y);
+        if(catalogIndex==POWER)return nonlinear3(POWER,x,y,4);
         return null;
     }
 
@@ -150,10 +150,7 @@ public final class CalibrationRegressionModels {
         return finite(a,b)?new Fit(idx,new double[]{a,b},minPoints,kind):null;
     }
 
-    /**
-     * Port of upstream FGLSModel: through-origin OLS followed by five iterations
-     * of log-residual variance modelling and feasible GLS weighting.
-     */
+    /** Port of upstream FGLSModel. */
     private static Fit fgls(double[] x,double[] y){
         if(x.length<2)return null;
         double xx=sumXX(x);
@@ -169,9 +166,8 @@ public final class CalibrationRegressionModels {
             double alpha=alphaNum/xx;
             double num=0,den=0;
             for(int i=0;i<x.length;i++){
-                double z=Math.max(-50.0,Math.min(50.0,x[i]*alpha));
-                double var=Math.exp(z);
-                var=Math.max(var,1e-12);
+                double z=clip(x[i]*alpha,-50,50);
+                double var=Math.max(Math.exp(z),1e-12);
                 double w=1.0/var;
                 num+=w*x[i]*y[i];
                 den+=w*x[i]*x[i];
@@ -279,12 +275,10 @@ public final class CalibrationRegressionModels {
         if(idx==RIDGE){
             b=sxy/(sxx+alpha);
         }else{
-            // sklearn linear-model objective uses mean squared error scaling.
             double n=x.length;
             double xy=sxy/n,xx=sxx/n;
-            if(idx==LASSO){
-                b=soft(xy,alpha)/xx;
-            }else if(idx==ELASTIC_NET){
+            if(idx==LASSO)b=soft(xy,alpha)/xx;
+            else if(idx==ELASTIC_NET){
                 double l1Ratio=0.5;
                 b=soft(xy,alpha*l1Ratio)/(xx+alpha*(1.0-l1Ratio));
             }else return null;
@@ -300,7 +294,7 @@ public final class CalibrationRegressionModels {
     }
 
     // ---------------------------------------------------------------------
-    // Deming / polynomial / transformed curves
+    // Deming / polynomial / nonlinear curve_fit family
     // ---------------------------------------------------------------------
 
     /** Port of upstream DemingModel with variance-ratio lambda=1. */
@@ -334,25 +328,77 @@ public final class CalibrationRegressionModels {
         return new Fit(idx,coef,p,1);
     }
 
-    /**
-     * Current Android approximations for nonlinear upstream curve_fit models:
-     * mode 2 exponential, mode 3 logarithmic (mathematically linearizable/exact LS),
-     * mode 4 power without upstream offset c.
-     */
-    private static Fit transformed(int idx,double[] x,double[] y,int mode){
+    /** Logarithmic upstream curve_fit is linear least-squares in ln(x). */
+    private static Fit logarithmic(double[] x,double[] y){
         if(x.length<2)return null;
-        double[] tx=new double[x.length],ty=new double[y.length];
-        for(int i=0;i<x.length;i++){
-            if(mode==2){
-                if(y[i]<=0)return null;tx[i]=x[i];ty[i]=Math.log(y[i]);
-            }else if(mode==3){
-                if(x[i]<=0)return null;tx[i]=Math.log(x[i]);ty[i]=y[i];
-            }else{
-                if(x[i]<=0||y[i]<=0)return null;tx[i]=Math.log(x[i]);ty[i]=Math.log(y[i]);
+        double[] lx=new double[x.length];
+        for(int i=0;i<x.length;i++){if(x[i]<=0)return null;lx[i]=Math.log(Math.max(x[i],1e-8));}
+        Fit f=linear(LOGARITHMIC,lx,y,null,2,0);
+        return f==null?null:new Fit(LOGARITHMIC,f.coefficients,2,3);
+    }
+
+    /**
+     * Levenberg-Marquardt port of scipy curve_fit forms used upstream:
+     * EXP: a*exp(clip(b*x,-50,50))+c, p0=[1,.01,min(y)]
+     * POW: a*power(clip(x,1e-8,None),b)+c, p0=[1,1,0]
+     */
+    private static Fit nonlinear3(int idx,double[] x,double[] y,int kind){
+        if(x.length<3)return null;
+        double[] p=kind==2?new double[]{1.0,0.01,min(y)}:new double[]{1.0,1.0,0.0};
+        Eval cur=evaluate3(x,y,p,kind);
+        if(cur==null)return null;
+        double lambda=1e-3;
+        for(int it=0;it<500;it++){
+            double[][] a=new double[3][4];
+            for(int i=0;i<x.length;i++){
+                double r=y[i]-cur.pred[i];
+                for(int rj=0;rj<3;rj++){
+                    a[rj][3]+=cur.jac[i][rj]*r;
+                    for(int cj=0;cj<3;cj++)a[rj][cj]+=cur.jac[i][rj]*cur.jac[i][cj];
+                }
             }
+            for(int k=0;k<3;k++)a[k][k]+=lambda*Math.max(a[k][k],1e-12);
+            double[] delta=solve(a);
+            if(delta==null)break;
+            double[] next={p[0]+delta[0],p[1]+delta[1],p[2]+delta[2]};
+            if(!finite(next)){lambda=Math.min(1e12,lambda*10);continue;}
+            Eval candidate=evaluate3(x,y,next,kind);
+            if(candidate!=null&&candidate.sse<cur.sse){
+                double dn=Math.sqrt(delta[0]*delta[0]+delta[1]*delta[1]+delta[2]*delta[2]);
+                double pn=Math.sqrt(p[0]*p[0]+p[1]*p[1]+p[2]*p[2]);
+                p=next;cur=candidate;lambda=Math.max(1e-12,lambda/5.0);
+                if(dn<1e-10*(1.0+pn))break;
+            }else lambda=Math.min(1e12,lambda*10.0);
         }
-        Fit f=linear(idx,tx,ty,null,2,0);
-        return f==null?null:new Fit(idx,f.coefficients,2,mode);
+        return finite(p)?new Fit(idx,p,3,kind):null;
+    }
+
+    private static final class Eval{
+        final double[] pred;final double[][] jac;final double sse;
+        Eval(double[] pred,double[][] jac,double sse){this.pred=pred;this.jac=jac;this.sse=sse;}
+    }
+
+    private static Eval evaluate3(double[] x,double[] y,double[] p,int kind){
+        double[] pred=new double[x.length];double[][] jac=new double[x.length][3];double sse=0;
+        double aa=p[0],b=p[1],c=p[2];
+        for(int i=0;i<x.length;i++){
+            double base,db;
+            if(kind==2){
+                double raw=b*x[i],z=clip(raw,-50,50);base=Math.exp(z);
+                pred[i]=aa*base+c;
+                db=(raw>-50&&raw<50)?aa*x[i]*base:0;
+            }else{
+                double xx=Math.max(x[i],1e-8);base=Math.pow(xx,b);
+                if(!Double.isFinite(base))return null;
+                pred[i]=aa*base+c;
+                db=aa*base*Math.log(xx);
+            }
+            if(!Double.isFinite(pred[i]))return null;
+            jac[i][0]=base;jac[i][1]=db;jac[i][2]=1.0;
+            double r=y[i]-pred[i];sse+=r*r;
+            if(!Double.isFinite(sse))return null;
+        }
+        return new Eval(pred,jac,sse);
     }
 
     // ---------------------------------------------------------------------
@@ -422,7 +468,9 @@ public final class CalibrationRegressionModels {
     private static double sumXX(double[] x){double s=0;for(double v:x)s+=v*v;return s;}
     private static double sumXY(double[] x,double[] y){double s=0;for(int i=0;i<x.length;i++)s+=x[i]*y[i];return s;}
     private static double mean(double[] a){double s=0;for(double v:a)s+=v;return s/a.length;}
+    private static double min(double[] a){double m=Double.POSITIVE_INFINITY;for(double v:a)if(v<m)m=v;return m;}
     private static double median(double[] a){if(a.length==0)return Double.NaN;double[] b=a.clone();Arrays.sort(b);int n=b.length;return(n&1)==1?b[n/2]:(b[n/2-1]+b[n/2])*0.5;}
+    private static double clip(double v,double lo,double hi){return Math.max(lo,Math.min(hi,v));}
     private static boolean finite(double...v){for(double x:v)if(!Double.isFinite(x))return false;return true;}
     private static String f(double v){return String.format(java.util.Locale.US,"%.6g",v);}
 }
