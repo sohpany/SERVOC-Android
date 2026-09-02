@@ -100,10 +100,10 @@ public final class ControlTab {
         flameInfo=UiKit.small(c,"دليل اللهب البصري التجريبي: بانتظار الفيديو");flameInfo.setBackgroundColor(0xFF151A20);flameInfo.setTextColor(0xFF90A4AE);details.addView(flameInfo,UiKit.full(c));
 
         LinearLayout gasCard=UiKit.card(c);gasCard.addView(UiKit.title(c,"تتبع مصدر الغاز"),UiKit.full(c));
-        gasCard.addView(UiKit.small(c,"اختر المركب المراد تتبعه. HazRob يشغّل تلقائيًا بنك MQ المطلوب أو البنكين معًا بحسب القنوات المرتبطة بالمركب، ثم يحسب اتجاهًا نسبيًا أثناء الحركة."),UiKit.full(c));
+        gasCard.addView(UiKit.small(c,"اختر المركب المراد تتبعه. HazRob يختار تلقائيًا صف MQ أو صفين من R1–R4 بحسب الحساسات الأكثر فائدة للمركب، ولا يسمح بتجاوز صفين لحماية ميزانية طاقة 5V الحالية."),UiKit.full(c));
         gasTarget=new Spinner(c);gasTarget.setBackgroundColor(0xFF252B33);gasCard.addView(gasTarget,UiKit.full(c));
         gasTrackInfo=UiKit.small(c,"لا يوجد هدف محدد للتتبع");gasTrackInfo.setBackgroundColor(0xFF151A20);gasCard.addView(gasTrackInfo,UiKit.full(c));details.addView(gasCard,UiKit.full(c));
-        details.addView(UiKit.small(c,"IR تحذير فقط ولا يوقف المركبة. الفيديو يسجل كملف مستقل في معرض الهاتف، بينما تحليل اللهب يبقى حدثًا تحليليًا مستقلًا عن ملف الفيديو."),UiKit.full(c));
+        details.addView(UiKit.small(c,"IR تحذير فقط ولا يوقف المركبة. الفيديو يسجل كملف MP4 مستقل في معرض الهاتف، بينما تحليل اللهب يبقى حدثًا تحليليًا مستقلًا عن ملف الفيديو."),UiKit.full(c));
         detailsScroll.addView(details,new ScrollView.LayoutParams(-1,-2));
 
         Button detailsToggle=UiKit.button(c,"التتبع");
@@ -123,7 +123,7 @@ public final class ControlTab {
                 if(updatingGasTarget||pos<0||pos>=gasTargetIds.size())return;
                 int next=gasTargetIds.get(pos);if(next==selectedGas)return;
                 selectedGas=next;selectedGasName=next<0?"":chemicalName(next);gasDirection.reset();overlay.clearGas();applyTrackingPower(next);
-                gasTrackInfo.setText(next<0?"لا يوجد هدف محدد للتتبع":"الهدف: "+selectedGasName+" • "+bankLabel(trackingRelayMask)+" • ابدأ الحركة بعد استقرار الحساسات");
+                gasTrackInfo.setText(next<0?"لا يوجد هدف محدد للتتبع":"الهدف: "+selectedGasName+" • "+rowLabel(trackingRelayMask)+" • ابدأ الحركة بعد استقرار الحساسات");
             }
             @Override public void onNothingSelected(AdapterView<?> p){}
         });
@@ -147,10 +147,16 @@ public final class ControlTab {
     }
 
     private void applyTrackingPower(int chemical){
-        int mask=chemical<0?0:MqRelayPlanner.forChemical(chemical);if(mask==trackingRelayMask)return;trackingRelayMask=mask;
-        host.io().execute(()->{try{host.robotApi().relayMask(mask);}catch(Exception ignored){}});
+        int mask=chemical<0?0:MqRelayPlanner.forChemical(chemical);
+        if(!MqRelayPlanner.withinPowerBudget(mask)){host.showToast("خطة MQ تتجاوز حد صفين؛ لم يتم تشغيلها");return;}
+        if(mask==trackingRelayMask)return;
+        trackingRelayMask=mask;
+        host.io().execute(()->{
+            try{host.robotApi().relayMask(mask);}
+            catch(Exception e){host.showToast("تعذر تطبيق صفوف MQ "+rowLabel(mask));}
+        });
     }
-    private static String bankLabel(int mask){if(mask==1)return"بنك MQ1";if(mask==2)return"بنك MQ2";if(mask==3)return"بنكا MQ1+MQ2";return"MQ متوقف";}
+    private static String rowLabel(int mask){return MqRelayPlanner.rowsLabel(mask);}
 
     private void toggleRecording(){
         if(recordingStopping){host.showToast("جارٍ إنهاء التسجيل السابق");return;}
@@ -165,11 +171,17 @@ public final class ControlTab {
         if(recordingStopping)return;recordingStopping=true;record.setEnabled(false);recordInfo.setText("جارٍ إنهاء MP4 وحفظه في Movies/HazRob...");
         host.io().execute(()->{
             MjpegRecorder.StopResult r=recorder.stopGracefully(8000);
+            // Internal files are only a transient encoder workspace. Once MediaStore succeeds,
+            // leave the Gallery MP4 as the sole persistent video artifact.
+            if(r.galleryUri!=null){
+                try{if(r.video!=null&&r.video.isFile())r.video.delete();}catch(Exception ignored){}
+                try{if(r.index!=null&&r.index.isFile())r.index.delete();}catch(Exception ignored){}
+            }
             root.post(()->{
                 recordingStopping=false;record.setEnabled(true);record.setText("تسجيل الفيديو");
-                String err=r.error==null?"":" • خطأ "+r.error;String where=r.galleryUri!=null?"Movies/HazRob":"ملف التطبيق";
+                String err=r.error==null?"":" • خطأ "+r.error;String where=r.galleryUri!=null?"Movies/HazRob":"ملف استرداد داخل التطبيق";
                 recordInfo.setText("تم الحفظ • "+r.frames+" إطار • مسقط "+r.dropped+" • "+where+err+"\n"+(r.displayName==null?"":r.displayName));
-                if(toastAfter)host.showToast(r.galleryUri!=null?"تم حفظ MP4 في معرض الهاتف":r.clean()?"تم إيقاف التسجيل":"تعذر تصدير MP4 إلى المعرض");
+                if(toastAfter)host.showToast(r.galleryUri!=null?"تم حفظ MP4 المستقل في معرض الهاتف":r.clean()?"تم إيقاف التسجيل":"تعذر تصدير MP4 إلى المعرض");
             });
         });
     }
@@ -249,8 +261,8 @@ public final class ControlTab {
         refreshGasTargets(d);
         if(selectedGas<0){overlay.clearGas();gasDirection.reset();gasTrackInfo.setText("اختر غازًا/مركبًا من القائمة لبدء حساب اتجاه مصدره");return;}
         GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime(),selectedGas);
-        if(g.valid){overlay.setGasDirection(g.angleRad,g.confidence);gasTrackInfo.setText("الهدف: "+selectedGasName+" • "+bankLabel(trackingRelayMask)+" • اتجاه نسبي "+bearingName(g.angleRad)+String.format(Locale.US," (%+.0f°) • ثقة اتجاه %.0f%%",Math.toDegrees(g.angleRad),100*g.confidence));}
-        else{overlay.clearGas();gasTrackInfo.setText("الهدف: "+selectedGasName+" • "+bankLabel(trackingRelayMask)+" • نجمع تغير الاستجابة أثناء الحركة بعد استقرار الحساسات");}
+        if(g.valid){overlay.setGasDirection(g.angleRad,g.confidence);gasTrackInfo.setText("الهدف: "+selectedGasName+" • "+rowLabel(trackingRelayMask)+" • اتجاه نسبي "+bearingName(g.angleRad)+String.format(Locale.US," (%+.0f°) • ثقة اتجاه %.0f%%",Math.toDegrees(g.angleRad),100*g.confidence));}
+        else{overlay.clearGas();gasTrackInfo.setText("الهدف: "+selectedGasName+" • "+rowLabel(trackingRelayMask)+" • نجمع تغير الاستجابة أثناء الحركة بعد استقرار الحساسات");}
     }
 
     private void refreshGasTargets(JSONObject d){
