@@ -91,7 +91,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override public void emergencyStop(){left=right=0;motionHistory.record(0,0,SystemClock.elapsedRealtime());if(controlTab!=null)controlTab.resetJoystick();workers.execute(()->{try{robotApi.stop();}catch(Exception ignored){}try{robotApi.cancelMeasurement();}catch(Exception ignored){}});}
     @Override public void setDriveCommand(int l,int r){int nl=Math.max(-100,Math.min(100,l)),nr=Math.max(-100,Math.min(100,r));left=nl;right=nr;motionHistory.record(nl,nr,SystemClock.elapsedRealtime());}
     @Override public int driveLeft(){return left;}@Override public int driveRight(){return right;}
-    @Override public void setCameraHost(String host){cameraApi.setHost(host);prefs.edit().putString("camera",cameraApi.host()).apply();if(entered&&selectedTab==0&&foreground)controlTab.startCamera();}@Override public String cameraHost(){return cameraApi.host();}@Override public boolean cameraReachable(){return cameraApi.ping();}
+    @Override public void setCameraHost(String host){cameraApi.setHost(host);prefs.edit().putString("camera",cameraApi.host()).apply();if(entered&&selectedTab==0&&foreground)controlTab.startCamera();}@Override public String cameraHost(){return cameraApi.host();}@Override public boolean cameraReachable(){return cameraApi.ping();}@Override public JSONObject cameraDiagnostics(){return cameraApi.status();}
     @Override public String flashMode(){return flashMode;}
     @Override public void setFlashMode(String mode){
         final String requested="on".equals(CameraApi.normalizeMode(mode))?"on":"off";
