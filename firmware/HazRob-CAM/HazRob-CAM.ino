@@ -9,7 +9,7 @@ constexpr char WIFI2[]="Servoc";
 constexpr char FW[]="HazRob-CAM 0.7.1";
 constexpr uint8_t FLASH_PIN=4;
 constexpr size_t JPG_CAP=160*1024;
-constexpr uint8_t JPG_QUALITY=35;
+constexpr uint8_t JPG_QUALITY=35; // software frame2jpg quality, 1..100
 
 // AI-Thinker ESP32-CAM pin map
 constexpr int PWDN=32,RESET=-1,XCLK=0,SIOD=26,SIOC=27;
@@ -21,8 +21,9 @@ WebServer web(80);
 WiFiServer mjpeg(81);
 
 uint8_t *jpgBuf=nullptr;
-volatile size_t jpgLen=0;
-volatile uint32_t fps100=0,frameCounter=0;
+volatile size_t jpgLen=0,lastJpegBytes=0;
+volatile uint32_t fps100=0,frameCounter=0,lastEncodeUs=0,captureErrors=0,encodeErrors=0;
+volatile uint8_t streamClients=0;
 uint32_t fpsAt=0,lastFrames=0,wifiAt=0;
 uint8_t wifiChoice=0;
 bool cameraOk=false,psramOk=false;
@@ -82,6 +83,12 @@ void updateFps(){
   fpsAt=now;lastFrames=frameCounter;
 }
 
+const char* sensorName(){
+  if(cameraPid==0x2145)return "GC2145";
+  if(cameraPid==0)return "UNKNOWN";
+  return "OTHER";
+}
+
 bool cameraBegin(){
   psramOk=psramFound();
   if(!psramOk){cameraError=ESP_ERR_NO_MEM;Serial.println("CAM: PSRAM missing");return false;}
@@ -93,15 +100,16 @@ bool cameraBegin(){
   c.pin_d0=Y2;c.pin_d1=Y3;c.pin_d2=Y4;c.pin_d3=Y5;c.pin_d4=Y6;c.pin_d5=Y7;c.pin_d6=Y8;c.pin_d7=Y9;
   c.pin_xclk=XCLK;c.pin_pclk=PCLK;c.pin_vsync=VSYNC;c.pin_href=HREF;c.pin_sccb_sda=SIOD;c.pin_sccb_scl=SIOC;
   c.pin_pwdn=PWDN;c.pin_reset=RESET;c.xclk_freq_hz=20000000;
-  c.pixel_format=PIXFORMAT_RGB565;c.frame_size=FRAMESIZE_QVGA;c.jpeg_quality=12;
+  c.pixel_format=PIXFORMAT_RGB565;c.frame_size=FRAMESIZE_QVGA;
+  c.jpeg_quality=12; // driver field is not the software frame2jpg quality for RGB565 capture
   c.fb_count=1;c.grab_mode=CAMERA_GRAB_WHEN_EMPTY;c.fb_location=CAMERA_FB_IN_PSRAM;
 
   cameraError=esp_camera_init(&c);
   if(cameraError!=ESP_OK){Serial.printf("CAM: init failed 0x%X\n",(unsigned)cameraError);return false;}
 
   sensor_t *s=esp_camera_sensor_get();
-  if(s){cameraPid=s->id.PID;s->set_framesize(s,FRAMESIZE_QVGA);Serial.printf("CAM: PID 0x%04X\n",cameraPid);}
-  Serial.println("CAM: initialized");
+  if(s){cameraPid=s->id.PID;s->set_framesize(s,FRAMESIZE_QVGA);Serial.printf("CAM: PID 0x%04X (%s)\n",cameraPid,sensorName());}
+  Serial.println("CAM: initialized QVGA RGB565 -> software JPEG");
   return true;
 }
 
@@ -109,22 +117,26 @@ void streamTask(void*){
   for(;;){
     WiFiClient c=mjpeg.accept();
     if(!c){vTaskDelay(pdMS_TO_TICKS(2));continue;}
-    c.setNoDelay(true);discardRequest(c);
-    if(!cameraOk){writeAll(c,"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nCAMERA INIT FAILED\n");c.stop();continue;}
-    if(!writeAll(c,"HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-cache, no-store, must-revalidate\r\nPragma: no-cache\r\nConnection: close\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n")){c.stop();continue;}
+    streamClients=1;c.setNoDelay(true);discardRequest(c);
+    if(!cameraOk){writeAll(c,"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nCAMERA INIT FAILED\n");c.stop();streamClients=0;continue;}
+    if(!writeAll(c,"HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-cache, no-store, must-revalidate\r\nPragma: no-cache\r\nConnection: close\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n")){c.stop();streamClients=0;continue;}
 
     while(c.connected()&&WiFi.status()==WL_CONNECTED&&cameraOk){
       camera_fb_t *fb=esp_camera_fb_get();
-      if(!fb){vTaskDelay(pdMS_TO_TICKS(5));continue;}
-      jpgLen=0;bool ok=frame2jpg_cb(fb,JPG_QUALITY,jpgOut,nullptr);esp_camera_fb_return(fb);
-      if(!ok||!jpgLen){vTaskDelay(pdMS_TO_TICKS(2));continue;}
+      if(!fb){captureErrors++;vTaskDelay(pdMS_TO_TICKS(5));continue;}
+      jpgLen=0;uint32_t t0=micros();
+      bool ok=frame2jpg_cb(fb,JPG_QUALITY,jpgOut,nullptr);
+      lastEncodeUs=micros()-t0;
+      esp_camera_fb_return(fb);
+      if(!ok||!jpgLen){encodeErrors++;vTaskDelay(pdMS_TO_TICKS(2));continue;}
+      lastJpegBytes=jpgLen;
 
       char h[128];
       int hn=snprintf(h,sizeof(h),"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n",(unsigned)jpgLen);
       if(hn<=0||!writeAll(c,(const uint8_t*)h,(size_t)hn)||!writeAll(c,jpgBuf,jpgLen)||!writeAll(c,"\r\n"))break;
       frameCounter++;updateFps();vTaskDelay(pdMS_TO_TICKS(1));
     }
-    c.stop();
+    c.stop();streamClients=0;
   }
 }
 
@@ -139,7 +151,7 @@ void wifiBegin(){WiFi.persistent(false);WiFi.mode(WIFI_STA);WiFi.setSleep(false)
 
 void sendStatus(){
   String err=String("0x")+String((uint32_t)cameraError,HEX);err.toUpperCase();
-  String j="{\"ok\":true,\"camera_ok\":"+String(cameraOk?"true":"false")+",\"camera_error\":\""+err+"\",\"psram\":"+String(psramOk?"true":"false")+",\"fw\":\""+String(FW)+"\",\"ip\":\""+WiFi.localIP().toString()+"\",\"ssid\":\""+WiFi.SSID()+"\",\"pid\":"+String(cameraPid)+",\"width\":320,\"height\":240,\"format\":\"MJPEG/RGB565-SWJPEG\",\"stream\":\"http://"+WiFi.localIP().toString()+":81/stream\",\"fps\":"+String(fps100/100.0f,2)+",\"frames\":"+String(frameCounter)+",\"rssi\":"+String(WiFi.RSSI())+",\"flash\":\""+flashName()+"\"}";
+  String j="{\"ok\":true,\"camera_ok\":"+String(cameraOk?"true":"false")+",\"camera_error\":\""+err+"\",\"psram\":"+String(psramOk?"true":"false")+",\"fw\":\""+String(FW)+"\",\"ip\":\""+WiFi.localIP().toString()+"\",\"ssid\":\""+WiFi.SSID()+"\",\"pid\":"+String(cameraPid)+",\"sensor\":\""+sensorName()+"\",\"width\":320,\"height\":240,\"capture_format\":\"RGB565\",\"stream_format\":\"MJPEG\",\"software_jpeg\":true,\"jpeg_quality\":"+String(JPG_QUALITY)+",\"xclk_hz\":20000000,\"stream\":\"http://"+WiFi.localIP().toString()+":81/stream\",\"fps\":"+String(fps100/100.0f,2)+",\"frames\":"+String(frameCounter)+",\"encode_ms\":"+String(lastEncodeUs/1000.0f,2)+",\"jpeg_bytes\":"+String((uint32_t)lastJpegBytes)+",\"capture_errors\":"+String(captureErrors)+",\"encode_errors\":"+String(encodeErrors)+",\"stream_clients\":"+String(streamClients)+",\"rssi\":"+String(WiFi.RSSI())+",\"flash_supported\":true,\"flash_gpio\":4,\"flash\":\""+flashName()+"\"}";
   web.sendHeader("Access-Control-Allow-Origin","*");web.send(200,"application/json",j);
 }
 
