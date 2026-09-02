@@ -35,13 +35,15 @@ public final class TelemetryRecorder {
             JSONObject d=snapshot.optJSONObject("drive");if(d!=null){state.put("failsafe",d.optBoolean("failsafe",false));state.put("retrace",d.optBoolean("retrace",false));}
             JSONObject sound=snapshot.optJSONObject("sound");if(sound!=null)state.put("sound",sound);
             JSONObject ir=snapshot.optJSONObject("ir");if(ir!=null)state.put("ir",ir);
+            JSONObject ldr=snapshot.optJSONObject("ldr");if(ldr!=null)state.put("ldr",ldr);
             JSONObject adc=snapshot.optJSONObject("adc");if(adc!=null)state.put("adc",adc);
             JSONObject relay=snapshot.optJSONObject("relay");if(relay!=null)state.put("relay",relay);
+            JSONObject measurement=snapshot.optJSONObject("measurement");if(measurement!=null){state.put("measurement_phase",measurement.optInt("phase",0));state.put("measurement_mask",measurement.optInt("mask",0));}
         }catch(Exception ignored){}
         v.put("motion_payload",state.toString());db.getWritableDatabase().insert("telemetry_samples",null,v);
     }
 
-    private void finish(JSONObject snapshot,String state){ContentValues v=new ContentValues();v.put("ended_ts",isoNow());v.put("payload",snapshot.toString());try{JSONObject meta=new JSONObject();meta.put("terminal_state",state);meta.put("contains_aux_sensors",true);v.put("analytics",meta.toString());}catch(Exception ignored){}db.getWritableDatabase().update("measurement_sessions",v,"session_id=?",new String[]{sessionId});sessionId=null;startedElapsed=lastSampleElapsed=0;}
+    private void finish(JSONObject snapshot,String state){ContentValues v=new ContentValues();v.put("ended_ts",isoNow());v.put("payload",snapshot.toString());try{JSONObject meta=new JSONObject();meta.put("terminal_state",state);meta.put("contains_aux_sensors",true);meta.put("mq_power_architecture","4_rows_max_2_active");v.put("analytics",meta.toString());}catch(Exception ignored){}db.getWritableDatabase().update("measurement_sessions",v,"session_id=?",new String[]{sessionId});sessionId=null;startedElapsed=lastSampleElapsed=0;}
 
     private static String isoNow(){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
 }
