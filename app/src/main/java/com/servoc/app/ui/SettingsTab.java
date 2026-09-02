@@ -13,6 +13,7 @@ import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
+import com.servoc.app.models.MqDataScienceModelProfile;
 import org.json.JSONObject;
 import java.util.Locale;
 
@@ -62,17 +63,24 @@ public final class SettingsTab {
         compat.addView(UiKit.small(c,"Hardware profile: "+HazRobHardwareProfile.ID+"\nADS1115×2 • مجموعتا MQ فعليتان • 4 حساسات لكل مجموعة • IR تحذير فقط • MAX4466 جهد خام • R3/R4 احتياط."),UiKit.full(c));root.addView(compat,UiKit.full(c));
 
         LinearLayout science=UiKit.card(c);science.addView(UiKit.title(c,"المكتبة العلمية ونماذج MQDataScience"),UiKit.full(c));
-        science.addView(UiKit.small(c,"تم اعتماد كتالوج MQDataScience ذي 76 نموذجًا كاملًا ضمن HazRob 0.8. حالة Native/Tested تعني فقط اكتمال نقل النموذج واختباره على Android؛ Port Pending لا يعني أن النموذج مستبعد أو غير معتمد."),UiKit.full(c));
+        science.addView(UiKit.small(c,"تم اعتماد كتالوج MQDataScience ذي 76 نموذجًا كاملًا ضمن HazRob 0.8. الاعتماد منفصل عن حالة النقل: Verified = port مطابق للمصدر المثبت، Approx = تنفيذ Android عامل يحتاج استكمال المطابقة، Pending = النموذج معتمد ولم يُنقل بعد."),UiKit.full(c));
         Button info=UiKit.button(c,"عرض حالة الـ76 نموذجًا والمكتبة");science.addView(info,UiKit.full(c));libraryInfo=UiKit.small(c,"");libraryInfo.setVisibility(View.GONE);science.addView(libraryInfo,UiKit.full(c));
         info.setOnClickListener(v->{
             boolean show=libraryInfo.getVisibility()!=View.VISIBLE;
             libraryInfo.setVisibility(show?View.VISIBLE:View.GONE);
             if(show)libraryInfo.setText(
                     "قاعدة المعرفة المحلية: "+host.database().chemicalCount()+" سجلًا\n"+
-                    "MQDataScience: "+MqDataScience76Catalog.COUNT+" / "+MqDataScience76Catalog.COUNT+" ADOPTED (v"+MqDataScience76Catalog.VERSION+")\n"+
-                    "Android Native/Tested: "+ModelRuntimeRegistry.nativeCount()+" / "+MqDataScience76Catalog.COUNT+"\n"+
-                    "بانتظار النقل: "+ModelRuntimeRegistry.pendingPortCount()+"\n"+
-                    "مختبر المطور يقارن النماذج المنقولة حاليًا على بيانات التعرض المرجعي ويعرض R² وlog-RMSE والمعادلة.\n"+
+                    "MQDataScience: "+MqDataScience76Catalog.COUNT+" / "+MqDataScience76Catalog.COUNT+" ADOPTED • v"+MqDataScience76Catalog.VERSION+"\n"+
+                    "Source commit: "+MqDataScience76Catalog.PINNED_COMMIT+"\n"+
+                    "Android Native: "+ModelRuntimeRegistry.nativeCount()+" / "+MqDataScience76Catalog.COUNT+"\n"+
+                    "Upstream-verified: "+ModelRuntimeRegistry.verifiedCount()+"\n"+
+                    "Android approximation: "+ModelRuntimeRegistry.approximationCount()+"\n"+
+                    "Port pending: "+ModelRuntimeRegistry.pendingPortCount()+"\n"+
+                    "Domains: multivariable "+MqDataScienceModelProfile.count(MqDataScienceModelProfile.Domain.MULTIVARIATE_ENV)+
+                    " • 1-D curve "+MqDataScienceModelProfile.count(MqDataScienceModelProfile.Domain.CURVE_1D)+
+                    " • time-series "+MqDataScienceModelProfile.count(MqDataScienceModelProfile.Domain.TIME_SERIES)+
+                    " • ML "+MqDataScienceModelProfile.count(MqDataScienceModelProfile.Domain.MACHINE_LEARNING)+"\n"+
+                    "مختبر المطور يعرض حالة كل نموذج ومتطلبات بياناته ويقارن فقط النماذج الملائمة للـDataset المتاح.\n"+
                     "PPM الكمي يتطلب معايرة مرجعية صالحة؛ R0 وحده ليس معايرة تركيز.");
         });
         root.addView(science,UiKit.full(c));
