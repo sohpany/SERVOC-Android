@@ -16,7 +16,7 @@ void startAP(){
   IPAddress subnet(255,255,255,0);
   IPAddress dhcpStart(192,168,4,100);
 
-  // 192.168.4.2 is permanently reserved for ESP-CAM.
+  // 192.168.4.2 is reserved permanently for ESP-CAM.
   WiFi.softAPConfig(ip,ip,subnet,dhcpStart);
   WiFi.softAP(Cfg::SSID);
 }
@@ -36,7 +36,7 @@ void setup(){
   hwBegin();
   startAP();
 
-  web.on("/",[]{reply(200,"HazRob 0.8.0");});
+  web.on("/",[]{reply(200,"HazRob 0.8");});
 
   web.on("/drive",[]{
     if(!web.hasArg("l")||!web.hasArg("r"))return reply(400,"BAD");
@@ -52,7 +52,7 @@ void setup(){
     reply(200,"OK");
   });
 
-  // Manual relay control. R1/R2 are MQ groups; R3/R4 are reserved.
+  // Manual MQ power. Installed groups are R1/R2 only; R3/R4 are reserved.
   web.on("/relay",[]{
     uint8_t mask=0;
 
@@ -68,12 +68,14 @@ void setup(){
       return reply(400,"BAD");
     }
 
-    if(!relaySetMask(mask))return reply(409,"RELAY MASK REJECTED");
+    if(!relaySetMask(mask))
+      return reply(409,"ONLY R1/R2 ARE INSTALLED MQ GROUPS");
+
     reply(200,"OK");
   });
 
-  // Measurement never changes relay power in HazRob 0.8.
-  // The operator selects R1/R2 first, then starts acquisition.
+  // Averaging never changes MQ power in HazRob 0.8.
+  // Operator selects R1/R2 and decides warm-up duration before cmd=start.
   web.on("/measure",[]{
     String c=web.arg("cmd");
     if(c=="start")measureStart();
@@ -110,6 +112,8 @@ void setup(){
       save=true;
     }
     if(web.hasArg("warm")){
+      // Stored as the operator's chosen/recorded warm-up value.
+      // Firmware does not autonomously wait or switch relays from this value.
       settings.warm=constrain(web.arg("warm").toInt(),0L,3600L);
       save=true;
     }
