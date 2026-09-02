@@ -14,7 +14,7 @@ namespace{
 
 Preferences nv;
 
-/* DRIVE */
+/* ---------- DRIVE ---------- */
 Servo sL,sR;
 float tarL=0,tarR=0,curL=0,curR=0;
 uint32_t cmdAt=0,driveAt=0;
@@ -56,7 +56,10 @@ void clearHistory(){histHead=histCount=retrIdx=retrRemain=0;}
 void historyUpdate(uint32_t now){
   if(retracing||fs||now-histAt<HIST_STEP)return;
   histAt=now;
-  hist[histHead]={(int8_t)constrain((int)roundf(curL),-100,100),(int8_t)constrain((int)roundf(curR),-100,100)};
+  hist[histHead]={
+    (int8_t)constrain((int)roundf(curL),-100,100),
+    (int8_t)constrain((int)roundf(curR),-100,100)
+  };
   histHead=(histHead+1)%HIST_N;
   if(histCount<HIST_N)histCount++;
 }
@@ -92,6 +95,7 @@ void driveUpdate(){
   retraceUpdate(now);
   historyUpdate(now);
   if(now-driveAt<10)return;
+
   float dt=min(now-driveAt,50UL)/1000.0f;
   driveAt=now;
   curL=ramp(curL,tarL,dt);
@@ -99,33 +103,30 @@ void driveUpdate(){
   driveWrite();
 }
 
-/* RELAYS */
+/* ---------- RELAYS ---------- */
 const uint8_t rp[]={Cfg::RELAY1,Cfg::RELAY2,Cfg::RELAY3,Cfg::RELAY4};
 uint8_t relayMask=0;
 
-uint8_t bitCount4(uint8_t x){
-  x&=0x0F;
-  uint8_t n=0;
-  while(x){n+=x&1U;x>>=1;}
-  return n;
-}
-
-bool relayAllowed(uint8_t mask){return (mask&0xF0)==0&&bitCount4(mask)<=Cfg::MAX_ACTIVE_ROWS;}
-
 void relayRaw(uint8_t mask){
   mask&=0x0F;
-  for(uint8_t i=0;i<4;i++)digitalWrite(rp[i],mask&(1U<<i)?Cfg::RELAY_ON:Cfg::RELAY_OFF);
+  for(uint8_t i=0;i<4;i++)
+    digitalWrite(rp[i],mask&(1U<<i)?Cfg::RELAY_ON:Cfg::RELAY_OFF);
   relayMask=mask;
 }
 
-bool rowOn(uint8_t row){return row>=1&&row<=4&&(relayMask&(1U<<(row-1)));}
+bool rowOn(uint8_t row){
+  return row>=1&&row<=4&&(relayMask&(1U<<(row-1)));
+}
 
 uint8_t singleRelayGroup(uint8_t mask){
-  for(uint8_t i=0;i<4;i++)if(mask==(1U<<i))return i+1;
+  mask&=Cfg::MQ_INSTALLED_MASK;
+  if(mask==1)return 1;
+  if(mask==2)return 2;
+  if(mask==3)return 3; // both installed groups
   return 0;
 }
 
-/* ADS1115 + MQ */
+/* ---------- ADS1115 + MQ ---------- */
 Adafruit_ADS1115 ads1,ads2;
 bool ads1ok=false,ads2ok=false;
 
@@ -145,11 +146,16 @@ bool adsOK(uint8_t n){return n?ads2ok:ads1ok;}
 void readMQ(uint8_t i){
   const auto &c=Cfg::mq[i];
   Reading &r=mq[i];
-  if(!rowOn(c.row)||!adsOK(c.ads)){r=Reading();return;}
+
+  if(!rowOn(c.row)||!adsOK(c.ads)){
+    r=Reading();
+    return;
+  }
 
   Adafruit_ADS1115 *a=getAds(c.ads);
   int32_t sum=0;
   float volts=0;
+
   for(uint8_t n=0;n<Cfg::ADC_SAMPLES;n++){
     int16_t x=a->readADC_SingleEnded(c.ch);
     sum+=x;
@@ -158,12 +164,16 @@ void readMQ(uint8_t i){
 
   int32_t av=sum/Cfg::ADC_SAMPLES;
   if(av<0)av=0;
+
   r.raw=(uint16_t)av;
   r.adc=volts/Cfg::ADC_SAMPLES;
   r.ao=r.adc;
 
-  // ADS full-scale range does not override its VDD input limit.
-  if(r.ao<=.01f||r.ao>=Cfg::MQ_VCC){r.ok=false;return;}
+  if(r.ao<=.01f||r.ao>=Cfg::MQ_VCC){
+    r.ok=false;
+    return;
+  }
+
   r.rs=Cfg::RL*(Cfg::MQ_VCC-r.ao)/r.ao;
   r.ratio=r.rs/c.r0;
   r.ok=isfinite(r.ratio)&&r.ratio>0;
@@ -172,50 +182,73 @@ void readMQ(uint8_t i){
 void mqUpdate(){
   uint32_t now=millis();
   uint16_t slot=Cfg::MQ_PERIOD/Cfg::MQ_N;
-  if(slot<5)slot=5;
+  if(slot<2)slot=2;
   if(now-mqAt<slot)return;
   mqAt=now;
+
   readMQ(mqIndex);
   if(++mqIndex>=Cfg::MQ_N)mqIndex=0;
 }
 
-/* ENV */
+/* ---------- ENVIRONMENT ---------- */
 Adafruit_BME280 bme;
 Adafruit_BMP280 bmp(&Wire);
 uint8_t envType=0,envAddr=0,envId=0;
 float temp=NAN,hum=NAN,press=NAN;
 uint32_t envAt=0;
 
-bool probe(uint8_t a){Wire.beginTransmission(a);return Wire.endTransmission()==0;}
+bool probe(uint8_t a){
+  Wire.beginTransmission(a);
+  return Wire.endTransmission()==0;
+}
+
 uint8_t chip(uint8_t a){
-  Wire.beginTransmission(a);Wire.write(0xD0);
+  Wire.beginTransmission(a);
+  Wire.write(0xD0);
   if(Wire.endTransmission(false))return 0;
   if(Wire.requestFrom((int)a,1)!=1)return 0;
   return Wire.read();
 }
 
 void envRead(){
-  if(envType==1){temp=bme.readTemperature();hum=bme.readHumidity();press=bme.readPressure()/100.0f;}
-  else if(envType==2){temp=bmp.readTemperature();hum=NAN;press=bmp.readPressure()/100.0f;}
+  if(envType==1){
+    temp=bme.readTemperature();
+    hum=bme.readHumidity();
+    press=bme.readPressure()/100.0f;
+  }else if(envType==2){
+    temp=bmp.readTemperature();
+    hum=NAN;
+    press=bmp.readPressure()/100.0f;
+  }
 }
 
 void envBegin(){
   const uint8_t addr[]={0x76,0x77};
   for(uint8_t a:addr){
     if(!probe(a))continue;
-    envAddr=a;envId=chip(a);
-    if(envId==0x60&&bme.begin(a,&Wire)){envType=1;break;}
-    if((envId==0x56||envId==0x57||envId==0x58)&&bmp.begin(a,envId)){envType=2;break;}
+    envAddr=a;
+    envId=chip(a);
+
+    if(envId==0x60&&bme.begin(a,&Wire)){
+      envType=1;
+      break;
+    }
+
+    if((envId==0x56||envId==0x57||envId==0x58)&&bmp.begin(a,envId)){
+      envType=2;
+      break;
+    }
   }
   envRead();
 }
 
 void envUpdate(){
   if(!envType||millis()-envAt<Cfg::ENV_PERIOD)return;
-  envAt=millis();envRead();
+  envAt=millis();
+  envRead();
 }
 
-/* SOUND */
+/* ---------- SOUND / MAX4466 ---------- */
 float soundRms=NAN,soundP2P=NAN;
 uint32_t soundAt=0;
 
@@ -226,10 +259,15 @@ void soundUpdate(){
 
   float mean=0,m2=0;
   uint16_t lo=4095,hi=0;
+
   for(uint16_t n=1;n<=Cfg::SOUND_SAMPLES;n++){
     uint16_t x=analogRead(Cfg::SOUND_PIN);
-    if(x<lo)lo=x;if(x>hi)hi=x;
-    float d=x-mean;mean+=d/n;m2+=d*(x-mean);
+    if(x<lo)lo=x;
+    if(x>hi)hi=x;
+
+    float d=x-mean;
+    mean+=d/n;
+    m2+=d*(x-mean);
   }
 
   const float V=3.3f/4095.0f;
@@ -237,73 +275,111 @@ void soundUpdate(){
   soundP2P=(hi-lo)*V;
 }
 
-/* DIGITAL WARNING SENSORS */
-bool irWarning=false,ldrActive=false;
-uint8_t irLevel=HIGH,ldrLevel=HIGH;
-uint32_t irAt=0,ldrAt=0;
+/* ---------- IR - WARNING ONLY ---------- */
+bool irWarning=false;
+uint8_t irLevel=HIGH;
+uint32_t irAt=0;
 
 void irUpdate(){
   uint32_t now=millis();
   if(now-irAt<Cfg::IR_PERIOD)return;
-  irAt=now;irLevel=digitalRead(Cfg::IR_PIN);irWarning=irLevel==Cfg::IR_ACTIVE;
+  irAt=now;
+  irLevel=digitalRead(Cfg::IR_PIN);
+  irWarning=irLevel==Cfg::IR_ACTIVE;
 }
 
-void ldrUpdate(){
-  uint32_t now=millis();
-  if(now-ldrAt<Cfg::LDR_PERIOD)return;
-  ldrAt=now;ldrLevel=digitalRead(Cfg::LDR_PIN);ldrActive=ldrLevel==Cfg::LDR_ACTIVE;
-}
-
-/* MEASUREMENT */
+/* ---------- MANUAL-POWER MEASUREMENT ---------- */
 enum Stage:uint8_t{IDLE,WARM,MEASURE,READY,ERROR};
 Stage stage=IDLE;
-uint8_t phase=0xFF,measureMask=0;
+uint8_t measureMask=0;
 uint32_t stageAt=0,sampleAt=0;
+
 uint32_t rawSum[Cfg::MQ_N]={};
-float adcSum[Cfg::MQ_N]={},aoSum[Cfg::MQ_N]={},rsSum[Cfg::MQ_N]={},logSum[Cfg::MQ_N]={};
-uint16_t cnt[Cfg::MQ_N]={},rcnt[Cfg::MQ_N]={};
+float adcSum[Cfg::MQ_N]={};
+float aoSum[Cfg::MQ_N]={};
+float rsSum[Cfg::MQ_N]={};
+float logSum[Cfg::MQ_N]={};
+uint16_t cnt[Cfg::MQ_N]={};
+uint16_t rcnt[Cfg::MQ_N]={};
 
-void clearMeasure(){
-  memset(rawSum,0,sizeof(rawSum));memset(adcSum,0,sizeof(adcSum));memset(aoSum,0,sizeof(aoSum));
-  memset(rsSum,0,sizeof(rsSum));memset(logSum,0,sizeof(logSum));memset(cnt,0,sizeof(cnt));memset(rcnt,0,sizeof(rcnt));
-  phase=0xFF;measureMask=0;
+void clearMeasureArrays(){
+  memset(rawSum,0,sizeof(rawSum));
+  memset(adcSum,0,sizeof(adcSum));
+  memset(aoSum,0,sizeof(aoSum));
+  memset(rsSum,0,sizeof(rsSum));
+  memset(logSum,0,sizeof(logSum));
+  memset(cnt,0,sizeof(cnt));
+  memset(rcnt,0,sizeof(rcnt));
 }
 
-void finishMeasure(){
-  relayRaw(0);measureMask=0;phase=0xFF;
-  bool ok=false;for(uint8_t i=0;i<Cfg::MQ_N;i++)if(cnt[i]){ok=true;break;}
-  stage=ok?READY:ERROR;
+void resetMeasurement(){
+  clearMeasureArrays();
+  measureMask=0;
+  stageAt=sampleAt=0;
 }
 
-void nextPhase(uint8_t p){
-  relayRaw(0);
-  if(p>=Cfg::MEASURE_PHASES){finishMeasure();return;}
-  uint8_t mask=Cfg::MEASURE_MASKS[p];
-  if(!relayAllowed(mask)){stage=ERROR;phase=0xFF;measureMask=0;return;}
-  phase=p;measureMask=mask;relayRaw(mask);stage=WARM;stageAt=millis();sampleAt=stageAt;
+bool measurementPowerStillValid(){
+  return (relayMask&Cfg::MQ_INSTALLED_MASK)==measureMask && measureMask!=0;
 }
 
 void collect(){
   for(uint8_t i=0;i<Cfg::MQ_N;i++){
-    if(!rowOn(Cfg::mq[i].row)||!mq[i].ok)continue;
-    rawSum[i]+=mq[i].raw;adcSum[i]+=mq[i].adc;aoSum[i]+=mq[i].ao;rsSum[i]+=mq[i].rs;cnt[i]++;
-    if(mq[i].ratio>0){logSum[i]+=logf(mq[i].ratio);rcnt[i]++;}
+    uint8_t bit=(uint8_t)(1U<<(Cfg::mq[i].row-1));
+    if(!(measureMask&bit)||!mq[i].ok)continue;
+
+    rawSum[i]+=mq[i].raw;
+    adcSum[i]+=mq[i].adc;
+    aoSum[i]+=mq[i].ao;
+    rsSum[i]+=mq[i].rs;
+    cnt[i]++;
+
+    if(mq[i].ratio>0){
+      logSum[i]+=logf(mq[i].ratio);
+      rcnt[i]++;
+    }
   }
+}
+
+void finishMeasure(){
+  bool ok=false;
+  for(uint8_t i=0;i<Cfg::MQ_N;i++){
+    if(cnt[i]){ok=true;break;}
+  }
+  stage=ok?READY:ERROR;
+  // Power remains exactly as the operator selected it.
 }
 
 void measureUpdate(){
   if(stage!=WARM&&stage!=MEASURE)return;
-  uint32_t now=millis();
-  if(stage==WARM){
-    if(now-stageAt>=(uint32_t)settings.warm*1000UL){stage=MEASURE;stageAt=sampleAt=now;}
+
+  if(!measurementPowerStillValid()){
+    stage=ERROR;
     return;
   }
-  if(now-sampleAt>=Cfg::SAMPLE_PERIOD){sampleAt=now;collect();}
-  if(now-stageAt>=(uint32_t)settings.measure*1000UL)nextPhase((uint8_t)(phase+1));
+
+  uint32_t now=millis();
+
+  if(stage==WARM){
+    if(now-stageAt>=(uint32_t)settings.warm*1000UL){
+      stage=MEASURE;
+      stageAt=sampleAt=now;
+    }
+    return;
+  }
+
+  if(now-sampleAt>=Cfg::SAMPLE_PERIOD){
+    sampleAt=now;
+    collect();
+  }
+
+  if(now-stageAt>=(uint32_t)settings.measure*1000UL)
+    finishMeasure();
 }
 
-/* SETTINGS + JSON */
-String num(float v,uint8_t d=2){return isfinite(v)?String(v,(unsigned)d):"null";}
+/* ---------- SETTINGS / JSON ---------- */
+String num(float v,uint8_t d=2){
+  return isfinite(v)?String(v,(unsigned)d):"null";
+}
 
 void loadSettings(){
   nv.begin(Cfg::NVS,false);
@@ -316,109 +392,244 @@ void loadSettings(){
 }
 
 String envJson(){
-  String j="{\"ok\":";j+=envType?"true":"false";
-  j+=",\"t\":"+num(temp,2);j+=",\"h\":"+num(hum,2);j+=",\"p\":"+num(press,1);return j+"}";
+  String j="{\"ok\":";
+  j+=envType?"true":"false";
+  j+=",\"t\":"+num(temp,2);
+  j+=",\"h\":"+num(hum,2);
+  j+=",\"p\":"+num(press,1);
+  return j+"}";
 }
 
 String mqJson(bool avg){
   String j="{";
+
   for(uint8_t i=0;i<Cfg::MQ_N;i++){
-    if(i)j+=",";j+="\"";j+=Cfg::mq[i].name;j+="\":{";
+    if(i)j+=",";
+    j+="\"";
+    j+=Cfg::mq[i].name;
+    j+="\":{";
+
     if(avg){
-      if(!cnt[i])j+="\"ok\":false";
-      else{
-        float n=cnt[i];j+="\"ok\":true";j+=",\"raw\":"+num(rawSum[i]/n,1);j+=",\"adc\":"+num(adcSum[i]/n,3);
-        j+=",\"ao\":"+num(aoSum[i]/n,3);j+=",\"rs\":"+num(rsSum[i]/n,3);j+=",\"ratio\":";
+      if(!cnt[i]){
+        j+="\"ok\":false";
+      }else{
+        float n=cnt[i];
+        j+="\"ok\":true";
+        j+=",\"raw\":"+num(rawSum[i]/n,1);
+        j+=",\"adc\":"+num(adcSum[i]/n,3);
+        j+=",\"ao\":"+num(aoSum[i]/n,3);
+        j+=",\"rs\":"+num(rsSum[i]/n,3);
+        j+=",\"ratio\":";
         j+=rcnt[i]?num(expf(logSum[i]/rcnt[i]),3):"null";
       }
     }else{
-      j+="\"ok\":";j+=mq[i].ok?"true":"false";j+=",\"raw\":"+String(mq[i].raw);j+=",\"adc\":"+num(mq[i].adc,3);
-      j+=",\"ao\":"+num(mq[i].ao,3);j+=",\"rs\":"+num(mq[i].rs,3);j+=",\"ratio\":"+num(mq[i].ratio,3);
+      j+="\"ok\":";
+      j+=mq[i].ok?"true":"false";
+      j+=",\"raw\":"+String(mq[i].raw);
+      j+=",\"adc\":"+num(mq[i].adc,3);
+      j+=",\"ao\":"+num(mq[i].ao,3);
+      j+=",\"rs\":"+num(mq[i].rs,3);
+      j+=",\"ratio\":"+num(mq[i].ratio,3);
     }
-    j+=",\"row\":"+String(Cfg::mq[i].row)+",\"ads\":"+String(Cfg::mq[i].ads+1)+",\"ch\":"+String(Cfg::mq[i].ch)+",\"r0_calibrated\":false";
+
+    j+=",\"row\":"+String(Cfg::mq[i].row);
+    j+=",\"ads\":"+String(Cfg::mq[i].ads+1);
+    j+=",\"ch\":"+String(Cfg::mq[i].ch);
+    j+=",\"r0\":"+String(Cfg::mq[i].r0,3);
+    j+=",\"r0_calibrated\":false";
     j+="}";
   }
+
   return j+"}";
 }
 
 }
 
-/* PUBLIC */
+/* ================= PUBLIC ================= */
+
 void hwBegin(){
   loadSettings();
 
-  for(uint8_t p:rp){digitalWrite(p,Cfg::RELAY_OFF);pinMode(p,OUTPUT);}
+  for(uint8_t p:rp){
+    pinMode(p,OUTPUT);
+    digitalWrite(p,Cfg::RELAY_OFF);
+  }
   relayRaw(0);
 
-  pinMode(Cfg::IR_PIN,INPUT);pinMode(Cfg::LDR_PIN,INPUT);pinMode(Cfg::SOUND_PIN,INPUT);
-  analogReadResolution(12);analogSetPinAttenuation(Cfg::SOUND_PIN,ADC_11db);
+  pinMode(Cfg::IR_PIN,INPUT);
+  pinMode(Cfg::SOUND_PIN,INPUT);
 
-  sL.setPeriodHertz(50);sR.setPeriodHertz(50);
-  sL.attach(Cfg::SERVO_L,1000,2000);sR.attach(Cfg::SERVO_R,1000,2000);
-  cmdAt=driveAt=histAt=millis();driveWrite();
+  analogReadResolution(12);
+  analogSetPinAttenuation(Cfg::SOUND_PIN,ADC_11db);
 
-  Wire.begin(Cfg::SDA,Cfg::SCL);Wire.setClock(100000);
-  ads1ok=ads1.begin(Cfg::ADS1_ADDR,&Wire);ads2ok=ads2.begin(Cfg::ADS2_ADDR,&Wire);
-  if(ads1ok){ads1.setGain(GAIN_TWOTHIRDS);ads1.setDataRate(RATE_ADS1115_860SPS);}
-  if(ads2ok){ads2.setGain(GAIN_TWOTHIRDS);ads2.setDataRate(RATE_ADS1115_860SPS);}
+  sL.setPeriodHertz(50);
+  sR.setPeriodHertz(50);
+  sL.attach(Cfg::SERVO_L,1000,2000);
+  sR.attach(Cfg::SERVO_R,1000,2000);
+  cmdAt=driveAt=histAt=millis();
+  driveWrite();
+
+  Wire.begin(Cfg::SDA,Cfg::SCL);
+  Wire.setClock(100000);
+
+  ads1ok=ads1.begin(Cfg::ADS1_ADDR,&Wire);
+  ads2ok=ads2.begin(Cfg::ADS2_ADDR,&Wire);
+
+  if(ads1ok){
+    ads1.setGain(GAIN_TWOTHIRDS);
+    ads1.setDataRate(RATE_ADS1115_860SPS);
+  }
+
+  if(ads2ok){
+    ads2.setGain(GAIN_TWOTHIRDS);
+    ads2.setDataRate(RATE_ADS1115_860SPS);
+  }
+
   envBegin();
 }
 
-void hwUpdate(){driveUpdate();mqUpdate();envUpdate();soundUpdate();irUpdate();ldrUpdate();measureUpdate();}
+void hwUpdate(){
+  driveUpdate();
+  mqUpdate();
+  envUpdate();
+  soundUpdate();
+  irUpdate();
+  measureUpdate();
+}
 
 void driveSet(int l,int r){
   if(retracing||fs)clearHistory();
-  retracing=false;lossHandled=false;fs=false;
-  tarL=lim(l);tarR=lim(r);cmdAt=millis();
+  retracing=false;
+  lossHandled=false;
+  fs=false;
+  tarL=lim(l);
+  tarR=lim(r);
+  cmdAt=millis();
 }
 
 void stopAll(){
-  tarL=tarR=curL=curR=0;retracing=false;lossHandled=true;fs=false;
-  clearHistory();driveWrite();measureCancel();
+  tarL=tarR=curL=curR=0;
+  retracing=false;
+  lossHandled=true;
+  fs=false;
+  clearHistory();
+  driveWrite();
+
+  // Emergency/global stop explicitly removes MQ relay power.
+  measureCancel();
+  relayRaw(0);
 }
 
 bool relaySetMask(uint8_t mask){
-  if(!relayAllowed(mask))return false;
-  measureCancel();relayRaw(mask);return true;
+  if(mask&0xF0)return false;
+
+  // Changing power invalidates an in-progress measurement, but does not
+  // perform any extra relay transition beyond the mask requested by operator.
+  if(stage==WARM||stage==MEASURE){
+    resetMeasurement();
+    stage=IDLE;
+  }
+
+  relayRaw(mask);
+  return true;
 }
 
-void measureStart(){clearMeasure();nextPhase(0);}
+void measureStart(){
+  resetMeasurement();
+  measureMask=relayMask&Cfg::MQ_INSTALLED_MASK;
 
-void measureCancel(){relayRaw(0);clearMeasure();stage=IDLE;}
+  if(!measureMask){
+    stage=ERROR;
+    return;
+  }
+
+  stage=WARM;
+  stageAt=sampleAt=millis();
+}
+
+void measureCancel(){
+  resetMeasurement();
+  stage=IDLE;
+  // Deliberately does NOT change relay power in HazRob 0.8.
+}
 
 void saveSettings(){
-  nv.putString("camIP",settings.cam);nv.putInt("speed",settings.speed);nv.putInt("neutralL",settings.nL);nv.putInt("neutralR",settings.nR);
-  nv.putUInt("warmup",settings.warm);nv.putUInt("measure",settings.measure);
+  nv.putString("camIP",settings.cam);
+  nv.putInt("speed",settings.speed);
+  nv.putInt("neutralL",settings.nL);
+  nv.putInt("neutralR",settings.nR);
+  nv.putUInt("warmup",settings.warm);
+  nv.putUInt("measure",settings.measure);
 }
 
 String settingsJson(){
-  String j="{\"cam\":\""+settings.cam+"\"";j+=",\"speed\":"+String(settings.speed);j+=",\"nl\":"+String(settings.nL);
-  j+=",\"nr\":"+String(settings.nR);j+=",\"warm\":"+String(settings.warm);j+=",\"measure\":"+String(settings.measure);return j+"}";
+  String j="{\"cam\":\""+settings.cam+"\"";
+  j+=",\"speed\":"+String(settings.speed);
+  j+=",\"nl\":"+String(settings.nL);
+  j+=",\"nr\":"+String(settings.nR);
+  j+=",\"warm\":"+String(settings.warm);
+  j+=",\"measure\":"+String(settings.measure);
+  j+=",\"mq_power\":\"manual\"";
+  return j+"}";
 }
 
 String dataJson(){
-  String j="{\"env\":";j+=envJson();
-  j+=",\"sound\":{\"rms\":"+num(soundRms,4)+",\"p2p\":"+num(soundP2P,4)+"}";
-  j+=",\"ir\":{\"warning\":";j+=irWarning?"true":"false";j+=",\"level\":"+String(irLevel)+"}";
-  j+=",\"ldr\":{\"active\":";j+=ldrActive?"true":"false";j+=",\"level\":"+String(ldrLevel)+"}";
-  j+=",\"relay\":"+String(singleRelayGroup(relayMask));j+=",\"relayMask\":"+String(relayMask);
-  j+=",\"retrace\":";j+=retracing?"true":"false";
+  String j="{\"env\":";
+  j+=envJson();
+
+  j+=",\"sound\":{\"rms\":"+num(soundRms,4);
+  j+=",\"p2p\":"+num(soundP2P,4)+"}";
+
+  j+=",\"ir\":{\"warning\":";
+  j+=irWarning?"true":"false";
+  j+=",\"level\":"+String(irLevel)+"}";
+
+  j+=",\"relay\":"+String(singleRelayGroup(relayMask));
+  j+=",\"relayMask\":"+String(relayMask);
+
+  j+=",\"retrace\":";
+  j+=retracing?"true":"false";
+
   j+=",\"mq\":"+mqJson(false);
+
   j+=",\"measurement\":{\"state\":"+String((uint8_t)stage);
   j+=",\"group\":"+String(singleRelayGroup(measureMask));
-  j+=",\"phase\":"+String(phase==0xFF?0:phase+1);
   j+=",\"mask\":"+String(measureMask);
+  j+=",\"manual_power\":true";
+  j+=",\"warm_s\":"+String(settings.warm);
+  j+=",\"measure_s\":"+String(settings.measure);
   j+=",\"mq\":"+mqJson(true)+"}}";
+
   return j;
 }
 
 String diagJson(){
-  String j="{\"fw\":\"HazRob 0.7.1\",\"api\":3";
-  j+=",\"heap\":"+String(ESP.getFreeHeap());j+=",\"clients\":"+String(WiFi.softAPgetStationNum());
-  j+=",\"failsafe\":";j+=fs?"true":"false";j+=",\"retrace\":";j+=retracing?"true":"false";j+=",\"history\":"+String(histCount);
-  j+=",\"relayMask\":"+String(relayMask);j+=",\"mqRows\":"+String(Cfg::MQ_ROWS);j+=",\"maxActiveRows\":"+String(Cfg::MAX_ACTIVE_ROWS);
-  j+=",\"ads1\":";j+=ads1ok?"true":"false";j+=",\"ads2\":";j+=ads2ok?"true":"false";
-  j+=",\"ir\":";j+=irWarning?"true":"false";j+=",\"ldr\":";j+=ldrActive?"true":"false";
-  j+=",\"envType\":"+String(envType);j+=",\"envAddr\":"+String(envAddr);j+=",\"envId\":"+String(envId);
+  String j="{\"fw\":\"HazRob 0.8.0\",\"api\":3";
+  j+=",\"hardware_profile\":\"hazrob_2g8mq_v1\"";
+  j+=",\"heap\":"+String(ESP.getFreeHeap());
+  j+=",\"clients\":"+String(WiFi.softAPgetStationNum());
+
+  j+=",\"failsafe\":";
+  j+=fs?"true":"false";
+  j+=",\"retrace\":";
+  j+=retracing?"true":"false";
+  j+=",\"history\":"+String(histCount);
+
+  j+=",\"relayMask\":"+String(relayMask);
+  j+=",\"mqGroups\":"+String(Cfg::MQ_ROWS);
+  j+=",\"mqInstalledMask\":"+String(Cfg::MQ_INSTALLED_MASK);
+  j+=",\"manualMqPower\":true";
+
+  j+=",\"ads1\":";
+  j+=ads1ok?"true":"false";
+  j+=",\"ads2\":";
+  j+=ads2ok?"true":"false";
+
+  j+=",\"ir\":";
+  j+=irWarning?"true":"false";
+  j+=",\"envType\":"+String(envType);
+  j+=",\"envAddr\":"+String(envAddr);
+  j+=",\"envId\":"+String(envId);
+
   return j+"}";
 }
