@@ -17,6 +17,7 @@ import com.servoc.app.chemical.ValidatedGasEngine;
 import com.servoc.app.exposure.ExposureRepository;
 import com.servoc.app.measurement.SensorHealthEngine;
 import com.servoc.app.measurements.PhysicalCatalog;
+import com.servoc.app.navigation.MqRelayPlanner;
 import com.servoc.app.sensors.RobotTelemetry;
 import org.json.JSONObject;
 import java.text.SimpleDateFormat;
@@ -28,7 +29,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.TimeZone;
 
-/** Environment, MQ acquisition, auxiliary sensors and chemical interpretation. */
+/** Environment, four-row MQ acquisition, auxiliary sensors and chemical interpretation. */
 public final class MeasurementAnalysisTab {
     private static final int TREND_POINTS=60;
     private final HazRobHost host;private final ChemicalRepository chemicals;private final ExposureRepository exposures;private final ScrollView scroll;
@@ -46,15 +47,15 @@ public final class MeasurementAnalysisTab {
         this.host=host;chemicals=new ChemicalRepository(host.database());exposures=new ExposureRepository(host.database());for(double[] a:trendRaw)Arrays.fill(a,Double.NaN);
         scroll=new ScrollView(c);scroll.setFillViewport(true);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
         root.addView(UiKit.title(c,"القياس والتحليل"),UiKit.full(c));
-        root.addView(UiKit.small(c,"البيئة + حالة ADS/IR/الصوت + دورة MQ + جودة الاستحواذ + الأدلة الكيميائية + حدود التعرض + حفظ القياس."),UiKit.full(c));
+        root.addView(UiKit.small(c,"البيئة + ADS1115×2 + IR/LDR/MAX4466 + أربعة صفوف MQ + جودة الاستحواذ + الأدلة الكيميائية + حدود التعرض + حفظ القياس."),UiKit.full(c));
 
         LinearLayout envCard=UiKit.card(c);envCard.addView(UiKit.title(c,"البيئة"),UiKit.full(c));env=UiKit.text(c,"بانتظار ESP32...");env.setBackgroundColor(0xFF151A20);envCard.addView(env,UiKit.full(c));root.addView(envCard,UiKit.full(c));
 
-        LinearLayout hwCard=UiKit.card(c);hwCard.addView(UiKit.title(c,"الحساسات والحالة الكهربائية"),UiKit.full(c));hardware=UiKit.text(c,"بانتظار البيانات...");hardware.setBackgroundColor(0xFF151A20);hwCard.addView(hardware,UiKit.full(c));hwCard.addView(UiKit.small(c,"MAX4466 يعرض RMS وPeak-to-Peak بالفولت فقط؛ لا يحول إلى dB SPL قبل معايرة صوتية موثقة. IR تحذير قرب فقط ولا يوقف الحركة."),UiKit.full(c));root.addView(hwCard,UiKit.full(c));
+        LinearLayout hwCard=UiKit.card(c);hwCard.addView(UiKit.title(c,"الحساسات والحالة الكهربائية"),UiKit.full(c));hardware=UiKit.text(c,"بانتظار البيانات...");hardware.setBackgroundColor(0xFF151A20);hwCard.addView(hardware,UiKit.full(c));hwCard.addView(UiKit.small(c,"MAX4466 يعرض RMS وPeak-to-Peak بالفولت فقط ولا يحول إلى dB SPL قبل معايرة. IR تحذير فقط. LDR حالة عتبة رقمية وليست lux. لا يسمح بأكثر من صفين MQ نشطين."),UiKit.full(c));root.addView(hwCard,UiKit.full(c));
 
         LinearLayout runCard=UiKit.card(c);runCard.addView(UiKit.title(c,"دورة MQ"),UiKit.full(c));cycle=UiKit.text(c,"الحالة: خامل");cycle.setBackgroundColor(0xFF151A20);runCard.addView(cycle,UiKit.full(c));LinearLayout buttons=UiKit.hbox(c);Button start=UiKit.button(c,"بدء القياس");start.setOnClickListener(v->measurement(true));buttons.addView(start,UiKit.weight(1));Button cancel=UiKit.button(c,"إلغاء");cancel.setOnClickListener(v->measurement(false));buttons.addView(cancel,UiKit.weight(1));Button save=UiKit.button(c,"حفظ النتيجة");save.setOnClickListener(v->save());buttons.addView(save,UiKit.weight(1));runCard.addView(buttons,UiKit.full(c));root.addView(runCard,UiKit.full(c));
 
-        LinearLayout mqCard=UiKit.card(c);mqCard.addView(UiKit.title(c,"حالة مصفوفة MQ"),UiKit.full(c));for(int i=0;i<mqRows.length;i++){mqRows[i]=UiKit.small(c,RobotTelemetry.MQ_KEYS[i].toUpperCase(Locale.US)+" —");mqRows[i].setBackgroundColor((i&1)==0?0xFF161C23:0xFF1B222B);mqRows[i].setTextIsSelectable(true);mqCard.addView(mqRows[i],UiKit.full(c));}mqCard.addView(UiKit.small(c,"Raw وVadc وVao وRs وRs/R0 بيانات استحواذ. عدم وجود معايرة مرجعية موثقة يمنع تحويل القراءة إلى PPM كمي."),UiKit.full(c));
+        LinearLayout mqCard=UiKit.card(c);mqCard.addView(UiKit.title(c,"حالة مصفوفة MQ"),UiKit.full(c));for(int i=0;i<mqRows.length;i++){mqRows[i]=UiKit.small(c,RobotTelemetry.MQ_KEYS[i].toUpperCase(Locale.US)+" —");mqRows[i].setBackgroundColor((i&1)==0?0xFF161C23:0xFF1B222B);mqRows[i].setTextIsSelectable(true);mqCard.addView(mqRows[i],UiKit.full(c));}mqCard.addView(UiKit.small(c,"Raw وVadc وVao وRs وRs/R0 بيانات استحواذ. R0 الافتراضي غير معاير؛ لا يُحول إلى PPM كمي إلا عند وجود معايرة ونموذج صالحين."),UiKit.full(c));
         mqBars=new HazChartView(c);mqBars.clear("بصمة MQ الحالية","بانتظار قراءات Rs/R0...");mqCard.addView(mqBars,UiKit.full(c));
         mqTrend=new HazChartView(c);mqTrend.clear("اتجاه الاستجابة خلال آخر دقيقة","يعرض التغير النسبي؛ ليس PPM.");mqCard.addView(mqTrend,UiKit.full(c));root.addView(mqCard,UiKit.full(c));
 
@@ -67,34 +68,34 @@ public final class MeasurementAnalysisTab {
     private static TextView tableCell(Context c,String text,boolean header){TextView v=new TextView(c);v.setText(text);v.setTextColor(header?Color.WHITE:0xFFCFD8DC);v.setTextSize(header?13:12);v.setPadding(UiKit.dp(c,5),UiKit.dp(c,7),UiKit.dp(c,5),UiKit.dp(c,7));if(header){v.setBackgroundColor(0xFF263238);v.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);}return v;}
     public View view(){return scroll;}
 
-    private void measurement(boolean start){host.io().execute(()->{try{if(start)host.robotApi().startMeasurement();else host.robotApi().cancelMeasurement();host.showToast(start?"بدأت دورة MQ":"أُلغيت دورة MQ");}catch(Exception e){host.showToast("تعذر إرسال أمر القياس");}});}
+    private void measurement(boolean start){host.io().execute(()->{try{if(start)host.robotApi().startMeasurement();else host.robotApi().cancelMeasurement();host.showToast(start?"بدأت دورة MQ ذات المرحلتين":"أُلغيت دورة MQ");}catch(Exception e){host.showToast("تعذر إرسال أمر القياس");}});}
 
     private void save(){JSONObject d=host.latestDiagnostics();if(d==null){host.showToast("لا توجد بيانات حية");return;}JSONObject m=d.optJSONObject("measurement");if(m==null||!"ready".equalsIgnoreCase(m.optString("state"))){host.showToast("أكمل دورة MQ قبل حفظ القياس");return;}String ts=isoNow(),payload=d.toString(),analytics=AnalyticsSnapshot.toJson(d);host.io().execute(()->{try{long id=host.database().save(ts,payload,"HazRob field measurement",analytics);host.showToast("تم حفظ القياس #"+id);host.refreshAllTabs();}catch(Exception e){host.showToast("تعذر حفظ القياس");}});}
 
     public void refresh(){
         coverage.setText("قاعدة المعرفة الكيميائية: "+chemicals.count()+" سجلًا • حدود التعرض: "+exposures.count()+" سجلًا • المرشحات تعرض المواد ذات الدليل الحسي فقط.");
-        JSONObject d=host.latestDiagnostics();if(d==null){env.setText("الروبوت غير متصل");hardware.setText("لا توجد بيانات ADS/IR/الصوت");cycle.setText("الحالة: غير متصل");chem.setText("لا توجد بيانات تحليل.");setPhysicalUnavailable("غير متصل");for(int i=0;i<mqRows.length;i++){String key=RobotTelemetry.MQ_KEYS[i];SensorHealthEngine.Snapshot h=host.sensorHealth(key);mqRows[i].setText(key.toUpperCase(Locale.US)+" — • صحة "+SensorHealthEngine.compact(h));}mqBars.clear("بصمة MQ الحالية","الروبوت غير متصل");mqTrend.clear("اتجاه الاستجابة خلال آخر دقيقة","الروبوت غير متصل");candidateBars.clear("اتفاق الأدلة لأعلى المرشحات","لا توجد بيانات تحليل");return;}
+        JSONObject d=host.latestDiagnostics();if(d==null){env.setText("الروبوت غير متصل");hardware.setText("لا توجد بيانات ADS/IR/LDR/الصوت");cycle.setText("الحالة: غير متصل");chem.setText("لا توجد بيانات تحليل.");setPhysicalUnavailable("غير متصل");for(int i=0;i<mqRows.length;i++){String key=RobotTelemetry.MQ_KEYS[i];SensorHealthEngine.Snapshot h=host.sensorHealth(key);mqRows[i].setText(key.toUpperCase(Locale.US)+" — • صحة "+SensorHealthEngine.compact(h));}mqBars.clear("بصمة MQ الحالية","الروبوت غير متصل");mqTrend.clear("اتجاه الاستجابة خلال آخر دقيقة","الروبوت غير متصل");candidateBars.clear("اتفاق الأدلة لأعلى المرشحات","لا توجد بيانات تحليل");return;}
         updateMqCharts(d.optJSONObject("mq"));refreshEnv(d);refreshHardware(d);refreshCycleAndMq(d);refreshChemistry(d);refreshPhysical(d);
     }
 
     private void refreshEnv(JSONObject d){JSONObject e=d.optJSONObject("env");if(e==null||!e.optBoolean("ok",false)){env.setText("الحساس البيئي غير متاح. BME/BMP يعمل مباشرة على I²C ولا يعتمد على دورة MQ.");env.setTextColor(0xFFFFB74D);return;}String type=e.optString("type","ENV");String h=Double.isFinite(e.optDouble("humidity",Double.NaN))?String.format(Locale.US,"%.1f %%RH",e.optDouble("humidity")):"الرطوبة غير متاحة";env.setText(String.format(Locale.US,"%s • %s • Chip %s\nالحرارة %.2f °C • %s • الضغط %.1f hPa",type,e.optString("address","—"),e.optString("chip_id","—"),e.optDouble("temperature",Double.NaN),h,e.optDouble("pressure",Double.NaN)));env.setTextColor(0xFF81C784);}
 
     private void refreshHardware(JSONObject d){
-        JSONObject s=d.optJSONObject("sound"),ir=d.optJSONObject("ir"),adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay"),drv=d.optJSONObject("drive");
+        JSONObject s=d.optJSONObject("sound"),ir=d.optJSONObject("ir"),ldr=d.optJSONObject("ldr"),adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay"),drv=d.optJSONObject("drive");
         double rms=s==null?Double.NaN:s.optDouble("rms_v",Double.NaN),p2p=s==null?Double.NaN:s.optDouble("p2p_v",Double.NaN);
-        boolean irWarn=ir!=null&&ir.optBoolean("warning",false),a1=adc!=null&&adc.optBoolean("ads1",false),a2=adc!=null&&adc.optBoolean("ads2",false),back=drv!=null&&drv.optBoolean("retrace",false);
-        int mask=relay==null?0:relay.optInt("mask",0);
+        boolean irWarn=ir!=null&&ir.optBoolean("warning",false),ldrActive=ldr!=null&&ldr.optBoolean("active",false),a1=adc!=null&&adc.optBoolean("ads1",false),a2=adc!=null&&adc.optBoolean("ads2",false),back=drv!=null&&drv.optBoolean("retrace",false);
+        int mask=relay==null?0:relay.optInt("mask",0),active=relay==null?Integer.bitCount(mask):relay.optInt("active_rows",Integer.bitCount(mask));
         String sound=(Double.isFinite(rms)||Double.isFinite(p2p))?String.format(Locale.US,"MAX4466: RMS %.4f V • P-P %.4f V • غير معاير dB SPL",rms,p2p):"MAX4466: لا توجد قراءة";
-        hardware.setText(sound+"\nADS1115 #1: "+(a1?"متصل":"غير مكتشف")+" • ADS1115 #2: "+(a2?"متصل":"غير مكتشف")+" • Relay mask: "+mask+"\nIR: "+(irWarn?"⚠ قرب/عائق":"واضح")+" • العودة: "+(back?"نشطة":"غير نشطة"));
-        hardware.setTextColor(irWarn||!a1||!a2?0xFFFFB74D:0xFFCFD8DC);
+        hardware.setText(sound+"\nADS1115 #1: "+(a1?"متصل":"غير مكتشف")+" • ADS1115 #2: "+(a2?"متصل":"غير مكتشف")+"\nMQ: "+MqRelayPlanner.rowsLabel(mask)+" • mask "+mask+" • "+active+"/2 صف نشط\nIR: "+(irWarn?"⚠ قرب/عائق":"واضح")+" • LDR: "+(ldrActive?"Active":"Inactive")+" • العودة: "+(back?"نشطة":"غير نشطة"));
+        hardware.setTextColor(irWarn||!a1||!a2||active>2?0xFFFFB74D:0xFFCFD8DC);
     }
 
     private void refreshCycleAndMq(JSONObject d){
-        JSONObject m=d.optJSONObject("measurement");String state=m==null?"idle":m.optString("state","idle");int group=m==null?0:m.optInt("group",0);cycle.setText("الحالة: "+stateAr(state)+(group>0?" • مجموعة "+group:""));cycle.setTextColor("ready".equals(state)?0xFF81C784:Color.WHITE);JSONObject source=d.optJSONObject("mq");if(m!=null&&"ready".equals(state)&&m.optJSONObject("mq")!=null)source=m.optJSONObject("mq");
+        JSONObject m=d.optJSONObject("measurement");String state=m==null?"idle":m.optString("state","idle");int phase=m==null?0:m.optInt("phase",0),mask=m==null?0:m.optInt("mask",0);String phaseText=phase>0?" • المرحلة "+phase+"/2 • "+MqRelayPlanner.rowsLabel(mask)+" (mask "+mask+")":"";cycle.setText("الحالة: "+stateAr(state)+phaseText);cycle.setTextColor("ready".equals(state)?0xFF81C784:Color.WHITE);JSONObject source=d.optJSONObject("mq");if(m!=null&&"ready".equals(state)&&m.optJSONObject("mq")!=null)source=m.optJSONObject("mq");
         for(int i=0;i<mqRows.length;i++){
             String key=RobotTelemetry.MQ_KEYS[i];JSONObject r=source==null?null:source.optJSONObject(key);SensorHealthEngine.Snapshot h=host.sensorHealth(key);
             if(r==null){mqRows[i].setText(key.toUpperCase(Locale.US)+" • غير مركب/غير مرسل • صحة "+SensorHealthEngine.compact(h));mqRows[i].setTextColor(healthColor(h,false));continue;}
-            boolean ok=r.optBoolean("valid",r.optBoolean("ok",false));StringBuilder s=new StringBuilder(key.toUpperCase(Locale.US)).append(ok?" • صالح":" • غير صالح");if(!r.isNull("raw"))s.append(" • raw ").append((int)Math.round(r.optDouble("raw",0)));add(s,r,"adc","Vadc");add(s,r,"ao","Vao");add(s,r,"rs","Rs");add(s,r,"ratio","Rs/R0");s.append(" • صحة ").append(SensorHealthEngine.compact(h));mqRows[i].setText(s.toString());mqRows[i].setTextColor(healthColor(h,ok));
+            boolean ok=r.optBoolean("valid",r.optBoolean("ok",false));StringBuilder s=new StringBuilder(key.toUpperCase(Locale.US)).append(" • R").append(r.optInt("row",0)).append(" • ADS").append(r.optInt("ads",0)).append(" A").append(r.optInt("ch",0)).append(ok?" • صالح":" • غير صالح");if(!r.isNull("raw"))s.append(" • raw ").append((int)Math.round(r.optDouble("raw",0)));add(s,r,"adc","Vadc");add(s,r,"ao","Vao");add(s,r,"rs","Rs");add(s,r,"ratio","Rs/R0");if(!r.optBoolean("r0_calibrated",false))s.append(" • R0 غير معاير");s.append(" • صحة ").append(SensorHealthEngine.compact(h));mqRows[i].setText(s.toString());mqRows[i].setTextColor(healthColor(h,ok));
         }
     }
 
