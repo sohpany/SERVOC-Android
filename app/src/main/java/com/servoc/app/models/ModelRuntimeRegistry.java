@@ -15,16 +15,20 @@ public final class ModelRuntimeRegistry {
     // Current fidelity audit against MQDataScience v6.0.0 / pinned commit.
     private static final int[] VERIFIED={
             CalibrationRegressionModels.LINEAR,
+            CalibrationRegressionModels.WEIGHTED_LINEAR,
+            CalibrationRegressionModels.RIDGE,
+            CalibrationRegressionModels.LASSO,
+            CalibrationRegressionModels.ELASTIC_NET,
+            CalibrationRegressionModels.DEMING,
             CalibrationRegressionModels.POLY2,
             CalibrationRegressionModels.POLY3,
+            CalibrationRegressionModels.POLY4,
             CalibrationRegressionModels.LOGARITHMIC
     };
 
     private static final int[] APPROXIMATION={
-            CalibrationRegressionModels.WEIGHTED_LINEAR,
             CalibrationRegressionModels.HUBER,
             CalibrationRegressionModels.THEIL_SEN,
-            CalibrationRegressionModels.RIDGE,
             CalibrationRegressionModels.EXPONENTIAL,
             CalibrationRegressionModels.POWER
     };
