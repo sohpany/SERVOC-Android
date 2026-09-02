@@ -18,16 +18,26 @@ public class ModelRuntimeRegistryTest {
                 ModelRuntimeRegistry.verifiedCount()+ModelRuntimeRegistry.approximationCount());
         assertEquals(MqDataScience76Catalog.COUNT,
                 ModelRuntimeRegistry.nativeCount()+ModelRuntimeRegistry.pendingPortCount());
+        assertEquals(14,ModelRuntimeRegistry.nativeCount());
+        assertEquals(10,ModelRuntimeRegistry.verifiedCount());
+        assertEquals(4,ModelRuntimeRegistry.approximationCount());
+        assertEquals(62,ModelRuntimeRegistry.pendingPortCount());
     }
 
     @Test public void fidelityAuditMarksKnownCasesTruthfully(){
         assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.LINEAR));
+        assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.WEIGHTED_LINEAR));
+        assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.RIDGE));
+        assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.LASSO));
+        assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.ELASTIC_NET));
+        assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.DEMING));
         assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.POLY2));
         assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.POLY3));
+        assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.POLY4));
         assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.LOGARITHMIC));
 
-        assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.WEIGHTED_LINEAR));
-        assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.RIDGE));
+        assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.HUBER));
+        assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.THEIL_SEN));
         assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.EXPONENTIAL));
         assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.POWER));
 
