@@ -251,7 +251,7 @@ public final class ReportExporter {
             int perPage=18;for(int start=0;start<catalog.size();start+=perPage){int end=Math.min(catalog.size(),start+perPage);newPage("المركبات والنتائج • "+(start+1)+"–"+end+" / "+catalog.size());header(new String[]{"#","المركب","CAS","الدليل","PPM","اتفاق","الخطر"},new float[]{35,225,135,120,90,80,95});for(int i=start;i<end;i++){ChemicalRepository.Chemical ch=catalog.get(i);JSONObject q=ix.forChemical(ch);boolean ev=hasEvidence(q),quant=ev&&q.optBoolean("quantitative",false);int risk=quant?q.optInt("risk",0):0;tableRow(new String[]{String.valueOf(i+1),chemicalName(ch),n(ch.cas),ev?(quant?"كمي":"بصمة"):"لا دليل",quant?num(q,"ppm"):"—",ev?num(q,"agreement"):"—",quant?riskName(risk):"غير متاح"},new float[]{35,225,135,120,90,80,95},ev?(quant?riskColor(risk):0xFFE3F2FD):0);}}
         }
 
-        void header(String[] a,float[] widths){p.setColor(0xFF263238);c.drawRect(25,y,817,y+22,p);float x=30;p.setTextColor(Color.WHITE);p.setTextSize(8);for(int i=0;i<a.length;i++){c.drawText(a[i],x,y+15,p);x+=widths[i];}y+=24;}
+        void header(String[] a,float[] widths){p.setColor(0xFF263238);c.drawRect(25,y,817,y+22,p);float x=30;p.setColor(Color.WHITE);p.setTextSize(8);for(int i=0;i<a.length;i++){c.drawText(a[i],x,y+15,p);x+=widths[i];}y+=24;}
         void tableRow(String[] a,float[] widths,int bg){if(y>565)newPage("متابعة التقرير");if(bg!=0){p.setColor(bg);c.drawRect(25,y-2,817,y+16,p);}p.setColor(Color.DKGRAY);p.setTextSize(7.5f);float x=30;for(int i=0;i<a.length;i++){String v=n(a[i]);float max=Math.max(20,widths[i]-6);c.save();c.clipRect(x,y-3,x+max,y+15);c.drawText(v,x,y+10,p);c.restore();x+=widths[i];}y+=18;}
     }
 
@@ -279,7 +279,7 @@ public final class ReportExporter {
     // XML helpers
     // -------------------------------------------------------------------------
 
-    private static String sheetStart(){return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\" rightToLeft=\"1\"/></sheetViews><sheetData>";}
+    private static StringBuilder sheetStart(){return new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><sheetViews><sheetView workbookViewId=\"0\" rightToLeft=\"1\"/></sheetViews><sheetData>");}
     private static String sheetEnd(StringBuilder s){return s.append("</sheetData></worksheet>").toString();}
     private static void row(StringBuilder s,int row,String[] vals,int style){s.append("<row r=\"").append(row).append("\">");for(int i=0;i<vals.length;i++){String ref=col(i+1)+row;s.append("<c r=\"").append(ref).append("\" t=\"inlineStr\"");if(style>0)s.append(" s=\"").append(style).append("\"");s.append("><is><t xml:space=\"preserve\">").append(xml(n(vals[i]))).append("</t></is></c>");}s.append("</row>");}
     private static String col(int n){StringBuilder s=new StringBuilder();while(n>0){n--;s.insert(0,(char)('A'+n%26));n/=26;}return s.toString();}
