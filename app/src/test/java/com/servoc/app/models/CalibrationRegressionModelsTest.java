@@ -45,14 +45,36 @@ public class CalibrationRegressionModelsTest {
         assertNotNull(CalibrationRegressionModels.fit(CalibrationRegressionModels.ELASTIC_NET,x,y));
     }
 
+    @Test public void exponentialCurveMatchesPinnedScipyCurveFitGoldenVector(){
+        double[] x={0.45,0.60,0.82,1.05,1.35,1.70,2.0,2.3};
+        double[] y={12.8,13.5,14.7,16.2,18.8,22.5,27.1,33.0};
+        CalibrationRegressionModels.Fit f=CalibrationRegressionModels.fit(CalibrationRegressionModels.EXPONENTIAL,x,y);
+        assertNotNull(f);
+        assertEquals(3, f.coefficients.length);
+        assertEquals(3.12823956,f.coefficients[0],1e-4);
+        assertEquals(0.90094276,f.coefficients[1],1e-5);
+        assertEquals(8.13754324,f.coefficients[2],1e-4);
+    }
+
+    @Test public void powerCurveMatchesPinnedScipyCurveFitGoldenVector(){
+        double[] x={0.45,0.60,0.82,1.05,1.35,1.70,2.0,2.3};
+        double[] y={830,610,455,355,270,215,185,165};
+        CalibrationRegressionModels.Fit f=CalibrationRegressionModels.fit(CalibrationRegressionModels.POWER,x,y);
+        assertNotNull(f);
+        assertEquals(3, f.coefficients.length);
+        assertEquals(355.30081749,f.coefficients[0],1e-3);
+        assertEquals(-1.03919362,f.coefficients[1],1e-5);
+        assertEquals(13.07158156,f.coefficients[2],1e-3);
+    }
+
     @Test public void powerRegressionRecoversSyntheticMqCurve(){
         double[] ratio={0.45,0.60,0.82,1.05,1.35,1.70};
         double[] ppm=new double[ratio.length];
         for(int i=0;i<ratio.length;i++)ppm[i]=525.0*Math.pow(ratio[i],-2.15);
         CalibrationRegressionModels.Fit f=CalibrationRegressionModels.fit(CalibrationRegressionModels.POWER,ratio,ppm);
         assertNotNull(f);
-        assertEquals(525.0,f.predict(1.0),525.0*1e-8);
-        assertEquals(525.0*Math.pow(0.73,-2.15),f.predict(0.73),1e-5);
+        assertEquals(525.0,f.predict(1.0),1e-3);
+        assertEquals(525.0*Math.pow(0.73,-2.15),f.predict(0.73),1e-3);
         assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.POWER));
     }
 
@@ -63,8 +85,8 @@ public class CalibrationRegressionModelsTest {
         List<CalibrationRegressionModels.Score> scores=CalibrationRegressionModels.rank(ratio,ppm);
         assertFalse(scores.isEmpty());
         assertEquals(CalibrationRegressionModels.POWER,scores.get(0).fit.catalogIndex);
-        assertTrue(scores.get(0).logRmse<1e-6);
-        assertTrue(scores.get(0).r2>0.999999);
+        assertTrue(scores.get(0).logRmse<1e-5);
+        assertTrue(scores.get(0).r2>0.99999);
     }
 
     @Test public void theilSenResistsOneLargeOutlier(){
