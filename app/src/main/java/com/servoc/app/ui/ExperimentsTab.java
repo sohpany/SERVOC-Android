@@ -12,6 +12,7 @@ import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.servoc.app.analytics.AnalyticsSnapshot;
+import com.servoc.app.analytics.LibraryStatus;
 import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.data.ExperimentQueries;
@@ -23,6 +24,7 @@ import com.servoc.app.models.CalibrationModelLab;
 import com.servoc.app.models.CalibrationRegressionModels;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
+import com.servoc.app.models.MqDataScienceModelProfile;
 import com.servoc.app.report.ReferenceBankExporter;
 
 import org.json.JSONObject;
@@ -51,6 +53,8 @@ public final class ExperimentsTab {
     private final TextView modelResult;
 
     private final EditText knownPpm;
+    private final EditText warmUsed;
+    private final EditText experimentNotes;
     private final EditText githubToken;
     private final Button pdf;
     private final Button xlsx;
@@ -140,7 +144,7 @@ public final class ExperimentsTab {
         LinearLayout capture=UiKit.card(c);
         capture.addView(UiKit.title(c,"تجربة مرجعية عملية"),UiKit.full(c));
         capture.addView(UiKit.small(c,
-                "اختر مركبًا وتركيزًا مرجعيًا معلومًا. في التشغيل اليدوي يمكن حفظ القراءات الحية، وإذا كانت دورة القياس في READY تُستخدم المتوسطات تلقائيًا."),UiKit.full(c));
+                "اختر مركبًا وتركيزًا مرجعيًا معلومًا. سجل زمن التسخين الذي طبقته فعليًا قبل أخذ هذه النقطة؛ لا يفترض التطبيق أن قيمة الإعداد تعني أن التسخين تم فعليًا."),UiKit.full(c));
 
         capture.addView(UiKit.small(c,"المركب المرجعي"),UiKit.full(c));
         chemicalSpinner=new Spinner(c);
@@ -151,6 +155,9 @@ public final class ExperimentsTab {
 
         knownPpm=field(c,capture,"التركيز المرجعي ppm","");
         knownPpm.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        warmUsed=field(c,capture,"زمن التسخين الفعلي المستخدم لهذه النقطة (ثانية)",String.valueOf(host.preferences().getInt("warm",60)));
+        warmUsed.setInputType(InputType.TYPE_CLASS_NUMBER);
+        experimentNotes=field(c,capture,"ملاحظات التجربة / الغاز المرجعي / ظروف الإجراء","");
 
         LinearLayout run=UiKit.hbox(c);
         Button start=UiKit.button(c,"بدء averaging");start.setOnClickListener(v->measurement(true));run.addView(start,UiKit.weight(1));
@@ -183,7 +190,20 @@ public final class ExperimentsTab {
         modelStatus.setTextIsSelectable(true);
         models.addView(modelStatus,UiKit.full(c));
         models.addView(UiKit.small(c,
-                "جميع النماذج الـ76 معتمدة ضمن مكتبة HazRob. حالة Native تعني فقط أن النقل إلى Android اكتمل واختُبر. المقارنة أدناه لا تعتمد نموذجًا تلقائيًا ولا تمنح صلاحية PPM من دون بيانات مرجعية كافية."),UiKit.full(c));
+                "جميع النماذج الـ76 ADOPTED. UPSTREAM-VERIFIED يعني أن port Android يطابق الصيغة/الإجراء المثبت قدر الإمكان للبيانات الحالية، بينما APPROXIMATION يعني تنفيذًا عاملًا ما زال يحتاج مطابقة المصدر. لا يعتمد التطبيق نموذجًا تلقائيًا."),UiKit.full(c));
+
+        final TextView catalogView=UiKit.small(c,"");
+        catalogView.setTextIsSelectable(true);
+        catalogView.setVisibility(View.GONE);
+        catalogView.setBackgroundColor(0xFF151A20);
+        Button showCatalog=UiKit.button(c,"عرض خريطة الـ76 نموذجًا وحالة النقل");
+        showCatalog.setOnClickListener(v->{
+            boolean show=catalogView.getVisibility()!=View.VISIBLE;
+            catalogView.setVisibility(show?View.VISIBLE:View.GONE);
+            if(show)catalogView.setText(formatModelCatalog());
+        });
+        models.addView(showCatalog,UiKit.full(c));
+        models.addView(catalogView,UiKit.full(c));
 
         models.addView(UiKit.small(c,"الحساس المراد تقييم منحنياته"),UiKit.full(c));
         modelSensorSpinner=new Spinner(c);
@@ -194,12 +214,12 @@ public final class ExperimentsTab {
         modelSensorSpinner.setAdapter(sensorAdapter);
         models.addView(modelSensorSpinner,UiKit.full(c));
 
-        Button compareModels=UiKit.button(c,"مقارنة النماذج مع التجارب المرجعية");
+        Button compareModels=UiKit.button(c,"مقارنة نماذج المنحنى المتاحة مع التجارب المرجعية");
         compareModels.setOnClickListener(v->compareCalibrationModels());
         models.addView(compareModels,UiKit.full(c));
 
         modelResult=UiKit.small(c,
-                "اختر المركب أعلاه والحساس، ثم سجل عدة تعرضات مرجعية بتراكيز معلومة. ستظهر هنا النماذج المنفذة حاليًا مرتبة وفق log-RMSE وR².");
+                "اختر المركب والحساس، ثم سجل عدة تعرضات مرجعية بتراكيز معلومة. المقارنة الحالية تستخدم فقط نماذج CURVE_1D المنفذة على Android؛ النماذج متعددة المتغيرات والزمنية وML لا تُشغّل على Dataset غير مناسب.");
         modelResult.setTextIsSelectable(true);
         modelResult.setBackgroundColor(0xFF151A20);
         models.addView(modelResult,UiKit.full(c));
@@ -354,11 +374,15 @@ public final class ExperimentsTab {
     private void captureReference(){
         final ChemicalRepository.Chemical chemical=selectedChemical();
         double ppm;
+        int warmSeconds;
         try{ppm=Double.parseDouble(knownPpm.getText().toString().trim());}
         catch(Exception e){host.showToast("أدخل تركيزًا مرجعيًا صالحًا");return;}
+        try{warmSeconds=Integer.parseInt(warmUsed.getText().toString().trim());}
+        catch(Exception e){host.showToast("أدخل زمن التسخين الفعلي بالثواني");return;}
 
         if(chemical==null){host.showToast("اختر مركبًا مرجعيًا");return;}
         if(!Double.isFinite(ppm)||ppm<=0){host.showToast("التركيز المرجعي غير صالح");return;}
+        if(warmSeconds<0||warmSeconds>86400){host.showToast("زمن التسخين الفعلي غير صالح");return;}
 
         JSONObject d=host.latestDiagnostics();
         if(d==null){host.showToast("لا توجد بيانات حية من الروبوت");return;}
@@ -377,12 +401,41 @@ public final class ExperimentsTab {
         String analytics=AnalyticsSnapshot.toJson(d);
         JSONObject relay=d.optJSONObject("relay");
         int mask=relay==null?0:relay.optInt("mask",0)&3;
-        String protocol="Reference exposure: "+chemical.label()+" @ "+ppm+" ppm • "+state+" • "+HazRobHardwareProfile.groupLabel(mask);
+
+        JSONObject meta=new JSONObject();
+        try{
+            meta.put("schema","hazrob-reference-capture-v0.8");
+            meta.put("hardware_profile",d.optString("hardware_profile",HazRobHardwareProfile.ID));
+            meta.put("relay_mask",mask);
+            meta.put("mq_group",HazRobHardwareProfile.groupLabel(mask));
+            meta.put("manual_power",true);
+            meta.put("manual_warmup",true);
+            meta.put("warmup_actual_s",warmSeconds);
+            meta.put("warmup_setting_s",host.preferences().getInt("warm",60));
+            meta.put("measurement_setting_s",host.preferences().getInt("measure",30));
+            meta.put("capture_state",state);
+            if(t!=null)meta.put("temperature_c",t);
+            if(rh!=null)meta.put("rh_pct",rh);
+            meta.put("notes",experimentNotes.getText().toString().trim());
+            meta.put("analytics_version",LibraryStatus.ANALYTICS_VERSION);
+            meta.put("calibration_version",LibraryStatus.CALIBRATION_VERSION);
+            meta.put("mqdatascience_version",MqDataScience76Catalog.VERSION);
+            meta.put("mqdatascience_commit",MqDataScience76Catalog.PINNED_COMMIT);
+            JSONObject r0=new JSONObject();
+            for(String k:ManualR0Calibration.keys()){
+                double rv=ManualR0Calibration.get(k);
+                if(Double.isFinite(rv)&&rv>0)r0.put(k,rv);
+            }
+            meta.put("manual_r0",r0);
+        }catch(Exception ignored){}
+
+        String protocol="Reference exposure: "+chemical.label()+" @ "+ppm+" ppm • "+state+" • "+HazRobHardwareProfile.groupLabel(mask)+" • warm "+warmSeconds+" s";
 
         final double known=ppm;
+        final String featurePayload=meta.toString();
         host.io().execute(()->{
             try{
-                host.database().saveCaptureForChemical(chemical.uid,chemical.legacyId,known,ts,session,t,rh,state,sensor,null);
+                host.database().saveCaptureForChemical(chemical.uid,chemical.legacyId,known,ts,session,t,rh,state,sensor,featurePayload);
                 long id=host.database().save(ts,d.toString(),protocol,analytics);
                 host.showToast("حُفظ التعرض المرجعي للتجربة #"+id);
                 host.refreshAllTabs();
@@ -391,9 +444,24 @@ public final class ExperimentsTab {
     }
 
     private String modelLibraryStatus(){
-        return "MQDataScience: "+ModelRuntimeRegistry.adoptedCount()+" / "+MqDataScience76Catalog.COUNT+
-                " ADOPTED • Android Native/Tested: "+ModelRuntimeRegistry.nativeCount()+
-                " • Port pending: "+ModelRuntimeRegistry.pendingPortCount();
+        return "MQDataScience: "+ModelRuntimeRegistry.adoptedCount()+" / "+MqDataScience76Catalog.COUNT+" ADOPTED"+
+                " • Native "+ModelRuntimeRegistry.nativeCount()+
+                " • Verified "+ModelRuntimeRegistry.verifiedCount()+
+                " • Approx "+ModelRuntimeRegistry.approximationCount()+
+                " • Pending "+ModelRuntimeRegistry.pendingPortCount();
+    }
+
+    private String formatModelCatalog(){
+        StringBuilder s=new StringBuilder();
+        s.append("Source: ").append(MqDataScience76Catalog.SOURCE).append(" v").append(MqDataScience76Catalog.VERSION)
+         .append(" @ ").append(MqDataScience76Catalog.PINNED_COMMIT).append("\n\n");
+        for(int i=0;i<MqDataScience76Catalog.COUNT;i++){
+            s.append('#').append(i+1).append(" • ").append(MqDataScience76Catalog.NAMES[i]).append('\n')
+             .append("   ").append(ModelRuntimeRegistry.runtimeStatus(i)).append(" • ")
+             .append(MqDataScienceModelProfile.requirementLabel(i)).append(" • recommended ≥")
+             .append(MqDataScienceModelProfile.recommendedMinimumSamples(i)).append(" samples\n");
+        }
+        return s.toString();
     }
 
     private void compareCalibrationModels(){
@@ -415,7 +483,9 @@ public final class ExperimentsTab {
         s.append("المركب: ").append(optionLabel(chemical)).append('\n');
         s.append("الحساس: ").append(report.sensorKey.toUpperCase(Locale.US)).append('\n');
         s.append("العينات الصالحة: ").append(report.samples).append(" • مستويات التركيز: ").append(report.concentrationLevels).append('\n');
-        s.append("المكتبة: 76/76 ADOPTED • Native/Tested الآن: ").append(ModelRuntimeRegistry.nativeCount()).append("\n\n");
+        s.append("المكتبة: 76/76 ADOPTED • Native ").append(ModelRuntimeRegistry.nativeCount())
+         .append(" • Verified ").append(ModelRuntimeRegistry.verifiedCount())
+         .append(" • Approx ").append(ModelRuntimeRegistry.approximationCount()).append("\n\n");
 
         if(report.scores.isEmpty()){
             s.append("لا توجد نقاط كافية لتكوين نموذج صالح لهذا الزوج sensor/analyte.\n")
@@ -423,17 +493,20 @@ public final class ExperimentsTab {
             return s.toString();
         }
 
-        int shown=Math.min(10,report.scores.size());
-        s.append("الترتيب البحثي للنماذج Native الحالية:\n");
+        int shown=Math.min(14,report.scores.size());
+        s.append("ترتيب نماذج CURVE_1D المنفذة حاليًا:\n");
         for(int i=0;i<shown;i++){
             CalibrationRegressionModels.Score q=report.scores.get(i);
-            s.append('\n').append(i+1).append(") #").append(q.fit.catalogIndex+1).append(" • ").append(q.fit.name).append('\n');
-            s.append("   ").append(ModelRuntimeRegistry.runtimeStatus(q.fit.catalogIndex)).append('\n');
+            int idx=q.fit.catalogIndex;
+            s.append('\n').append(i+1).append(") #").append(idx+1).append(" • ").append(q.fit.name).append('\n');
+            s.append("   ").append(ModelRuntimeRegistry.runtimeStatus(idx)).append('\n');
+            s.append("   DATA: ").append(MqDataScienceModelProfile.requirementLabel(idx))
+             .append(" • recommended ≥").append(MqDataScienceModelProfile.recommendedMinimumSamples(idx)).append('\n');
             s.append("   ").append(q.fit.equation()).append('\n');
             s.append(String.format(Locale.US,"   R²(log)=%.5f • log-RMSE=%.6f • samples=%d • %s\n",
                     q.r2,q.logRmse,q.samples,q.crossValidated?"LOO cross-validated":"fit-only"));
         }
-        s.append("\nلا يتم تفعيل أفضل نموذج تلقائيًا. الاعتماد يحتاج مراجعة نطاق التركيز، التكرارية، الانحراف، ظروف T/RH، وبروتوكول heater المناسب.");
+        s.append("\nلا يتم تفعيل أفضل نموذج تلقائيًا. الاعتماد يحتاج مراجعة نطاق التركيز، التكرارية، drift، زمن التسخين الفعلي، ظروف T/RH، وبروتوكول heater المناسب.");
         return s.toString();
     }
 
