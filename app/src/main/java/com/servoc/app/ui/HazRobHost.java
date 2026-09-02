@@ -24,6 +24,7 @@ public interface HazRobHost {
     void setCameraHost(String host);
     String cameraHost();
     boolean cameraReachable();
+    JSONObject cameraDiagnostics();
     void setFlashMode(String mode);
     String flashMode();
     SensorHealthEngine.Snapshot sensorHealth(String key);
