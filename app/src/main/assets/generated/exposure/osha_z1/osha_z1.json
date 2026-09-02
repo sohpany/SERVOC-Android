@@ -1,10 +1,10 @@
 {
   "schema": "hazrob.exposure-seed.v1",
-  "generated_utc": "2026-08-31T09:44:33Z",
+  "generated_utc": "2026-09-02T08:34:45Z",
   "authority": "OSHA",
   "dataset": "PEL_Z1",
   "source": "https://www.osha.gov/annotated-pels/table-z-1",
-  "source_sha256": "4da220e066c07da7bb2cdb6181325a1ea5444a1c2b716ede8c5c0262d8a80599",
+  "source_sha256": "ce387c09170f7a54caeba3f4abb3ec6be68c30b3a539292a5eff6e04e28e4aeb",
   "substance_rows": 432,
   "record_count": 638,
   "records": [

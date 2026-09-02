@@ -1,6 +1,6 @@
 {
   "schema": "hazrob.exposure-seed.v1",
-  "generated_utc": "2026-08-31T09:44:32Z",
+  "generated_utc": "2026-09-02T08:34:45Z",
   "authority": "NIOSH",
   "dataset": "IDLH",
   "source": "https://www.cdc.gov/niosh/idlh/intridl4.html",
