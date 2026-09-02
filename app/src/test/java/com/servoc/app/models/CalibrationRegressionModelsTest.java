@@ -6,8 +6,43 @@ import static org.junit.Assert.*;
 
 public class CalibrationRegressionModelsTest {
     @Test public void nativeRegistryMatchesImplementedModels(){
-        assertEquals(10,ModelRuntimeRegistry.nativeCount());
+        assertEquals(CalibrationRegressionModels.NATIVE.length,ModelRuntimeRegistry.nativeCount());
+        assertEquals(14,ModelRuntimeRegistry.nativeCount());
         for(int i:CalibrationRegressionModels.NATIVE)assertTrue(ModelRuntimeRegistry.isAndroidNative(i));
+    }
+
+    @Test public void fglsRecoversThroughOriginRelation(){
+        double[] x={0.5,1,1.5,2,3,4};
+        double[] y={1.5,3,4.5,6,9,12};
+        CalibrationRegressionModels.Fit f=CalibrationRegressionModels.fit(CalibrationRegressionModels.WEIGHTED_LINEAR,x,y);
+        assertNotNull(f);
+        assertEquals(15.0,f.predict(5.0),1e-8);
+    }
+
+    @Test public void demingRecoversExactStraightLine(){
+        double[] x={1,2,3,4,5,6};
+        double[] y={5,8,11,14,17,20};
+        CalibrationRegressionModels.Fit f=CalibrationRegressionModels.fit(CalibrationRegressionModels.DEMING,x,y);
+        assertNotNull(f);
+        assertEquals(23.0,f.predict(7.0),1e-8);
+    }
+
+    @Test public void polynomial4RecoversFourthDegreeCurve(){
+        double[] x={1,2,3,4,5,6,7};
+        double[] y=new double[x.length];
+        for(int i=0;i<x.length;i++)y[i]=2+3*x[i]-0.5*x[i]*x[i]+0.1*Math.pow(x[i],3)+0.02*Math.pow(x[i],4);
+        CalibrationRegressionModels.Fit f=CalibrationRegressionModels.fit(CalibrationRegressionModels.POLY4,x,y);
+        assertNotNull(f);
+        double q=2+3*2.5-0.5*2.5*2.5+0.1*Math.pow(2.5,3)+0.02*Math.pow(2.5,4);
+        assertEquals(q,f.predict(2.5),1e-6);
+    }
+
+    @Test public void ridgeLassoAndElasticNetAreExecutable(){
+        double[] x={0.4,0.6,0.8,1.0,1.2,1.4,1.6,1.8};
+        double[] y={900,700,560,450,370,310,265,230};
+        assertNotNull(CalibrationRegressionModels.fit(CalibrationRegressionModels.RIDGE,x,y));
+        assertNotNull(CalibrationRegressionModels.fit(CalibrationRegressionModels.LASSO,x,y));
+        assertNotNull(CalibrationRegressionModels.fit(CalibrationRegressionModels.ELASTIC_NET,x,y));
     }
 
     @Test public void powerRegressionRecoversSyntheticMqCurve(){
@@ -18,9 +53,10 @@ public class CalibrationRegressionModelsTest {
         assertNotNull(f);
         assertEquals(525.0,f.predict(1.0),525.0*1e-8);
         assertEquals(525.0*Math.pow(0.73,-2.15),f.predict(0.73),1e-5);
+        assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.POWER));
     }
 
-    @Test public void rankingPrefersPowerForPowerLawData(){
+    @Test public void rankingPrefersPowerForNoOffsetPowerLawData(){
         double[] ratio={0.40,0.52,0.67,0.83,1.02,1.25,1.52,1.80};
         double[] ppm=new double[ratio.length];
         for(int i=0;i<ratio.length;i++)ppm[i]=180.0*Math.pow(ratio[i],-2.4);
@@ -37,5 +73,6 @@ public class CalibrationRegressionModelsTest {
         CalibrationRegressionModels.Fit f=CalibrationRegressionModels.fit(CalibrationRegressionModels.THEIL_SEN,x,y);
         assertNotNull(f);
         assertEquals(22.0,f.predict(6.0),1e-9);
+        assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.THEIL_SEN));
     }
 }
