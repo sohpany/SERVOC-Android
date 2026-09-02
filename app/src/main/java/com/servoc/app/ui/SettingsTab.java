@@ -11,12 +11,13 @@ import android.widget.TextView;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
 import org.json.JSONObject;
+import java.util.Locale;
 
 public final class SettingsTab {
     private final HazRobHost host;
     private final ScrollView scroll;
     private final EditText robot,camera,speed,nl,nr,warm,measure;
-    private final TextView compatibility,libraryInfo;
+    private final TextView compatibility,cameraState,libraryInfo;
 
     public SettingsTab(Context c,HazRobHost host){
         this.host=host;scroll=new ScrollView(c);scroll.setFillViewport(true);
@@ -29,7 +30,8 @@ public final class SettingsTab {
         net.addView(UiKit.small(c,"عنوان ESP32-CAM"),UiKit.full(c));net.addView(camera,UiKit.full(c));
         Button saveNet=UiKit.button(c,"حفظ وتطبيق إعدادات الشبكة");saveNet.setOnClickListener(v->saveNetwork());net.addView(saveNet,UiKit.full(c));
         Button testNet=UiKit.button(c,"اختبار الروبوت والكاميرا");testNet.setOnClickListener(v->testConnections());net.addView(testNet,UiKit.full(c));
-        net.addView(UiKit.small(c,"HazRob 0.7.1 يختبر الكاميرا على HTTP 80 والبث على 81 ويجرب عدة مسارات MJPEG. إذا فشل الروبوت ونجحت شبكة الهاتف فتحقق من عنوان 192.168.4.1؛ وإذا نجح الروبوت وفشلت الكاميرا فغالبًا ESP-CAM لم تنضم إلى HazRob/Servoc أو لم تُبرمج بFirmware الكاميرا المتوافق."),UiKit.full(c));
+        cameraState=UiKit.small(c,"تشخيص الكاميرا: لم يُختبر بعد");cameraState.setBackgroundColor(0xFF151A20);net.addView(cameraState,UiKit.full(c));
+        net.addView(UiKit.small(c,"HazRob 0.7.1 يختبر تحكم الكاميرا على HTTP 80 والبث على 81 ويجرب عدة مسارات MJPEG. إذا نجح الروبوت وفشلت الكاميرا فغالبًا ESP-CAM لم تنضم إلى HazRob/Servoc أو ما زالت على Firmware قديم."),UiKit.full(c));
         root.addView(net,UiKit.full(c));
 
         LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"إعدادات ESP32"),UiKit.full(c));
@@ -52,7 +54,27 @@ public final class SettingsTab {
 
     private void saveNetwork(){host.emergencyStop();String rh=robot.getText().toString().trim(),ch=camera.getText().toString().trim();host.robotApi().setRobotHost(rh);host.setCameraHost(ch);camera.setText(host.cameraHost());host.preferences().edit().putString("robot",host.robotApi().getRobotHost()).putString("camera",host.cameraHost()).apply();host.showToast("تم تطبيق الشبكة وإيقاف الحركة احترازيًا");host.refreshAllTabs();}
 
-    private void testConnections(){host.io().execute(()->{boolean robotOk=false,cameraOk=false;try{robotOk=host.robotApi().diagnostics()!=null;}catch(Exception ignored){}try{cameraOk=host.cameraReachable();}catch(Exception ignored){}String cam=camera.getText().toString().trim();host.showToast("الروبوت "+(robotOk?"متصل":"فشل")+" • الكاميرا "+(cameraOk?"متصلة":"فشل على "+cam));});}
+    private void testConnections(){
+        host.io().execute(()->{
+            boolean robotOk=false;try{robotOk=host.robotApi().diagnostics()!=null;}catch(Exception ignored){}
+            JSONObject cam=null;try{cam=host.cameraDiagnostics();}catch(Exception ignored){}
+            boolean cameraOk=cam!=null;if(!cameraOk)try{cameraOk=host.cameraReachable();}catch(Exception ignored){}
+            final boolean rOk=robotOk,cOk=cameraOk;final JSONObject cdiag=cam;final String ch=host.cameraHost();
+            new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{
+                if(cdiag!=null){
+                    boolean sensorOk=cdiag.optBoolean("camera_ok",cdiag.optBoolean("ok",true));
+                    String fw=cdiag.optString("fw","ESP32-CAM"),ssid=cdiag.optString("ssid","—"),ip=cdiag.optString("ip",ch),pid=cdiag.has("pid")?String.format(Locale.US,"0x%04X",cdiag.optInt("pid",0)):"—";
+                    String fps=cdiag.has("fps")?String.format(Locale.US,"%.2f",cdiag.optDouble("fps",0)):"—";
+                    String err=cdiag.has("camera_error")?" • err "+cdiag.optString("camera_error",""):"";
+                    cameraState.setText("تشخيص الكاميرا: "+fw+" • "+(sensorOk?"sensor OK":"sensor FAIL")+"\nSSID "+ssid+" • IP "+ip+" • PID "+pid+" • FPS "+fps+err);
+                    cameraState.setTextColor(sensorOk?0xFF81C784:0xFFFF7043);
+                }else{
+                    cameraState.setText("تشخيص الكاميرا: "+(cOk?"استجابة HTTP قديمة بدون /status":"لا استجابة من "+ch+" على المنافذ المتوقعة"));cameraState.setTextColor(cOk?0xFFFFB74D:0xFFFF7043);
+                }
+                host.showToast("الروبوت "+(rOk?"متصل":"فشل")+" • الكاميرا "+(cOk?"متصلة":"فشل"));
+            });
+        });
+    }
 
     private void sync(){host.io().execute(()->{try{JSONObject x=host.robotApi().config();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showConfig(x));}catch(Exception e){host.showToast("تعذر قراءة إعدادات ESP32");}});}
 
