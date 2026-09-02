@@ -13,18 +13,22 @@ import com.servoc.app.models.MqDataScience76Catalog;
 
 public final class LibraryStatus {
     private LibraryStatus() {}
-    public static final String ANALYTICS_VERSION="HazRob-ANALYTICS-2026.09-v6";
+    public static final String ANALYTICS_VERSION="HazRob-ANALYTICS-2026.09-v6.1";
     public static final String CATALOG_VERSION="HAZROB-CHEM-144-v3";
     public static final String EXPOSURE_VERSION="HAZROB-OEL-source-v1";
-    public static final String CALIBRATION_VERSION="HAZROB-MQ-CAL-v2";
+    public static final String CALIBRATION_VERSION="HAZROB-MQ-CAL-v2.1";
 
     public static String summary(){
         return "Chemical catalog: "+ChemicalCatalog.COUNT+
                 "\nPurchased MQ sensors: "+SensorEvidenceRegistry.SENSORS.length+
                 "\nPhysical measurements: "+PhysicalCatalog.COUNT+
                 "\nMQDataScience adopted models: "+ModelRuntimeRegistry.adoptedCount()+" / "+MqDataScience76Catalog.COUNT+
-                "\nMQDataScience Android-native/tested: "+ModelRuntimeRegistry.nativeCount()+
+                "\nMQDataScience Android-native total: "+ModelRuntimeRegistry.nativeCount()+
+                "\nMQDataScience upstream-verified ports: "+ModelRuntimeRegistry.verifiedCount()+
+                "\nMQDataScience Android approximations: "+ModelRuntimeRegistry.approximationCount()+
                 "\nMQDataScience adopted ports pending: "+ModelRuntimeRegistry.pendingPortCount()+
+                "\nMQDataScience source: "+MqDataScience76Catalog.SOURCE+" v"+MqDataScience76Catalog.VERSION+
+                " @ "+MqDataScience76Catalog.PINNED_COMMIT+
                 "\nInherited MQ power-law records: "+GasEngine.curveCount()+
                 "\nSecondary research curve records: "+ResearchCurveRegistry.count()+
                 "\nTarget-backed curve chemicals: "+ChemicalCoverage.directCurveCount()+
