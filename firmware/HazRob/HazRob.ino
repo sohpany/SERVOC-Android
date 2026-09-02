@@ -5,9 +5,7 @@
 WebServer web(80);
 uint32_t wifiAt=0;
 
-void reply(int c,const char* s){
-  web.send(c,"text/plain",s);
-}
+void reply(int c,const char* s){web.send(c,"text/plain",s);}
 
 void startAP(){
   WiFi.persistent(false);
@@ -32,7 +30,7 @@ void setup(){
   hwBegin();
   startAP();
 
-  web.on("/",[]{ reply(200,"HazRob"); });
+  web.on("/",[]{reply(200,"HazRob 0.7.1");});
 
   web.on("/drive",[]{
     if(!web.hasArg("l")||!web.hasArg("r"))return reply(400,"BAD");
@@ -43,27 +41,23 @@ void setup(){
     reply(200,"OK");
   });
 
-  web.on("/stop",[]{
-    stopAll();
-    reply(200,"OK");
-  });
+  web.on("/stop",[]{stopAll();reply(200,"OK");});
 
   web.on("/relay",[]{
-    if(web.hasArg("mask")){
-      int mask=web.arg("mask").toInt();
-      if(mask<0||mask>15)return reply(400,"BAD");
-      relaySetMask((uint8_t)mask);
-      return reply(200,"OK");
-    }
+    uint8_t mask=0;
 
-    if(web.hasArg("g")){
+    if(web.hasArg("mask")){
+      int v=web.arg("mask").toInt();
+      if(v<0||v>15)return reply(400,"BAD");
+      mask=(uint8_t)v;
+    }else if(web.hasArg("g")){
       int g=web.arg("g").toInt();
       if(g<0||g>4)return reply(400,"BAD");
-      relaySetMask(g==0?0:(uint8_t)(1U<<(g-1)));
-      return reply(200,"OK");
-    }
+      mask=g==0?0:(uint8_t)(1U<<(g-1));
+    }else return reply(400,"BAD");
 
-    reply(400,"BAD");
+    if(!relaySetMask(mask))return reply(409,"POWER LIMIT: MAX 2 MQ ROWS");
+    reply(200,"OK");
   });
 
   web.on("/measure",[]{
@@ -74,8 +68,8 @@ void setup(){
     reply(200,"OK");
   });
 
-  web.on("/data",[]{ web.send(200,"application/json",dataJson()); });
-  web.on("/diag",[]{ web.send(200,"application/json",diagJson()); });
+  web.on("/data",[]{web.send(200,"application/json",dataJson());});
+  web.on("/diag",[]{web.send(200,"application/json",diagJson());});
 
   web.on("/cfg",[]{
     bool save=false;
@@ -89,7 +83,7 @@ void setup(){
     web.send(200,"application/json",settingsJson());
   });
 
-  web.onNotFound([]{ reply(404,"NOT FOUND"); });
+  web.onNotFound([]{reply(404,"NOT FOUND");});
   web.begin();
 }
 
