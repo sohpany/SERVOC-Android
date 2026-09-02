@@ -75,7 +75,7 @@ public class CalibrationRegressionModelsTest {
         assertNotNull(f);
         assertEquals(525.0,f.predict(1.0),1e-3);
         assertEquals(525.0*Math.pow(0.73,-2.15),f.predict(0.73),1e-3);
-        assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.POWER));
+        assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.POWER));
     }
 
     @Test public void rankingPrefersPowerForNoOffsetPowerLawData(){
