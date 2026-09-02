@@ -19,8 +19,8 @@ public class ModelRuntimeRegistryTest {
         assertEquals(MqDataScience76Catalog.COUNT,
                 ModelRuntimeRegistry.nativeCount()+ModelRuntimeRegistry.pendingPortCount());
         assertEquals(14,ModelRuntimeRegistry.nativeCount());
-        assertEquals(10,ModelRuntimeRegistry.verifiedCount());
-        assertEquals(4,ModelRuntimeRegistry.approximationCount());
+        assertEquals(12,ModelRuntimeRegistry.verifiedCount());
+        assertEquals(2,ModelRuntimeRegistry.approximationCount());
         assertEquals(62,ModelRuntimeRegistry.pendingPortCount());
     }
 
@@ -34,12 +34,12 @@ public class ModelRuntimeRegistryTest {
         assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.POLY2));
         assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.POLY3));
         assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.POLY4));
+        assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.EXPONENTIAL));
         assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.LOGARITHMIC));
+        assertTrue(ModelRuntimeRegistry.isUpstreamVerified(CalibrationRegressionModels.POWER));
 
         assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.HUBER));
         assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.THEIL_SEN));
-        assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.EXPONENTIAL));
-        assertTrue(ModelRuntimeRegistry.isApproximation(CalibrationRegressionModels.POWER));
 
         assertEquals("ADOPTED / PORT PENDING",ModelRuntimeRegistry.runtimeStatus(15)); // RANSAC
     }
