@@ -32,9 +32,9 @@ uint16_t cameraPid=0;
 enum FlashMode:uint8_t{F_OFF,F_AUTO,F_ON};
 volatile FlashMode flashMode=F_OFF;
 
-bool jpgOut(void*,size_t index,const void* data,size_t len){
-  if(!jpgBuf||index+len>JPG_CAP)return false;
-  memcpy(jpgBuf+index,data,len);jpgLen=index+len;return true;
+size_t jpgOut(void*,size_t index,const void* data,size_t len){
+  if(!jpgBuf||index+len>JPG_CAP)return 0;
+  memcpy(jpgBuf+index,data,len);jpgLen=index+len;return len;
 }
 
 bool writeAll(WiFiClient &c,const uint8_t* p,size_t n){
@@ -107,7 +107,7 @@ bool cameraBegin(){
 
 void streamTask(void*){
   for(;;){
-    WiFiClient c=mjpeg.available();
+    WiFiClient c=mjpeg.accept();
     if(!c){vTaskDelay(pdMS_TO_TICKS(2));continue;}
     c.setNoDelay(true);discardRequest(c);
     if(!cameraOk){writeAll(c,"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\nContent-Type: text/plain\r\n\r\nCAMERA INIT FAILED\n");c.stop();continue;}
