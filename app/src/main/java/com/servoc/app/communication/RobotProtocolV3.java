@@ -3,7 +3,7 @@ package com.servoc.app.communication;
 import org.json.JSONObject;
 import java.util.Locale;
 
-/** Normalizes the compact HazRob ESP32 API v3 payload into the application telemetry model. */
+/** Normalizes the compact HazRob ESP32 API v3 payload and additive hardware-sync fields. */
 public final class RobotProtocolV3 {
     private RobotProtocolV3(){}
 
@@ -18,18 +18,23 @@ public final class RobotProtocolV3 {
             out.put("heap",diag.optLong("heap",0));
             out.put("clients",diag.optInt("clients",0));
 
+            boolean retrace=diag.optBoolean("retrace",data.optBoolean("retrace",false));
             JSONObject drive=new JSONObject();
             drive.put("left",commandedLeft);
             drive.put("right",commandedRight);
             drive.put("failsafe",diag.optBoolean("failsafe",false));
+            drive.put("retrace",retrace);
             out.put("drive",drive);
+            out.put("retrace",retrace);
 
             out.put("env",environment(diag,data.optJSONObject("env")));
-            out.put("relay",relay(data));
+            out.put("relay",relay(diag,data));
+            out.put("sound",sound(data.optJSONObject("sound")));
+            out.put("ir",ir(diag,data.optJSONObject("ir")));
+            out.put("adc",adc(diag));
             out.put("mq",mq(data.optJSONObject("mq"),false));
             out.put("measurement",measurement(data.optJSONObject("measurement")));
 
-            // Retain compact raw payloads for diagnostics/export without coupling UI code to them.
             out.put("_diag_v3",diag);
             out.put("_data_v3",data);
         }catch(Exception ignored){}
@@ -57,15 +62,52 @@ public final class RobotProtocolV3 {
         return x;
     }
 
-    private static JSONObject relay(JSONObject data){
+    private static JSONObject relay(JSONObject diag,JSONObject data){
         JSONObject x=new JSONObject();
         try{
-            int g=data==null?0:data.optInt("relay",0);
-            x.put("group",g);
-            x.put("group1",g==1);
-            x.put("group2",g==2);
-            x.put("group3",g==3);
+            int mask;
+            if(data!=null&&data.has("relayMask"))mask=data.optInt("relayMask",0)&15;
+            else if(diag!=null&&diag.has("relayMask"))mask=diag.optInt("relayMask",0)&15;
+            else{
+                int g=data==null?0:data.optInt("relay",0);
+                mask=g>=1&&g<=4?1<<(g-1):0;
+            }
+            int group=Integer.bitCount(mask)==1?Integer.numberOfTrailingZeros(mask)+1:0;
+            x.put("mask",mask);
+            x.put("group",group);
+            x.put("group1",(mask&1)!=0);
+            x.put("group2",(mask&2)!=0);
+            x.put("group3",(mask&4)!=0);
+            x.put("group4",(mask&8)!=0);
         }catch(Exception ignored){}
+        return x;
+    }
+
+    private static JSONObject sound(JSONObject s){
+        JSONObject x=new JSONObject();
+        try{
+            if(s==null)s=new JSONObject();
+            Object rms=finite(s,"rms"),p2p=finite(s,"p2p");
+            x.put("rms_v",rms);x.put("p2p_v",p2p);
+            x.put("ok",rms!=JSONObject.NULL||p2p!=JSONObject.NULL);
+            x.put("calibrated_db_spl",false);
+        }catch(Exception ignored){}
+        return x;
+    }
+
+    private static JSONObject ir(JSONObject diag,JSONObject i){
+        JSONObject x=new JSONObject();
+        try{
+            boolean warning=i!=null?i.optBoolean("warning",diag.optBoolean("ir",false)):diag.optBoolean("ir",false);
+            x.put("warning",warning);
+            x.put("drive_interlock",false);
+        }catch(Exception ignored){}
+        return x;
+    }
+
+    private static JSONObject adc(JSONObject diag){
+        JSONObject x=new JSONObject();
+        try{x.put("ads1",diag.optBoolean("ads1",false));x.put("ads2",diag.optBoolean("ads2",false));}catch(Exception ignored){}
         return x;
     }
 
@@ -92,9 +134,7 @@ public final class RobotProtocolV3 {
             JSONObject x=new JSONObject();
             try{
                 boolean ok=r.optBoolean("ok",r.optBoolean("valid",false));
-                x.put("ok",ok);
-                x.put("valid",ok);
-                x.put("status",ok?(averaged?"AVERAGED":"OK"):"INACTIVE");
+                x.put("ok",ok);x.put("valid",ok);x.put("status",ok?(averaged?"AVERAGED":"OK"):"INACTIVE");
                 copy(r,x,"raw");copy(r,x,"adc");copy(r,x,"ao");copy(r,x,"rs");copy(r,x,"ratio");
                 out.put(key,x);
             }catch(Exception ignored){}

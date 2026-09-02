@@ -1,46 +1,57 @@
-# HazRob ESP32 firmware — API v3
+# HazRob ESP32 firmware — hardware-sync baseline
 
-This directory is the source-of-truth four-tab Arduino project verified on **DOIT ESP32 DEVKIT V1** before the HazRob 0.6 Android migration.
-
-## Verified Arduino result
-
-- Program storage: `1,012,743 bytes (77%)` of `1,310,720`.
-- Global variables: `49,564 bytes (15%)` of `327,680`.
-- Free dynamic-memory budget reported by the Arduino linker: `278,116 bytes`.
+This is the four-tab Arduino project for the **DOIT ESP32 DEVKIT V1** master controller.
 
 ## Network
 
-- Local AP SSID: `Servoc` (retained temporarily for ESP32-CAM compatibility).
+- SoftAP SSID: `HazRob`, open network.
 - Master ESP32: `192.168.4.1/24`.
-- Default ESP32-CAM address stored by the master: `192.168.4.2`.
-- NVS namespace remains `servoc` to preserve prior camera/neutral/timing preferences.
-- The master does not proxy camera video or flash control. HazRob Android communicates with ESP32-CAM directly.
+- ESP32-CAM: `192.168.4.2/24`.
+- NVS namespace remains `servoc` so existing neutral/speed/camera/timing preferences are preserved.
+- Wi-Fi sleep is disabled and the AP watchdog restores the expected AP/IP if needed.
 
-## API v3
+## Required Arduino libraries
 
-Commands retained:
+- ESP32Servo
+- Adafruit ADS1X15
+- Adafruit BME280 Library
+- Adafruit BMP280 Library
+- Adafruit Unified Sensor dependencies required by the Adafruit environment libraries
 
-- `GET /drive?l=-100..100&r=-100..100`
-- `GET /stop`
-- `GET /relay?g=0..3`
-- `GET /measure?cmd=start|cancel`
-- `GET /cfg` and `cam/speed/nl/nr/warm/measure` query parameters
+## I2C topology
 
-Compact telemetry:
+ESP32 uses GPIO21=SDA and GPIO22=SCL. BME280/BMP280 is on the 3.3 V side. Two ADS1115 boards are on the 5 V side through a bidirectional I2C level shifter:
 
-- `GET /diag` → firmware/API/heap/client/failsafe/environment-hardware diagnostics.
-- `GET /data` → continuous environment data, active relay group, live MQ acquisition and measurement-session averages.
+- ADS1115 #1: `0x48`
+- ADS1115 #2: `0x49`
 
-Android 0.6 combines `/diag` and `/data` through `RobotProtocolV3`; UI/analytics code must not depend directly on compact wire keys.
+ADS1115 PGA is `GAIN_TWOTHIRDS` (±6.144 V full-scale). This does **not** permit an analog input above the ADS1115 supply rail; MQ AO must remain within the 0–5 V domain when the ADS boards are powered at 5 V.
 
-## Hardware policy
+## MQ banks
 
-- Drive: GPIO18/GPIO19 continuous servos with local acceleration/deceleration/reversal braking and a 1 s command fail-safe.
-- Environment: BME280/BMP280 directly on I2C SDA21/SCL22, continuously sampled and never relay-controlled.
-- MQ direct ADC channels: MQ-2 GPIO34, MQ-3 GPIO39, MQ-4 GPIO33, MQ-7 GPIO32, MQ-8 GPIO36, MQ-135 GPIO35.
-- Relay groups: GPIO25/26/23, active LOW, mutually exclusive.
-- MUX selectors 13/14/16/17 are reserved only; no MUX signal path is active in this baseline.
+Only two relay channels currently power MQ heaters; relay 3/4 remain reserved.
+
+- Relay 1 / GPIO25 / ADS1: MQ2=A0, MQ4=A1, MQ5=A2, MQ8=A3
+- Relay 2 / GPIO26 / ADS2: MQ3=A0, MQ7=A1, MQ9=A2, MQ135=A3
+- Relay 3 / GPIO27: reserved
+- Relay 4 / GPIO32: reserved
+
+The relay board is active LOW. `/relay?g=0..4` remains available, and `/relay?mask=0..15` adds multi-relay control. `/data` retains the legacy `relay` field when exactly one relay is active and adds `relayMask` for the real bit mask.
+
+## Other sensors
+
+- MAX4466 OUT: GPIO36 (ADC1). Firmware reports RMS voltage and peak-to-peak voltage only; it does not claim calibrated dB SPL.
+- IR digital module: GPIO35. It is telemetry/warning only and does not stop or block drive commands.
+- Environment sensor: BME280/BMP280 on I2C.
+
+## Drive safety
+
+GPIO18/GPIO19 drive the two continuous MG995 servos. Acceleration/deceleration/reversal ramps remain local. The Android app sends a 250 ms drive heartbeat. If the master receives no drive command for `FAILSAFE=1000 ms`, it stops first and can replay the last 60 s command history in reverse at a 40% speed cap. An explicit `/stop` clears history and suppresses retrace.
+
+Retrace is dead-reckoning only. It has no wheel odometry, IMU, drop detector or automatic IR collision stop and therefore requires controlled field validation before unattended use.
 
 ## Analytical boundary
 
-The firmware transmits acquisition values (`raw`, `Vadc`, `Vao`, `Rs`, `Rs/R0`). It performs no gas identification, PPM conversion or exposure interpretation. Current `R0=10` entries are retained legacy/default values and are **not evidence of device-specific reference-gas calibration**.
+Firmware reports acquisition values (`raw`, `Vadc`, `Vao`, `Rs`, `Rs/R0`) and performs no gas identity/source-direction/PPM/exposure analysis. Gas-source direction remains in Android. Current `R0=10` values are placeholders, not device-specific calibration.
+
+MQ7/MQ9 quantitative use still requires a validated heater-phase protocol. Simple relay 5 V ON/OFF does not establish that protocol, so these channels must remain fingerprint/relative evidence until heater control and calibration are validated.

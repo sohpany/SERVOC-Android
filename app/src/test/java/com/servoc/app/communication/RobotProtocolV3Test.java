@@ -16,6 +16,17 @@ public class RobotProtocolV3Test {
         assertTrue(x.getJSONObject("mq").getJSONObject("mq2").getBoolean("valid"));assertEquals("ready",x.getJSONObject("measurement").getString("state"));assertTrue(x.getJSONObject("measurement").getJSONObject("mq").getJSONObject("mq2").getBoolean("valid"));
     }
 
+    @Test public void hardwareSyncExtensionsAreAdditive()throws Exception{
+        JSONObject diag=new JSONObject("{\"api\":3,\"retrace\":true,\"relayMask\":3,\"ads1\":true,\"ads2\":false,\"ir\":true}");
+        JSONObject data=new JSONObject("{\"env\":{},\"relay\":0,\"relayMask\":3,\"sound\":{\"rms\":0.123,\"p2p\":0.456},\"ir\":{\"warning\":true},\"retrace\":true,\"mq\":{},\"measurement\":{\"state\":0,\"group\":0,\"mq\":{}}}");
+        JSONObject x=RobotProtocolV3.normalize(diag,data,0,0);
+        assertTrue(x.getJSONObject("drive").getBoolean("retrace"));
+        JSONObject r=x.getJSONObject("relay");assertEquals(3,r.getInt("mask"));assertEquals(0,r.getInt("group"));assertTrue(r.getBoolean("group1"));assertTrue(r.getBoolean("group2"));assertFalse(r.getBoolean("group3"));assertFalse(r.getBoolean("group4"));
+        assertTrue(x.getJSONObject("ir").getBoolean("warning"));assertFalse(x.getJSONObject("ir").getBoolean("drive_interlock"));
+        assertEquals(0.123,x.getJSONObject("sound").getDouble("rms_v"),1e-9);assertFalse(x.getJSONObject("sound").getBoolean("calibrated_db_spl"));
+        assertTrue(x.getJSONObject("adc").getBoolean("ads1"));assertFalse(x.getJSONObject("adc").getBoolean("ads2"));
+    }
+
     @Test public void bmp280MarksHumidityUnavailable()throws Exception{
         JSONObject diag=new JSONObject("{\"api\":3,\"envType\":2,\"envAddr\":119,\"envId\":88}");
         JSONObject data=new JSONObject("{\"env\":{\"ok\":true,\"t\":31.2,\"h\":null,\"p\":995.1},\"relay\":0,\"mq\":{},\"measurement\":{\"state\":0,\"group\":0,\"mq\":{}}}");

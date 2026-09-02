@@ -41,19 +41,15 @@ public final class RobotApi {
     public void drive(int left,int right)throws Exception{getText("/drive?l="+left+"&r="+right,450);}
     public void stop()throws Exception{getText("/stop",450);}
 
-    /** Compact API v3 diagnostics. */
     public JSONObject diagnosticsRaw()throws Exception{return getJson("/diag",1000);}
-    /** Compact API v3 acquisition payload. */
     public JSONObject dataRaw()throws Exception{return getJson("/data",1200);}
 
-    /** Single normalized application snapshot assembled from /diag + /data. */
     public JSONObject snapshot(int commandedLeft,int commandedRight)throws Exception{
         JSONObject diag=diagnosticsRaw();
         JSONObject data=dataRaw();
         return RobotProtocolV3.normalize(diag,data,commandedLeft,commandedRight);
     }
 
-    /** Kept for connection tests; returns the raw compact diagnostic document. */
     public JSONObject diagnostics()throws Exception{return diagnosticsRaw();}
     public JSONObject data()throws Exception{return dataRaw();}
     public JSONObject config()throws Exception{return getJson("/cfg",1200);}
@@ -66,8 +62,14 @@ public final class RobotApi {
 
     public void startMeasurement()throws Exception{getText("/measure?cmd=start",800);}
     public void cancelMeasurement()throws Exception{getText("/measure?cmd=cancel",800);}
+
     public void relay(int group)throws Exception{
-        if(group<0||group>3)throw new IllegalArgumentException("relay group 0..3");
+        if(group<0||group>4)throw new IllegalArgumentException("relay group 0..4");
         getText("/relay?g="+group,800);
+    }
+
+    public void relayMask(int mask)throws Exception{
+        if(mask<0||mask>15)throw new IllegalArgumentException("relay mask 0..15");
+        getText("/relay?mask="+mask,800);
     }
 }
