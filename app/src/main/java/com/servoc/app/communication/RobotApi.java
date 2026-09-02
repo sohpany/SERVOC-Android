@@ -70,6 +70,7 @@ public final class RobotApi {
 
     public void relayMask(int mask)throws Exception{
         if(mask<0||mask>15)throw new IllegalArgumentException("relay mask 0..15");
+        if(Integer.bitCount(mask)>2)throw new IllegalArgumentException("maximum two MQ relay rows may be active");
         getText("/relay?mask="+mask,800);
     }
 }
