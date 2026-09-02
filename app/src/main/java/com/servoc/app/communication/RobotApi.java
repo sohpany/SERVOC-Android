@@ -63,14 +63,15 @@ public final class RobotApi {
     public void startMeasurement()throws Exception{getText("/measure?cmd=start",800);}
     public void cancelMeasurement()throws Exception{getText("/measure?cmd=cancel",800);}
 
+    /** Legacy single-relay endpoint retained for firmware compatibility. */
     public void relay(int group)throws Exception{
-        if(group<0||group>4)throw new IllegalArgumentException("relay group 0..4");
+        if(group<0||group>2)throw new IllegalArgumentException("installed MQ relay group 0..2");
         getText("/relay?g="+group,800);
     }
 
+    /** HazRob 0.8 installed MQ power mask: bit0=R1, bit1=R2. R3/R4 are reserved. */
     public void relayMask(int mask)throws Exception{
-        if(mask<0||mask>15)throw new IllegalArgumentException("relay mask 0..15");
-        if(Integer.bitCount(mask)>2)throw new IllegalArgumentException("maximum two MQ relay rows may be active");
+        if(mask<0||mask>3)throw new IllegalArgumentException("installed MQ relay mask 0..3");
         getText("/relay?mask="+mask,800);
     }
 }
