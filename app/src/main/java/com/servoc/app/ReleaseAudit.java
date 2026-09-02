@@ -1,9 +1,9 @@
 package com.servoc.app;
 
-/** Build markers for the HazRob 0.7.1 hardware/application integration. */
+/** Build markers for the HazRob 0.7.1.1 camera compatibility hotfix. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.7.1";
+    public static final String VERSION="0.7.1.1";
     public static final int DATABASE_SCHEMA=7;
     public static final String ESP32_API="HazRob API v3 + four-row relayMask/ADS1115/IR/LDR/sound/retrace extensions";
     public static final boolean PRECALIBRATED_MQ=false;
