@@ -24,4 +24,7 @@ public interface CalibrationCurveProvider {
 
     /** Returns null when no active calibration exists for this sensor/analyte pair. */
     Estimate estimate(int sensorId, int chemicalId, double rsOverR0);
+
+    /** Active analytes that should be included in a full scan. Providers that cannot enumerate may return an empty array. */
+    default int[] chemicalIds(){return new int[0];}
 }
