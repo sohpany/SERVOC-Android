@@ -1,5 +1,6 @@
 package com.servoc.app.analytics;
 
+import com.servoc.app.calibration.CalibrationCurveProvider;
 import com.servoc.app.chemical.ChemicalCatalog;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.chemical.ValidatedGasEngine;
@@ -15,25 +16,34 @@ public final class AnalyticsSnapshot {
     private AnalyticsSnapshot(){}
 
     public static Map<Integer,ValidatedGasEngine.Result> analyze(JSONObject diag){
+        return analyze(diag,null,false);
+    }
+
+    /**
+     * Analysis using the active device calibration when available. Generic manufacturer/research
+     * curves remain secondary fingerprint evidence inside ValidatedGasEngine.
+     */
+    public static Map<Integer,ValidatedGasEngine.Result> analyze(JSONObject diag,CalibrationCurveProvider calibration,boolean identityConfirmed){
         Map<Integer,ValidatedGasEngine.Result> out=new HashMap<>();
         if(diag==null)return out;
         double[] ratios=RobotTelemetry.extractRatios(diag);
-        // Current ESP32 firmware does not expose a validated MQ-7/MQ-9 heater-cycle flag.
-        // Those two channels therefore remain excluded from quantitative target use until
-        // a firmware revision explicitly reports a valid heater phase/cycle.
+        // MQ-7/MQ-9 remain excluded from quantitative target use until firmware reports a
+        // validated heater phase/cycle. Their responses may still contribute fingerprint evidence.
         boolean[] heater={true,true,true,true,false,true,false,true};
-        List<ValidatedGasEngine.Result> r=ValidatedGasEngine.analyze(ratios,heater);
+        List<ValidatedGasEngine.Result> r=ValidatedGasEngine.analyze(ratios,heater,calibration,identityConfirmed);
         for(ValidatedGasEngine.Result x:r)out.put(x.chemical,x);
         return out;
     }
 
-    /** Compatibility overload for callers that do not have the database-backed catalogue. */
-    public static String toJson(JSONObject diag){return toJson(diag,null);}
+    /** Compatibility overload for callers that do not have the database-backed catalogue/calibration provider. */
+    public static String toJson(JSONObject diag){return toJson(diag,null,null,false);}
 
-    /** Stores every actual analytical result together with database identity metadata when available. */
-    public static String toJson(JSONObject diag,ChemicalRepository chemicals){
+    public static String toJson(JSONObject diag,ChemicalRepository chemicals){return toJson(diag,chemicals,null,false);}
+
+    /** Stores every actual analytical result together with database identity and calibration provenance. */
+    public static String toJson(JSONObject diag,ChemicalRepository chemicals,CalibrationCurveProvider calibration,boolean identityConfirmed){
         JSONArray a=new JSONArray();
-        for(Map.Entry<Integer,ValidatedGasEngine.Result> e:analyze(diag).entrySet()){
+        for(Map.Entry<Integer,ValidatedGasEngine.Result> e:analyze(diag,calibration,identityConfirmed).entrySet()){
             int chem=e.getKey();ValidatedGasEngine.Result r=e.getValue();
             if(r==null||r.totalContributors<=0)continue;
             JSONObject x=new JSONObject();
@@ -55,6 +65,7 @@ public final class AnalyticsSnapshot {
                 }
                 x.put("ppm",r.ppm);x.put("agreement",r.agreement);x.put("confidence",r.confidence);x.put("risk",r.risk);
                 x.put("quantitative",r.quantitative);x.put("contributors",r.totalContributors);x.put("primary",r.primaryContributors);
+                x.put("calibrated_contributors",r.calibratedContributors);
                 x.put("manufacturer_cross",r.manufacturerCrossContributors);x.put("community_cross",r.communityCrossContributors);x.put("note",r.note);
                 x.put("evidence_present",true);
             }catch(Exception ignored){}
@@ -64,9 +75,10 @@ public final class AnalyticsSnapshot {
         try{
             root.put("results",a);
             root.put("result_count",a.length());
-            root.put("result_scope","all evidence-bearing results; no fixed 144-row report cap");
-            root.put("precalibrated_installed_mq",ValidatedGasEngine.PRECALIBRATED_INSTALLED_MQ);
-            root.put("safety_interpretation_enabled",ValidatedGasEngine.PRECALIBRATED_INSTALLED_MQ);
+            root.put("result_scope","all evidence-bearing results; no fixed row cap");
+            root.put("device_calibration_provider",calibration==null?"none":"active");
+            root.put("identity_confirmed",identityConfirmed);
+            root.put("safety_interpretation_enabled",false);
             root.put("mq7_mq9_heater_validation",false);
         }catch(Exception ignored){}
         return root.toString();
