@@ -41,7 +41,7 @@ public final class ConnectionGate {
 
     private void showChoice(){content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");Button direct=UiKit.button(a,"التحكم المباشر عبر Wi-Fi");direct.setTextSize(17);direct.setOnClickListener(v->verifyDirect());content.addView(direct,new LinearLayout.LayoutParams(-1,UiKit.dp(a,64)));Button remote=UiKit.button(a,"التحكم عبر الإنترنت");remote.setTextSize(17);remote.setOnClickListener(v->openRemote());LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,UiKit.dp(a,64));rp.topMargin=UiKit.dp(a,16);content.addView(remote,rp);}
 
-    private void verifyDirect(){busy("فحص الاتصال المباشر...",1);io.execute(()->{try{JSONObject d=local.diagnosticsRaw();int api=d.optInt("api",d.optInt("api_version",0));if(api<3)throw new IllegalStateException("API");prefs.edit().putString("connection_mode","direct").apply();ui.post(()->listener.onReady(Mode.DIRECT));}catch(Exception e){ui.post(()->{status.setText("تعذر الوصول إلى HazRob عبر Wi-Fi");status.setTextColor(0xFFFF7043);showBack();});}});}
+    private void verifyDirect(){busy("فحص الاتصال المباشر...",1);io.execute(()->{try{JSONObject d=local.diagnosticsRaw();int api=d.optInt("api",d.optInt("api_version",0));if(api<3)throw new IllegalStateException("API");new RemoteSessionManager(a,prefs).close();prefs.edit().putString("connection_mode","direct").apply();ui.post(()->listener.onReady(Mode.DIRECT));}catch(Exception e){ui.post(()->{status.setText("تعذر الوصول إلى HazRob عبر Wi-Fi");status.setTextColor(0xFFFF7043);showBack();});}});}
 
     private void openRemote(){
         busy("فحص الاتصال البعيد...",1);io.execute(()->{
