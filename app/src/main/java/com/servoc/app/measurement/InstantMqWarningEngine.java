@@ -7,7 +7,7 @@ import java.util.Locale;
 public final class InstantMqWarningEngine {
     private InstantMqWarningEngine(){}
     public enum Level{UNAVAILABLE,NORMAL,ELEVATED,HIGH}
-    public static final class Result{public final Level level;public final String label,alert;public final double delta;Result(Level l,String label,String alert,double d){this.level=l;this.label=label;this.alert=alert;this.delta=d;}}
+    public static final class Result{public final Level level;public final String label,alert;public final double delta;public Result(Level l,String label,String alert,double d){this.level=l;this.label=label;this.alert=alert;this.delta=d;}}
 
     public static Result evaluate(String key,JSONObject reading,SensorHealthEngine.Snapshot health){
         String target=target(key);if(reading==null||!reading.optBoolean("valid",reading.optBoolean("ok",false)))return new Result(Level.UNAVAILABLE,target,"",Double.NaN);
