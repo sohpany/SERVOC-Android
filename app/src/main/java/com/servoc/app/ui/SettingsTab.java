@@ -11,6 +11,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
+import com.servoc.app.camera.RemoteVideoCredentialStore;
 import com.servoc.app.communication.RemoteCredentialStore;
 import com.servoc.app.communication.RemoteSessionManager;
 import com.servoc.app.hardware.HazRobHardwareProfile;
@@ -18,13 +19,14 @@ import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
 import org.json.JSONObject;
 
+import java.net.URI;
 import java.util.Locale;
 
 /** Compact operator settings for HazRob 0.9. MQ power belongs to Measurements, device state to Status. */
 public final class SettingsTab {
     private final Context context;private final HazRobHost host;private final ScrollView scroll;
     private final EditText robot,camera,speed,nl,nr,warm,measure;
-    private EditText brokerHost,brokerPort,robotId,brokerUser,brokerPass;
+    private EditText brokerHost,brokerPort,robotId,brokerUser,brokerPass,videoUrl,videoToken;
     private final TextView compatibility,cameraState,libraryInfo;
 
     public SettingsTab(Context c,HazRobHost host){
@@ -35,7 +37,7 @@ public final class SettingsTab {
 
         LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"الضبط"),UiKit.full(c));speed=field(c,cfg,"السرعة %",String.valueOf(host.preferences().getInt("speed",100)));nl=field(c,cfg,"Neutral L µs",String.valueOf(host.preferences().getInt("nl",1500)));nr=field(c,cfg,"Neutral R µs",String.valueOf(host.preferences().getInt("nr",1500)));warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
-        if("DEVELOPER".equals(host.operatorRole()))addRemoteDeveloperCard(c,root);
+        if("DEVELOPER".equals(host.operatorRole())){addRemoteDeveloperCard(c,root);addRemoteVideoDeveloperCard(c,root);}
 
         LinearLayout compat=UiKit.card(c);compat.addView(UiKit.title(c,"النظام"),UiKit.full(c));compatibility=UiKit.text(c,"Firmware —");compat.addView(compatibility,UiKit.full(c));root.addView(compat,UiKit.full(c));
 
@@ -49,6 +51,10 @@ public final class SettingsTab {
         LinearLayout row=UiKit.hbox(c);Button save=UiKit.button(c,"حفظ آمن");save.setOnClickListener(v->saveRemoteProfile());row.addView(save,UiKit.weight(1));Button test=UiKit.button(c,"اختبار");test.setOnClickListener(v->testRemoteProfile());row.addView(test,UiKit.weight(1));remote.addView(row,UiKit.full(c));root.addView(remote,UiKit.full(c));
     }
 
+    private void addRemoteVideoDeveloperCard(Context c,LinearLayout root){
+        LinearLayout remote=UiKit.card(c);remote.addView(UiKit.title(c,"Remote Video / WSS"),UiKit.full(c));videoUrl=field(c,remote,"Viewer WSS URL",host.preferences().getString("remote_video_url",""));videoToken=field(c,remote,"Bearer Token","");videoToken.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);Button save=UiKit.button(c,"حفظ آمن");save.setOnClickListener(v->saveRemoteVideoProfile());remote.addView(save,UiKit.full(c));root.addView(remote,UiKit.full(c));
+    }
+
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
     public View view(){return scroll;}
 
@@ -59,6 +65,10 @@ public final class SettingsTab {
     private void saveRemoteProfile(){
         if(brokerHost==null)return;String h=brokerHost.getText().toString().trim(),rid=robotId.getText().toString().trim(),u=brokerUser.getText().toString().trim(),p=brokerPass.getText().toString();int port=clamp(parse(brokerPort,8883),1,65535);if(h.isEmpty()||rid.isEmpty()||u.isEmpty()){host.showToast("أكمل Broker / Robot ID / Username");return;}try{RemoteCredentialStore store=new RemoteCredentialStore(context,host.preferences());RemoteCredentialStore.Credentials old=store.load();if(p.isEmpty())p=old.password;store.save(u,p);host.preferences().edit().putString("remote_broker_host",h).putInt("remote_broker_port",port).putString("remote_robot_id",rid).apply();brokerPass.setText("");host.showToast("تم حفظ Remote بأمان");}catch(Exception e){host.showToast("تعذر حفظ بيانات Remote");}}
     private void testRemoteProfile(){host.io().execute(()->{RemoteSessionManager r=new RemoteSessionManager(context,host.preferences());com.servoc.app.communication.RemoteReadiness x=r.probe();host.showToast(x.ready?"REMOTE READY":"Remote: "+x.detail);});}
+
+    private void saveRemoteVideoProfile(){
+        if(videoUrl==null)return;String u=videoUrl.getText().toString().trim(),token=videoToken.getText().toString();if(!validWss(u)){host.showToast("أدخل WSS URL صالح");return;}try{RemoteVideoCredentialStore store=new RemoteVideoCredentialStore(host.preferences());if(token.isEmpty())token=store.load();store.save(token);host.preferences().edit().putString("remote_video_url",u).apply();videoToken.setText("");host.showToast("تم حفظ Remote Video بأمان");}catch(Exception e){host.showToast("تعذر حفظ Remote Video");}}
+    private static boolean validWss(String value){try{URI u=new URI(value);return"wss".equalsIgnoreCase(u.getScheme())&&u.getHost()!=null&&!u.getHost().isEmpty();}catch(Exception e){return false;}}
 
     private void testConnections(){host.io().execute(()->{boolean robotOk=false;try{robotOk=host.robotApi().diagnostics()!=null;}catch(Exception ignored){}JSONObject cam=null;try{cam=host.cameraDiagnostics();}catch(Exception ignored){}boolean cameraOk=cam!=null;if(!cameraOk)try{cameraOk=host.cameraReachable();}catch(Exception ignored){}final boolean rOk=robotOk,cOk=cameraOk;final JSONObject cdiag=cam;new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{if(cdiag!=null){String fps=cdiag.has("fps")?String.format(Locale.US,"%.2f",cdiag.optDouble("fps",0)):"—";String rssi=cdiag.has("rssi")?cdiag.optInt("rssi",0)+" dBm":"—";cameraState.setText("CAM "+(cdiag.optBoolean("camera_ok",cdiag.optBoolean("ok",true))?"OK":"FAIL")+"   •   FPS "+fps+"   •   RSSI "+rssi);cameraState.setTextColor(cOk?0xFF81C784:0xFFFF7043);}else{cameraState.setText("CAM "+(cOk?"HTTP OK":"OFFLINE"));cameraState.setTextColor(cOk?0xFF81C784:0xFFFF7043);}host.showToast("ESP32 "+(rOk?"OK":"OFFLINE")+" • CAM "+(cOk?"OK":"OFFLINE"));});});}
     private void sync(){host.io().execute(()->{try{JSONObject x=host.robotApi().config();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showConfig(x));}catch(Exception e){host.showToast("تعذر المزامنة");}});}
