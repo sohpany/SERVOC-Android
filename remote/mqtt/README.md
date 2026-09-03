@@ -6,28 +6,28 @@ As of 2026-09-03 the Serverless plan is free for development/testing, supports M
 
 ## HazRob identity
 
-Recommended first robot ID:
+Reserved first robot ID:
 
-`HAZROB-001`
+`hazrob-001`
 
 All MQTT traffic for this robot stays under:
 
-`hazrob/HAZROB-001/#`
+`hazrob/hazrob-001/#`
 
 Topics used by HazRob 0.9:
 
-- App → robot commands: `hazrob/HAZROB-001/cmd`
-- Robot → app ACK: `hazrob/HAZROB-001/ack`
-- Robot → app telemetry: `hazrob/HAZROB-001/telemetry`
-- Robot → app status: `hazrob/HAZROB-001/status`
-- Camera status: `hazrob/HAZROB-001/camera/status`
+- App → robot commands: `hazrob/hazrob-001/cmd`
+- Robot → app ACK: `hazrob/hazrob-001/ack`
+- Robot → app telemetry: `hazrob/hazrob-001/telemetry`
+- Robot → app status: `hazrob/hazrob-001/status`
+- Camera status: `hazrob/hazrob-001/camera/status`
 
 ## HiveMQ Cloud Serverless setup
 
 1. Create one free Serverless cluster.
 2. Open **Access Management**.
 3. Create a custom permission named `hazrob-001`:
-   - Topic Filter: `hazrob/HAZROB-001/#`
+   - Topic Filter: `hazrob/hazrob-001/#`
    - Permission Type: **Publish and Subscribe**
 4. Create two access credentials and assign the `hazrob-001` permission to each:
    - `hazrob-robot-001` — used only by the Master ESP32.
@@ -46,7 +46,7 @@ Set:
 
 - `BROKER_HOST` — HiveMQ cluster hostname.
 - `BROKER_PORT` — normally `8883`.
-- `ROBOT_ID` — `HAZROB-001`.
+- `ROBOT_ID` — `hazrob-001`.
 - `USERNAME` — robot credential username.
 - `PASSWORD` — robot credential password.
 - `ROOT_CA` — PEM root CA that validates the exact broker hostname.
@@ -59,7 +59,7 @@ Developer role → Settings → `Remote MQTT/TLS`:
 
 - Broker = same HiveMQ cluster hostname.
 - Port = `8883`.
-- Robot ID = `HAZROB-001`.
+- Robot ID = `hazrob-001`.
 - Username = app credential username.
 - Password = app credential password.
 
