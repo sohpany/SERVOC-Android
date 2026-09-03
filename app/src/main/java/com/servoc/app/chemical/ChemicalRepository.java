@@ -9,6 +9,7 @@ import java.util.List;
 public final class ChemicalRepository {
     private final ExperimentsDb db;
     public ChemicalRepository(ExperimentsDb db){this.db=db;ChemicalIdentitySchema.ensure(db.getWritableDatabase());}
+    public ExperimentsDb database(){return db;}
 
     public static final class Chemical {
         public final long uid;public final Integer legacyId;public final String cas,name,arabicName,formula,source;
