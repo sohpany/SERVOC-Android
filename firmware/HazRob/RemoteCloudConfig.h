@@ -3,13 +3,13 @@
 
 /**
  * HazRob 0.9 remote cloud profile.
- * Fill these values locally before flashing when the MQTT service is provisioned.
+ * Fill service credentials locally before flashing when the MQTT service is provisioned.
  * Never commit production credentials. Remote mode remains disabled while any required value is empty.
  */
 namespace RemoteCfg {
 constexpr char BROKER_HOST[]="";
 constexpr uint16_t BROKER_PORT=8883;
-constexpr char ROBOT_ID[]="";
+constexpr char ROBOT_ID[]="hazrob-001";
 constexpr char USERNAME[]="";
 constexpr char PASSWORD[]="";
 
