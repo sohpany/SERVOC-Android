@@ -64,24 +64,49 @@ void driveUpdate(){
   retraceUpdate(now);historyUpdate(now);if(now-driveAt<10)return;
   float dt=min(now-driveAt,50UL)/1000.0f;driveAt=now;curL=ramp(curL,tarL,dt);curR=ramp(curR,tarR,dt);driveWrite();
 }
+void motionStopInternal(){tarL=tarR=curL=curR=0;retracing=false;lossHandled=true;fs=false;clearHistory();driveWrite();}
 
 /* ---------- RELAYS ---------- */
 const uint8_t rp[]={Cfg::RELAY1,Cfg::RELAY2,Cfg::RELAY3,Cfg::RELAY4};
 uint8_t relayMask=0;
+uint32_t relayOnAt[4]={0,0,0,0};
 uint8_t bitCount4(uint8_t x){x&=0x0F;uint8_t n=0;while(x){n+=x&1U;x>>=1;}return n;}
 bool relayAllowed(uint8_t mask){return !(mask&~Cfg::MQ_INSTALLED_MASK)&&bitCount4(mask)<=Cfg::MAX_ACTIVE_MQ_GROUPS;}
-void relayRaw(uint8_t mask){mask&=0x0F;for(uint8_t i=0;i<4;i++)digitalWrite(rp[i],mask&(1U<<i)?Cfg::RELAY_ON:Cfg::RELAY_OFF);relayMask=mask;}
+void relayRaw(uint8_t mask){
+  mask&=0x0F;uint8_t old=relayMask;uint32_t now=millis();
+  for(uint8_t i=0;i<4;i++){
+    uint8_t bit=(uint8_t)(1U<<i);bool was=(old&bit)!=0,on=(mask&bit)!=0;
+    if(on&&!was)relayOnAt[i]=now;else if(!on)relayOnAt[i]=0;
+    digitalWrite(rp[i],on?Cfg::RELAY_ON:Cfg::RELAY_OFF);
+  }
+  relayMask=mask;
+}
 bool rowOn(uint8_t row){return row>=1&&row<=4&&(relayMask&(1U<<(row-1)));}
 uint8_t singleRelayGroup(uint8_t mask){mask&=Cfg::MQ_INSTALLED_MASK;if(mask==1)return 1;if(mask==2)return 2;return 0;}
+uint32_t rowPowerMs(uint8_t row){if(row<1||row>4||!rowOn(row)||!relayOnAt[row-1])return 0;return millis()-relayOnAt[row-1];}
 
-/* ---------- ADS1115 + MQ ---------- */
+/* ---------- I2C / ADS1115 + MQ ---------- */
+bool i2cProbe(uint8_t a){Wire.beginTransmission(a);return Wire.endTransmission()==0;}
 Adafruit_ADS1115 ads1,ads2;
 bool ads1ok=false,ads2ok=false;
+uint32_t adsHealthAt=0;
 struct Reading{uint16_t raw=0;float adc=NAN,ao=NAN,rs=NAN,ratio=NAN;bool ok=false;};
 Reading mq[Cfg::MQ_N];
 uint32_t mqAt=0;uint8_t mqIndex=0;
 Adafruit_ADS1115* getAds(uint8_t n){return n?&ads2:&ads1;}
 bool adsOK(uint8_t n){return n?ads2ok:ads1ok;}
+bool adsBegin(uint8_t n){
+  Adafruit_ADS1115 *a=getAds(n);uint8_t addr=n?Cfg::ADS2_ADDR:Cfg::ADS1_ADDR;
+  bool ok=a->begin(addr,&Wire);
+  if(ok){a->setGain(GAIN_TWOTHIRDS);a->setDataRate(RATE_ADS1115_860SPS);}
+  if(n)ads2ok=ok;else ads1ok=ok;return ok;
+}
+void adsHealthUpdate(){
+  uint32_t now=millis();if(now-adsHealthAt<Cfg::ADS_REPROBE_MS)return;adsHealthAt=now;
+  bool p1=i2cProbe(Cfg::ADS1_ADDR),p2=i2cProbe(Cfg::ADS2_ADDR);
+  if(!p1)ads1ok=false;else if(!ads1ok)adsBegin(0);
+  if(!p2)ads2ok=false;else if(!ads2ok)adsBegin(1);
+}
 void readMQ(uint8_t i){
   const auto &c=Cfg::mq[i];Reading &r=mq[i];
   if(!rowOn(c.row)||!adsOK(c.ads)){r=Reading();return;}
@@ -100,12 +125,11 @@ void mqUpdate(){
 /* ---------- BME / BMP ---------- */
 Adafruit_BME280 bme;Adafruit_BMP280 bmp(&Wire);
 uint8_t envType=0,envAddr=0,envId=0;float temp=NAN,hum=NAN,press=NAN;uint32_t envAt=0;
-bool probe(uint8_t a){Wire.beginTransmission(a);return Wire.endTransmission()==0;}
 uint8_t chip(uint8_t a){Wire.beginTransmission(a);Wire.write(0xD0);if(Wire.endTransmission(false))return 0;if(Wire.requestFrom((int)a,1)!=1)return 0;return Wire.read();}
 void envRead(){if(envType==1){temp=bme.readTemperature();hum=bme.readHumidity();press=bme.readPressure()/100.0f;}else if(envType==2){temp=bmp.readTemperature();hum=NAN;press=bmp.readPressure()/100.0f;}}
 void envBegin(){
   const uint8_t addr[]={0x76,0x77};
-  for(uint8_t a:addr){if(!probe(a))continue;envAddr=a;envId=chip(a);if(envId==0x60&&bme.begin(a,&Wire)){envType=1;break;}if((envId==0x56||envId==0x57||envId==0x58)&&bmp.begin(a,envId)){envType=2;break;}}
+  for(uint8_t a:addr){if(!i2cProbe(a))continue;envAddr=a;envId=chip(a);if(envId==0x60&&bme.begin(a,&Wire)){envType=1;break;}if((envId==0x56||envId==0x57||envId==0x58)&&bmp.begin(a,envId)){envType=2;break;}}
   envRead();
 }
 void envUpdate(){if(!envType||millis()-envAt<Cfg::ENV_PERIOD)return;envAt=millis();envRead();}
@@ -123,8 +147,7 @@ void soundUpdate(){
 bool irWarning=false;uint8_t irLevel=HIGH;uint32_t irAt=0;
 void irUpdate(){uint32_t now=millis();if(now-irAt<Cfg::IR_PERIOD)return;irAt=now;irLevel=digitalRead(Cfg::IR_PIN);irWarning=irLevel==Cfg::IR_ACTIVE;}
 
-/* ---------- MANUAL POWER / MANUAL WARM-UP MEASUREMENT ---------- */
-// API-v3 stage codes are preserved: 0 idle, 1 reserved warm, 2 measuring, 3 ready, 4 error.
+/* ---------- MEASUREMENT ---------- */
 enum Stage:uint8_t{IDLE,WARM,MEASURE,READY,ERROR};
 Stage stage=IDLE;
 uint8_t measureMask=0;
@@ -151,6 +174,15 @@ void measureUpdate(){
   if(now-stageAt>=(uint32_t)settings.measure*1000UL)finishMeasure();
 }
 
+/* ---------- LINK WATCHDOG ---------- */
+bool linkArmed=false,linkLost=false;
+uint32_t linkAt=0;
+void linkWatchUpdate(){
+  if(!linkArmed||linkLost)return;
+  if(millis()-linkAt<=Cfg::LINK_LOSS_MS)return;
+  linkLost=true;resetMeasurement();relayRaw(0);
+}
+
 /* ---------- SETTINGS / JSON ---------- */
 String num(float v,uint8_t d=2){return isfinite(v)?String(v,(unsigned)d):"null";}
 void loadSettings(){
@@ -170,7 +202,7 @@ String mqJson(bool avg){
     }else{
       j+="\"ok\":";j+=mq[i].ok?"true":"false";j+=",\"raw\":"+String(mq[i].raw)+",\"adc\":"+num(mq[i].adc,3)+",\"ao\":"+num(mq[i].ao,3)+",\"rs\":"+num(mq[i].rs,3)+",\"ratio\":"+num(mq[i].ratio,3);
     }
-    j+=",\"row\":"+String(c.row)+",\"ads\":"+String(c.ads)+",\"ch\":"+String(c.ch)+",\"r0\":"+num(c.r0,3)+",\"r0_calibrated\":false}";
+    j+=",\"row\":"+String(c.row)+",\"ads\":"+String(c.ads)+",\"ch\":"+String(c.ch)+",\"r0\":"+num(c.r0,3)+",\"r0_calibrated\":false,\"r0_source\":\"firmware_default\"}";
   }
   return j+"}";
 }
@@ -185,27 +217,29 @@ void hwBegin(){
   analogReadResolution(12);analogSetPinAttenuation(Cfg::SOUND_PIN,ADC_11db);
   sL.setPeriodHertz(50);sR.setPeriodHertz(50);sL.attach(Cfg::SERVO_L,1000,2000);sR.attach(Cfg::SERVO_R,1000,2000);
   cmdAt=driveAt=histAt=millis();driveWrite();
-  Wire.begin(Cfg::SDA,Cfg::SCL);ads1ok=ads1.begin(Cfg::ADS1_ADDR,&Wire);ads2ok=ads2.begin(Cfg::ADS2_ADDR,&Wire);
-  if(ads1ok){ads1.setGain(GAIN_TWOTHIRDS);ads1.setDataRate(RATE_ADS1115_860SPS);}
-  if(ads2ok){ads2.setGain(GAIN_TWOTHIRDS);ads2.setDataRate(RATE_ADS1115_860SPS);}
+  Wire.begin(Cfg::SDA,Cfg::SCL);adsBegin(0);adsBegin(1);adsHealthAt=millis();
   envBegin();
 }
-void hwUpdate(){driveUpdate();mqUpdate();envUpdate();soundUpdate();irUpdate();measureUpdate();}
+void hwUpdate(){driveUpdate();adsHealthUpdate();mqUpdate();envUpdate();soundUpdate();irUpdate();measureUpdate();linkWatchUpdate();}
 void driveSet(int l,int r){if(retracing||fs)clearHistory();retracing=false;lossHandled=false;fs=false;tarL=lim(l);tarR=lim(r);cmdAt=millis();}
-void stopAll(){tarL=tarR=curL=curR=0;retracing=false;lossHandled=true;fs=false;clearHistory();driveWrite();measureCancel();relayRaw(0);}
+void motionStop(){motionStopInternal();}
+void emergencyStop(){motionStopInternal();resetMeasurement();relayRaw(0);}
 
 bool relaySetMask(uint8_t mask){
   mask&=0x0F;if(!relayAllowed(mask))return false;
   if(stage==MEASURE||stage==WARM)resetMeasurement();
   relayRaw(mask);return true;
 }
+void sensorPowerOff(){resetMeasurement();relayRaw(0);}
 void measureStart(){
   clearSums();measureMask=relayMask&Cfg::MQ_INSTALLED_MASK;
   if(!measureMask){stage=ERROR;stageAt=sampleAt=millis();return;}
-  // Operator has already chosen power and warm-up time; averaging starts immediately.
   stage=MEASURE;stageAt=sampleAt=millis();
 }
 void measureCancel(){resetMeasurement();}
+
+void linkHeartbeat(){linkArmed=true;linkLost=false;linkAt=millis();}
+void linkSetArmed(bool armed){linkArmed=armed;linkLost=false;linkAt=armed?millis():0;}
 
 void saveSettings(){nv.putString("camIP",settings.cam);nv.putInt("speed",settings.speed);nv.putInt("neutralL",settings.nL);nv.putInt("neutralR",settings.nR);nv.putUInt("warmup",settings.warm);nv.putUInt("measure",settings.measure);}
 String settingsJson(){String j="{\"cam\":\""+settings.cam+"\",\"speed\":"+String(settings.speed)+",\"nl\":"+String(settings.nL)+",\"nr\":"+String(settings.nR)+",\"warm\":"+String(settings.warm)+",\"measure\":"+String(settings.measure)+",\"warm_manual\":true,\"mq_power_manual\":true}";return j;}
@@ -214,17 +248,20 @@ String dataJson(){
   j+=",\"sound\":{\"rms\":"+num(soundRms,3)+",\"p2p\":"+num(soundP2P,3)+"}";
   j+=",\"ir\":{\"warning\":";j+=irWarning?"true":"false";j+=",\"level\":"+String(irLevel)+"}";
   j+=",\"relay\":"+String(singleRelayGroup(relayMask))+",\"relayMask\":"+String(relayMask);
+  j+=",\"relayPowerMs\":{\"r1\":"+String(rowPowerMs(1))+",\"r2\":"+String(rowPowerMs(2))+"}";
   j+=",\"retrace\":";j+=retracing?"true":"false";
   j+=",\"mq\":"+mqJson(false);
   j+=",\"measurement\":{\"state\":"+String((uint8_t)stage)+",\"group\":"+String(singleRelayGroup(measureMask))+",\"phase\":0,\"mask\":"+String(measureMask)+",\"manual_power\":true,\"manual_warmup\":true,\"duration_s\":"+String(settings.measure)+",\"mq\":"+mqJson(true)+"}}";
   return j;
 }
 String diagJson(){
-  String j="{\"fw\":\"HazRob 0.8\",\"api\":3,\"hardware_profile\":\"hazrob-0.8-2g8mq-v1\"";
+  String j="{\"fw\":\""+String(Cfg::FW)+"\",\"api\":"+String(Cfg::API)+",\"hardware_profile\":\""+String(Cfg::HW_PROFILE)+"\"";
   j+=",\"heap\":"+String(ESP.getFreeHeap())+",\"clients\":"+String(WiFi.softAPgetStationNum());
   j+=",\"failsafe\":";j+=fs?"true":"false";j+=",\"retrace\":";j+=retracing?"true":"false";
   j+=",\"history\":"+String(histCount)+",\"relayMask\":"+String(relayMask)+",\"installedRelayMask\":"+String(Cfg::MQ_INSTALLED_MASK)+",\"mqGroups\":"+String(Cfg::MQ_ROWS)+",\"mqPowerManual\":true,\"warmupManual\":true";
+  j+=",\"relayPowerMs\":{\"r1\":"+String(rowPowerMs(1))+",\"r2\":"+String(rowPowerMs(2))+"}";
   j+=",\"ads1\":";j+=ads1ok?"true":"false";j+=",\"ads2\":";j+=ads2ok?"true":"false";
+  j+=",\"linkArmed\":";j+=linkArmed?"true":"false";j+=",\"linkLost\":";j+=linkLost?"true":"false";j+=",\"heartbeatAgeMs\":"+String(linkArmed?millis()-linkAt:0);
   j+=",\"ir\":";j+=irWarning?"true":"false";j+=",\"envType\":"+String(envType)+",\"envAddr\":"+String(envAddr)+",\"envId\":"+String(envId)+"}";
   return j;
 }
