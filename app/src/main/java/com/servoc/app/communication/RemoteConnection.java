@@ -7,7 +7,7 @@ import android.os.SystemClock;
 import org.json.JSONObject;
 
 import java.security.SecureRandom;
-import java.util.Locale;
+import java.util.Iterator;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -43,9 +43,12 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     }
 
     public JSONObject command(String type,JSONObject payload,int ttlMs,boolean waitAck,long timeoutMs)throws Exception{
-        if(!isConnected())throw new IllegalStateException("remote MQTT disconnected");long seq=sequence.incrementAndGet();String nonce=Long.toHexString(random.nextLong())+Long.toHexString(System.nanoTime());JSONObject cmd=new JSONObject();cmd.put("session",sessionId);cmd.put("seq",seq);cmd.put("nonce",nonce);cmd.put("type",type);cmd.put("ttl_ms",Math.max(100,Math.min(10000,ttlMs)));cmd.put("sent_ms",System.currentTimeMillis());cmd.put("payload",payload==null?new JSONObject():payload);
+        if(!isConnected())throw new IllegalStateException("remote MQTT disconnected");long seq=sequence.incrementAndGet();String nonce=Long.toHexString(random.nextLong())+Long.toHexString(System.nanoTime());JSONObject body=payload==null?new JSONObject():payload;JSONObject cmd=new JSONObject();cmd.put("session",sessionId);cmd.put("seq",seq);cmd.put("nonce",nonce);cmd.put("type",type);cmd.put("ttl_ms",Math.max(100,Math.min(10000,ttlMs)));cmd.put("sent_ms",System.currentTimeMillis());cmd.put("payload",body);
+        // API4 firmware accepts command parameters at top level for its allocation-free parser.
+        Iterator<String> keys=body.keys();while(keys.hasNext()){String k=keys.next();if(!isReserved(k))cmd.put(k,body.opt(k));}
         Pending p=null;if(waitAck){p=new Pending();pending.put(nonce,p);}try{mqtt.publish(root+"cmd",cmd.toString(),false);if(!waitAck)return null;if(!p.latch.await(Math.max(250,timeoutMs),TimeUnit.MILLISECONDS))throw new java.io.IOException("remote ACK timeout");return p.ack;}finally{if(waitAck)pending.remove(nonce);}
     }
+    private static boolean isReserved(String k){return"session".equals(k)||"seq".equals(k)||"nonce".equals(k)||"type".equals(k)||"ttl_ms".equals(k)||"sent_ms".equals(k)||"payload".equals(k);}
 
     public void drive(int left,int right)throws Exception{JSONObject p=new JSONObject();p.put("left",left);p.put("right",right);command("drive",p,700,false,0);}
     public void motionStop()throws Exception{command("motion_stop",new JSONObject(),1500,false,0);}
@@ -55,6 +58,7 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     public void relayMask(int mask)throws Exception{JSONObject p=new JSONObject();p.put("mask",mask&3);command("relay",p,3000,true,2500);}
     public void startMeasurement()throws Exception{command("measure_start",new JSONObject(),4000,true,3000);}
     public void cancelMeasurement()throws Exception{command("measure_cancel",new JSONObject(),3000,true,2500);}
+    public void cameraFlash(String mode)throws Exception{JSONObject p=new JSONObject();p.put("mode",mode==null?"off":mode);command("camera_flash",p,3000,true,2500);}
 
     public JSONObject snapshot(int left,int right){JSONObject t=latestTelemetry;if(t==null)return null;JSONObject s=t.optJSONObject("snapshot");if(s!=null)return s;JSONObject diag=t.optJSONObject("diag"),data=t.optJSONObject("data");if(diag!=null||data!=null)return RobotProtocolV4.normalize(diag,data,left,right);return t;}
     public JSONObject status(){return latestStatus;}public JSONObject cameraStatus(){return cameraStatus;}
