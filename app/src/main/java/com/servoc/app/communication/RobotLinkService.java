@@ -8,7 +8,6 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.IBinder;
-import androidx.annotation.Nullable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +38,7 @@ public final class RobotLinkService extends Service {
     }
 
     @Override public void onDestroy(){worker.shutdownNow();super.onDestroy();}
-    @Nullable @Override public IBinder onBind(Intent intent){return null;}
+    @Override public IBinder onBind(Intent intent){return null;}
 
     private void ensureChannel(){
         if(android.os.Build.VERSION.SDK_INT<26)return;NotificationManager n=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(n==null)return;
