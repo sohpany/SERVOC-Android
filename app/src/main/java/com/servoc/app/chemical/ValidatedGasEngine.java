@@ -4,7 +4,9 @@ import com.servoc.app.calibration.CalibrationCurveProvider;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /** Evidence-weighted MQ analysis. Exposure interpretation is intentionally handled by authority-aware repositories outside this engine. */
 public final class ValidatedGasEngine {
@@ -20,7 +22,15 @@ public final class ValidatedGasEngine {
     private static final class WeightedValue{final double value,weight;WeightedValue(double value,double weight){this.value=value;this.weight=weight;}}
 
     public static List<Result> analyze(double[] ratios,boolean[] heaterCycleValid){return analyze(ratios,heaterCycleValid,null,false);}
-    public static List<Result> analyze(double[] ratios,boolean[] heaterCycleValid,CalibrationCurveProvider calibration,boolean identityConfirmed){List<Result> out=new ArrayList<>();if(ratios==null)return out;for(int chem:GasEngine.SUPPORTED){Result r=analyzeOne(ratios,chem,heaterCycleValid,calibration,identityConfirmed);if(r!=null)out.add(r);}return out;}
+    public static List<Result> analyze(double[] ratios,boolean[] heaterCycleValid,CalibrationCurveProvider calibration,boolean identityConfirmed){
+        List<Result> out=new ArrayList<>();if(ratios==null)return out;
+        Set<Integer> chemicals=new LinkedHashSet<>();
+        for(int chem:GasEngine.SUPPORTED)chemicals.add(chem);
+        for(ResearchCurveRegistry.Curve c:ResearchCurveRegistry.CURVES)chemicals.add(c.chemical);
+        if(calibration!=null)for(int chem:calibration.chemicalIds())chemicals.add(chem);
+        for(int chem:chemicals){Result r=analyzeOne(ratios,chem,heaterCycleValid,calibration,identityConfirmed);if(r!=null)out.add(r);}
+        return out;
+    }
     public static Result analyzeOne(double[] ratios,int chemical,boolean[] heaterCycleValid){return analyzeOne(ratios,chemical,heaterCycleValid,null,false);}
 
     public static Result analyzeOne(double[] ratios,int chemical,boolean[] heaterCycleValid,CalibrationCurveProvider calibration,boolean identityConfirmed){
