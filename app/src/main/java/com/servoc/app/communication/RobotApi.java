@@ -9,6 +9,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
+/** Direct/local HazRob HTTP API. Remote transport is layered separately in 0.9. */
 public final class RobotApi {
     private volatile String robotHost;
 
@@ -39,7 +40,26 @@ public final class RobotApi {
     public JSONObject getJson(String path,int timeoutMs)throws Exception{return new JSONObject(getText(path,timeoutMs));}
 
     public void drive(int left,int right)throws Exception{getText("/drive?l="+left+"&r="+right,450);}
-    public void stop()throws Exception{getText("/stop",450);}
+
+    /** API4 motion stop: never changes MQ relay state. */
+    public void motionStop()throws Exception{
+        try{getText("/motion/stop",450);}catch(Exception e){getText("/stop",450);}
+    }
+
+    /** Backward method name now maps to motion-only stop. */
+    public void stop()throws Exception{motionStop();}
+
+    public void emergencyStop()throws Exception{
+        try{getText("/estop",650);}catch(Exception e){getText("/stop",650);}
+    }
+
+    public void sensorPowerOff()throws Exception{
+        try{getText("/sensor/off",650);}catch(Exception e){relayMask(0);}
+    }
+
+    /** First heartbeat arms the firmware communication-loss watchdog. */
+    public void heartbeat()throws Exception{getText("/heartbeat",500);}
+    public void disarmHeartbeat()throws Exception{getText("/heartbeat?arm=0",500);}
 
     public JSONObject diagnosticsRaw()throws Exception{return getJson("/diag",1000);}
     public JSONObject dataRaw()throws Exception{return getJson("/data",1200);}
@@ -47,7 +67,7 @@ public final class RobotApi {
     public JSONObject snapshot(int commandedLeft,int commandedRight)throws Exception{
         JSONObject diag=diagnosticsRaw();
         JSONObject data=dataRaw();
-        return RobotProtocolV3.normalize(diag,data,commandedLeft,commandedRight);
+        return RobotProtocolV4.normalize(diag,data,commandedLeft,commandedRight);
     }
 
     public JSONObject diagnostics()throws Exception{return diagnosticsRaw();}
@@ -63,13 +83,12 @@ public final class RobotApi {
     public void startMeasurement()throws Exception{getText("/measure?cmd=start",800);}
     public void cancelMeasurement()throws Exception{getText("/measure?cmd=cancel",800);}
 
-    /** Legacy single-relay endpoint retained for firmware compatibility. */
     public void relay(int group)throws Exception{
         if(group<0||group>2)throw new IllegalArgumentException("installed MQ relay group 0..2");
         getText("/relay?g="+group,800);
     }
 
-    /** HazRob 0.8 installed MQ power mask: bit0=R1, bit1=R2. R3/R4 are reserved. */
+    /** bit0=R1, bit1=R2. R3/R4 are reserved. */
     public void relayMask(int mask)throws Exception{
         if(mask<0||mask>3)throw new IllegalArgumentException("installed MQ relay mask 0..3");
         getText("/relay?mask="+mask,800);
