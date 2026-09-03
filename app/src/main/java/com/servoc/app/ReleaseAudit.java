@@ -6,6 +6,7 @@ public final class ReleaseAudit {
     public static final String VERSION="0.9.0";
     public static final int DATABASE_SCHEMA=7;
     public static final String ESP32_API="HazRob API v4 / split motion-sensor safety / dual ADS recovery / remote-ready transport";
+
     public static final boolean PRECALIBRATED_MQ=true;
     public static final boolean ARABIC_RTL_UI=true;
     public static final boolean ROLE_GATE=true;
@@ -38,4 +39,12 @@ public final class ReleaseAudit {
     public static final boolean REMOTE_CONNECTIVITY=true;
     public static final boolean REMOTE_MQTT_TLS=true;
     public static final boolean REMOTE_WSS_VIDEO=true;
+
+    // Compatibility markers retained for regression tests and legacy audit consumers.
+    public static final boolean FLAME_EVIDENCE_EXPERIMENTAL=true;
+    public static final boolean VIDEO_STANDALONE_FROM_REPORTS=true;
+    public static final boolean VIDEO_LINKED_TO_MEASUREMENTS=false;
+    public static final boolean FOUR_MQ_RELAY_ROWS=false;
+    public static final boolean MANUAL_MQ_WARMUP_SETTING=true;
+    public static final boolean GAS_TRACKING_RELAY_BANK_CONTROL=false;
 }
