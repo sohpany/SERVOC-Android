@@ -5,8 +5,12 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 
+import com.servoc.app.calibration.SqliteCalibrationProvider;
+import com.servoc.app.chemical.ValidatedGasEngine;
+import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.data.SessionSeries;
 import com.servoc.app.hardware.HazRobHardwareProfile;
+import com.servoc.app.sensors.RobotTelemetry;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -14,13 +18,16 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
-/** Canvas charts used by HazRob 0.9 PDF reports. Every plotted point comes from recorded session data. */
+/** Canvas charts used by HazRob 0.9 PDF/XLSX reports. Every plotted point comes from recorded session data. */
 public final class AnalyticalCharts {
     private AnalyticalCharts(){}
     private static final int[] PALETTE={0xFF1565C0,0xFFC62828,0xFF2E7D32,0xFF6A1B9A,0xFFEF6C00,0xFF00838F,0xFFAD1457,0xFF455A64};
+    private static final boolean[] HEATER_VALID={true,true,true,true,false,true,false,true};
 
     private static final class Line{final String name;final double[] x,y;final int color;Line(String n,double[] x,double[] y,int c){name=n;this.x=x;this.y=y;color=c;}}
 
@@ -38,6 +45,16 @@ public final class AnalyticalCharts {
         }
         if(max>0)for(int i=0;i<response.length;i++)if(Double.isFinite(response[i]))response[i]/=max;
         barChart(c,box,"Sensor fingerprint","normalized response",labels,response);
+    }
+
+    /** Returns the number of quantitative chemical curves actually plotted. */
+    public static int ppm(Canvas c,RectF box,SessionSeries.Series s,ExperimentsDb db,JSONObject analytics){
+        if(s==null||!s.usable()||db==null){empty(c,box,"Quantitative concentration vs time","No quantitative time-series");return 0;}
+        JSONArray a=analytics==null?null:analytics.optJSONArray("results");if(a==null||a.length()==0){empty(c,box,"Quantitative concentration vs time","No analytical candidates");return 0;}
+        List<JSONObject> candidates=new ArrayList<>();for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null)candidates.add(x);}candidates.sort(Comparator.comparingDouble((JSONObject x)->x.optDouble("agreement",0)).reversed());if(candidates.size()>6)candidates=candidates.subList(0,6);
+        SqliteCalibrationProvider calibration=new SqliteCalibrationProvider(db);List<Line> lines=new ArrayList<>();int color=0;
+        for(JSONObject candidate:candidates){int chemical=candidate.optInt("chemical_id",candidate.optInt("legacy_id",-1));if(chemical<0)continue;List<Double> xx=new ArrayList<>(),yy=new ArrayList<>();for(SessionSeries.Sample q:s.samples){JSONObject root=new JSONObject();try{root.put("mq",q.mq);}catch(Exception ignored){}double[] ratios=RobotTelemetry.extractRatios(root);ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,chemical,HEATER_VALID,calibration,false);if(r!=null&&r.quantitative&&Double.isFinite(r.ppm)&&r.ppm>0){xx.add(q.tMs/1000.0);yy.add(r.ppm);}}if(yy.size()>=2){String name=candidate.optString("name_ar",candidate.optString("name",candidate.optString("name_en","#"+chemical)));lines.add(new Line(shortName(name,15),arr(xx),arr(yy),PALETTE[color++%PALETTE.length]));}}
+        lineChart(c,box,"Quantitative concentration vs time","time (s)","ppm",lines);return lines.size();
     }
 
     public static void temperature(Canvas c,RectF box,SessionSeries.Series s){lineChart(c,box,"Temperature vs time","time (s)","C",singleEnv(s,"temperature","Temperature",0xFFB71C1C));}
@@ -70,7 +87,7 @@ public final class AnalyticalCharts {
     }
 
     private static void lineChart(Canvas c,RectF box,String title,String xLabel,String yLabel,List<Line> lines){
-        frame(c,box,title);if(lines==null||lines.isEmpty()){small(c,"No recorded series",box.centerX(),box.centerY(),Color.DKGRAY,Paint.Align.CENTER);return;}
+        frame(c,box,title);if(lines==null||lines.isEmpty()){small(c,"No recorded/validated series",box.centerX(),box.centerY(),Color.DKGRAY,Paint.Align.CENTER);return;}
         RectF p=new RectF(box.left+54,box.top+34,box.right-14,box.bottom-42);double xmin=Double.POSITIVE_INFINITY,xmax=Double.NEGATIVE_INFINITY,ymin=Double.POSITIVE_INFINITY,ymax=Double.NEGATIVE_INFINITY;
         for(Line l:lines)for(int i=0;i<l.x.length;i++)if(Double.isFinite(l.x[i])&&Double.isFinite(l.y[i])){xmin=Math.min(xmin,l.x[i]);xmax=Math.max(xmax,l.x[i]);ymin=Math.min(ymin,l.y[i]);ymax=Math.max(ymax,l.y[i]);}
         if(!Double.isFinite(xmin)||!Double.isFinite(ymin)){empty(c,box,title,"No valid samples");return;}if(xmax<=xmin)xmax=xmin+1;if(ymax<=ymin){double e=Math.max(.01,Math.abs(ymin)*.05);ymin-=e;ymax+=e;}double pad=(ymax-ymin)*.08;ymin-=pad;ymax+=pad;
