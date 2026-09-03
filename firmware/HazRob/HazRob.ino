@@ -16,7 +16,7 @@ void startAP(){
   IPAddress subnet(255,255,255,0);
   IPAddress dhcpStart(192,168,4,100);
 
-  // 192.168.4.2 is reserved permanently for ESP-CAM.
+  // 192.168.4.2 is reserved permanently for ESP-CAM local mode.
   WiFi.softAPConfig(ip,ip,subnet,dhcpStart);
   WiFi.softAP(Cfg::SSID);
 }
@@ -36,7 +36,7 @@ void setup(){
   hwBegin();
   startAP();
 
-  web.on("/",[]{reply(200,"HazRob 0.8");});
+  web.on("/",[]{reply(200,Cfg::FW);});
 
   web.on("/drive",[]{
     if(!web.hasArg("l")||!web.hasArg("r"))return reply(400,"BAD");
@@ -47,12 +47,18 @@ void setup(){
     reply(200,"OK");
   });
 
-  web.on("/stop",[]{
-    stopAll();
-    reply(200,"OK");
+  // API4: legacy /stop now means motion stop only. It never switches MQ power off.
+  web.on("/stop",[]{motionStop();reply(200,"OK");});
+  web.on("/motion/stop",[]{motionStop();reply(200,"OK");});
+  web.on("/estop",[]{emergencyStop();reply(200,"OK");});
+  web.on("/sensor/off",[]{sensorPowerOff();reply(200,"OK");});
+
+  web.on("/heartbeat",[]{
+    if(web.hasArg("arm")&&web.arg("arm")=="0"){linkSetArmed(false);reply(200,"DISARMED");return;}
+    linkHeartbeat();reply(200,"OK");
   });
 
-  // Manual MQ power. R1/R2 are installed; R3/R4 remain reserved in v0.8.
+  // Manual MQ power. R1/R2 are installed; R3/R4 remain reserved.
   web.on("/relay",[]{
     uint8_t mask=0;
 
@@ -77,7 +83,6 @@ void setup(){
   });
 
   // Averaging never switches MQ power. The operator selects R1/R2 first.
-  // warm is an operator-configured wait time; firmware only counts it before sampling.
   web.on("/measure",[]{
     String c=web.arg("cmd");
     if(c=="start")measureStart();
@@ -86,51 +91,24 @@ void setup(){
     reply(200,"OK");
   });
 
-  web.on("/data",[]{
-    web.send(200,"application/json",dataJson());
-  });
-
-  web.on("/diag",[]{
-    web.send(200,"application/json",diagJson());
-  });
+  web.on("/data",[]{web.send(200,"application/json",dataJson());});
+  web.on("/diag",[]{web.send(200,"application/json",diagJson());});
 
   web.on("/cfg",[]{
     bool save=false;
 
-    if(web.hasArg("cam")){
-      settings.cam=web.arg("cam");
-      save=true;
-    }
-    if(web.hasArg("speed")){
-      settings.speed=constrain(web.arg("speed").toInt(),20L,100L);
-      save=true;
-    }
-    if(web.hasArg("nl")){
-      settings.nL=constrain(web.arg("nl").toInt(),1400L,1600L);
-      save=true;
-    }
-    if(web.hasArg("nr")){
-      settings.nR=constrain(web.arg("nr").toInt(),1400L,1600L);
-      save=true;
-    }
-    if(web.hasArg("warm")){
-      // Operator-defined warm-up interval used by /measure after power is selected manually.
-      settings.warm=constrain(web.arg("warm").toInt(),0L,3600L);
-      save=true;
-    }
-    if(web.hasArg("measure")){
-      settings.measure=constrain(web.arg("measure").toInt(),5L,600L);
-      save=true;
-    }
+    if(web.hasArg("cam")){settings.cam=web.arg("cam");save=true;}
+    if(web.hasArg("speed")){settings.speed=constrain(web.arg("speed").toInt(),20L,100L);save=true;}
+    if(web.hasArg("nl")){settings.nL=constrain(web.arg("nl").toInt(),1400L,1600L);save=true;}
+    if(web.hasArg("nr")){settings.nR=constrain(web.arg("nr").toInt(),1400L,1600L);save=true;}
+    if(web.hasArg("warm")){settings.warm=constrain(web.arg("warm").toInt(),0L,3600L);save=true;}
+    if(web.hasArg("measure")){settings.measure=constrain(web.arg("measure").toInt(),5L,600L);save=true;}
 
     if(save)saveSettings();
     web.send(200,"application/json",settingsJson());
   });
 
-  web.onNotFound([]{
-    reply(404,"NOT FOUND");
-  });
-
+  web.onNotFound([]{reply(404,"NOT FOUND");});
   web.begin();
 }
 
