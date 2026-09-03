@@ -1,20 +1,22 @@
 package com.servoc.app.communication;
 
+import android.content.Context;
 import android.content.SharedPreferences;
 
-/** Remote cloud session boundary. MQTT implementation plugs into this class without changing UI/navigation. */
+/** Owns the Android side of the secure remote cloud session. */
 public final class RemoteSessionManager {
-    private final SharedPreferences prefs;
-    public RemoteSessionManager(SharedPreferences prefs){this.prefs=prefs;}
+    private final Context context;private final SharedPreferences prefs;
+    public RemoteSessionManager(Context context,SharedPreferences prefs){this.context=context.getApplicationContext();this.prefs=prefs;}
 
     public boolean serviceProfileConfigured(){
-        return !prefs.getString("remote_broker_host","").trim().isEmpty()
-                &&!prefs.getString("remote_robot_id","").trim().isEmpty();
+        if(prefs.getString("remote_broker_host","").trim().isEmpty()||prefs.getString("remote_robot_id","").trim().isEmpty())return false;
+        return new RemoteCredentialStore(context,prefs).load().present();
     }
 
-    /** Until secure MQTT credentials are provisioned this deliberately refuses a false-ready state. */
     public RemoteReadiness probe(){
         if(!serviceProfileConfigured())return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"remote service profile not configured");
-        return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"MQTT transport pending secure service handshake");
+        try{RemoteConnection old=RemoteConnection.active();RemoteConnection r=old!=null?old:RemoteConnection.connect(context,prefs);return r.probe(3500);}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,e.getClass().getSimpleName());}
     }
+
+    public void close(){RemoteConnection r=RemoteConnection.active();if(r!=null)r.close();}
 }
