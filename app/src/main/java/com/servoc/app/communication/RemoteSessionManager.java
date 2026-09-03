@@ -3,8 +3,11 @@ package com.servoc.app.communication;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.io.IOException;
+
 /** Owns the Android side of the secure remote cloud session. */
 public final class RemoteSessionManager {
+    private static final Object CONNECT_LOCK=new Object();
     private final Context context;private final SharedPreferences prefs;
     public RemoteSessionManager(Context context,SharedPreferences prefs){this.context=context.getApplicationContext();this.prefs=prefs;}
 
@@ -13,10 +16,22 @@ public final class RemoteSessionManager {
         return new RemoteCredentialStore(context,prefs).load().present();
     }
 
-    public RemoteReadiness probe(){
-        if(!serviceProfileConfigured())return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"remote service profile not configured");
-        try{RemoteConnection old=RemoteConnection.active();RemoteConnection r=old!=null?old:RemoteConnection.connect(context,prefs);return r.probe(3500);}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,e.getClass().getSimpleName());}
+    /** Returns a connected session whose new session id has been accepted by the robot through a probe ACK. */
+    public RemoteConnection ensureConnected()throws Exception{
+        if(!serviceProfileConfigured())throw new IllegalStateException("remote service profile not configured");
+        synchronized(CONNECT_LOCK){
+            RemoteConnection live=RemoteConnection.active();if(live!=null)return live;
+            RemoteConnection stale=RemoteConnection.current();if(stale!=null)stale.close();
+            RemoteConnection r=RemoteConnection.connect(context,prefs);
+            try{RemoteReadiness handshake=r.probe(3000);if(!handshake.commandAck)throw new IOException("remote session handshake failed");return r;}
+            catch(Exception e){try{r.close();}catch(Exception ignored){}throw e;}
+        }
     }
 
-    public void close(){RemoteConnection r=RemoteConnection.active();if(r!=null)r.close();}
+    public RemoteReadiness probe(){
+        if(!serviceProfileConfigured())return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"remote service profile not configured");
+        try{RemoteConnection r=ensureConnected();return r.probe(3500);}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,e.getClass().getSimpleName());}
+    }
+
+    public void close(){synchronized(CONNECT_LOCK){RemoteConnection r=RemoteConnection.current();if(r!=null)r.close();}}
 }
