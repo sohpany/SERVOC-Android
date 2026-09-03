@@ -17,6 +17,7 @@ uint64_t lastSeq=0;
 void writeUtf(const String& s){uint16_t n=(uint16_t)s.length();tls.write((uint8_t)(n>>8));tls.write((uint8_t)n);tls.write((const uint8_t*)s.c_str(),n);}
 void writeRemaining(size_t n){do{uint8_t d=n%128;n/=128;if(n)d|=0x80;tls.write(d);}while(n);}
 bool readRemaining(size_t& value){value=0;size_t mult=1;for(int i=0;i<4;i++){int d=tls.read();if(d<0)return false;value+=(d&127)*mult;if(!(d&128))return true;mult*=128;}return false;}
+String u64(uint64_t v){char b[24];snprintf(b,sizeof(b),"%llu",(unsigned long long)v);return String(b);}
 
 bool mqttConnectPacket(){
   uint8_t body[768];size_t p=0;
@@ -29,19 +30,17 @@ bool mqttConnectPacket(){
 }
 
 bool mqttSubscribe(const String& topic){uint16_t id=++packetId;if(!id)id=++packetId;size_t rem=2+2+topic.length()+1;tls.write((uint8_t)0x82);writeRemaining(rem);tls.write((uint8_t)(id>>8));tls.write((uint8_t)id);writeUtf(topic);tls.write((uint8_t)0);tls.flush();lastIo=millis();return true;}
-
 bool mqttPublish(const String& topic,const String& payload,bool retain=false){if(!mqtt||!tls.connected())return false;size_t rem=2+topic.length()+payload.length();tls.write((uint8_t)(retain?0x31:0x30));writeRemaining(rem);writeUtf(topic);tls.write((const uint8_t*)payload.c_str(),payload.length());tls.flush();lastIo=millis();return tls.connected();}
 
 String esc(const String& s){String o;o.reserve(s.length()+8);for(size_t i=0;i<s.length();i++){char c=s[i];if(c=='\\'||c=='\"'){o+='\\';o+=c;}else if(c=='\n')o+="\\n";else if((uint8_t)c>=0x20)o+=c;}return o;}
-
 int keyPos(const String& j,const char* key){String k="\""+String(key)+"\":";return j.indexOf(k);}
 String jstr(const String& j,const char* key,const String& def=""){int p=keyPos(j,key);if(p<0)return def;p=j.indexOf('"',p+strlen(key)+3);if(p<0)return def;String o;for(int i=p+1;i<(int)j.length();i++){char c=j[i];if(c=='"')break;if(c=='\\'&&i+1<(int)j.length()){char n=j[++i];o+=(n=='n'?'\n':n);}else o+=c;}return o;}
-int64_t jint(const String& j,const char* key,int64_t def=0){int p=keyPos(j,key);if(p<0)return def;p+=strlen(key)+3;while(p<(int)j.length()&&(j[p]==' '||j[p]=='\t'))p++;char* end=null;long long v=strtoll(j.c_str()+p,&end,10);return end==j.c_str()+p?def:v;}
+int64_t jint(const String& j,const char* key,int64_t def=0){int p=keyPos(j,key);if(p<0)return def;p+=strlen(key)+3;while(p<(int)j.length()&&(j[p]==' '||j[p]=='\t'))p++;char* end=nullptr;long long v=strtoll(j.c_str()+p,&end,10);return end==j.c_str()+p?def:v;}
 
 bool fresh(const String& j){uint64_t sent=(uint64_t)jint(j,"sent_ms",0),ttlMs=(uint64_t)jint(j,"ttl_ms",0);if(!sent||!ttlMs)return false;time_t now=time(nullptr);if(now<1700000000)return false;uint64_t nowMs=(uint64_t)now*1000ULL;return sent<=nowMs+60000ULL&&nowMs<=sent+ttlMs;}
 
 void ack(const String& session,uint64_t seq,const String& nonce,bool ok,const String& payload="{}",const String& error=""){
-  String j="{\"session\":\""+esc(session)+"\",\"seq\":"+String((unsigned long long)seq)+",\"nonce\":\""+esc(nonce)+"\",\"ok\":"+(ok?"true":"false");if(!error.isEmpty())j+=",\"error\":\""+esc(error)+"\"";j+=",\"payload\":"+payload+"}";if(mqttPublish(ackTopic,j,false))acked=true;
+  String j="{\"session\":\""+esc(session)+"\",\"seq\":"+u64(seq)+",\"nonce\":\""+esc(nonce)+"\",\"ok\":"+(ok?"true":"false");if(!error.isEmpty())j+=",\"error\":\""+esc(error)+"\"";j+=",\"payload\":"+payload+"}";if(mqttPublish(ackTopic,j,false))acked=true;
 }
 
 void applyCommand(const String& j){
@@ -67,26 +66,16 @@ void applyCommand(const String& j){
 }
 
 void processPacket(){
-  int h=tls.read();if(h<0)return;size_t rem=0;if(!readRemaining(rem))return;uint8_t type=(uint8_t)h>>4;if(type!=3){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}if(rem<2)return;int hi=tls.read(),lo=tls.read();if(hi<0||lo<0)return;uint16_t tn=(uint16_t)((hi<<8)|lo);rem-=2;if(tn>rem||tn>256)return;String topic;topic.reserve(tn);for(uint16_t i=0;i<tn;i++){while(!tls.available()&&tls.connected())delay(1);topic+=(char)tls.read();}rem-=tn;if(rem>4096){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}String payload;payload.reserve(rem);while(rem--&&tls.connected()){while(!tls.available())delay(1);payload+=(char)tls.read();}if(topic==cmdTopic)applyCommand(payload);lastIo=millis();
+  int h=tls.read();if(h<0)return;size_t rem=0;if(!readRemaining(rem))return;uint8_t type=(uint8_t)h>>4;if(type!=3){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}if(rem<2)return;int hi=tls.read(),lo=tls.read();if(hi<0||lo<0)return;uint16_t tn=(uint16_t)((hi<<8)|lo);rem-=2;if(tn>rem||tn>256)return;String topic;topic.reserve(tn);for(uint16_t i=0;i<tn;i++){while(!tls.available()&&tls.connected())delay(1);topic+=(char)tls.read();}rem-=tn;if(rem>4096){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}String payload;payload.reserve(rem);while(rem--&&tls.connected()){while(!tls.available()&&tls.connected())delay(1);if(tls.connected())payload+=(char)tls.read();}if(topic==cmdTopic)applyCommand(payload);lastIo=millis();
 }
 
 void setCloudState(){remoteSetCloudState(mqtt&&tls.connected(),mqtt&&tls.connected(),acked,telemetrySent,false);}
-
-bool connectCloud(){
-  if(!RemoteCfg::configured()||!remoteInternetReady())return false;tls.stop();tls.setCACert(RemoteCfg::ROOT_CA);tls.setTimeout(4);if(!tls.connect(RemoteCfg::BROKER_HOST,RemoteCfg::BROKER_PORT))return false;if(!mqttConnectPacket()){tls.stop();return false;}mqtt=true;root="hazrob/"+String(RemoteCfg::ROBOT_ID)+"/";cmdTopic=root+"cmd";ackTopic=root+"ack";telemetryTopic=root+"telemetry";statusTopic=root+"status";mqttSubscribe(cmdTopic);lastIo=millis();acked=false;telemetrySent=false;setCloudState();return true;
-}
-
+bool connectCloud(){if(!RemoteCfg::configured()||!remoteInternetReady())return false;tls.stop();tls.setCACert(RemoteCfg::ROOT_CA);tls.setTimeout(4);if(!tls.connect(RemoteCfg::BROKER_HOST,RemoteCfg::BROKER_PORT))return false;if(!mqttConnectPacket()){tls.stop();return false;}mqtt=true;root="hazrob/"+String(RemoteCfg::ROBOT_ID)+"/";cmdTopic=root+"cmd";ackTopic=root+"ack";telemetryTopic=root+"telemetry";statusTopic=root+"status";mqttSubscribe(cmdTopic);lastIo=millis();acked=false;telemetrySent=false;setCloudState();return true;}
 void publishTelemetry(){String j="{\"diag\":"+diagJson()+",\"data\":"+dataJson()+"}";if(mqttPublish(telemetryTopic,j,false))telemetrySent=true;setCloudState();}
 void publishStatus(){setCloudState();mqttPublish(statusTopic,remoteStatusJson(),true);}
 }
 
 void remoteMqttBegin(){root="hazrob/"+String(RemoteCfg::ROBOT_ID)+"/";cmdTopic=root+"cmd";ackTopic=root+"ack";telemetryTopic=root+"telemetry";statusTopic=root+"status";}
-
-void remoteMqttUpdate(){
-  uint32_t now=millis();if(!RemoteCfg::configured()){mqtt=false;setCloudState();return;}if(!remoteInternetReady()){if(mqtt||tls.connected()){tls.stop();mqtt=false;acked=false;telemetrySent=false;setCloudState();}return;}
-  if(!mqtt||!tls.connected()){mqtt=false;setCloudState();if(now-retryAt>=RemoteCfg::RETRY_MS){retryAt=now;connectCloud();}return;}
-  while(tls.available())processPacket();if(now-lastTelemetry>=RemoteCfg::TELEMETRY_MS){lastTelemetry=now;publishTelemetry();}if(now-lastStatus>=RemoteCfg::STATUS_MS){lastStatus=now;publishStatus();}if(now-lastIo>=RemoteCfg::KEEPALIVE_SEC*500UL){tls.write((uint8_t)0xC0);tls.write((uint8_t)0);tls.flush();lastIo=now;}
-}
-
+void remoteMqttUpdate(){uint32_t now=millis();if(!RemoteCfg::configured()){mqtt=false;setCloudState();return;}if(!remoteInternetReady()){if(mqtt||tls.connected()){tls.stop();mqtt=false;acked=false;telemetrySent=false;setCloudState();}return;}if(!mqtt||!tls.connected()){mqtt=false;setCloudState();if(now-retryAt>=RemoteCfg::RETRY_MS){retryAt=now;connectCloud();}return;}while(tls.available())processPacket();if(now-lastTelemetry>=RemoteCfg::TELEMETRY_MS){lastTelemetry=now;publishTelemetry();}if(now-lastStatus>=RemoteCfg::STATUS_MS){lastStatus=now;publishStatus();}if(now-lastIo>=RemoteCfg::KEEPALIVE_SEC*500UL){tls.write((uint8_t)0xC0);tls.write((uint8_t)0);tls.flush();lastIo=now;}}
 void remoteMqttDisconnect(){if(mqtt&&tls.connected()){tls.write((uint8_t)0xE0);tls.write((uint8_t)0);tls.flush();}tls.stop();mqtt=false;acked=false;telemetrySent=false;setCloudState();}
 bool remoteMqttConnected(){return mqtt&&tls.connected();}
