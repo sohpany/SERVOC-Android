@@ -1,100 +1,189 @@
-import { DurableObject } from "cloudflare:workers";
+import http from "node:http";
+import { timingSafeEqual } from "node:crypto";
+import { WebSocketServer, WebSocket } from "ws";
 
+const PORT = Number(process.env.PORT || 3000);
 const MAX_JPEG = 1024 * 1024;
 const MAX_VIEWER_BUFFER = 512 * 1024;
+const PING_MS = 30000;
 
-function bearer(request) {
-  const h = request.headers.get("Authorization") || "";
-  return h.startsWith("Bearer ") ? h.slice(7) : "";
-}
-
-function safeEq(a, b) {
-  a = String(a || "");
-  b = String(b || "");
-  let diff = a.length ^ b.length;
-  const n = Math.max(a.length, b.length);
-  for (let i = 0; i < n; i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
-  return diff === 0;
-}
+const rooms = new Map();
 
 function validRobotId(id) {
   return /^[A-Za-z0-9._-]{1,64}$/.test(id);
 }
 
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
-    if (url.pathname === "/health") return Response.json({ ok: true, service: "hazrob-video-relay", protocol: 1 });
-    if ((request.headers.get("Upgrade") || "").toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426 });
+function bearer(req) {
+  const h = String(req.headers.authorization || "");
+  return h.startsWith("Bearer ") ? h.slice(7) : "";
+}
 
-    const m = url.pathname.match(/^\/hazrob\/video\/(publish|view)\/([^/]+)$/);
-    if (!m) return new Response("Not found", { status: 404 });
-    const role = m[1] === "publish" ? "publisher" : "viewer";
-    const robotId = decodeURIComponent(m[2]);
-    if (!validRobotId(robotId)) return new Response("Invalid robot id", { status: 400 });
+function safeEq(a, b) {
+  const aa = Buffer.from(String(a || ""));
+  const bb = Buffer.from(String(b || ""));
+  if (aa.length !== bb.length || aa.length === 0) return false;
+  return timingSafeEqual(aa, bb);
+}
 
-    const expected = role === "publisher" ? env.PUBLISH_TOKEN : env.VIEW_TOKEN;
-    if (!expected || !safeEq(bearer(request), expected)) return new Response("Unauthorized", { status: 401 });
-
-    const id = env.VIDEO_ROOMS.idFromName(robotId);
-    const room = env.VIDEO_ROOMS.get(id);
-    const headers = new Headers(request.headers);
-    headers.set("X-HazRob-Role", role);
-    headers.set("X-HazRob-Robot", robotId);
-    return room.fetch(new Request("https://room.invalid/socket", { method: "GET", headers }));
-  },
-};
-
-export class VideoRoom extends DurableObject {
-  constructor(ctx, env) {
-    super(ctx, env);
-    this.ctx = ctx;
-  }
-
-  async fetch(request) {
-    if ((request.headers.get("Upgrade") || "").toLowerCase() !== "websocket") return new Response("WebSocket required", { status: 426 });
-    const role = request.headers.get("X-HazRob-Role");
-    if (role !== "publisher" && role !== "viewer") return new Response("Invalid role", { status: 400 });
-
-    if (role === "publisher") {
-      for (const ws of this.ctx.getWebSockets()) {
-        const a = ws.deserializeAttachment() || {};
-        if (a.role === "publisher") {
-          try { ws.close(4001, "publisher replaced"); } catch (_) {}
-        }
-      }
-    }
-
-    const pair = new WebSocketPair();
-    const [client, server] = Object.values(pair);
-    server.serializeAttachment({ role, connectedAt: Date.now() });
-    this.ctx.acceptWebSocket(server);
-    return new Response(null, { status: 101, webSocket: client });
-  }
-
-  webSocketMessage(ws, message) {
-    const a = ws.deserializeAttachment() || {};
-    if (a.role !== "publisher") return;
-    if (typeof message === "string") return;
-
-    const bytes = message instanceof ArrayBuffer ? message.byteLength : message?.byteLength || 0;
-    if (bytes < 4 || bytes > MAX_JPEG) return;
-    const u8 = message instanceof ArrayBuffer ? new Uint8Array(message) : new Uint8Array(message.buffer, message.byteOffset || 0, bytes);
-    if (u8[0] !== 0xff || u8[1] !== 0xd8 || u8[bytes - 2] !== 0xff || u8[bytes - 1] !== 0xd9) return;
-
-    for (const viewer of this.ctx.getWebSockets()) {
-      const va = viewer.deserializeAttachment() || {};
-      if (va.role !== "viewer" || viewer.readyState !== WebSocket.OPEN) continue;
-      if ((viewer.bufferedAmount || 0) > MAX_VIEWER_BUFFER) continue;
-      try { viewer.send(message); } catch (_) {}
-    }
-  }
-
-  webSocketClose(ws, code, reason) {
-    try { ws.close(code, reason); } catch (_) {}
-  }
-
-  webSocketError(ws) {
-    try { ws.close(1011, "socket error"); } catch (_) {}
+function reject(socket, status, text) {
+  const body = Buffer.from(text, "utf8");
+  const reason = status === 400 ? "Bad Request" : status === 401 ? "Unauthorized" : status === 404 ? "Not Found" : "Service Unavailable";
+  try {
+    socket.write(`HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: ${body.length}\r\n\r\n`);
+    socket.write(body);
+  } finally {
+    socket.destroy();
   }
 }
+
+function roomFor(robotId) {
+  let room = rooms.get(robotId);
+  if (!room) {
+    room = { publisher: null, viewers: new Set() };
+    rooms.set(robotId, room);
+  }
+  return room;
+}
+
+function cleanRoom(robotId, room) {
+  if (!room.publisher && room.viewers.size === 0) rooms.delete(robotId);
+}
+
+const server = http.createServer((req, res) => {
+  const url = new URL(req.url || "/", "http://localhost");
+  res.setHeader("Cache-Control", "no-store");
+
+  if (url.pathname === "/health") {
+    const configured = Boolean(process.env.PUBLISH_TOKEN && process.env.VIEW_TOKEN);
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ ok: true, service: "hazrob-video-relay", protocol: 1, platform: "railway", authConfigured: configured }));
+    return;
+  }
+
+  if (url.pathname === "/") {
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ service: "hazrob-video-relay", version: "0.9.0", health: "/health" }));
+    return;
+  }
+
+  res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+  res.end("Not found");
+});
+
+const wss = new WebSocketServer({ noServer: true, perMessageDeflate: false, maxPayload: MAX_JPEG });
+
+server.on("upgrade", (req, socket, head) => {
+  let url;
+  try {
+    url = new URL(req.url || "/", "http://localhost");
+  } catch {
+    reject(socket, 400, "Invalid URL");
+    return;
+  }
+
+  const m = url.pathname.match(/^\/hazrob\/video\/(publish|view)\/([^/]+)$/);
+  if (!m) {
+    reject(socket, 404, "Not found");
+    return;
+  }
+
+  let robotId;
+  try {
+    robotId = decodeURIComponent(m[2]);
+  } catch {
+    reject(socket, 400, "Invalid robot id");
+    return;
+  }
+  if (!validRobotId(robotId)) {
+    reject(socket, 400, "Invalid robot id");
+    return;
+  }
+
+  const role = m[1] === "publish" ? "publisher" : "viewer";
+  const expected = role === "publisher" ? process.env.PUBLISH_TOKEN : process.env.VIEW_TOKEN;
+  if (!expected) {
+    reject(socket, 503, "Relay credentials are not configured");
+    return;
+  }
+  if (!safeEq(bearer(req), expected)) {
+    reject(socket, 401, "Unauthorized");
+    return;
+  }
+
+  wss.handleUpgrade(req, socket, head, ws => {
+    ws.hazRole = role;
+    ws.hazRobotId = robotId;
+    ws.isAlive = true;
+    wss.emit("connection", ws, req);
+  });
+});
+
+wss.on("connection", ws => {
+  const robotId = ws.hazRobotId;
+  const role = ws.hazRole;
+  const room = roomFor(robotId);
+
+  ws.on("pong", () => { ws.isAlive = true; });
+  ws.on("error", () => {});
+
+  if (role === "publisher") {
+    const old = room.publisher;
+    if (old && old !== ws) {
+      try { old.close(4001, "publisher replaced"); } catch {}
+    }
+    room.publisher = ws;
+  } else {
+    room.viewers.add(ws);
+  }
+
+  ws.on("message", (data, isBinary) => {
+    if (role !== "publisher" || !isBinary) return;
+    const frame = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    const n = frame.length;
+    if (n < 4 || n > MAX_JPEG) return;
+    if (frame[0] !== 0xff || frame[1] !== 0xd8 || frame[n - 2] !== 0xff || frame[n - 1] !== 0xd9) return;
+
+    for (const viewer of room.viewers) {
+      if (viewer.readyState !== WebSocket.OPEN) continue;
+      if (viewer.bufferedAmount > MAX_VIEWER_BUFFER) continue;
+      try { viewer.send(frame, { binary: true, compress: false }); } catch {}
+    }
+  });
+
+  ws.on("close", () => {
+    if (role === "publisher") {
+      if (room.publisher === ws) room.publisher = null;
+    } else {
+      room.viewers.delete(ws);
+    }
+    cleanRoom(robotId, room);
+  });
+});
+
+const heartbeat = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (ws.isAlive === false) {
+      try { ws.terminate(); } catch {}
+      continue;
+    }
+    ws.isAlive = false;
+    try { ws.ping(); } catch {}
+  }
+}, PING_MS);
+heartbeat.unref();
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`HazRob video relay listening on ${PORT}`);
+});
+
+function shutdown() {
+  clearInterval(heartbeat);
+  for (const ws of wss.clients) {
+    try { ws.close(1001, "server restart"); } catch {}
+  }
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
