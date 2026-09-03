@@ -1,33 +1,38 @@
 package com.servoc.app.ui;
 
 import android.content.Context;
-import android.graphics.Color;
 import android.os.SystemClock;
 import android.view.View;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import com.servoc.app.chemical.GasEngine;
+import com.servoc.app.chemical.ResearchCurveRegistry;
 import com.servoc.app.communication.RemoteConnection;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.measurement.SensorHealthEngine;
+import com.servoc.app.models.ModelRuntimeRegistry;
+import com.servoc.app.models.MqDataScience76Catalog;
 import org.json.JSONObject;
 import java.util.Locale;
 
 /** Compact operational status dashboard; transport state is kept separate from sensor health. */
 public final class StatusTab {
     private final HazRobHost host;private final ScrollView scroll;
-    private final TextView master,network,hardware,sensors,camera;
+    private final TextView master,network,hardware,sensors,science,camera;
     private volatile JSONObject cameraSnapshot;private volatile long cameraProbeAt=0;
 
     public StatusTab(Context c,HazRobHost host){
         this.host=host;scroll=new ScrollView(c);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,10));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
-        root.addView(UiKit.title(c,"الحالة"),UiKit.full(c));master=card(c,root);network=card(c,root);hardware=card(c,root);sensors=card(c,root);camera=card(c,root);
+        root.addView(UiKit.title(c,"الحالة"),UiKit.full(c));master=card(c,root);network=card(c,root);hardware=card(c,root);sensors=card(c,root);science=card(c,root);camera=card(c,root);
+        science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native");
     }
     public View view(){return scroll;}
     private static TextView card(Context c,LinearLayout root){TextView t=UiKit.text(c,"—");t.setTextSize(14);t.setBackgroundColor(0xFF151A20);root.addView(t,UiKit.full(c));return t;}
     private boolean remoteMode(){return "remote".equalsIgnoreCase(host.preferences().getString("connection_mode","direct"));}
 
     public void refresh(){
+        science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native");
         JSONObject d=host.latestDiagnostics();
         if(d==null){master.setText("Master ESP32   ● OFFLINE");master.setTextColor(0xFFFF7043);renderNetwork(null);hardware.setText("ADS / ENV / Relay   —");sensors.setText("MQ   —");renderCamera();return;}
         master.setText("Master ESP32   ● ONLINE\nFirmware   "+d.optString("firmware","HazRob")+"\nAPI   "+d.optInt("api_version",0)+"\nHeap   "+d.optLong("heap",0)+" B");master.setTextColor(0xFF81C784);
