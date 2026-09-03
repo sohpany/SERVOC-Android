@@ -10,6 +10,7 @@ import com.servoc.app.models.MqDataScience76Catalog;
 import org.json.JSONObject;
 import org.junit.Test;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
@@ -43,12 +44,29 @@ public final class HazRobScientificLibraryAuditTest {
         assertTrue("device calibration provider was not consulted",calls.get()>0);
     }
 
-    @Test public void researchOnlySensorAnalytePairCanContributeFingerprintEvidence(){
+    @Test public void researchOnlySensorAnalytePairIsIncludedByFullScan(){
         ResearchCurveRegistry.Curve chosen=null;for(ResearchCurveRegistry.Curve c:ResearchCurveRegistry.CURVES)if(c.sensor==GasEngine.MQ2&&c.chemical==76){chosen=c;break;}
         assertNotNull(chosen);assertFalse(GasEngine.hasCurve(GasEngine.MQ2,76));
         double[] ratios=new double[8];Arrays.fill(ratios,Double.NaN);ratios[GasEngine.MQ2]=chosen.ratioFromPpm(1000.0);
         boolean[] heater={true,true,true,true,true,true,true,true};
-        ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,76,heater);
-        assertNotNull(r);assertTrue(r.communityCrossContributors>0);assertFalse(r.quantitative);
+        List<ValidatedGasEngine.Result> all=ValidatedGasEngine.analyze(ratios,heater);
+        ValidatedGasEngine.Result found=null;for(ValidatedGasEngine.Result r:all)if(r.chemical==76){found=r;break;}
+        assertNotNull(found);assertTrue(found.communityCrossContributors>0);assertFalse(found.quantitative);
+    }
+
+    @Test public void calibrationOnlyAnalyteIsIncludedByFullScan(){
+        final int calibrationOnly=999;
+        double[] ratios=new double[8];Arrays.fill(ratios,Double.NaN);ratios[GasEngine.MQ2]=1.0;
+        boolean[] heater={true,true,true,true,true,true,true,true};
+        CalibrationCurveProvider provider=new CalibrationCurveProvider(){
+            @Override public int[] chemicalIds(){return new int[]{calibrationOnly};}
+            @Override public Estimate estimate(int sensor,int chemical,double ratio){
+                if(sensor==GasEngine.MQ2&&chemical==calibrationOnly)return new Estimate(100.0,true,true,"test","reference calibration");
+                return null;
+            }
+        };
+        List<ValidatedGasEngine.Result> all=ValidatedGasEngine.analyze(ratios,heater,provider,true);
+        ValidatedGasEngine.Result found=null;for(ValidatedGasEngine.Result r:all)if(r.chemical==calibrationOnly){found=r;break;}
+        assertNotNull(found);assertTrue(found.calibratedContributors>0);assertTrue(found.quantitative);
     }
 }
