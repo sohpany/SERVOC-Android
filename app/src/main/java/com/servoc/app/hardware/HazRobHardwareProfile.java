@@ -2,7 +2,7 @@ package com.servoc.app.hardware;
 
 import com.servoc.app.chemical.GasEngine;
 
-/** Single source of truth for the field-wired HazRob 0.8 sensor/relay/ADS topology. */
+/** Single source of truth for the field-wired HazRob 0.9 sensor/relay/ADS topology. */
 public final class HazRobHardwareProfile {
     private HazRobHardwareProfile(){}
 
@@ -18,8 +18,12 @@ public final class HazRobHardwareProfile {
         public final int adsIndex;
         public final int adsAddress;
         public final int adcChannel;
+        /** Compatibility aliases for compact report/export code. */
+        public final int ads;
+        public final int channel;
         Channel(int sensorId,String key,int relay,int adsIndex,int adsAddress,int adcChannel){
             this.sensorId=sensorId;this.key=key;this.relay=relay;this.adsIndex=adsIndex;this.adsAddress=adsAddress;this.adcChannel=adcChannel;
+            this.ads=adsIndex+1;this.channel=adcChannel;
         }
     }
 
