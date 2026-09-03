@@ -17,6 +17,14 @@ public final class SqliteCalibrationProvider implements CalibrationCurveProvider
         this.db=db;
     }
 
+    @Override public int[] chemicalIds(){
+        SQLiteDatabase r=db.getReadableDatabase();List<Integer> ids=new ArrayList<>();
+        try(Cursor c=r.rawQuery("SELECT DISTINCT chemical_id FROM calibration_curves WHERE active=1 ORDER BY chemical_id",null)){
+            while(c.moveToNext())ids.add(c.getInt(0));
+        }
+        int[] out=new int[ids.size()];for(int i=0;i<out.length;i++)out[i]=ids.get(i);return out;
+    }
+
     @Override public Estimate estimate(int sensorId,int chemicalId,double rsOverR0){
         SQLiteDatabase r=db.getReadableDatabase();
         long curveId=-1;
