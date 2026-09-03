@@ -52,6 +52,8 @@ Username/password are stored encrypted through Android Keystore. The ordinary us
 
 Before Remote mode is admitted, the connection gate verifies the robot WAN path plus phone-side TLS/MQTT, nonce ACK and live telemetry. A successful Wi-Fi connection alone is not considered Remote ready.
 
+The developer `اختبار` action is a temporary connectivity probe when the application is currently in Direct mode. It opens the cloud session only for the test and releases Remote transport ownership afterward, so testing credentials cannot silently switch the running control path.
+
 ## 4. ESP32-CAM private flashing profile
 
 File: `firmware/HazRob-CAM/RemoteVideoConfig.h`
@@ -113,7 +115,25 @@ MQTT commands include:
 
 Firmware rejects expired/out-of-order commands. Once a session is established, changing to a different session requires a valid `probe` handshake; a delayed Drive/Relay command from an old session cannot switch sessions.
 
-Motion commands are not retained. Motion stop and MQ power remain separate safety domains.
+Commands that require acknowledgement fail explicitly if MQTT disconnects before the ACK arrives or if firmware returns `ok=false`. Motion commands are not retained. Motion stop and MQ power remain separate safety domains.
+
+### Fail-closed transport ownership
+
+When the application is operating in Remote mode, Remote transport ownership is tracked independently from the current MQTT socket. If TLS/MQTT drops, `RobotApi` does **not** fall back to local HTTP, even if `192.168.4.1` happens to be reachable. Commands fail until the remote session is restored.
+
+Returning to local HTTP requires an explicit Direct-mode transition. The Direct connection gate releases Remote ownership before MainActivity starts using the local API.
+
+### Reconnect policy
+
+`RobotLinkService` keeps Remote connectivity alive and retries a lost MQTT session with bounded exponential backoff:
+
+- 2 s
+- 4 s
+- 8 s
+- 16 s
+- 30 s maximum
+
+A newly connected MQTT socket is not accepted as a usable control session until the robot acknowledges a fresh `probe`, which establishes the new session ID under the firmware anti-replay rules. Backoff resets immediately after successful reconnection.
 
 ## 8. Camera flash in Remote mode
 
@@ -130,6 +150,7 @@ Android sends `camera_flash` over MQTT. Master ESP32 validates the command and f
 7. Provision and flash the private ESP32-CAM WSS profile.
 8. Configure Android viewer WSS profile.
 9. Verify Remote video, recording, flame overlay and remote flash over the real cellular link.
-10. Measure latency, disconnect recovery and 4G data consumption before field use.
+10. Force a cellular/MQTT interruption and verify: no local HTTP fallback, command failure during outage, automatic reconnect, fresh probe/session acceptance and recovery of telemetry.
+11. Measure latency, disconnect recovery and 4G data consumption before field use.
 
 Do not mark the Remote path field-ready from CI compile success alone; MQTT broker, modem and video relay require an end-to-end test using the actual deployed services.
