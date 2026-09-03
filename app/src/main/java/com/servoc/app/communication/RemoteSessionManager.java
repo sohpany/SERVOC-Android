@@ -33,6 +33,9 @@ public final class RemoteSessionManager {
         try{RemoteConnection r=ensureConnected();return r.probe(3500);}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,e.getClass().getSimpleName());}
     }
 
+    /** Developer connectivity check that never changes a Direct session into Remote. */
+    public RemoteReadiness probeTemporary(){boolean retain="remote".equalsIgnoreCase(prefs.getString("connection_mode","direct"));try{return probe();}finally{if(!retain)close();}}
+
     /** Explicitly leaves Remote mode and permits RobotApi to use local HTTP again. */
     public void close(){synchronized(CONNECT_LOCK){RemoteConnection.releaseTransport();}}
 }
