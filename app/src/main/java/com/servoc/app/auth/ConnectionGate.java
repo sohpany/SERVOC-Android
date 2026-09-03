@@ -10,9 +10,11 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import com.servoc.app.R;
 import com.servoc.app.ReleaseAudit;
 import com.servoc.app.communication.RemoteReadiness;
 import com.servoc.app.communication.RemoteSessionManager;
@@ -31,17 +33,27 @@ public final class ConnectionGate {
 
     public ConnectionGate(Activity a,RobotApi local,SharedPreferences prefs,ExecutorService io,Listener listener){
         this.a=a;this.local=local;this.prefs=prefs;this.io=io;this.listener=listener;
-        root=UiKit.vbox(a);root.setGravity(Gravity.CENTER_HORIZONTAL);root.setPadding(UiKit.dp(a,24),UiKit.dp(a,34),UiKit.dp(a,24),UiKit.dp(a,24));root.setBackgroundColor(0xFF0A0D11);
-        TextView title=UiKit.title(a,"HazRob "+ReleaseAudit.VERSION);title.setGravity(Gravity.CENTER);title.setTextColor(Color.WHITE);root.addView(title,UiKit.full(a));
+        root=UiKit.vbox(a);root.setGravity(Gravity.CENTER_HORIZONTAL);root.setPadding(UiKit.dp(a,24),UiKit.dp(a,18),UiKit.dp(a,24),UiKit.dp(a,14));root.setBackgroundColor(Color.WHITE);
+
+        ImageView robot=new ImageView(a);robot.setImageResource(R.drawable.ic_hazrob_app);robot.setScaleType(ImageView.ScaleType.CENTER_INSIDE);robot.setAdjustViewBounds(true);robot.setContentDescription("HazRob");
+        LinearLayout.LayoutParams imageParams=new LinearLayout.LayoutParams(-1,0,1f);imageParams.setMargins(0,0,0,UiKit.dp(a,12));root.addView(robot,imageParams);
+
         content=UiKit.vbox(a);root.addView(content,new LinearLayout.LayoutParams(-1,-2));
-        progress=new ProgressBar(a,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);progress.setVisibility(View.GONE);root.addView(progress,new LinearLayout.LayoutParams(-1,UiKit.dp(a,12)));
-        status=UiKit.small(a,"");status.setGravity(Gravity.CENTER);status.setTextColor(0xFF90CAF9);root.addView(status,UiKit.full(a));showChoice();
+        progress=new ProgressBar(a,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);progress.setVisibility(View.GONE);root.addView(progress,new LinearLayout.LayoutParams(-1,UiKit.dp(a,10)));
+        status=UiKit.small(a,"");status.setGravity(Gravity.CENTER);status.setTextColor(0xFF245A7A);status.setBackgroundColor(Color.TRANSPARENT);root.addView(status,UiKit.full(a));
+
+        TextView footer=UiKit.small(a,"HazRob "+ReleaseAudit.VERSION+" • إعداد المستشار/ شهاب الصهباني");footer.setGravity(Gravity.CENTER);footer.setTextColor(0xFF616161);footer.setBackgroundColor(Color.TRANSPARENT);LinearLayout.LayoutParams fp=UiKit.full(a);fp.topMargin=UiKit.dp(a,10);root.addView(footer,fp);
+        showChoice();
     }
     public View view(){return root;}
 
-    private void showChoice(){content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");Button direct=UiKit.button(a,"التحكم المباشر عبر Wi-Fi");direct.setTextSize(17);direct.setOnClickListener(v->verifyDirect());content.addView(direct,new LinearLayout.LayoutParams(-1,UiKit.dp(a,64)));Button remote=UiKit.button(a,"التحكم عبر الإنترنت");remote.setTextSize(17);remote.setOnClickListener(v->openRemote());LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,UiKit.dp(a,64));rp.topMargin=UiKit.dp(a,16);content.addView(remote,rp);}
+    private void showChoice(){
+        content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");
+        Button direct=UiKit.button(a,"التحكم المباشر عبر Wi-Fi");direct.setTextSize(17);direct.setOnClickListener(v->verifyDirect());content.addView(direct,new LinearLayout.LayoutParams(-1,UiKit.dp(a,62)));
+        Button remote=UiKit.button(a,"التحكم عبر الإنترنت");remote.setTextSize(17);remote.setOnClickListener(v->openRemote());LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,UiKit.dp(a,62));rp.topMargin=UiKit.dp(a,12);content.addView(remote,rp);
+    }
 
-    private void verifyDirect(){busy("فحص الاتصال المباشر...",1);io.execute(()->{try{JSONObject d=local.diagnosticsRaw();int api=d.optInt("api",d.optInt("api_version",0));if(api<3)throw new IllegalStateException("API");new RemoteSessionManager(a,prefs).close();prefs.edit().putString("connection_mode","direct").apply();ui.post(()->listener.onReady(Mode.DIRECT));}catch(Exception e){ui.post(()->{status.setText("تعذر الوصول إلى HazRob عبر Wi-Fi");status.setTextColor(0xFFFF7043);showBack();});}});}
+    private void verifyDirect(){busy("فحص الاتصال المباشر...",1);io.execute(()->{try{JSONObject d=local.diagnosticsRaw();int api=d.optInt("api",d.optInt("api_version",0));if(api<3)throw new IllegalStateException("API");new RemoteSessionManager(a,prefs).close();prefs.edit().putString("connection_mode","direct").apply();ui.post(()->listener.onReady(Mode.DIRECT));}catch(Exception e){ui.post(()->{status.setText("تعذر الوصول إلى HazRob عبر Wi-Fi");status.setTextColor(0xFFD84315);showBack();});}});}
 
     private void openRemote(){
         busy("فحص الاتصال البعيد...",1);io.execute(()->{
@@ -51,13 +63,13 @@ public final class ConnectionGate {
     }
 
     private void showProvision(){
-        content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");TextView t=UiKit.title(a,"إعداد مودم المركبة");t.setGravity(Gravity.CENTER);content.addView(t,UiKit.full(a));
+        content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");TextView t=UiKit.title(a,"إعداد مودم المركبة");t.setGravity(Gravity.CENTER);t.setTextColor(0xFF263238);t.setBackgroundColor(Color.TRANSPARENT);content.addView(t,UiKit.full(a));
         EditText ssid=UiKit.input(a,"");ssid.setHint("اسم شبكة المودم");content.addView(ssid,UiKit.full(a));
         EditText pass=UiKit.input(a,"");pass.setHint("كلمة المرور");pass.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);content.addView(pass,UiKit.full(a));
         Button connect=UiKit.button(a,"اتصال");connect.setOnClickListener(v->{String s=ssid.getText().toString().trim(),p=pass.getText().toString();if(s.isEmpty()){status.setText("أدخل اسم الشبكة");return;}provision(s,p);});content.addView(connect,UiKit.full(a));Button back=UiKit.button(a,"رجوع");back.setOnClickListener(v->showChoice());content.addView(back,UiKit.full(a));
     }
 
-    private void provision(String ssid,String password){busy("إرسال إعدادات الشبكة...",1);io.execute(()->{try{local.remoteProvision(ssid,password);prefs.edit().putBoolean("remote_wan_provisioned",true).apply();pollRobotRemote();}catch(Exception e){ui.post(()->{status.setText("تعذر إرسال إعدادات المودم");status.setTextColor(0xFFFF7043);showBack();});}});}
+    private void provision(String ssid,String password){busy("إرسال إعدادات الشبكة...",1);io.execute(()->{try{local.remoteProvision(ssid,password);prefs.edit().putBoolean("remote_wan_provisioned",true).apply();pollRobotRemote();}catch(Exception e){ui.post(()->{status.setText("تعذر إرسال إعدادات المودم");status.setTextColor(0xFFD84315);showBack();});}});}
 
     private void pollRobotRemote(){
         RemoteSessionManager cloud=new RemoteSessionManager(a,prefs);
@@ -70,15 +82,15 @@ public final class ConnectionGate {
             }catch(Exception ignored){}
             try{Thread.sleep(1000);}catch(InterruptedException e){Thread.currentThread().interrupt();return;}
         }
-        ui.post(()->{status.setText("لم تكتمل جاهزية الاتصال البعيد");status.setTextColor(0xFFFFB74D);showBack();});
+        ui.post(()->{status.setText("لم تكتمل جاهزية الاتصال البعيد");status.setTextColor(0xFFEF6C00);showBack();});
     }
 
     private static RemoteReadiness combine(RemoteReadiness robot,RemoteReadiness cloud){boolean ready=robot.internet&&cloud.tls&&cloud.mqtt&&cloud.commandAck&&cloud.telemetry;return new RemoteReadiness(robot.configured,robot.wifi,robot.ip,robot.dns,robot.time,robot.internet,cloud.tls,cloud.mqtt,cloud.commandAck,cloud.telemetry,cloud.camera||robot.camera,ready,ready?"remote end-to-end ready":"remote handshake incomplete");}
     private void monitorProvisioned(RemoteReadiness first){render(first);if(first.ready){RemoteReadiness cloud=new RemoteSessionManager(a,prefs).probe();RemoteReadiness combined=combine(first,cloud);if(combined.ready){finishRemote(combined);return;}}io.execute(this::pollRobotRemote);}
 
-    private void render(RemoteReadiness r){progress.setVisibility(View.VISIBLE);progress.setProgress(r.completedCoreStages());StringBuilder s=new StringBuilder();stage(s,"إعداد الشبكة",r.configured);stage(s,"Wi-Fi",r.wifi);stage(s,"IP",r.ip);stage(s,"DNS",r.dns);stage(s,"الإنترنت/الوقت",r.internet&&r.time);stage(s,"TLS",r.tls);stage(s,"MQTT",r.mqtt);stage(s,"قناة الأوامر",r.commandAck);stage(s,"Telemetry",r.telemetry);stage(s,"الكاميرا",r.camera);status.setText(s.toString().trim());status.setTextColor(r.ready?0xFF81C784:0xFF90CAF9);}
+    private void render(RemoteReadiness r){progress.setVisibility(View.VISIBLE);progress.setProgress(r.completedCoreStages());StringBuilder s=new StringBuilder();stage(s,"إعداد الشبكة",r.configured);stage(s,"Wi-Fi",r.wifi);stage(s,"IP",r.ip);stage(s,"DNS",r.dns);stage(s,"الإنترنت/الوقت",r.internet&&r.time);stage(s,"TLS",r.tls);stage(s,"MQTT",r.mqtt);stage(s,"قناة الأوامر",r.commandAck);stage(s,"Telemetry",r.telemetry);stage(s,"الكاميرا",r.camera);status.setText(s.toString().trim());status.setTextColor(r.ready?0xFF2E7D32:0xFF245A7A);}
     private static void stage(StringBuilder s,String name,boolean ok){if(s.length()>0)s.append('\n');s.append(ok?"✓ ":"○ ").append(name);}
     private void finishRemote(RemoteReadiness r){prefs.edit().putString("connection_mode","remote").apply();render(r);status.postDelayed(()->listener.onReady(Mode.REMOTE),350);}
-    private void busy(String text,int stage){content.removeAllViews();progress.setVisibility(View.VISIBLE);progress.setProgress(stage);status.setText(text);status.setTextColor(0xFF90CAF9);}
+    private void busy(String text,int stage){content.removeAllViews();progress.setVisibility(View.VISIBLE);progress.setProgress(stage);status.setText(text);status.setTextColor(0xFF245A7A);}
     private void showBack(){content.removeAllViews();Button b=UiKit.button(a,"رجوع");b.setOnClickListener(v->showChoice());content.addView(b,UiKit.full(a));}
 }
