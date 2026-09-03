@@ -24,6 +24,9 @@ import java.util.Locale;
 
 /** Compact operator settings for HazRob 0.9. MQ power belongs to Measurements, device state to Status. */
 public final class SettingsTab {
+    private static final String DEFAULT_BROKER="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud";
+    private static final String DEFAULT_ROBOT_ID="hazrob-001";
+    private static final String DEFAULT_APP_USER="hazrob_app";
     private final Context context;private final HazRobHost host;private final ScrollView scroll;
     private final EditText robot,camera,speed,nl,nr,warm,measure;
     private EditText brokerHost,brokerPort,robotId,brokerUser,brokerPass,videoUrl,videoToken;
@@ -46,8 +49,8 @@ public final class SettingsTab {
 
     private void addRemoteDeveloperCard(Context c,LinearLayout root){
         LinearLayout remote=UiKit.card(c);remote.addView(UiKit.title(c,"Remote MQTT/TLS"),UiKit.full(c));
-        brokerHost=field(c,remote,"Broker",host.preferences().getString("remote_broker_host",""));brokerPort=field(c,remote,"Port",String.valueOf(host.preferences().getInt("remote_broker_port",8883)));robotId=field(c,remote,"Robot ID",host.preferences().getString("remote_robot_id",""));
-        RemoteCredentialStore.Credentials current=new RemoteCredentialStore(context,host.preferences()).load();brokerUser=field(c,remote,"Username",current.username);brokerPass=field(c,remote,"Password","");brokerPass.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        brokerHost=field(c,remote,"Broker",host.preferences().getString("remote_broker_host",DEFAULT_BROKER));brokerPort=field(c,remote,"Port",String.valueOf(host.preferences().getInt("remote_broker_port",8883)));robotId=field(c,remote,"Robot ID",host.preferences().getString("remote_robot_id",DEFAULT_ROBOT_ID));
+        RemoteCredentialStore.Credentials current=new RemoteCredentialStore(context,host.preferences()).load();brokerUser=field(c,remote,"Username",current.username.isEmpty()?DEFAULT_APP_USER:current.username);brokerPass=field(c,remote,"Password","");brokerPass.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
         LinearLayout row=UiKit.hbox(c);Button save=UiKit.button(c,"حفظ آمن");save.setOnClickListener(v->saveRemoteProfile());row.addView(save,UiKit.weight(1));Button test=UiKit.button(c,"اختبار");test.setOnClickListener(v->testRemoteProfile());row.addView(test,UiKit.weight(1));remote.addView(row,UiKit.full(c));root.addView(remote,UiKit.full(c));
     }
 
