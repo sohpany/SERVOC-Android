@@ -3,11 +3,13 @@ package com.servoc.app.analytics;
 import com.servoc.app.calibration.CalibrationCurveProvider;
 import com.servoc.app.chemical.GasEngine;
 import com.servoc.app.chemical.ResearchCurveRegistry;
+import com.servoc.app.chemical.ValidatedGasEngine;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
 import org.json.JSONObject;
 import org.junit.Test;
+import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicInteger;
 import static org.junit.Assert.*;
 
@@ -39,5 +41,14 @@ public final class HazRobScientificLibraryAuditTest {
         CalibrationCurveProvider provider=(sensor,chemical,ratio)->{calls.incrementAndGet();return null;};
         AnalyticsSnapshot.analyze(root,provider,false);
         assertTrue("device calibration provider was not consulted",calls.get()>0);
+    }
+
+    @Test public void researchOnlySensorAnalytePairCanContributeFingerprintEvidence(){
+        ResearchCurveRegistry.Curve chosen=null;for(ResearchCurveRegistry.Curve c:ResearchCurveRegistry.CURVES)if(c.sensor==GasEngine.MQ2&&c.chemical==76){chosen=c;break;}
+        assertNotNull(chosen);assertFalse(GasEngine.hasCurve(GasEngine.MQ2,76));
+        double[] ratios=new double[8];Arrays.fill(ratios,Double.NaN);ratios[GasEngine.MQ2]=chosen.ratioFromPpm(1000.0);
+        boolean[] heater={true,true,true,true,true,true,true,true};
+        ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,76,heater);
+        assertNotNull(r);assertTrue(r.communityCrossContributors>0);assertFalse(r.quantitative);
     }
 }
