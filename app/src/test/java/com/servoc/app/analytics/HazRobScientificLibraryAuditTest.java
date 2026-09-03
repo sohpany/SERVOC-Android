@@ -34,7 +34,7 @@ public final class HazRobScientificLibraryAuditTest {
         assertEquals(62,ModelRuntimeRegistry.pendingPortCount());
     }
 
-    @Test public void analyticsPassesDeviceCalibrationProviderIntoEngine(){
+    @Test public void analyticsPassesDeviceCalibrationProviderIntoEngine() throws Exception {
         JSONObject root=new JSONObject(),mq=new JSONObject();
         for(HazRobHardwareProfile.Channel ch:HazRobHardwareProfile.MQ){JSONObject q=new JSONObject();q.put("ratio",1.0);mq.put(ch.key,q);}root.put("mq",mq);
         AtomicInteger calls=new AtomicInteger();
