@@ -28,6 +28,7 @@ volatile uint32_t fps100=0,frameCounter=0,lastEncodeUs=0,captureErrors=0,encodeE
 volatile uint8_t streamClients=0;
 uint32_t fpsAt=0,lastFrames=0,wifiAt=0;
 uint8_t wifiChoice=0;
+wl_status_t lastWifiStatus=WL_NO_SHIELD;
 bool cameraOk=false,psramOk=false;
 esp_err_t cameraError=ESP_OK;
 uint16_t cameraPid=0;
@@ -98,4 +99,14 @@ void setup(){
   web.begin();mjpeg.begin();xTaskCreatePinnedToCore(streamTask,"mjpeg",6144,nullptr,1,nullptr,1);remoteVideoBegin(captureJpeg);Serial.printf("HTTP :80, MJPEG :81, remote WSS=%s | camera=%s\n",remoteVideoJson().c_str(),cameraOk?"OK":"FAIL");
 }
 
-void loop(){web.handleClient();updateFps();if(WiFi.status()!=WL_CONNECTED&&millis()-wifiAt>4500)connectWifi();static wl_status_t last=WL_NO_SHIELD;wl_status_t now=WiFi.status();if(now!=last){last=now;if(now==WL_CONNECTED)Serial.printf("WiFi: connected %s, IP %s, RSSI %d\n",WiFi.SSID().c_str(),WiFi.localIP().toString().c_str(),WiFi.RSSI());}delay(2);}
+void loop(){
+  web.handleClient();
+  updateFps();
+  if(WiFi.status()!=WL_CONNECTED&&millis()-wifiAt>4500)connectWifi();
+  wl_status_t now=WiFi.status();
+  if(now!=lastWifiStatus){
+    lastWifiStatus=now;
+    if(now==WL_CONNECTED)Serial.printf("WiFi: connected %s, IP %s, RSSI %d\n",WiFi.SSID().c_str(),WiFi.localIP().toString().c_str(),WiFi.RSSI());
+  }
+  delay(2);
+}
