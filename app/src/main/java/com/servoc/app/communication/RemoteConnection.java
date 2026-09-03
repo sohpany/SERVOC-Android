@@ -25,11 +25,14 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     private RemoteConnection(SecureMqtt311Client mqtt,String robotId){this.mqtt=mqtt;this.robotId=robotId;this.root="hazrob/"+robotId+"/";this.sessionId=UUID.randomUUID().toString();}
 
     public static synchronized RemoteConnection connect(Context context,SharedPreferences prefs)throws Exception{
-        RemoteConnection previous=active;if(previous!=null)previous.close();
+        RemoteConnection previous=active;
         String host=prefs.getString("remote_broker_host","").trim(),robot=prefs.getString("remote_robot_id","").trim();int port=prefs.getInt("remote_broker_port",8883);if(host.isEmpty()||robot.isEmpty())throw new IllegalStateException("remote service profile incomplete");
         RemoteCredentialStore.Credentials c=new RemoteCredentialStore(context,prefs).load();if(!c.present())throw new IllegalStateException("remote MQTT credentials unavailable");
         String client="hazrob-app-"+robot+"-"+Long.toHexString(System.currentTimeMillis());SecureMqtt311Client m=new SecureMqtt311Client(host,port,client,c.username,c.password);RemoteConnection r=new RemoteConnection(m,robot);
-        try{m.connect(r);m.subscribe(r.root+"ack");m.subscribe(r.root+"telemetry");m.subscribe(r.root+"status");m.subscribe(r.root+"camera/status");active=r;return r;}catch(Exception e){try{r.close();}catch(Exception ignored){}throw e;}
+        try{
+            m.connect(r);m.subscribe(r.root+"ack");m.subscribe(r.root+"telemetry");m.subscribe(r.root+"status");m.subscribe(r.root+"camera/status");
+            active=r;if(previous!=null&&previous!=r)previous.close();return r;
+        }catch(Exception e){try{r.close();}catch(Exception ignored){}throw e;}
     }
 
     /** Connected session only. */
