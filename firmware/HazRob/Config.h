@@ -3,6 +3,10 @@
 
 namespace Cfg {
 
+constexpr char FW[]="HazRob 0.9.0";
+constexpr uint8_t API=4;
+constexpr char HW_PROFILE[]="hazrob-0.9-2g8mq-v1";
+
 // WiFi / camera
 constexpr char SSID[]="HazRob";
 constexpr char NVS[]="servoc";
@@ -17,6 +21,11 @@ constexpr float DECEL=800.0f;
 constexpr float REVERSE=1000.0f;
 constexpr uint32_t RETRACE_MS=60000;
 constexpr int RETRACE_MAX_SPEED=40;
+
+// Link / recovery
+// Heartbeat watchdog is dormant until explicitly armed by the app/session.
+constexpr uint32_t LINK_LOSS_MS=15000;
+constexpr uint32_t ADS_REPROBE_MS=3000;
 
 // I2C
 constexpr uint8_t SDA=21;
