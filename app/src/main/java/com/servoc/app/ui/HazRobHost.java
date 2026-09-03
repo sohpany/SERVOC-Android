@@ -31,7 +31,11 @@ public interface HazRobHost {
     int captureCleanAirBaseline();
     int evaluateCleanAirDrift();
     String cleanAirBaselineTimestamp();
+    void setTrackingTarget(int chemicalId,String name);
+    int trackingTargetId();
+    String trackingTargetName();
     void requestExport(String format,long experimentId);
+    void requestRawExport(long experimentId);
     void requestReferenceBankExport(long experimentId);
     void refreshAllTabs();
 }
