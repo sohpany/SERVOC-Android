@@ -10,7 +10,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-/** HazRob API facade: direct HTTP locally, secure MQTT automatically when a remote session is active. */
+/** HazRob API facade: direct HTTP locally, secure MQTT automatically when a remote session owns transport. */
 public final class RobotApi {
     private volatile String robotHost;
     public RobotApi(String host){setRobotHost(host);}
@@ -18,7 +18,7 @@ public final class RobotApi {
     public void setRobotHost(String host){if(host==null||host.trim().isEmpty())host="192.168.4.1";host=host.trim().replace("http://","").replace("https://","");while(host.endsWith("/"))host=host.substring(0,host.length()-1);robotHost=host;}
     public String getRobotHost(){return robotHost;}
     private String url(String path){return "http://"+robotHost+(path.startsWith("/")?path:"/"+path);}
-    private static RemoteConnection remote(){return RemoteConnection.active();}
+    private static RemoteConnection remote(){return RemoteConnection.current();}
 
     public String getText(String path,int timeoutMs)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(url(path)).openConnection();c.setUseCaches(false);c.setConnectTimeout(timeoutMs);c.setReadTimeout(timeoutMs);c.setRequestMethod("GET");return finish(c);}
     public String postForm(String path,String body,int timeoutMs)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(url(path)).openConnection();c.setUseCaches(false);c.setConnectTimeout(timeoutMs);c.setReadTimeout(timeoutMs);c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/x-www-form-urlencoded; charset=UTF-8");c.setRequestProperty("Cache-Control","no-store");byte[] b=(body==null?"":body).getBytes(StandardCharsets.UTF_8);c.setFixedLengthStreamingMode(b.length);try(OutputStream out=c.getOutputStream()){out.write(b);out.flush();}return finish(c);}
@@ -36,11 +36,11 @@ public final class RobotApi {
     /** Raw endpoints intentionally remain local for provisioning and direct-mode compatibility checks. */
     public JSONObject diagnosticsRaw()throws Exception{return getJson("/diag",1000);}
     public JSONObject dataRaw()throws Exception{return getJson("/data",1200);}
-    public JSONObject snapshot(int commandedLeft,int commandedRight)throws Exception{RemoteConnection r=remote();if(r!=null){JSONObject s=r.snapshot(commandedLeft,commandedRight);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return RobotProtocolV4.normalize(diagnosticsRaw(),dataRaw(),commandedLeft,commandedRight);}
-    public JSONObject diagnostics()throws Exception{RemoteConnection r=remote();if(r!=null){JSONObject s=r.snapshot(0,0);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return diagnosticsRaw();}
-    public JSONObject data()throws Exception{RemoteConnection r=remote();if(r!=null){JSONObject s=r.snapshot(0,0);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return dataRaw();}
+    public JSONObject snapshot(int commandedLeft,int commandedRight)throws Exception{RemoteConnection r=remote();if(r!=null){if(!r.isConnected())throw new IllegalStateException("remote MQTT disconnected");JSONObject s=r.snapshot(commandedLeft,commandedRight);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return RobotProtocolV4.normalize(diagnosticsRaw(),dataRaw(),commandedLeft,commandedRight);}
+    public JSONObject diagnostics()throws Exception{RemoteConnection r=remote();if(r!=null){if(!r.isConnected())throw new IllegalStateException("remote MQTT disconnected");JSONObject s=r.snapshot(0,0);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return diagnosticsRaw();}
+    public JSONObject data()throws Exception{RemoteConnection r=remote();if(r!=null){if(!r.isConnected())throw new IllegalStateException("remote MQTT disconnected");JSONObject s=r.snapshot(0,0);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return dataRaw();}
 
-    public JSONObject config()throws Exception{RemoteConnection r=remote();if(r!=null){JSONObject a=r.command("config_get",new JSONObject(),3000,true,2500);JSONObject p=a==null?null:a.optJSONObject("payload");return p==null?new JSONObject():p;}return getJson("/cfg",1200);}
+    public JSONObject config()throws Exception{RemoteConnection r=remote();if(r!=null){JSONObject a=r.command("config_get",new JSONObject(),3000,true,2500);JSONObject p=a.optJSONObject("payload");return p==null?new JSONObject():p;}return getJson("/cfg",1200);}
 
     /** These three endpoints are intentionally local: they bootstrap the robot onto its 4G/WAN network. */
     public JSONObject remoteStatus()throws Exception{return getJson("/remote/status",1800);}
@@ -48,7 +48,7 @@ public final class RobotApi {
     public JSONObject remoteClear()throws Exception{return new JSONObject(postForm("/remote/clear","confirm=1",1500));}
 
     public JSONObject setConfig(String cameraIp,int speed,int neutralLeft,int neutralRight,int warmupSec,int measureSec)throws Exception{
-        RemoteConnection r=remote();if(r!=null){JSONObject p=new JSONObject();p.put("cam",cameraIp==null?"":cameraIp);p.put("speed",speed);p.put("nl",neutralLeft);p.put("nr",neutralRight);p.put("warm",warmupSec);p.put("measure",measureSec);JSONObject a=r.command("config_set",p,4000,true,3000);JSONObject q=a==null?null:a.optJSONObject("payload");return q==null?p:q;}
+        RemoteConnection r=remote();if(r!=null){JSONObject p=new JSONObject();p.put("cam",cameraIp==null?"":cameraIp);p.put("speed",speed);p.put("nl",neutralLeft);p.put("nr",neutralRight);p.put("warm",warmupSec);p.put("measure",measureSec);JSONObject a=r.command("config_set",p,4000,true,3000);JSONObject q=a.optJSONObject("payload");return q==null?p:q;}
         String cam=URLEncoder.encode(cameraIp==null?"":cameraIp,StandardCharsets.UTF_8.name());return getJson("/cfg?cam="+cam+"&speed="+speed+"&nl="+neutralLeft+"&nr="+neutralRight+"&warm="+warmupSec+"&measure="+measureSec,1500);
     }
 
