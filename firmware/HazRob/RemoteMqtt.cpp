@@ -38,7 +38,12 @@ bool setCameraFlash(const String& mode){
 void ack(const String& session,uint64_t seq,const String& nonce,bool ok,const String& payload="{}",const String& error=""){String j="{\"session\":\""+esc(session)+"\",\"seq\":"+u64(seq)+",\"nonce\":\""+esc(nonce)+"\",\"ok\":"+(ok?"true":"false");if(!error.isEmpty())j+=",\"error\":\""+esc(error)+"\"";j+=",\"payload\":"+payload+"}";if(mqttPublish(ackTopic,j,false))acked=true;}
 
 void applyCommand(const String& j){
-  String session=jstr(j,"session"),nonce=jstr(j,"nonce"),type=jstr(j,"type");uint64_t seq=(uint64_t)jint(j,"seq",0);if(session.isEmpty()||nonce.isEmpty()||type.isEmpty()||!seq){ack(session,seq,nonce,false,"{}","invalid");return;}if(session!=lastSession){lastSession=session;lastSeq=0;}if(seq<=lastSeq){ack(session,seq,nonce,false,"{}","sequence");return;}if(!fresh(j)){ack(session,seq,nonce,false,"{}","expired");return;}lastSeq=seq;bool ok=true;String payload="{}";
+  String session=jstr(j,"session"),nonce=jstr(j,"nonce"),type=jstr(j,"type");uint64_t seq=(uint64_t)jint(j,"seq",0);
+  if(session.isEmpty()||nonce.isEmpty()||type.isEmpty()||!seq){ack(session,seq,nonce,false,"{}","invalid");return;}
+  if(!fresh(j)){ack(session,seq,nonce,false,"{}","expired");return;}
+  if(lastSession.isEmpty()){lastSession=session;lastSeq=0;}
+  else if(session!=lastSession){if(type!="probe"){ack(session,seq,nonce,false,"{}","session");return;}lastSession=session;lastSeq=0;}
+  if(seq<=lastSeq){ack(session,seq,nonce,false,"{}","sequence");return;}lastSeq=seq;bool ok=true;String payload="{}";
   if(type=="probe"){linkHeartbeat();}
   else if(type=="drive"){int l=constrain((int)jint(j,"left",0),-100,100),r=constrain((int)jint(j,"right",0),-100,100);linkHeartbeat();driveSet(l,r);}
   else if(type=="motion_stop")motionStop();
@@ -65,5 +70,5 @@ void publishStatus(){setCloudState();mqttPublish(statusTopic,remoteStatusJson(),
 
 void remoteMqttBegin(){root="hazrob/"+String(RemoteCfg::ROBOT_ID)+"/";cmdTopic=root+"cmd";ackTopic=root+"ack";telemetryTopic=root+"telemetry";statusTopic=root+"status";}
 void remoteMqttUpdate(){uint32_t now=millis();if(!RemoteCfg::configured()){mqtt=false;setCloudState();return;}if(!remoteInternetReady()){if(mqtt||tls.connected()){tls.stop();mqtt=false;acked=false;telemetrySent=false;setCloudState();}return;}if(!mqtt||!tls.connected()){mqtt=false;setCloudState();if(now-retryAt>=RemoteCfg::RETRY_MS){retryAt=now;connectCloud();}return;}while(tls.available())processPacket();if(now-lastTelemetry>=RemoteCfg::TELEMETRY_MS){lastTelemetry=now;publishTelemetry();}if(now-lastStatus>=RemoteCfg::STATUS_MS){lastStatus=now;publishStatus();}if(now-lastIo>=RemoteCfg::KEEPALIVE_SEC*500UL){tls.write((uint8_t)0xC0);tls.write((uint8_t)0);tls.flush();lastIo=now;}}
-void remoteMqttDisconnect(){if(mqtt&&tls.connected()){tls.write((uint8_t)0xE0);tls.write((uint8_t)0);tls.flush();}tls.stop();mqtt=false;acked=false;telemetrySent=false;setCloudState();}
+void remoteMqttDisconnect(){if(mqtt&&tls.connected()){tls.write((uint8_t)0xE0);tls.write((uint8_t)0);tls.flush();}tls.stop();mqtt=false;acked=false;telemetrySent=false;lastSession="";lastSeq=0;setCloudState();}
 bool remoteMqttConnected(){return mqtt&&tls.connected();}
