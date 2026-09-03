@@ -56,5 +56,7 @@ public final class RobotApi {
     public void cancelMeasurement()throws Exception{RemoteConnection r=remote();if(r!=null){r.cancelMeasurement();return;}getText("/measure?cmd=cancel",800);}
     public void relay(int group)throws Exception{if(group<0||group>2)throw new IllegalArgumentException("installed MQ relay group 0..2");relayMask(group==0?0:1<<(group-1));}
     public void relayMask(int mask)throws Exception{if(mask<0||mask>3)throw new IllegalArgumentException("installed MQ relay mask 0..3");RemoteConnection r=remote();if(r!=null){r.relayMask(mask);return;}getText("/relay?mask="+mask,800);}
+    public void cameraFlash(String mode)throws Exception{RemoteConnection r=remote();if(r==null)throw new IllegalStateException("remote session unavailable");r.cameraFlash(mode);}
+    public JSONObject remoteCameraStatus(){RemoteConnection r=remote();return r==null?null:r.cameraStatus();}
     private static String enc(String s)throws Exception{return URLEncoder.encode(s==null?"":s,StandardCharsets.UTF_8.name());}
 }
