@@ -12,6 +12,7 @@ import android.widget.TextView;
 
 import com.servoc.app.camera.MjpegRecorder;
 import com.servoc.app.camera.MjpegView;
+import com.servoc.app.camera.RemoteVideoCredentialStore;
 import com.servoc.app.control.JoystickView;
 import com.servoc.app.navigation.GasDirectionEstimator;
 import com.servoc.app.navigation.MqRelayPlanner;
@@ -75,7 +76,10 @@ public final class ControlTab {
     }
 
     public View view(){return root;}public void resetJoystick(){joystick.reset();}
-    public void startCamera(){String h=host.cameraHost();if(h==null||h.trim().isEmpty()){showCameraStatus("retrying","");return;}h=h.trim();video.start(new String[]{"http://"+h+":81/stream","http://"+h+"/stream","http://"+h+":81/","http://"+h+"/mjpeg"});}
+    public void startCamera(){
+        if("remote".equalsIgnoreCase(host.preferences().getString("connection_mode","direct"))){String url=host.preferences().getString("remote_video_url","").trim();String token=new RemoteVideoCredentialStore(host.preferences()).load();if(url.isEmpty()){showCameraStatus("retrying","Remote video not configured");return;}video.startWss(url,token);return;}
+        String h=host.cameraHost();if(h==null||h.trim().isEmpty()){showCameraStatus("retrying","");return;}h=h.trim();video.start(new String[]{"http://"+h+":81/stream","http://"+h+"/stream","http://"+h+":81/","http://"+h+"/mjpeg"});
+    }
     public void stopCamera(){video.stop();flameAnalyzer.reset();overlay.clearFlame();overlay.clearGas();lastFlameState=FlameEvidenceTracker.State.CLEAR;lastFlameResult=null;if(recorder.isRecording()&&!recordingStopping)requestStopRecording(false);}
     public void releaseCamera(){video.stop();flameAnalyzer.release();overlay.clearFlame();overlay.clearGas();gasDirection.reset();if(recorder.isRecording()||recorder.isClosing())recorder.stopNow();recorder.release();video.release();}
 
