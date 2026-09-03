@@ -9,9 +9,10 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
     <application android:theme="@style/AppTheme" android:label="HazRob" android:icon="@drawable/ic_hazrob_app" android:roundIcon="@drawable/ic_hazrob_app" android:usesCleartextTraffic="true" android:allowBackup="true" android:supportsRtl="true">
-        <activity android:name=".MainActivity" android:exported="true">
+        <activity android:name=".EntryActivity" android:exported="true">
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
+        <activity android:name=".MainActivity" android:exported="false"/>
         <service android:name=".communication.RobotLinkService" android:exported="false" android:foregroundServiceType="connectedDevice"/>
     </application>
 </manifest>
