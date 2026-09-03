@@ -3,17 +3,17 @@
 
 /**
  * HazRob 0.9 remote cloud profile.
- * Fill service credentials locally before flashing when the MQTT service is provisioned.
- * Never commit production credentials. Remote mode remains disabled while any required value is empty.
+ * Public service coordinates are pinned here; production secrets remain local and must never be committed.
  */
 namespace RemoteCfg {
-constexpr char BROKER_HOST[]="";
+constexpr char BROKER_HOST[]="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud";
 constexpr uint16_t BROKER_PORT=8883;
 constexpr char ROBOT_ID[]="hazrob-001";
-constexpr char USERNAME[]="";
+constexpr char USERNAME[]="hazrob_robot";
 constexpr char PASSWORD[]="";
 
-// PEM root CA that validates BROKER_HOST. setInsecure() is intentionally never used.
+// PEM trust anchor for BROKER_HOST. setInsecure() is intentionally never used.
+// Keep empty until the production trust anchor is installed locally / through the secure build path.
 constexpr char ROOT_CA[]="";
 constexpr uint16_t KEEPALIVE_SEC=30;
 constexpr uint32_t RETRY_MS=7000;
