@@ -19,15 +19,7 @@ void writeRemaining(size_t n){do{uint8_t d=n%128;n/=128;if(n)d|=0x80;tls.write(d
 bool readRemaining(size_t& value){value=0;size_t mult=1;for(int i=0;i<4;i++){int d=tls.read();if(d<0)return false;value+=(d&127)*mult;if(!(d&128))return true;mult*=128;}return false;}
 String u64(uint64_t v){char b[24];snprintf(b,sizeof(b),"%llu",(unsigned long long)v);return String(b);}
 
-bool mqttConnectPacket(){
-  uint8_t body[768];size_t p=0;
-  auto put=[&](uint8_t v){if(p<sizeof(body))body[p++]=v;};
-  auto utf=[&](const char* s){size_t n=strlen(s);if(p+2+n>sizeof(body))return false;put((uint8_t)(n>>8));put((uint8_t)n);memcpy(body+p,s,n);p+=n;return true;};
-  if(!utf("MQTT"))return false;put(4);uint8_t flags=0xC2;put(flags);put((uint8_t)(RemoteCfg::KEEPALIVE_SEC>>8));put((uint8_t)RemoteCfg::KEEPALIVE_SEC);
-  String clientId="hazrob-"+String(RemoteCfg::ROBOT_ID);if(!utf(clientId.c_str())||!utf(RemoteCfg::USERNAME)||!utf(RemoteCfg::PASSWORD))return false;
-  tls.write((uint8_t)0x10);writeRemaining(p);tls.write(body,p);tls.flush();lastIo=millis();
-  uint32_t until=millis()+4000;while((int32_t)(until-millis())>0&&!tls.available())delay(5);if(!tls.available())return false;int h=tls.read();size_t len=0;if(h!=0x20||!readRemaining(len)||len!=2)return false;int flagsAck=tls.read(),code=tls.read();return flagsAck>=0&&code==0;
-}
+bool mqttConnectPacket(){uint8_t body[768];size_t p=0;auto put=[&](uint8_t v){if(p<sizeof(body))body[p++]=v;};auto utf=[&](const char* s){size_t n=strlen(s);if(p+2+n>sizeof(body))return false;put((uint8_t)(n>>8));put((uint8_t)n);memcpy(body+p,s,n);p+=n;return true;};if(!utf("MQTT"))return false;put(4);uint8_t flags=0xC2;put(flags);put((uint8_t)(RemoteCfg::KEEPALIVE_SEC>>8));put((uint8_t)RemoteCfg::KEEPALIVE_SEC);String clientId="hazrob-"+String(RemoteCfg::ROBOT_ID);if(!utf(clientId.c_str())||!utf(RemoteCfg::USERNAME)||!utf(RemoteCfg::PASSWORD))return false;tls.write((uint8_t)0x10);writeRemaining(p);tls.write(body,p);tls.flush();lastIo=millis();uint32_t until=millis()+4000;while((int32_t)(until-millis())>0&&!tls.available())delay(5);if(!tls.available())return false;int h=tls.read();size_t len=0;if(h!=0x20||!readRemaining(len)||len!=2)return false;int flagsAck=tls.read(),code=tls.read();return flagsAck>=0&&code==0;}
 
 bool mqttSubscribe(const String& topic){uint16_t id=++packetId;if(!id)id=++packetId;size_t rem=2+2+topic.length()+1;tls.write((uint8_t)0x82);writeRemaining(rem);tls.write((uint8_t)(id>>8));tls.write((uint8_t)id);writeUtf(topic);tls.write((uint8_t)0);tls.flush();lastIo=millis();return true;}
 bool mqttPublish(const String& topic,const String& payload,bool retain=false){if(!mqtt||!tls.connected())return false;size_t rem=2+topic.length()+payload.length();tls.write((uint8_t)(retain?0x31:0x30));writeRemaining(rem);writeUtf(topic);tls.write((const uint8_t*)payload.c_str(),payload.length());tls.flush();lastIo=millis();return tls.connected();}
@@ -39,15 +31,14 @@ int64_t jint(const String& j,const char* key,int64_t def=0){int p=keyPos(j,key);
 
 bool fresh(const String& j){uint64_t sent=(uint64_t)jint(j,"sent_ms",0),ttlMs=(uint64_t)jint(j,"ttl_ms",0);if(!sent||!ttlMs)return false;time_t now=time(nullptr);if(now<1700000000)return false;uint64_t nowMs=(uint64_t)now*1000ULL;return sent<=nowMs+60000ULL&&nowMs<=sent+ttlMs;}
 
-void ack(const String& session,uint64_t seq,const String& nonce,bool ok,const String& payload="{}",const String& error=""){
-  String j="{\"session\":\""+esc(session)+"\",\"seq\":"+u64(seq)+",\"nonce\":\""+esc(nonce)+"\",\"ok\":"+(ok?"true":"false");if(!error.isEmpty())j+=",\"error\":\""+esc(error)+"\"";j+=",\"payload\":"+payload+"}";if(mqttPublish(ackTopic,j,false))acked=true;
+bool setCameraFlash(const String& mode){
+  if(mode!="on"&&mode!="off")return false;String host=settings.cam;host.trim();if(host.isEmpty())host=Cfg::CAM;WiFiClient c;c.setTimeout(2);if(!c.connect(host.c_str(),80))return false;String req="GET /flash?mode="+mode+" HTTP/1.1\r\nHost: "+host+"\r\nConnection: close\r\n\r\n";c.print(req);c.flush();uint32_t until=millis()+2000;while((int32_t)(until-millis())>0&&!c.available()&&c.connected())delay(2);String line=c.available()?c.readStringUntil('\n'):"";c.stop();return line.indexOf(" 200 ")>=0;
 }
 
+void ack(const String& session,uint64_t seq,const String& nonce,bool ok,const String& payload="{}",const String& error=""){String j="{\"session\":\""+esc(session)+"\",\"seq\":"+u64(seq)+",\"nonce\":\""+esc(nonce)+"\",\"ok\":"+(ok?"true":"false");if(!error.isEmpty())j+=",\"error\":\""+esc(error)+"\"";j+=",\"payload\":"+payload+"}";if(mqttPublish(ackTopic,j,false))acked=true;}
+
 void applyCommand(const String& j){
-  String session=jstr(j,"session"),nonce=jstr(j,"nonce"),type=jstr(j,"type");uint64_t seq=(uint64_t)jint(j,"seq",0);
-  if(session.isEmpty()||nonce.isEmpty()||type.isEmpty()||!seq){ack(session,seq,nonce,false,"{}","invalid");return;}
-  if(session!=lastSession){lastSession=session;lastSeq=0;}if(seq<=lastSeq){ack(session,seq,nonce,false,"{}","sequence");return;}if(!fresh(j)){ack(session,seq,nonce,false,"{}","expired");return;}lastSeq=seq;
-  bool ok=true;String payload="{}";
+  String session=jstr(j,"session"),nonce=jstr(j,"nonce"),type=jstr(j,"type");uint64_t seq=(uint64_t)jint(j,"seq",0);if(session.isEmpty()||nonce.isEmpty()||type.isEmpty()||!seq){ack(session,seq,nonce,false,"{}","invalid");return;}if(session!=lastSession){lastSession=session;lastSeq=0;}if(seq<=lastSeq){ack(session,seq,nonce,false,"{}","sequence");return;}if(!fresh(j)){ack(session,seq,nonce,false,"{}","expired");return;}lastSeq=seq;bool ok=true;String payload="{}";
   if(type=="probe"){linkHeartbeat();}
   else if(type=="drive"){int l=constrain((int)jint(j,"left",0),-100,100),r=constrain((int)jint(j,"right",0),-100,100);linkHeartbeat();driveSet(l,r);}
   else if(type=="motion_stop")motionStop();
@@ -58,16 +49,13 @@ void applyCommand(const String& j){
   else if(type=="relay"){linkHeartbeat();ok=relaySetMask((uint8_t)jint(j,"mask",0)&Cfg::MQ_INSTALLED_MASK);}
   else if(type=="measure_start"){linkHeartbeat();measureStart();}
   else if(type=="measure_cancel")measureCancel();
+  else if(type=="camera_flash"){String mode=jstr(j,"mode","off");ok=setCameraFlash(mode);payload="{\"mode\":\""+esc(mode)+"\"}";}
   else if(type=="config_get")payload=settingsJson();
-  else if(type=="config_set"){
-    String cam=jstr(j,"cam",settings.cam);if(!cam.isEmpty())settings.cam=cam;settings.speed=constrain((int)jint(j,"speed",settings.speed),20,100);settings.nL=constrain((int)jint(j,"nl",settings.nL),1400,1600);settings.nR=constrain((int)jint(j,"nr",settings.nR),1400,1600);settings.warm=constrain((int)jint(j,"warm",settings.warm),0,3600);settings.measure=constrain((int)jint(j,"measure",settings.measure),5,600);saveSettings();payload=settingsJson();
-  }else ok=false;
-  ack(session,seq,nonce,ok,payload,ok?"":"unknown_command");
+  else if(type=="config_set"){String cam=jstr(j,"cam",settings.cam);if(!cam.isEmpty())settings.cam=cam;settings.speed=constrain((int)jint(j,"speed",settings.speed),20,100);settings.nL=constrain((int)jint(j,"nl",settings.nL),1400,1600);settings.nR=constrain((int)jint(j,"nr",settings.nR),1400,1600);settings.warm=constrain((int)jint(j,"warm",settings.warm),0,3600);settings.measure=constrain((int)jint(j,"measure",settings.measure),5,600);saveSettings();payload=settingsJson();}
+  else ok=false;ack(session,seq,nonce,ok,payload,ok?"":"unknown_command");
 }
 
-void processPacket(){
-  int h=tls.read();if(h<0)return;size_t rem=0;if(!readRemaining(rem))return;uint8_t type=(uint8_t)h>>4;if(type!=3){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}if(rem<2)return;int hi=tls.read(),lo=tls.read();if(hi<0||lo<0)return;uint16_t tn=(uint16_t)((hi<<8)|lo);rem-=2;if(tn>rem||tn>256)return;String topic;topic.reserve(tn);for(uint16_t i=0;i<tn;i++){while(!tls.available()&&tls.connected())delay(1);topic+=(char)tls.read();}rem-=tn;if(rem>4096){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}String payload;payload.reserve(rem);while(rem--&&tls.connected()){while(!tls.available()&&tls.connected())delay(1);if(tls.connected())payload+=(char)tls.read();}if(topic==cmdTopic)applyCommand(payload);lastIo=millis();
-}
+void processPacket(){int h=tls.read();if(h<0)return;size_t rem=0;if(!readRemaining(rem))return;uint8_t type=(uint8_t)h>>4;if(type!=3){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}if(rem<2)return;int hi=tls.read(),lo=tls.read();if(hi<0||lo<0)return;uint16_t tn=(uint16_t)((hi<<8)|lo);rem-=2;if(tn>rem||tn>256)return;String topic;topic.reserve(tn);for(uint16_t i=0;i<tn;i++){while(!tls.available()&&tls.connected())delay(1);topic+=(char)tls.read();}rem-=tn;if(rem>4096){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}String payload;payload.reserve(rem);while(rem--&&tls.connected()){while(!tls.available()&&tls.connected())delay(1);if(tls.connected())payload+=(char)tls.read();}if(topic==cmdTopic)applyCommand(payload);lastIo=millis();}
 
 void setCloudState(){remoteSetCloudState(mqtt&&tls.connected(),mqtt&&tls.connected(),acked,telemetrySent,false);}
 bool connectCloud(){if(!RemoteCfg::configured()||!remoteInternetReady())return false;tls.stop();tls.setCACert(RemoteCfg::ROOT_CA);tls.setTimeout(4);if(!tls.connect(RemoteCfg::BROKER_HOST,RemoteCfg::BROKER_PORT))return false;if(!mqttConnectPacket()){tls.stop();return false;}mqtt=true;root="hazrob/"+String(RemoteCfg::ROBOT_ID)+"/";cmdTopic=root+"cmd";ackTopic=root+"ack";telemetryTopic=root+"telemetry";statusTopic=root+"status";mqttSubscribe(cmdTopic);lastIo=millis();acked=false;telemetrySent=false;setCloudState();return true;}
