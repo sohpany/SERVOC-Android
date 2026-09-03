@@ -2,6 +2,7 @@ package com.servoc.app.analytics;
 
 import com.servoc.app.calibration.CalibrationCurveProvider;
 import com.servoc.app.chemical.GasEngine;
+import com.servoc.app.chemical.ResearchCurveRegistry;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
@@ -14,9 +15,11 @@ public final class HazRobScientificLibraryAuditTest {
     @Test public void allEightInstalledMqChannelsHaveRegisteredCurves(){
         assertEquals(8,HazRobHardwareProfile.MQ.length);
         assertEquals(39,GasEngine.curveCount());
+        assertEquals(43,ResearchCurveRegistry.count());
         for(HazRobHardwareProfile.Channel ch:HazRobHardwareProfile.MQ){
-            int n=0;for(int chem:GasEngine.SUPPORTED)if(GasEngine.hasCurve(ch.sensorId,chem))n++;
-            assertTrue(ch.key+" lost all registered curves",n>0);
+            int primary=0;for(int chem:GasEngine.SUPPORTED)if(GasEngine.hasCurve(ch.sensorId,chem))primary++;
+            assertTrue(ch.key+" lost all operational curves",primary>0);
+            assertTrue(ch.key+" lost all research curves",ResearchCurveRegistry.forSensor(ch.sensorId).size()>0);
         }
     }
 
