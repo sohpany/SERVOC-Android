@@ -32,7 +32,7 @@ public final class RobotLinkService extends Service {
     private void linkTick(){
         try{
             boolean remote="remote".equalsIgnoreCase(prefs.getString("connection_mode","direct"));
-            if(!remote){RemoteConnection stale=RemoteConnection.current();if(stale!=null)remoteSessions.close();resetBackoff();RobotApi a=api;if(a!=null)a.heartbeat();return;}
+            if(!remote){if(RemoteConnection.transportOwned())remoteSessions.close();resetBackoff();RobotApi a=api;if(a!=null)a.heartbeat();return;}
             RemoteConnection live=RemoteConnection.active();if(live!=null){live.heartbeat();resetBackoff();return;}
             long now=SystemClock.elapsedRealtime();if(now<reconnectAt)return;
             try{RemoteConnection r=remoteSessions.ensureConnected();r.heartbeat();resetBackoff();updateNotification("HazRob Remote connected");}
