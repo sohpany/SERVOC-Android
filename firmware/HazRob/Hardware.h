@@ -7,11 +7,16 @@ void hwBegin();
 void hwUpdate();
 
 void driveSet(int left,int right);
-void stopAll();
+void motionStop();
+void emergencyStop();
 
 bool relaySetMask(uint8_t mask);
+void sensorPowerOff();
 void measureStart();
 void measureCancel();
+
+void linkHeartbeat();
+void linkSetArmed(bool armed);
 
 void saveSettings();
 
