@@ -15,6 +15,9 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: remote/video-relay
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,7 +26,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: remote/video-relay/package-lock.json
 
-      - name: Wrangler dry-run
-        working-directory: remote/video-relay
-        run: npx --yes wrangler@4 deploy --dry-run
+      - name: Install dependencies
+        run: npm install --package-lock-only && npm ci
+
+      - name: Syntax check
+        run: npm run check
