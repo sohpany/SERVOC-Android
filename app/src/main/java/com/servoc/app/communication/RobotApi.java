@@ -10,7 +10,7 @@ import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-/** HazRob API facade: direct HTTP locally, secure MQTT automatically when a remote session owns transport. */
+/** HazRob API facade: direct HTTP locally, secure MQTT automatically when Remote owns transport. */
 public final class RobotApi {
     private volatile String robotHost;
     public RobotApi(String host){setRobotHost(host);}
@@ -18,7 +18,7 @@ public final class RobotApi {
     public void setRobotHost(String host){if(host==null||host.trim().isEmpty())host="192.168.4.1";host=host.trim().replace("http://","").replace("https://","");while(host.endsWith("/"))host=host.substring(0,host.length()-1);robotHost=host;}
     public String getRobotHost(){return robotHost;}
     private String url(String path){return "http://"+robotHost+(path.startsWith("/")?path:"/"+path);}
-    private static RemoteConnection remote(){return RemoteConnection.current();}
+    private static RemoteConnection remote(){RemoteConnection r=RemoteConnection.current();if(r==null&&RemoteConnection.transportOwned())throw new IllegalStateException("remote transport reconnecting");return r;}
 
     public String getText(String path,int timeoutMs)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(url(path)).openConnection();c.setUseCaches(false);c.setConnectTimeout(timeoutMs);c.setReadTimeout(timeoutMs);c.setRequestMethod("GET");return finish(c);}
     public String postForm(String path,String body,int timeoutMs)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(url(path)).openConnection();c.setUseCaches(false);c.setConnectTimeout(timeoutMs);c.setReadTimeout(timeoutMs);c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/x-www-form-urlencoded; charset=UTF-8");c.setRequestProperty("Cache-Control","no-store");byte[] b=(body==null?"":body).getBytes(StandardCharsets.UTF_8);c.setFixedLengthStreamingMode(b.length);try(OutputStream out=c.getOutputStream()){out.write(b);out.flush();}return finish(c);}
@@ -57,6 +57,6 @@ public final class RobotApi {
     public void relay(int group)throws Exception{if(group<0||group>2)throw new IllegalArgumentException("installed MQ relay group 0..2");relayMask(group==0?0:1<<(group-1));}
     public void relayMask(int mask)throws Exception{if(mask<0||mask>3)throw new IllegalArgumentException("installed MQ relay mask 0..3");RemoteConnection r=remote();if(r!=null){r.relayMask(mask);return;}getText("/relay?mask="+mask,800);}
     public void cameraFlash(String mode)throws Exception{RemoteConnection r=remote();if(r==null)throw new IllegalStateException("remote session unavailable");r.cameraFlash(mode);}
-    public JSONObject remoteCameraStatus(){RemoteConnection r=remote();return r==null?null:r.cameraStatus();}
+    public JSONObject remoteCameraStatus(){RemoteConnection r=RemoteConnection.current();return r==null?null:r.cameraStatus();}
     private static String enc(String s)throws Exception{return URLEncoder.encode(s==null?"":s,StandardCharsets.UTF_8.name());}
 }
