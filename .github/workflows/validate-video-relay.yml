@@ -1,0 +1,29 @@
+name: Validate HazRob Video Relay
+
+on:
+  push:
+    branches: [ dev/hazrob-0.9 ]
+    paths:
+      - 'remote/video-relay/**'
+      - '.github/workflows/validate-video-relay.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Wrangler dry-run
+        working-directory: remote/video-relay
+        run: npx --yes wrangler@4 deploy --dry-run
