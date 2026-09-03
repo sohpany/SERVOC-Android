@@ -58,7 +58,13 @@ public final class ControlTab {
     private TextView badge(Context c,String text){TextView v=UiKit.small(c,text);v.setTextColor(0xFF90A4AE);v.setBackgroundColor(0xCC151A20);v.setPadding(UiKit.dp(c,8),UiKit.dp(c,4),UiKit.dp(c,8),UiKit.dp(c,4));return v;}
     private void showCameraStatus(String state,String detail){if("streaming".equals(state)){cameraBadge.setText("CAM ●");cameraBadge.setTextColor(0xFF81C784);}else if("connecting".equals(state)){cameraBadge.setText("CAM …");cameraBadge.setTextColor(0xFFFFB74D);}else if("retrying".equals(state)){cameraBadge.setText("CAM ↻");cameraBadge.setTextColor(0xFFFF7043);}else{cameraBadge.setText("CAM ○");cameraBadge.setTextColor(0xFF90A4AE);}}
 
-    private void cycleFlash(){String next="on".equals(host.flashMode())?"off":"on";host.io().execute(()->{if(!host.cameraReachable()){host.showToast("الكاميرا غير متصلة");return;}host.setFlashMode(next);});}
+    private boolean remoteMode(){return "remote".equalsIgnoreCase(host.preferences().getString("connection_mode","direct"));}
+    private String effectiveFlashMode(){return remoteMode()?host.preferences().getString("flash_mode","off"):host.flashMode();}
+    private void cycleFlash(){
+        String next="on".equals(effectiveFlashMode())?"off":"on";
+        if(!remoteMode()){host.io().execute(()->{if(!host.cameraReachable()){host.showToast("الكاميرا غير متصلة");return;}host.setFlashMode(next);});return;}
+        host.io().execute(()->{try{host.robotApi().cameraFlash(next);host.preferences().edit().putString("flash_mode",next).apply();root.post(this::refresh);host.showToast("الفلاش: "+("on".equals(next)?"تشغيل":"إيقاف"));}catch(Exception e){host.showToast("تعذر إرسال أمر الفلاش البعيد");}});
+    }
 
     private void toggleRecording(){
         if(recordingStopping)return;if(recorder.isRecording()){requestStopRecording(true);return;}
@@ -77,14 +83,14 @@ public final class ControlTab {
 
     public View view(){return root;}public void resetJoystick(){joystick.reset();}
     public void startCamera(){
-        if("remote".equalsIgnoreCase(host.preferences().getString("connection_mode","direct"))){String url=host.preferences().getString("remote_video_url","").trim();String token=new RemoteVideoCredentialStore(host.preferences()).load();if(url.isEmpty()){showCameraStatus("retrying","Remote video not configured");return;}video.startWss(url,token);return;}
+        if(remoteMode()){String url=host.preferences().getString("remote_video_url","").trim();String token=new RemoteVideoCredentialStore(host.preferences()).load();if(url.isEmpty()){showCameraStatus("retrying","Remote video not configured");return;}video.startWss(url,token);return;}
         String h=host.cameraHost();if(h==null||h.trim().isEmpty()){showCameraStatus("retrying","");return;}h=h.trim();video.start(new String[]{"http://"+h+":81/stream","http://"+h+"/stream","http://"+h+":81/","http://"+h+"/mjpeg"});
     }
     public void stopCamera(){video.stop();flameAnalyzer.reset();overlay.clearFlame();overlay.clearGas();lastFlameState=FlameEvidenceTracker.State.CLEAR;lastFlameResult=null;if(recorder.isRecording()&&!recordingStopping)requestStopRecording(false);}
     public void releaseCamera(){video.stop();flameAnalyzer.release();overlay.clearFlame();overlay.clearGas();gasDirection.reset();if(recorder.isRecording()||recorder.isClosing())recorder.stopNow();recorder.release();video.release();}
 
     public void refresh(){
-        flash.setText("فلاش "+("on".equals(host.flashMode())?"ON":"OFF"));if(recorder.isRecording())recordInfo.setText("REC ●   "+recorder.frameCount()+" frames   drop "+recorder.droppedFrames());
+        flash.setText("فلاش "+("on".equals(effectiveFlashMode())?"ON":"OFF"));if(recorder.isRecording())recordInfo.setText("REC ●   "+recorder.frameCount()+" frames   drop "+recorder.droppedFrames());
         int target=host.trackingTargetId();String targetName=host.trackingTargetName();if(target!=lastTarget){lastTarget=target;gasDirection.reset();overlay.clearGas();}
         cancelTracking.setVisibility(target>=0?View.VISIBLE:View.GONE);trackingBadge.setText(target>=0?"تتبع ● "+targetName:"تتبع —");trackingBadge.setTextColor(target>=0?0xFF81C784:0xFF90A4AE);
 
