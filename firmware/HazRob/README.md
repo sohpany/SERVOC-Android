@@ -1,14 +1,15 @@
-# HazRob ESP32 firmware — 0.7.1 hardware integration
+# HazRob master ESP32 firmware — 0.9
 
-This is the four-tab Arduino project for the **DOIT ESP32 DEVKIT V1** master controller.
+Target: **DOIT ESP32 DEVKIT V1** master controller.
 
-## Network
+## Local network
 
-- SoftAP SSID: `HazRob`, open network.
+- SoftAP SSID: `HazRob`.
 - Master ESP32: `192.168.4.1/24`.
 - ESP32-CAM: `192.168.4.2/24`.
-- NVS namespace remains `servoc` so existing neutral/speed/camera/timing preferences are preserved.
-- Wi-Fi sleep is disabled and the AP watchdog restores the expected AP/IP if needed.
+- NVS namespace for existing controller settings remains `servoc`.
+- Wi-Fi mode is AP+STA in 0.9. Direct/local control remains available through the AP even when WAN is configured.
+- When the STA side has validated Internet connectivity, the master enables NAPT so clients on the HazRob AP, including the ESP32-CAM, can reach the Internet through the modem. NAPT is disabled again when WAN is not ready.
 
 ## Required Arduino libraries
 
@@ -20,55 +21,87 @@ This is the four-tab Arduino project for the **DOIT ESP32 DEVKIT V1** master con
 
 ## I2C topology
 
-ESP32 uses GPIO21=SDA and GPIO22=SCL. BME280/BMP280 is on the 3.3 V/LV side. The two ADS1115 boards are powered from the 5 V domain and share the bus through a **bidirectional I2C level shifter**:
+ESP32 uses GPIO21=SDA and GPIO22=SCL. BME280/BMP280 is on the 3.3 V/LV side. The ADS1115 boards are powered from the 5 V domain and share the bus through a bidirectional I2C level shifter.
 
 - ADS1115 #1: `0x48`
 - ADS1115 #2: `0x49`
 
-ADS1115 PGA is `GAIN_TWOTHIRDS` (±6.144 V full-scale). This setting does **not** permit an analog input above the ADS1115 supply rail. MQ AO must remain within the 0–5 V domain when an ADS board is powered at 5 V.
+ADS1115 PGA is configured by firmware for the installed acquisition path. An ADS analog input must still remain within its actual supply rails; the PGA setting never permits an input above VDD.
 
-## Four MQ relay rows
+## Authoritative MQ topology: two groups / eight sensors
 
-The 4-channel relay board is active LOW. Every relay switches +5 V to **two MQ modules only**; sensor grounds remain common and AO stays wired to the corresponding ADS1115 input.
+The 4-channel relay board is active LOW. Only R1 and R2 are installed MQ power groups in HazRob 0.9. R3/R4 are reserved.
 
-| Row | Relay GPIO | ADS channel mapping |
-| --- | --- | --- |
-| R1 | GPIO25 | MQ4 → ADS1 A0, MQ5 → ADS1 A1 |
-| R2 | GPIO26 | MQ7 → ADS1 A2, MQ9 → ADS1 A3 |
-| R3 | GPIO27 | MQ2 → ADS2 A0, MQ8 → ADS2 A1 |
-| R4 | GPIO32 | MQ3 → ADS2 A2, MQ135 → ADS2 A3 |
+| MQ power group | Relay | ADS1115 | Channels |
+| --- | --- | --- | --- |
+| R1 | GPIO25 | ADS1 `0x48` | MQ2 → A0, MQ4 → A1, MQ5 → A2, MQ8 → A3 |
+| R2 | GPIO26 | ADS2 `0x49` | MQ3 → A0, MQ7 → A1, MQ9 → A2, MQ135 → A3 |
+| R3 | GPIO27 | reserved | not an installed MQ group |
+| R4 | GPIO32 | reserved | not an installed MQ group |
 
-The temporary 5 V / 4 A supply budget is protected in software: **no more than two rows (four MQ sensors) may be powered at one time**. `/relay?mask=0..15` returns HTTP 409 if more than two bits are requested. `/relay?g=0..4` remains available for one-row manual compatibility.
+All MQ module grounds remain on the common ground. The relay groups switch the positive heater/module supply. AO remains independently connected to its assigned ADS1115 channel.
 
-A normal full MQ measurement uses two phases:
+Valid installed MQ relay mask is `0..3` only:
 
-1. R1+R2 (`mask=3`) → warm-up → sample four channels.
-2. R3+R4 (`mask=12`) → warm-up → sample the other four channels.
+- `0` = both groups off
+- `1` = R1
+- `2` = R2
+- `3` = R1 + R2
 
-Gas-source tracking may choose another one- or two-row combination depending on the analyte fingerprint plan, but it cannot override the two-row power limit.
+The firmware may power both installed groups concurrently; whether that is acceptable in the field depends on the measured capability of the actual 5 V supply and wiring.
 
-## Other sensors
+## Other installed interfaces
 
-- MAX4466 OUT: GPIO36 / ADC1. Firmware reports RMS and peak-to-peak voltage only; it does not claim calibrated dB SPL.
-- IR digital module: GPIO35. Telemetry/warning only; it does not stop or block motion.
-- Digital LDR/LM393 module: GPIO34. Threshold state only; it is not a lux meter.
-- Environment sensor: BME280/BMP280 on I2C.
-- GPIO33 and GPIO39 remain spare inputs in this baseline; GPIO23 remains available for a future peripheral such as HC-SR04 TRIG if required.
+- Left continuous MG995: GPIO18.
+- Right continuous MG995: GPIO19.
+- MAX4466 analog microphone: GPIO36. Reported sound values are electrical RMS / peak-to-peak measurements, not calibrated dB SPL.
+- IR digital sensor: GPIO35, active LOW, currently used as warning telemetry rather than a certified collision-safety device.
+- GPIO33 / GPIO34 / GPIO39 remain auxiliary inputs in the current profile.
+- Environment sensor: BME280/BMP280 on I2C when installed/detected.
 
-## Drive safety and retrace
+## Direct API4 safety behavior
 
-GPIO18/GPIO19 drive the two continuous MG995 servos. Acceleration/deceleration/reversal ramps remain local. The Android app sends a 250 ms drive heartbeat. If the master receives no drive command for `FAILSAFE=1000 ms`, it stops first and can replay the last 60 s movement history in reverse at a 40% speed cap. An explicit `/stop` clears history and suppresses retrace.
+Local HTTP API remains available on the master:
 
-Retrace is dead-reckoning only. There is no wheel odometry, IMU, drop detector or automatic IR collision interlock; validate it only in a controlled open test area before relying on it.
+- `/drive`
+- `/motion/stop`
+- `/estop`
+- `/sensor/off`
+- `/heartbeat`
+- `/relay`
+- `/measure`
+- `/data`
+- `/diag`
+- `/cfg`
+
+Motion stop and MQ power control are intentionally independent in 0.9. Backgrounding the Android app stops motion; it does not automatically switch off an active MQ warm-up session.
+
+## Remote 4G path
+
+0.9 adds an optional outbound-only WAN path while preserving Direct mode:
+
+1. The master keeps the HazRob AP alive and joins the modem network as STA.
+2. WAN readiness checks Wi-Fi/IP, DNS and usable time before TLS is considered ready.
+3. Secure MQTT uses a trusted root CA. The firmware does not use `setInsecure()`.
+4. Commands carry a session ID, monotonically increasing sequence, TTL and nonce.
+5. ACK, telemetry and status are published over MQTT.
+6. Motion commands are not retained by the application transport.
+7. The master can route a remote camera-flash command to ESP32-CAM over the private HazRob LAN.
+
+`RemoteCloudConfig.h` is deliberately a credential-free template in the repository. Broker host, robot ID, username/password and CA must be provisioned in the private flashing copy or another protected build process. Do not commit production secrets.
+
+## ESP32-CAM Internet route
+
+The ESP32-CAM remains at `192.168.4.2` on the HazRob LAN. When WAN is ready, the master NAPT path gives it outbound Internet access without changing the local address. This is used by the optional WSS JPEG publisher while local MJPEG remains available independently.
 
 ## Analytical boundary
 
-Firmware reports acquisition values (`raw`, `Vadc`, `Vao`, `Rs`, `Rs/R0`) and performs no gas identity/source-direction/PPM/exposure analysis. Gas identity and direction remain in Android.
+Firmware acquires and reports sensor values. Chemical identity, evidence fusion, PPM models, exposure interpretation, time-series analysis and source-direction logic remain in the Android application.
 
-The current `R0=10` entries are placeholders, **not device-specific calibration**. The JSON explicitly reports `r0_calibrated=false`.
+The `R0=10.0` values in `Config.h` are placeholders rather than device-specific clean-air calibration. Device calibration must not be inferred from those defaults.
 
-MQ7/MQ9 quantitative use still requires a validated heater-phase protocol. Simple relay 5 V ON/OFF does not establish the manufacturer heater cycle, so these channels remain relative/fingerprint evidence until dedicated heater control and calibration are validated.
+MQ7/MQ9 quantitative use requires a validated heater-phase/calibration protocol. A simple relay-powered 5 V path alone does not establish the manufacturer heater cycle; until that path is validated, those channels should be treated as relative/fingerprint evidence rather than automatically trusted quantitative measurements.
 
-## Power validation before field use
+## Power validation
 
-With the temporary 5 V / 4 A buck converter, verify the 5 V rail under the worst intended simultaneous load: two MG995 servos, two MQ rows, relay coils and electronics. Use star power distribution/common ground and do not route servo current through the ESP32 regulator. Brownout or a significant 5 V sag means a larger dedicated 5 V supply is required before continued testing.
+Do not infer electrical adequacy from the software limit alone. Validate the actual 5 V rail under the intended simultaneous load, including both MG995 servos, the selected MQ groups, relay coils, ESP32, ADS boards and ESP32-CAM. Use common ground with proper star/distribution wiring and do not route servo/MQ heater current through the ESP32 regulator or thin logic jumpers. Significant rail sag or brownout requires correction before field operation.
