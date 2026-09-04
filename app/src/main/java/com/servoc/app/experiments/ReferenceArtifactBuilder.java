@@ -82,14 +82,17 @@ public final class ReferenceArtifactBuilder {
             List<Double> x=new ArrayList<>(),y=new ArrayList<>();Set<String> levels=new HashSet<>();
             for(ExperimentQueries.Record r:rows){
                 JSONObject p=json(r.payload);if(!"quantitative".equals(p.optString("reference_mode","")))continue;if(p.optLong("reference_chemical_uid",-1)!=chemical.uid)continue;if(!"ready_average".equals(p.optString("reference_capture_state","")))continue;
-                double ppm=p.optDouble("reference_known_ppm",Double.NaN);JSONObject mq=p.optJSONObject("reference_sensor_average");JSONObject q=mq==null?null:mq.optJSONObject(hw.key);double ratio=q==null?Double.NaN:q.optDouble("ratio",Double.NaN);
+                double ppm=p.optDouble("reference_known_ppm",Double.NaN);JSONObject mq=p.optJSONObject("reference_sensor_average");JSONObject sq=mq==null?null:mq.optJSONObject(hw.key);double ratio=sq==null?Double.NaN:sq.optDouble("ratio",Double.NaN);
                 if(Double.isFinite(ppm)&&ppm>0&&Double.isFinite(ratio)&&ratio>0){x.add(ratio);y.add(ppm);levels.add(String.format(Locale.US,"%.9g",ppm));}
             }
             if(x.size()<3||levels.size()<3)continue;
             double[] xx=arr(x),yy=arr(y);List<CalibrationRegressionModels.Score> scores=CalibrationRegressionModels.rank(xx,yy);if(scores.isEmpty())continue;CalibrationRegressionModels.Score best=scores.get(0);eligible++;
-            JSONObject q=new JSONObject();q.put("sensor",hw.key);q.put("samples",best.samples);q.put("concentration_levels",levels.size());q.put("catalog_index",best.fit.catalogIndex);q.put("model",best.fit.name);q.put("equation",best.fit.equation());q.put("r2_log",best.r2);q.put("log_rmse",best.logRmse);q.put("cross_validated",best.crossValidated);JSONArray coef=new JSONArray();for(double c:best.fit.coefficients)coef.put(c);q.put("coefficients",coef);q.put("validation_scope","operator-approved research reference; not a safety-grade certified calibration");curves.put(q);
+            JSONObject q=new JSONObject();q.put("sensor",hw.key);q.put("samples",best.samples);q.put("concentration_levels",levels.size());q.put("catalog_index",best.fit.catalogIndex);q.put("model",best.fit.name);q.put("equation",best.fit.equation());q.put("r2_log",best.r2);q.put("log_rmse",best.logRmse);q.put("cross_validated",best.crossValidated);
+            JSONArray coef=new JSONArray();for(double c:best.fit.coefficients)coef.put(c);q.put("coefficients",coef);
+            JSONArray points=new JSONArray();for(int i=0;i<xx.length;i++){JSONObject point=new JSONObject();point.put("ratio",xx[i]);point.put("ppm",yy[i]);points.put(point);}q.put("reference_points",points);
+            q.put("ratio_min",min(xx));q.put("ratio_max",max(xx));q.put("ppm_min",min(yy));q.put("ppm_max",max(yy));q.put("validation_scope","operator-approved research reference; not a safety-grade certified calibration");curves.put(q);
         }
-        JSONObject a=baseArtifact("hazrob-approved-calibration-bundle/1","CALIBRATION",current,chemical,approvedTs);a.put("curves",curves);a.put("eligible_sensors",eligible);a.put("status",eligible>0?"APPROVED_REFERENCE_CURVES":"APPROVED_POINTS_PENDING_MORE_LEVELS");a.put("selection_rule","lowest available log-RMSE among implemented CURVE_1D models for each sensor, using approved reference points plus current approval candidate");
+        JSONObject a=baseArtifact("hazrob-approved-calibration-bundle/2","CALIBRATION",current,chemical,approvedTs);a.put("curves",curves);a.put("eligible_sensors",eligible);a.put("status",eligible>0?"APPROVED_REFERENCE_CURVES":"APPROVED_POINTS_PENDING_MORE_LEVELS");a.put("selection_rule","lowest available log-RMSE among implemented CURVE_1D models for each sensor, using approved reference points plus current approval candidate");a.put("traceability_rule","Every fitted curve stores the exact Rs/R0 and ppm points used to fit it.");
         String summary=eligible>0?"تم تكوين "+eligible+" منحنيات مرجعية معتمدة":"تم اعتماد نقطة المعايرة؛ يلزم 3 مستويات تركيز صالحة على الأقل لتكوين منحنى";
         return new Result("calibration",a,summary);
     }
@@ -106,6 +109,8 @@ public final class ReferenceArtifactBuilder {
     }
 
     private static double[] arr(List<Double> v){double[] a=new double[v.size()];for(int i=0;i<a.length;i++)a[i]=v.get(i);return a;}
+    private static double min(double[] a){double m=Double.POSITIVE_INFINITY;for(double v:a)if(Double.isFinite(v))m=Math.min(m,v);return m;}
+    private static double max(double[] a){double m=Double.NEGATIVE_INFINITY;for(double v:a)if(Double.isFinite(v))m=Math.max(m,v);return m;}
     private static Object finiteOrNull(double v){return Double.isFinite(v)?v:JSONObject.NULL;}
     private static JSONObject json(String s){try{return s==null||s.trim().isEmpty()?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
     private static String displayName(ChemicalRepository.Chemical c){if(c.arabicName!=null&&!c.arabicName.trim().isEmpty())return c.arabicName;return c.name==null?"chemical":c.name;}
