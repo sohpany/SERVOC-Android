@@ -61,7 +61,7 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     public void emergencyStop()throws Exception{command("estop",new JSONObject(),3000,true,2500);}
     public void sensorOff()throws Exception{command("sensor_off",new JSONObject(),3000,true,2500);}
     public void heartbeat()throws Exception{command("heartbeat",new JSONObject(),2500,false,0);}
-    public void relayMask(int mask)throws Exception{JSONObject p=new JSONObject();p.put("mask",mask&3);command("relay",p,3000,true,2500);}
+    public void relayMask(int mask)throws Exception{if(mask!=0&&mask!=1)throw new IllegalArgumentException("MQ power state must be 0 or 1");JSONObject p=new JSONObject();p.put("mask",mask);command("relay",p,3000,true,2500);}
     public void startMeasurement()throws Exception{command("measure_start",new JSONObject(),4000,true,3000);}
     public void cancelMeasurement()throws Exception{command("measure_cancel",new JSONObject(),3000,true,2500);}
     public void cameraFlash(String mode)throws Exception{JSONObject p=new JSONObject();p.put("mode",mode==null?"off":mode);command("camera_flash",p,3000,true,2500);}
