@@ -4,8 +4,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ReleaseAuditTest {
-    @Test public void v09KeepsCriticalCameraAndEvidenceContracts(){
-        assertEquals("0.9.1",ReleaseAudit.VERSION);
+    @Test public void integrationCandidateKeepsCriticalCameraAndEvidenceContracts(){
+        assertEquals("0.9.2-rc1",ReleaseAudit.VERSION);
         assertTrue(ReleaseAudit.VIDEO_RECORDING);
         assertTrue(ReleaseAudit.DIRECT_ESP_CAM_MJPEG);
         assertTrue(ReleaseAudit.CAMERA_ENDPOINT_FALLBACK);
@@ -15,9 +15,10 @@ public class ReleaseAuditTest {
         assertFalse(ReleaseAudit.VIDEO_LINKED_TO_MEASUREMENTS);
         assertTrue(ReleaseAudit.API4_SPLIT_SAFETY);
         assertTrue(ReleaseAudit.BACKGROUND_MQ_CONTINUITY);
+        assertFalse(ReleaseAudit.ROLE_GATE);
     }
 
-    @Test public void v09UsesSingleMqPowerRelayAndRemoteBoundary(){
+    @Test public void integrationCandidateUsesSingleMqPowerRelayAndUnifiedRemoteBoundary(){
         assertTrue(ReleaseAudit.DUAL_ADS1115);
         assertTrue(ReleaseAudit.SINGLE_MQ_POWER_RELAY);
         assertFalse(ReleaseAudit.TWO_MQ_POWER_BANKS);
