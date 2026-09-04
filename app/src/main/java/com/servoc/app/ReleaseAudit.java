@@ -5,7 +5,7 @@ public final class ReleaseAudit {
     private ReleaseAudit(){}
     public static final String VERSION="0.9.0";
     public static final int DATABASE_SCHEMA=7;
-    public static final String ESP32_API="HazRob API v4 / split motion-sensor safety / dual ADS recovery / remote-ready transport";
+    public static final String ESP32_API="HazRob API v4 / single MQ power relay / dual ADS recovery / remote-ready transport";
 
     public static final boolean PRECALIBRATED_MQ=true;
     public static final boolean ARABIC_RTL_UI=true;
@@ -15,7 +15,7 @@ public final class ReleaseAudit {
     public static final boolean DYNAMIC_DEVELOPER_CHEMICAL_SELECTION=true;
     public static final boolean BME_BMP_DIAGNOSTICS=true;
     public static final boolean DUAL_ADS1115=true;
-    public static final boolean TWO_MQ_POWER_BANKS=true;
+    public static final boolean SINGLE_MQ_POWER_RELAY=true;
     public static final boolean MANUAL_MQ_RELAY_CONTROL=true;
     public static final boolean MQ_WARMUP_STATE=true;
     public static final boolean INSTANT_MQ_WARNINGS=true;
@@ -41,10 +41,11 @@ public final class ReleaseAudit {
     public static final boolean REMOTE_WSS_VIDEO=true;
 
     // Compatibility markers retained for regression tests and legacy audit consumers.
-    public static final boolean FLAME_EVIDENCE_EXPERIMENTAL=true;
-    public static final boolean VIDEO_STANDALONE_FROM_REPORTS=true;
-    public static final boolean VIDEO_LINKED_TO_MEASUREMENTS=false;
+    public static final boolean TWO_MQ_POWER_BANKS=false;
     public static final boolean FOUR_MQ_RELAY_ROWS=false;
     public static final boolean MANUAL_MQ_WARMUP_SETTING=true;
     public static final boolean GAS_TRACKING_RELAY_BANK_CONTROL=false;
+    public static final boolean VIDEO_STANDALONE_FROM_REPORTS=true;
+    public static final boolean VIDEO_LINKED_TO_MEASUREMENTS=false;
+    public static final boolean FLAME_EVIDENCE_EXPERIMENTAL=true;
 }
