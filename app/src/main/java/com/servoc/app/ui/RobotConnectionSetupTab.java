@@ -40,7 +40,7 @@ public final class RobotConnectionSetupTab {
         root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
 
         root.addView(UiKit.title(c,"تهيئة اتصال الروبوت"),UiKit.full(c));
-        TextView note=UiKit.small(c,"تهيئة الشبكة الخارجية واستكشافها تتم عبر اتصال مؤقت بشبكة HazRob المحلية. بعد حفظ الشبكة يستطيع الروبوت استخدام الإنترنت والاتصال البعيد، بينما تبقى شبكة HazRob متاحة للاتصال المباشر.");
+        TextView note=UiKit.small(c,"تهيئة الشبكة الخارجية واستكشافها تتم عبر اتصال مؤقت بشبكة HazRob المحلية. الشبكة الجديدة تُختبر أولًا ولا تستبدل الشبكة المحفوظة إلا بعد نجاح Wi-Fi وDNS والإنترنت؛ عند الفشل يعود الروبوت تلقائيًا إلى الإعداد السابق.");
         note.setTextColor(0xFFB0BEC5);root.addView(note,UiKit.full(c));
 
         LinearLayout current=UiKit.card(c);current.addView(UiKit.title(c,"حالة الشبكة الحالية"),UiKit.full(c));
@@ -56,7 +56,7 @@ public final class RobotConnectionSetupTab {
         ssid=field(c,form,"اسم الشبكة / SSID","");
         password=field(c,form,"كلمة المرور","");password.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
         remember=new CheckBox(c);remember.setText("تذكرني");remember.setTextColor(Color.WHITE);form.addView(remember,UiKit.full(c));
-        Button connect=UiKit.button(c,"دخول");connect.setOnClickListener(v->provision());form.addView(connect,UiKit.full(c));root.addView(form,UiKit.full(c));
+        Button connect=UiKit.button(c,"اختبار واتصال");connect.setOnClickListener(v->provision());form.addView(connect,UiKit.full(c));root.addView(form,UiKit.full(c));
 
         loadRemembered();
     }
@@ -66,22 +66,20 @@ public final class RobotConnectionSetupTab {
 
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
 
-    private void loadRemembered(){
-        RemoteWifiCredentialStore.Credentials x=new RemoteWifiCredentialStore(context,host.preferences()).load();
-        if(x.present()){ssid.setText(x.ssid);password.setText(x.password);remember.setChecked(true);}
-        else{remember.setChecked(false);host.showToast("لا توجد بيانات شبكة محفوظة في الهاتف");}
-    }
+    private void loadRemembered(){RemoteWifiCredentialStore.Credentials x=new RemoteWifiCredentialStore(context,host.preferences()).load();if(x.present()){ssid.setText(x.ssid);password.setText(x.password);remember.setChecked(true);}else{remember.setChecked(false);host.showToast("لا توجد بيانات شبكة محفوظة في الهاتف");}}
 
     private void refreshStatus(){
         status.setText("جارٍ قراءة حالة الشبكة...");
         host.io().execute(()->{
             try{
-                JSONObject j=host.robotApi().remoteStatus();
-                String text="SSID: "+dash(j.optString("ssid",""))+"\n"+
+                JSONObject j=host.robotApi().remoteStatus();boolean pending=j.optBoolean("provision_pending",false);long remain=j.optLong("provision_remaining_ms",0);
+                String active=j.optString("active_ssid",j.optString("ssid","")),shown=j.optString("ssid","");
+                String text=(pending?"اختبار شبكة جديدة: "+dash(shown)+"\nالشبكة المحفوظة: "+dash(active)+"   •   مهلة: "+String.format(java.util.Locale.US,"%.1f s",remain/1000.0):"SSID: "+dash(shown))+"\n"+
                         "Wi-Fi: "+yes(j.optBoolean("wifi",false))+"   •   IP: "+dash(j.optString("ip",""))+"\n"+
                         "RSSI: "+j.optInt("rssi",0)+" dBm   •   Internet: "+yes(j.optBoolean("internet",false))+"\n"+
-                        "TLS: "+yes(j.optBoolean("tls",false))+"   •   MQTT: "+yes(j.optBoolean("mqtt",false))+"   •   Telemetry: "+yes(j.optBoolean("telemetry",false));
-                root.post(()->{status.setText(text);status.setTextColor(j.optBoolean("internet",false)?0xFF81C784:0xFFFFB74D);});
+                        "TLS: "+yes(j.optBoolean("tls",false))+"   •   MQTT: "+yes(j.optBoolean("mqtt",false))+"   •   Telemetry: "+yes(j.optBoolean("telemetry",false))+
+                        (pending?"\nلن يُحفظ الإعداد الجديد إلا بعد نجاح اختبار الإنترنت؛ وإلا سيتم Rollback تلقائيًا.":"");
+                root.post(()->{status.setText(text);status.setTextColor(pending?0xFFFFB74D:j.optBoolean("internet",false)?0xFF81C784:0xFFFFB74D);});
             }catch(Exception e){root.post(()->{status.setText("تعذر الوصول إلى إعداد الشبكة. اتصل بشبكة HazRob المحلية ثم أعد المحاولة.");status.setTextColor(0xFFFF7043);});}
         });
     }
@@ -90,8 +88,7 @@ public final class RobotConnectionSetupTab {
         status.setText("جارٍ استكشاف الشبكات التي يراها الروبوت...");
         host.io().execute(()->{
             try{
-                JSONObject j=host.robotApi().remoteScan();JSONArray a=j.optJSONArray("networks");
-                List<String> labels=new ArrayList<>(),ssids=new ArrayList<>();
+                JSONObject j=host.robotApi().remoteScan();JSONArray a=j.optJSONArray("networks");List<String> labels=new ArrayList<>(),ssids=new ArrayList<>();
                 if(a!=null)for(int i=0;i<a.length();i++){JSONObject n=a.optJSONObject(i);if(n==null)continue;String s=n.optString("ssid","").trim();if(s.isEmpty()||ssids.contains(s))continue;ssids.add(s);labels.add((n.optBoolean("secure",true)?"🔒 ":"○ ")+s+"   "+n.optInt("rssi",0)+" dBm");}
                 root.post(()->{networkSsids.clear();networkSsids.addAll(ssids);networkAdapter.clear();networkAdapter.addAll(labels);networkAdapter.notifyDataSetChanged();status.setText(labels.isEmpty()?"لم يعثر الروبوت على شبكات":"تم العثور على "+labels.size()+" شبكة");status.setTextColor(labels.isEmpty()?0xFFFFB74D:0xFF81C784);});
             }catch(Exception e){root.post(()->{status.setText("تعذر استكشاف الشبكات. يجب الاتصال أولًا بشبكة HazRob المحلية.");status.setTextColor(0xFFFF7043);});}
@@ -101,14 +98,12 @@ public final class RobotConnectionSetupTab {
     private void selectNetwork(){int p=networks.getSelectedItemPosition();if(p<0||p>=networkSsids.size()){host.showToast("اختر شبكة من نتائج الاستكشاف");return;}ssid.setText(networkSsids.get(p));password.requestFocus();}
 
     private void provision(){
-        final String s=ssid.getText().toString().trim(),p=password.getText().toString();final boolean save=remember.isChecked();
-        if(s.isEmpty()){host.showToast("أدخل اسم الشبكة");return;}
-        status.setText("جارٍ إرسال إعداد الشبكة إلى الروبوت...");
+        final String s=ssid.getText().toString().trim(),p=password.getText().toString();final boolean save=remember.isChecked();if(s.isEmpty()){host.showToast("أدخل اسم الشبكة");return;}
+        status.setText("جارٍ إرسال الشبكة للاختبار دون حذف الإعداد السابق...");
         host.io().execute(()->{
             try{
-                host.robotApi().remoteProvision(s,p);
-                RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(context,host.preferences());if(save)store.save(s,p);else store.clear();
-                root.post(()->{status.setText("تم إرسال إعداد الشبكة. سيحاول الروبوت الاتصال بها الآن. أبقِ شبكة HazRob متاحة كقناة مباشرة ثم حدّث الحالة.");status.setTextColor(0xFF81C784);});
+                host.robotApi().remoteProvision(s,p);RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(context,host.preferences());if(save)store.save(s,p);else store.clear();
+                root.post(()->{status.setText("بدأ اختبار الشبكة الجديدة. حدّث الحالة خلال نحو 25 ثانية؛ سيعتمد الروبوت الشبكة عند نجاح الإنترنت أو يعود تلقائيًا إلى الإعداد السابق عند الفشل.");status.setTextColor(0xFFFFB74D);});
             }catch(Exception e){root.post(()->{status.setText("فشل إرسال إعداد الشبكة. تأكد من اتصال الهاتف بشبكة HazRob.");status.setTextColor(0xFFFF7043);});}
         });
     }
