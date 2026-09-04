@@ -23,7 +23,7 @@ final class GuestAuthorizationUi {
                 withDeveloperInternet(app,host,r->r.guestAccessSet(token));
                 RemoteAccessPackage.saveGuestToken(host.preferences(),token);
                 String code=RemoteAccessPackage.exportCode(app,host.preferences());
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(()->show(uiContext,host,code));
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{host.refreshAllTabs();show(uiContext,host,code);});
             }catch(Exception e){host.showToast("تعذر إنشاء التصريح عبر الإنترنت: تحقق من اتصال الهاتف والروبوت");}
         });
     }
@@ -34,6 +34,7 @@ final class GuestAuthorizationUi {
             try{
                 withDeveloperInternet(app,host,RemoteConnection::guestAccessRevoke);
                 RemoteAccessPackage.clearGuestToken(host.preferences());
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(host::refreshAllTabs);
                 host.showToast("تم إلغاء تصريح المستخدم");
             }catch(Exception e){host.showToast("تعذر إلغاء التصريح عبر الإنترنت: تحقق من اتصال الهاتف والروبوت");}
         })).show();
