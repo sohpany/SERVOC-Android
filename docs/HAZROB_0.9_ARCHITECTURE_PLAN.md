@@ -88,15 +88,18 @@ Local transport remains supported.
 Master ESP32: Wi-Fi AP+STA.
 - AP keeps local HazRob control/fallback.
 - STA connects to 4G modem/router for WAN.
+- NAPT gives the ESP32-CAM outbound Internet access while preserving `192.168.4.2` locally.
 
-Remote control/telemetry transport: MQTT over TLS.
-Remote camera transport: JPEG over secure WebSocket (WSS) for 0.9, retaining local MJPEG.
+Remote control/telemetry transport: **HiveMQ Cloud MQTT over TLS**.
+Remote camera transport: **Render authenticated JPEG over WSS**, retaining local MJPEG.
 
-Android transport abstraction:
-- `DirectHttpTransport`
-- `RemoteMqttTransport`
-- `DirectMjpegTransport`
-- `RemoteWssJpegTransport`
+Production public coordinates:
+- MQTT: `e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud:8883`
+- Render: `https://hazrob-video-relay.onrender.com`
+- Camera publisher: `wss://hazrob-video-relay.onrender.com/hazrob/video/publish/hazrob-001`
+- Android viewer: `wss://hazrob-video-relay.onrender.com/hazrob/video/view/hazrob-001`
+
+Secrets are never committed. MQTT passwords and video Bearer tokens are provisioned separately.
 
 ## 11. Remote entry/provisioning UX
 
@@ -106,21 +109,22 @@ Entry screen presents two operational choices:
 
 First remote setup is local provisioning. The user enters modem SSID/password while locally connected to HazRob. Credentials are sent only to the robot locally and stored on-device; they are not sent to the cloud.
 
-Subsequent Internet entry does not ask for modem credentials unless the user explicitly changes the WAN profile.
+Subsequent Internet entry does not ask for modem credentials unless the WAN profile is changed.
 
-Remote readiness progress is stage-based, not timer-based:
-1. local/provisioning link when required,
+Remote readiness is stage-based, not timer-based. The gate verifies:
+1. WAN profile configured,
 2. Wi-Fi association,
-3. DHCP/IP,
+3. IP,
 4. DNS,
-5. time synchronization,
-6. TLS,
-7. MQTT authentication/subscription,
-8. application nonce round-trip ACK,
-9. telemetry heartbeat,
-10. camera relay/first JPEG (degraded-mode optional).
+5. network time,
+6. Internet reachability,
+7. TLS,
+8. MQTT authentication/subscription,
+9. command nonce round-trip ACK,
+10. telemetry,
+11. authenticated Render video path with a live ESP32-CAM publisher.
 
-Control entry requires command round-trip and telemetry. Camera failure may enter `REMOTE READY — VIDEO OFFLINE` rather than blocking control.
+HazRob 0.9 does not admit Remote control until the control/telemetry path and the remote video path are both ready. The Render status endpoint is authenticated with `VIEW_TOKEN` and verifies that the robot publisher is online; the Android client then verifies the WSS viewer handshake before entering the main UI.
 
 ## 12. Communication-loss policy
 
@@ -132,13 +136,15 @@ Transport failover must stop motion, establish/verify the new transport/session,
 
 ## 13. Remote security baseline
 
-- TLS for remote control.
-- unique robot/device credentials.
+- TLS for MQTT and WSS.
+- separate robot and application MQTT credentials.
+- separate video publisher and viewer Bearer tokens.
 - ACL-scoped MQTT topics.
 - motion commands: non-retained, sequence + TTL.
 - explicit remote-enable/provisioning state.
-- provisioning secret/PIN or equivalent local authorization.
-- no Wi-Fi password in logs/cloud payloads.
+- no Wi-Fi password or cloud secret in Git/logs/cloud payloads.
+- Android secrets stored with Android Keystore.
+- firmware private secrets supplied through ignored local provisioning headers.
 
 ## 14. Version target
 
