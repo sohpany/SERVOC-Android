@@ -107,7 +107,8 @@ void linkWatchUpdate(){
   uint32_t now=millis(),age=now-linkAt;
   if(age<=Cfg::LINK_DETECT_MS)return;
   if(!linkHold&&!retracing&&!linkLost)holdMotion(now);
-  if(linkHold&&now-linkHoldAt>=Cfg::LINK_HOLD_MS){
+  // LINK_HOLD_MS is measured from the last valid heartbeat, not from detection.
+  if(linkHold&&age>=Cfg::LINK_HOLD_MS){
     linkHold=false;linkLost=true;resetMeasurement();relayRaw(false);beginRetrace(now);
   }
 }
@@ -178,8 +179,9 @@ String diagJson(){
   j+=",\"relay\":{\"mask\":"+String(mqPowerOn?1:0)+",\"on\":"+String(boolJson(mqPowerOn))+",\"gpio\":"+String(Cfg::RELAY_MQ)+",\"power_ms\":"+String(mqPowerMs())+",\"channels\":1}";
   j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+"}";
   j+=",\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok));
-  uint32_t holdRemaining=linkHold&&millis()-linkHoldAt<Cfg::LINK_HOLD_MS?Cfg::LINK_HOLD_MS-(millis()-linkHoldAt):0;
-  j+=",\"link\":{\"armed\":"+String(boolJson(linkArmed))+",\"lost\":"+String(boolJson(linkLost))+",\"hold\":"+String(boolJson(linkHold))+",\"hold_remaining_ms\":"+String(holdRemaining)+",\"heartbeat_age_ms\":"+String(linkArmed?millis()-linkAt:0)+"}";
+  uint32_t heartbeatAge=linkArmed?millis()-linkAt:0;
+  uint32_t holdRemaining=linkHold&&heartbeatAge<Cfg::LINK_HOLD_MS?Cfg::LINK_HOLD_MS-heartbeatAge:0;
+  j+=",\"link\":{\"armed\":"+String(boolJson(linkArmed))+",\"lost\":"+String(boolJson(linkLost))+",\"hold\":"+String(boolJson(linkHold))+",\"hold_remaining_ms\":"+String(holdRemaining)+",\"heartbeat_age_ms\":"+String(heartbeatAge)+"}";
   j+=",\"envType\":"+String(envType)+",\"envAddr\":"+String(envAddr)+",\"envId\":"+String(envId);
   j+=",\"ir\":{\"warning\":"+String(boolJson(irWarning))+",\"level\":"+String(irLevel)+"},\"mqPowerManual\":true,\"warmupManual\":true}";
   return j;
