@@ -60,6 +60,29 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  const statusMatch = url.pathname.match(/^\/hazrob\/video\/status\/([^/]+)$/);
+  if (statusMatch) {
+    let robotId;
+    try { robotId = decodeURIComponent(statusMatch[1]); }
+    catch { res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" }); res.end(JSON.stringify({ ok: false, error: "invalid_robot_id" })); return; }
+    if (!validRobotId(robotId)) {
+      res.writeHead(400, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ ok: false, error: "invalid_robot_id" }));
+      return;
+    }
+    if (!process.env.VIEW_TOKEN || !safeEq(bearer(req), process.env.VIEW_TOKEN)) {
+      res.writeHead(401, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ ok: false, error: "unauthorized" }));
+      return;
+    }
+    const room = rooms.get(robotId);
+    const publisherOnline = Boolean(room && room.publisher && room.publisher.readyState === WebSocket.OPEN);
+    const viewers = room ? [...room.viewers].filter(v => v.readyState === WebSocket.OPEN).length : 0;
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ ok: true, service: "hazrob-video-relay", protocol: 1, robot_id: robotId, publisher_online: publisherOnline, viewers }));
+    return;
+  }
+
   if (url.pathname === "/") {
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     res.end(JSON.stringify({ service: "hazrob-video-relay", version: "0.9.0", health: "/health" }));
