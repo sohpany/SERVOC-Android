@@ -14,6 +14,7 @@ public interface HazRobHost {
     ExperimentsDb database();
     ExecutorService io();
     String operatorRole();
+    String measurementSessionId();
     JSONObject latestDiagnostics();
     void setLatestDiagnostics(JSONObject value);
     void showToast(String text);
