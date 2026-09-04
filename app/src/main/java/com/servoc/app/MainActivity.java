@@ -51,7 +51,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/** HazRob 0.9.1 coordinator. Direct and Remote are transports for the same operator workspace. */
+/** HazRob coordinator. Direct and Remote are transports for the same operator workspace. */
 public final class MainActivity extends Activity implements HazRobHost {
     private static final int EXPORT_XLSX=8101,EXPORT_PDF=8102,EXPORT_REFERENCE=8103,EXPORT_RAW=8104;
     private final Handler ui=new Handler(Looper.getMainLooper());
@@ -84,14 +84,22 @@ public final class MainActivity extends Activity implements HazRobHost {
         HorizontalScrollView tabsScroll=new HorizontalScrollView(this);tabsScroll.setHorizontalScrollBarEnabled(false);LinearLayout tabs=UiKit.hbox(this);String[] names={"القيادة","القياسات","الحالة","الإعدادات","المطور"};tabButtons=new Button[names.length];for(int i=0;i<names.length;i++){final int x=i;Button bt=UiKit.button(this,names[i]);bt.setTextSize(12);bt.setOnClickListener(v->showTab(x));tabButtons[i]=bt;tabs.addView(bt,new LinearLayout.LayoutParams(UiKit.dp(this,110),UiKit.dp(this,44)));}tabsScroll.addView(tabs);root.addView(tabsScroll,new LinearLayout.LayoutParams(-1,-2));page=new FrameLayout(this);root.addView(page,new LinearLayout.LayoutParams(-1,0,1f));TextView footer=UiKit.small(this,"HazRob "+ReleaseAudit.VERSION+" • تصميم المستشار/ شهاب الصهباني.");footer.setTextSize(10);footer.setGravity(Gravity.CENTER);footer.setTextColor(0xFF607D8B);root.addView(footer,new LinearLayout.LayoutParams(-1,-2));return root;
     }
 
-    private void showTab(int index){if(!entered||index<0||index>=tabViews.length)return;if(selectedTab==0&&index!=0)controlTab.stopCamera();selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}if(index==4&&!developerTab.isUnlocked())developerTab.requestUnlock();if(index==0&&foreground)controlTab.startCamera();refreshVisibleTab();}
+    private void showTab(int index){
+        if(!entered||index<0||index>=tabViews.length)return;
+        if(selectedTab==0&&index!=0){
+            left=right=0;motionHistory.record(0,0,SystemClock.elapsedRealtime());controlTab.resetJoystick();controlTab.stopCamera();
+            workers.execute(()->{try{robotApi.motionStop();}catch(Exception ignored){}});
+        }
+        selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}if(index==4&&!developerTab.isUnlocked())developerTab.requestUnlock();if(index==0&&foreground)controlTab.startCamera();refreshVisibleTab();
+    }
 
     private void scheduleComms(){
         if(commsScheduled)return;commsScheduled=true;
-        workers.scheduleAtFixedRate(()->{if(!foreground||!entered)return;try{robotApi.drive(left,right);}catch(Exception ignored){}},0,250,TimeUnit.MILLISECONDS);
-        workers.scheduleAtFixedRate(()->{if(!entered)return;try{JSONObject snap=robotApi.snapshot(left,right);latestDiag=snap;sensorHealth.accept(snap,SystemClock.elapsedRealtime());telemetryRecorder.accept(snap,left,right,developerMode);ui.post(this::onTelemetryUpdated);}catch(Exception e){latestDiag=null;ui.post(this::onTelemetryUpdated);}},0,500,TimeUnit.MILLISECONDS);
+        // Fast operator path: 10 Hz drive commands and 4 Hz telemetry in both transports.
+        workers.scheduleAtFixedRate(()->{if(!foreground||!entered)return;try{robotApi.drive(left,right);}catch(Exception ignored){}},0,100,TimeUnit.MILLISECONDS);
+        workers.scheduleAtFixedRate(()->{if(!entered)return;try{JSONObject snap=robotApi.snapshot(left,right);latestDiag=snap;sensorHealth.accept(snap,SystemClock.elapsedRealtime());telemetryRecorder.accept(snap,left,right,developerMode);ui.post(this::onTelemetryUpdated);}catch(Exception e){latestDiag=null;ui.post(this::onTelemetryUpdated);}},0,250,TimeUnit.MILLISECONDS);
     }
-    private void onTelemetryUpdated(){JSONObject d=latestDiag;if(globalStatus==null)return;if(d==null){globalStatus.setText("غير متصل");globalStatus.setTextColor(0xFFFFB74D);}else{JSONObject ir=d.optJSONObject("ir"),drv=d.optJSONObject("drive");boolean warn=ir!=null&&ir.optBoolean("warning",false),back=drv!=null&&drv.optBoolean("retrace",false);globalStatus.setText("متصل"+(back?" • عودة":warn?" • ⚠ IR":""));globalStatus.setTextColor(back?0xFFFFB74D:warn?0xFFFF7043:0xFF81C784);}refreshVisibleTab();}
+    private void onTelemetryUpdated(){JSONObject d=latestDiag;if(globalStatus==null)return;if(d==null){globalStatus.setText("غير متصل");globalStatus.setTextColor(0xFFFFB74D);}else{JSONObject ir=d.optJSONObject("ir"),drv=d.optJSONObject("drive");boolean warn=ir!=null&&ir.optBoolean("warning",false),hold=drv!=null&&drv.optBoolean("hold",false),back=drv!=null&&drv.optBoolean("retrace",false);globalStatus.setText("متصل"+(back?" • عودة":hold?" • انتظار الاتصال":warn?" • ⚠ IR":""));globalStatus.setTextColor(back?0xFFFFB74D:hold?0xFFFFB74D:warn?0xFFFF7043:0xFF81C784);}refreshVisibleTab();}
     private void refreshVisibleTab(){if(!entered)return;if(selectedTab==0)controlTab.refresh();else if(selectedTab==1)measurementsTab.refresh();else if(selectedTab==2)statusTab.refresh();else if(selectedTab==3)settingsTab.refresh();else if(selectedTab==4)developerTab.refresh();}
 
     @Override protected void onResume(){super.onResume();if(!"remote".equalsIgnoreCase(prefs.getString("connection_mode","direct")))WifiRoute.bindConnectedWifi(this);foreground=true;if(entered){startLinkService();if(selectedTab==0)controlTab.startCamera();refreshVisibleTab();}}
@@ -99,7 +107,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override protected void onDestroy(){if(controlTab!=null)controlTab.releaseCamera();workers.shutdownNow();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
     private void startLinkService(){try{RobotLinkService.start(getApplicationContext());}catch(Exception ignored){}}
 
-    @Override public RobotApi robotApi(){return robotApi;}@Override public SharedPreferences preferences(){return prefs;}@Override public ExperimentsDb database(){return db;}@Override public ExecutorService io(){return workers;}@Override public String operatorRole(){return developerMode?"DEVELOPER":"USER";}@Override public JSONObject latestDiagnostics(){return latestDiag;}@Override public void setLatestDiagnostics(JSONObject value){latestDiag=value;}@Override public void showToast(String text){ui.post(()->android.widget.Toast.makeText(this,text,android.widget.Toast.LENGTH_SHORT).show());}
+    @Override public RobotApi robotApi(){return robotApi;}@Override public SharedPreferences preferences(){return prefs;}@Override public ExperimentsDb database(){return db;}@Override public ExecutorService io(){return workers;}@Override public String operatorRole(){return developerMode?"DEVELOPER":"USER";}@Override public String measurementSessionId(){return telemetryRecorder==null?null:telemetryRecorder.referenceSessionId();}@Override public JSONObject latestDiagnostics(){return latestDiag;}@Override public void setLatestDiagnostics(JSONObject value){latestDiag=value;}@Override public void showToast(String text){ui.post(()->android.widget.Toast.makeText(this,text,android.widget.Toast.LENGTH_SHORT).show());}
     @Override public void emergencyStop(){left=right=0;motionHistory.record(0,0,SystemClock.elapsedRealtime());if(controlTab!=null)controlTab.resetJoystick();workers.execute(()->{try{robotApi.emergencyStop();}catch(Exception ignored){}});}
     @Override public void setDriveCommand(int l,int r){int nl=Math.max(-100,Math.min(100,l)),nr=Math.max(-100,Math.min(100,r));left=nl;right=nr;motionHistory.record(nl,nr,SystemClock.elapsedRealtime());}
     @Override public int driveLeft(){return left;}@Override public int driveRight(){return right;}
