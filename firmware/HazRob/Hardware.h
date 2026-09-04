@@ -3,17 +3,14 @@
 
 extern Settings settings;
 
-void hwBegin();
-void hwUpdate();
+void hwBegin(),hwUpdate();
 
 void driveSet(int left,int right);
-void motionStop();
-void emergencyStop();
+void motionStop(),emergencyStop();
 
-bool relaySetMask(uint8_t mask);
+bool relaySetMask(uint8_t on);
 void sensorPowerOff();
-void measureStart();
-void measureCancel();
+void measureStart(),measureCancel();
 
 void linkHeartbeat();
 void linkSetArmed(bool armed);
