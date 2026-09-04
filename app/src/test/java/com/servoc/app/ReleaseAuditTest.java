@@ -17,9 +17,10 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.BACKGROUND_MQ_CONTINUITY);
     }
 
-    @Test public void v09KeepsTwoMqBanksAndAddsRemoteBoundary(){
+    @Test public void v09UsesSingleMqPowerRelayAndRemoteBoundary(){
         assertTrue(ReleaseAudit.DUAL_ADS1115);
-        assertTrue(ReleaseAudit.TWO_MQ_POWER_BANKS);
+        assertTrue(ReleaseAudit.SINGLE_MQ_POWER_RELAY);
+        assertFalse(ReleaseAudit.TWO_MQ_POWER_BANKS);
         assertFalse(ReleaseAudit.FOUR_MQ_RELAY_ROWS);
         assertTrue(ReleaseAudit.MANUAL_MQ_RELAY_CONTROL);
         assertTrue(ReleaseAudit.MANUAL_MQ_WARMUP_SETTING);
