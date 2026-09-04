@@ -29,16 +29,16 @@ import org.json.JSONObject;
 
 import java.util.concurrent.ExecutorService;
 
-/** HazRob 0.9 transport gate. Remote operation never requires local Wi-Fi after first provisioning. */
+/** HazRob 0.9 transport gate. Remote use is ordinary Internet access; only robot WAN provisioning requires local HazRob Wi-Fi. */
 public final class ConnectionGate {
     public enum Mode{DIRECT,REMOTE}
     public interface Listener{void onReady(Mode mode);}
 
-    private final Activity a;private final RobotApi local;private final SharedPreferences prefs;private final ExecutorService io;private final Listener listener;private final Handler ui=new Handler(Looper.getMainLooper());
+    private final Activity a;private final RobotApi local;private final SharedPreferences prefs;private final ExecutorService io;private final boolean developer;private final Listener listener;private final Handler ui=new Handler(Looper.getMainLooper());
     private final LinearLayout root,content;private final TextView status;private final ProgressBar progress;
 
-    public ConnectionGate(Activity a,RobotApi local,SharedPreferences prefs,ExecutorService io,Listener listener){
-        this.a=a;this.local=local;this.prefs=prefs;this.io=io;this.listener=listener;RemoteServiceProfile.ensureDefaults(prefs);
+    public ConnectionGate(Activity a,RobotApi local,SharedPreferences prefs,ExecutorService io,boolean developer,Listener listener){
+        this.a=a;this.local=local;this.prefs=prefs;this.io=io;this.developer=developer;this.listener=listener;RemoteServiceProfile.ensureDefaults(prefs);
         root=UiKit.vbox(a);root.setGravity(Gravity.CENTER_HORIZONTAL);root.setPadding(UiKit.dp(a,24),UiKit.dp(a,18),UiKit.dp(a,24),UiKit.dp(a,14));root.setBackgroundColor(Color.WHITE);
 
         ImageView robot=new ImageView(a);robot.setImageResource(R.drawable.ic_hazrob_app);robot.setScaleType(ImageView.ScaleType.CENTER_INSIDE);robot.setAdjustViewBounds(true);robot.setContentDescription("HazRob");
@@ -57,35 +57,36 @@ public final class ConnectionGate {
         content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");
         Button direct=UiKit.button(a,"التحكم المباشر عبر Wi-Fi");direct.setTextSize(17);direct.setOnClickListener(v->verifyDirect());content.addView(direct,new LinearLayout.LayoutParams(-1,UiKit.dp(a,60)));
         Button remote=UiKit.button(a,"التحكم عبر الإنترنت");remote.setTextSize(17);remote.setOnClickListener(v->openRemote());LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,UiKit.dp(a,60));rp.topMargin=UiKit.dp(a,10);content.addView(remote,rp);
-        Button provision=UiKit.button(a,"تهيئة إنترنت الروبوت");provision.setTextSize(15);provision.setOnClickListener(v->openProvisioning());LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,UiKit.dp(a,54));pp.topMargin=UiKit.dp(a,10);content.addView(provision,pp);
+        if(developer){Button provision=UiKit.button(a,"تهيئة إنترنت الروبوت");provision.setTextSize(15);provision.setOnClickListener(v->openProvisioning());LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,UiKit.dp(a,54));pp.topMargin=UiKit.dp(a,10);content.addView(provision,pp);}
     }
 
-    private void verifyDirect(){busy("فحص الاتصال المباشر...",1);io.execute(()->{try{JSONObject d=local.diagnosticsRaw();int api=d.optInt("api",d.optInt("api_version",0));if(api<3)throw new IllegalStateException("API");new RemoteSessionManager(a,prefs).close();prefs.edit().putString("connection_mode","direct").apply();ui.post(()->listener.onReady(Mode.DIRECT));}catch(Exception e){ui.post(()->{status.setText("تعذر الوصول إلى HazRob عبر Wi-Fi");status.setTextColor(0xFFD84315);showBack();});}});}
+    private void verifyDirect(){busy("فحص الاتصال المباشر...",1);io.execute(()->{try{JSONObject d=local.diagnosticsRaw();int api=d.optInt("api",d.optInt("api_version",0));if(api<3)throw new IllegalStateException("API");new RemoteSessionManager(a,prefs).close();prefs.edit().putString("connection_mode","direct").putString("remote_operator_role",developer?"developer":"guest").apply();ui.post(()->listener.onReady(Mode.DIRECT));}catch(Exception e){ui.post(()->{status.setText("تعذر الوصول إلى HazRob عبر Wi-Fi");status.setTextColor(0xFFD84315);showBack();});}});}
 
-    /** Remote entry talks to HiveMQ/Render only. It never requires the phone to be near the robot. */
     private void openRemote(){
-        if(!RemoteAccessPackage.present(a,prefs)){showAccessCode();return;}
-        busy("الاتصال بالروبوت عبر الإنترنت...",6);
-        io.execute(()->{
-            RemoteReadiness cloud=new RemoteSessionManager(a,prefs).probe();
-            ui.post(()->{
-                render(cloud);
-                if(cloud.ready)finishRemote(cloud);
-                else{status.append("\nالروبوت غير متصل بالإنترنت أو لم تكتمل جلسة MQTT");status.setTextColor(0xFFEF6C00);showBack();}
-            });
-        });
+        if(!developer){showUserRemote();return;}
+        prefs.edit().putString("remote_operator_role","developer").apply();
+        RemoteSessionManager cloud=new RemoteSessionManager(a,prefs);
+        if(!cloud.serviceProfileConfigured()){status.setText("بيانات اتصال المطور البعيد غير مضبوطة على هذا الهاتف");status.setTextColor(0xFFEF6C00);showBack();return;}
+        connectRemote(cloud);
     }
 
-    private void showAccessCode(){
+    /** Ordinary-user remote entry: the authorization-code field appears only after choosing Internet control. */
+    private void showUserRemote(){
         content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");
-        TextView t=UiKit.title(a,"رمز وصول الروبوت");t.setGravity(Gravity.CENTER);t.setTextColor(0xFF263238);t.setBackgroundColor(Color.TRANSPARENT);content.addView(t,UiKit.full(a));
-        EditText code=UiKit.input(a,"");code.setHint("HZR1-...");code.setSingleLine(false);code.setMinLines(2);content.addView(code,UiKit.full(a));
-        Button save=UiKit.button(a,"حفظ واتصال");save.setOnClickListener(v->{try{RemoteAccessPackage.importCode(a,prefs,code.getText().toString());openRemote();}catch(Exception e){status.setText("رمز الوصول غير صالح");status.setTextColor(0xFFD84315);}});content.addView(save,UiKit.full(a));
+        TextView t=UiKit.title(a,"التحكم عبر الإنترنت");t.setGravity(Gravity.CENTER);t.setTextColor(0xFF263238);t.setBackgroundColor(Color.TRANSPARENT);content.addView(t,UiKit.full(a));
+        EditText code=UiKit.input(a,"");code.setHint("رمز التصريح HZR2-...");code.setSingleLine(false);code.setMinLines(2);content.addView(code,UiKit.full(a));
+        Button connect=UiKit.button(a,"اتصال");connect.setOnClickListener(v->{String value=code.getText().toString().trim();if(value.isEmpty()){status.setText("أدخل رمز التصريح");status.setTextColor(0xFFD84315);return;}try{RemoteAccessPackage.importCode(a,prefs,value);prefs.edit().putString("remote_operator_role","guest").apply();connectRemote(new RemoteSessionManager(a,prefs));}catch(Exception e){status.setText("رمز التصريح غير صالح");status.setTextColor(0xFFD84315);}});content.addView(connect,UiKit.full(a));
         Button back=UiKit.button(a,"رجوع");back.setOnClickListener(v->showChoice());content.addView(back,UiKit.full(a));
     }
 
-    /** First-time/changed modem provisioning. This path intentionally requires local HazRob Wi-Fi. */
+    private void connectRemote(RemoteSessionManager cloud){
+        busy("الاتصال بالروبوت عبر الإنترنت...",6);
+        io.execute(()->{RemoteReadiness r=cloud.probe();ui.post(()->{render(r);if(r.ready)finishRemote(r);else{status.append("\nالروبوت غير متصل بالإنترنت أو رمز التصريح ملغى/غير مقبول");status.setTextColor(0xFFEF6C00);showBack();}});});
+    }
+
+    /** First-time/changed modem provisioning. Developer only; this path intentionally requires local HazRob Wi-Fi. */
     private void openProvisioning(){
+        if(!developer){showChoice();return;}
         busy("فحص الاتصال المحلي بالروبوت...",1);
         io.execute(()->{try{local.remoteStatus();ui.post(this::showProvision);}catch(Exception e){ui.post(()->{status.setText("اتصل أولًا بشبكة HazRob المحلية لإعداد مودم الروبوت");status.setTextColor(0xFFD84315);showBack();});}});
     }
@@ -98,15 +99,14 @@ public final class ConnectionGate {
         Button back=UiKit.button(a,"رجوع");back.setOnClickListener(v->showChoice());content.addView(back,UiKit.full(a));
     }
 
-    private void provision(String ssid,String password){busy("إرسال إعدادات الشبكة...",1);io.execute(()->{try{local.remoteProvision(ssid,password);prefs.edit().putBoolean("remote_wan_provisioned",true).apply();pollRobotRemote();}catch(Exception e){ui.post(()->{status.setText("تعذر إرسال إعدادات المودم");status.setTextColor(0xFFD84315);showBack();});}});}
+    private void provision(String ssid,String password){busy("إرسال إعدادات الشبكة...",1);io.execute(()->{try{local.remoteProvision(ssid,password);prefs.edit().putBoolean("remote_wan_provisioned",true).putString("remote_operator_role","developer").apply();pollRobotRemote();}catch(Exception e){ui.post(()->{status.setText("تعذر إرسال إعدادات المودم");status.setTextColor(0xFFD84315);showBack();});}});}
 
     private void pollRobotRemote(){
         RemoteSessionManager cloud=new RemoteSessionManager(a,prefs);
         for(int i=0;i<60;i++){
             try{
                 RemoteReadiness robot=RemoteReadiness.fromRobot(local.remoteStatus());ui.post(()->render(robot));
-                if(robot.internet){
-                    if(!RemoteAccessPackage.present(a,prefs)){ui.post(()->{status.setText("تم ربط الروبوت بالإنترنت\nأدخل رمز الوصول لاستخدام التحكم البعيد");showAccessCode();});return;}
+                if(robot.internet&&cloud.serviceProfileConfigured()){
                     RemoteReadiness endToEnd=cloud.probe();RemoteReadiness combined=combine(robot,endToEnd);ui.post(()->render(combined));if(combined.ready){ui.post(()->finishRemote(combined));return;}
                 }
             }catch(Exception ignored){}
