@@ -9,6 +9,8 @@ public final class ExperimentQueries {
     public static final class Record {
         public final long id,captureId,chemicalUid;public final String ts,payload,protocol,analytics,approvedTs,referenceName,sessionId,referenceKind;public final boolean approved;public final Double knownPpm;
         public Record(long id,String ts,String payload,String protocol,String analytics,boolean approved,String approvedTs,String referenceName,String sessionId,long captureId,long chemicalUid,String referenceKind,Double knownPpm){this.id=id;this.ts=ts;this.payload=payload;this.protocol=protocol;this.analytics=analytics;this.approved=approved;this.approvedTs=approvedTs;this.referenceName=referenceName;this.sessionId=sessionId==null?"":sessionId;this.captureId=captureId;this.chemicalUid=chemicalUid;this.referenceKind=referenceKind==null?"":referenceKind;this.knownPpm=knownPpm;}
+        /** Compatibility constructor for legacy records/tests created before scientific lineage fields were added. */
+        public Record(long id,String ts,String payload,String protocol,String analytics,boolean approved,String approvedTs,String referenceName){this(id,ts,payload,protocol,analytics,approved,approvedTs,referenceName,"",-1,-1,"",null);}
         public boolean isReference(){return captureId>0&&chemicalUid>0&&!referenceKind.isEmpty();}
     }
     private static final String COLS="id,ts,payload,protocol,analytics,approved,approved_ts,reference_name,session_id,capture_id,chemical_uid,reference_kind,known_ppm";
