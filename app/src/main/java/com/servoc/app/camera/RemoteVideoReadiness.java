@@ -15,6 +15,9 @@ import java.nio.charset.StandardCharsets;
 
 /** End-to-end readiness probe for the authenticated Render JPEG/WSS path. */
 public final class RemoteVideoReadiness {
+    private static final long WAKE_TIMEOUT_MS=75000L;
+    private static final long RETRY_MS=3000L;
+
     public static final class Result{
         public final boolean service,publisher,wss,ready;
         public final String detail;
@@ -28,14 +31,30 @@ public final class RemoteVideoReadiness {
         if(token.isEmpty())return new Result(false,false,false,"VIEW_TOKEN غير مضبوط");
         if(viewerUrl.isEmpty())viewerUrl=RemoteServiceProfile.VIDEO_VIEW_WSS;
 
-        boolean service=false,publisher=false,wss=false;
-        try{
-            JSONObject status=getJson(RemoteServiceProfile.VIDEO_STATUS_HTTPS,token);
-            service=status.optBoolean("ok",false)&&"hazrob-video-relay".equals(status.optString("service",""))&&status.optInt("protocol",0)>=1;
-            publisher=service&&status.optBoolean("publisher_online",false);
-            if(!service)return new Result(false,false,false,"خدمة الفيديو غير جاهزة");
-            if(!publisher)return new Result(true,false,false,"ESP32-CAM غير متصل بخادم الفيديو");
+        boolean service=false,publisher=false;
+        String last="";
+        long deadline=System.currentTimeMillis()+WAKE_TIMEOUT_MS;
+        do{
+            try{
+                JSONObject status=getJson(RemoteServiceProfile.VIDEO_STATUS_HTTPS,token);
+                service=status.optBoolean("ok",false)&&"hazrob-video-relay".equals(status.optString("service",""))&&status.optInt("protocol",0)>=1;
+                publisher=service&&status.optBoolean("publisher_online",false);
+                if(service&&publisher)break;
+                last=service?"بانتظار اتصال ESP32-CAM بخادم الفيديو":"بانتظار تشغيل خدمة الفيديو";
+            }catch(Exception e){
+                String m=String.valueOf(e.getMessage());
+                if(m.contains("HTTP 401"))return new Result(false,false,false,"VIEW_TOKEN غير صحيح");
+                last="تشغيل خدمة الفيديو...";
+            }
+            if(System.currentTimeMillis()>=deadline)break;
+            try{Thread.sleep(RETRY_MS);}catch(InterruptedException e){Thread.currentThread().interrupt();return new Result(service,publisher,false,"تم إيقاف فحص الفيديو");}
+        }while(System.currentTimeMillis()<deadline);
 
+        if(!service)return new Result(false,false,false,last.isEmpty()?"خدمة الفيديو غير جاهزة":last);
+        if(!publisher)return new Result(true,false,false,last.isEmpty()?"ESP32-CAM غير متصل بخادم الفيديو":last);
+
+        Exception lastWs=null;
+        for(int attempt=0;attempt<3;attempt++){
             RemoteJpegWebSocketClient client=new RemoteJpegWebSocketClient();
             try{
                 client.stream(viewerUrl,token,new RemoteJpegWebSocketClient.Sink(){
@@ -43,15 +62,17 @@ public final class RemoteVideoReadiness {
                     @Override public void frame(byte[] jpeg){}
                     @Override public void status(String state,String detail){}
                 });
-                wss=true;
-            }finally{client.close();}
-            return new Result(service,publisher,wss,wss?"remote video ready":"WSS غير جاهز");
-        }catch(Exception e){return new Result(service,publisher,wss,"Video: "+e.getClass().getSimpleName());}
+                return new Result(true,true,true,"remote video ready");
+            }catch(Exception e){lastWs=e;}
+            finally{client.close();}
+            try{Thread.sleep(1000);}catch(InterruptedException e){Thread.currentThread().interrupt();break;}
+        }
+        return new Result(true,true,false,"WSS: "+(lastWs==null?"not ready":lastWs.getClass().getSimpleName()));
     }
 
     private static JSONObject getJson(String url,String token)throws Exception{
         HttpURLConnection c=(HttpURLConnection)new URL(url).openConnection();
-        c.setConnectTimeout(4000);c.setReadTimeout(4000);c.setUseCaches(false);c.setRequestMethod("GET");c.setRequestProperty("Authorization","Bearer "+token);c.setRequestProperty("Accept","application/json");
+        c.setConnectTimeout(5000);c.setReadTimeout(5000);c.setUseCaches(false);c.setRequestMethod("GET");c.setRequestProperty("Authorization","Bearer "+token);c.setRequestProperty("Accept","application/json");
         try{
             int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();String body=read(in,16384);
             if(code!=200)throw new IllegalStateException("HTTP "+code);
