@@ -18,6 +18,11 @@ void measureCancel();
 void linkHeartbeat();
 void linkSetArmed(bool armed);
 
+bool guestAccessSet(const String& token);
+void guestAccessRevoke();
+bool guestAccessValid(const String& token);
+bool guestAccessEnabled();
+
 void saveSettings();
 
 String dataJson();
