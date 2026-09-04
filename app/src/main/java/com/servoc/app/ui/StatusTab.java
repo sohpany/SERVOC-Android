@@ -32,14 +32,15 @@ public final class StatusTab {
     private boolean remoteMode(){return "remote".equalsIgnoreCase(host.preferences().getString("connection_mode","direct"));}
 
     public void refresh(){
-        science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native");
+        int warm=Math.max(0,host.preferences().getInt("warm",60)),analysis=Math.max(0,host.preferences().getInt("measure",30));
+        science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native\nTiming   Warm "+warm+" s   •   Analysis "+analysis+" s   •   Tracking CONTINUOUS");
         JSONObject d=host.latestDiagnostics();
         if(d==null){master.setText("Master ESP32   ● OFFLINE");master.setTextColor(0xFFFF7043);renderNetwork(null);hardware.setText("ADS / ENV / Relay   —");sensors.setText("MQ   —");renderCamera();return;}
         master.setText("Master ESP32   ● ONLINE\nFirmware   "+d.optString("firmware","HazRob")+"\nAPI   "+d.optInt("api_version",0)+"\nHeap   "+d.optLong("heap",0)+" B");master.setTextColor(0xFF81C784);
         renderNetwork(d);
         JSONObject adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay"),env=d.optJSONObject("env");int mask=relay==null?0:relay.optInt("mask",0)&3;
         hardware.setText("ADS1 0x48   "+ok(adc!=null&&adc.optBoolean("ads1",false))+"\nADS2 0x49   "+ok(adc!=null&&adc.optBoolean("ads2",false))+"\nR1   "+on((mask&1)!=0)+"   R2   "+on((mask&2)!=0)+"\nENV   "+ok(env!=null&&env.optBoolean("ok",false)));
-        JSONObject mq=d.optJSONObject("mq");StringBuilder s=new StringBuilder();for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){if(s.length()>0)s.append('\n');SensorHealthEngine.Snapshot h=host.sensorHealth(hw.key);JSONObject r=mq==null?null:mq.optJSONObject(hw.key);boolean valid=r!=null&&r.optBoolean("valid",r.optBoolean("ok",false));s.append(hw.key.toUpperCase(Locale.US)).append("   R").append(hw.relay).append("   ").append(valid?"● SIGNAL   ":"○ —   ").append(SensorHealthEngine.stateAr(h.state));}sensors.setText(s.toString());
+        JSONObject mq=d.optJSONObject("mq");StringBuilder s=new StringBuilder();for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){if(s.length()>0)s.append('\n');SensorHealthEngine.Snapshot h=host.sensorHealth(hw.key);JSONObject r=mq==null?null:mq.optJSONObject(hw.key);boolean valid=r!=null&&r.optBoolean("valid",r.optBoolean("ok",false));boolean calibrated=r==null||r.optBoolean("manual_calibration_confirmed",true);s.append(hw.key.toUpperCase(Locale.US)).append("   R").append(hw.relay).append("   ").append(valid?"● SIGNAL   ":"○ —   ").append(SensorHealthEngine.stateAr(h.state)).append(calibrated?"   •   CAL ●":"   •   CAL —");}sensors.setText(s.toString());
         renderCamera();long now=SystemClock.elapsedRealtime();if(now-cameraProbeAt>5000){cameraProbeAt=now;if(remoteMode()){cameraSnapshot=host.robotApi().remoteCameraStatus();scroll.post(this::renderCamera);}else host.io().execute(()->{JSONObject q=null;try{q=host.cameraDiagnostics();}catch(Exception ignored){}cameraSnapshot=q;scroll.post(this::renderCamera);});}
     }
 
