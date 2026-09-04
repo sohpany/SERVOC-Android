@@ -1,15 +1,15 @@
 package com.servoc.app;
 
-/** Build markers for the HazRob 0.9 API4 development release. */
+/** Build markers for the HazRob API4 integration candidate. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.9.1";
+    public static final String VERSION="0.9.2-rc1";
     public static final int DATABASE_SCHEMA=7;
-    public static final String ESP32_API="HazRob API v4 / single MQ power relay / dual ADS recovery / remote-ready transport";
+    public static final String ESP32_API="HazRob API v4 / single MQ power relay / dual ADS recovery / unified direct-remote transport";
 
     public static final boolean PRECALIBRATED_MQ=true;
     public static final boolean ARABIC_RTL_UI=true;
-    public static final boolean ROLE_GATE=true;
+    public static final boolean ROLE_GATE=false;
     public static final boolean UNIFIED_MEASUREMENT_UI=true;
     public static final boolean DYNAMIC_CHEMICAL_SCHEMA=true;
     public static final boolean DYNAMIC_DEVELOPER_CHEMICAL_SELECTION=true;
