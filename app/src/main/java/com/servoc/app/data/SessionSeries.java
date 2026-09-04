@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/** Read-only bridge from a saved experiment to the nearest recorded HazRob MQ time-series session. */
+/** Read-only bridge from a saved experiment to recorded HazRob MQ time-series data. */
 public final class SessionSeries {
     private SessionSeries(){}
 
@@ -22,20 +22,37 @@ public final class SessionSeries {
         public long durationMs(){return samples.isEmpty()?0:samples.get(samples.size()-1).tMs;}
     }
 
-    /** Returns a measurement session whose end time is closest to the experiment timestamp, only within one hour. */
-    public static Series nearest(ExperimentsDb db,String experimentTs){
-        if(db==null||experimentTs==null||experimentTs.trim().isEmpty())return null;
-        String id=null,start=null,end=null;double delta=Double.POSITIVE_INFINITY;
-        String sql="SELECT session_id,started_ts,ended_ts,ABS((julianday(COALESCE(ended_ts,started_ts))-julianday(?))*86400.0) d FROM measurement_sessions WHERE kind IN ('field_mq_cycle','developer_mq_cycle') AND ended_ts IS NOT NULL ORDER BY d ASC LIMIT 1";
-        try(Cursor c=db.getReadableDatabase().rawQuery(sql,new String[]{experimentTs})){
-            if(c.moveToFirst()){id=c.getString(0);start=c.getString(1);end=c.getString(2);delta=c.getDouble(3);}
+    /** Exact, auditable lookup. Preferred for all new reference experiments. */
+    public static Series byId(ExperimentsDb db,String sessionId){
+        if(db==null||sessionId==null||sessionId.trim().isEmpty())return null;
+        String start=null,end=null;
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT started_ts,ended_ts FROM measurement_sessions WHERE session_id=? LIMIT 1",new String[]{sessionId})){
+            if(!c.moveToFirst())return null;start=c.getString(0);end=c.getString(1);
         }catch(Exception ignored){return null;}
-        if(id==null||!Double.isFinite(delta)||delta>3600.0)return null;
         List<Sample> rows=new ArrayList<>();
-        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload,motion_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms,id",new String[]{id})){
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload,motion_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms,id",new String[]{sessionId})){
             while(c.moveToNext())rows.add(new Sample(c.getLong(0),c.getString(1),c.getString(2),c.getString(3)));
         }catch(Exception ignored){return null;}
-        return new Series(id,start,end,rows);
+        return new Series(sessionId,start,end,rows);
+    }
+
+    /** Legacy fallback only: closest completed session within one hour. */
+    public static Series nearest(ExperimentsDb db,String experimentTs){
+        if(db==null||experimentTs==null||experimentTs.trim().isEmpty())return null;
+        String id=null;double delta=Double.POSITIVE_INFINITY;
+        String sql="SELECT session_id,ABS((julianday(COALESCE(ended_ts,started_ts))-julianday(?))*86400.0) d FROM measurement_sessions WHERE kind IN ('field_mq_cycle','developer_mq_cycle') AND ended_ts IS NOT NULL ORDER BY d ASC LIMIT 1";
+        try(Cursor c=db.getReadableDatabase().rawQuery(sql,new String[]{experimentTs})){
+            if(c.moveToFirst()){id=c.getString(0);delta=c.getDouble(1);}
+        }catch(Exception ignored){return null;}
+        if(id==null||!Double.isFinite(delta)||delta>3600.0)return null;
+        return byId(db,id);
+    }
+
+    /** New records bind to reference_session_id; legacy records retain the timestamp fallback. */
+    public static Series forExperiment(ExperimentsDb db,ExperimentQueries.Record r){
+        if(db==null||r==null)return null;String sid="";
+        try{JSONObject payload=json(r.payload);sid=payload.optString("reference_session_id","").trim();}catch(Exception ignored){}
+        Series exact=byId(db,sid);return exact!=null?exact:nearest(db,r.ts);
     }
 
     public static double value(JSONObject o,String key){if(o==null||o.isNull(key))return Double.NaN;double v=o.optDouble(key,Double.NaN);return Double.isFinite(v)?v:Double.NaN;}
