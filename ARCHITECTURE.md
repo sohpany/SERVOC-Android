@@ -1,68 +1,78 @@
-# HazRob 0.6 Architecture
+# HazRob 0.9 Architecture
 
-HazRob 0.6 separates deterministic robot control from computationally intensive analysis, evidence handling and scientific data management.
+HazRob 0.9 separates deterministic robot I/O from Android-side analysis, evidence handling, reporting and scientific data management.
 
 ## System boundary
 
-**Master ESP32** owns real-time actuator I/O, local drive fail-safe, acceleration/deceleration/reversal handling, relay exclusivity, direct ADC/I2C acquisition and compact HTTP telemetry. It does not identify gases, calculate exposure risk, process video or perform cloud transport.
+**Master ESP32** owns drive actuator I/O, local motion safety behavior, the single MQ power relay, dual ADS1115 acquisition, BME/BMP acquisition, MAX4466/IR inputs, local HTTP API4, WAN/NAPT and outbound MQTT/TLS.
 
-**ESP32-CAM** remains an independent camera subsystem. Android talks to it directly for stream display and flash control; the master ESP32 does not proxy the stream and its camera configuration remains outside the HazRob master firmware.
+**ESP32-CAM** is a separate camera subsystem at `192.168.4.2`. It provides local MJPEG and can publish JPEG frames through the remote WSS relay while preserving local operation.
 
-**HazRob Android** owns telemetry normalization, operator workflow, chemical analysis, developer experiments/calibration, scientific reference data, local persistence, media evidence, visual analysis, reporting and optional reference-bank publication.
+**HazRob Android** owns telemetry normalization, operator workflow, chemical analysis, developer experiments/calibration, scientific reference data, persistence, media evidence, reporting, guest authorization and optional reference-bank publication.
+
+## Authoritative MQ power boundary
+
+Hardware profile `hazrob-0.9-1r8mq-v1` has exactly **one active-LOW MQ power relay on GPIO25**.
+
+- OFF / `mask=0`: all eight MQ sensors off.
+- ON / `mask=1`: all eight MQ sensors on.
+- `mask=2`, `mask=3` and any other relay-mask value are invalid.
+
+The power relay is independent from the two ADC devices:
+
+- ADS1 `0x48`: MQ2, MQ4, MQ5, MQ8.
+- ADS2 `0x49`: MQ3, MQ7, MQ9, MQ135.
+
+Android and ESP32 use the same OFF/ON model. ADS health never implies a separate power bank.
 
 ## Android packages
 
-- `auth/` — session role gate (`USER` / `DEVELOPER`).
-- `communication/` — robot transport and API-v3 normalization.
-- `control/` — joystick/heartbeat; safety-critical command-loss behavior remains local to ESP32.
+- `auth/` — USER/DEVELOPER entry boundary.
+- `communication/` — Direct HTTP, remote MQTT/TLS, API4 normalization and guest remote authorization.
+- `hardware/` — authoritative physical HazRob topology.
+- `control/` — operator drive commands and heartbeat coordination.
 - `measurement/` — telemetry recording, transient features and sensor-health/drift analysis.
-- `navigation/` — motion history plus compound-specific relative gas-direction estimation; no autonomous replay/drive in 0.6.
-- `camera/` — ESP32-CAM stream/flash plus H.264/MP4 recording.
-- `vision/` — experimental visual-flame evidence and overlays; it does not issue drive or safety commands.
-- `chemical/` — dynamic chemical knowledge repository plus evidence-weighted analytical models.
+- `navigation/` — motion history and compound-specific relative direction research.
+- `camera/` — local ESP32-CAM stream/flash, recording and remote video client.
+- `vision/` — experimental visual evidence; it does not issue drive or PPM decisions.
+- `chemical/` — dynamic chemical knowledge and evidence models.
 - `exposure/` — authority/jurisdiction-aware exposure data.
-- `calibration/` — device-specific reference-gas calibration and quality metadata.
-- `fingerprint/` — trainable chemical signatures/classifiers.
-- `models/` — algorithm registry/runtime status, including the pinned MQDataScience 76-model catalogue.
+- `calibration/` — device/reference-gas calibration metadata.
+- `models/` — model registry/runtime status including MQDataScience catalogue.
 - `analytics/` — evidence fusion and result snapshots.
-- `data/` — offline-first SQLite storage for measurements, experiments, scientific sources, time-series, media and event evidence.
-- `github/` — optional developer-session publication of approved immutable reference records.
-- `report/` — PDF/XLSX/reference-bank exports.
-- `ui/` — control, unified measurement/analysis, reports, developer laboratory and settings.
+- `data/` — offline-first SQLite storage.
+- `github/` — developer reference-bank publication.
+- `report/` — PDF/XLSX/reference-bank export.
+- `ui/` — control, measurements, status, experiments and settings.
 
-## API v3 boundary
+## API v4 boundary
 
-The ESP32 wire contract is deliberately compact:
+Local HTTP remains available at `192.168.4.1` with `/diag`, `/data`, drive/safety endpoints, `/relay`, `/measure`, `/cfg`, WAN provisioning and guest authorization endpoints.
 
-- `/diag` — firmware/API/heap/client/failsafe/environment-hardware diagnostics.
-- `/data` — environment values, relay group, live MQ values and measurement averages.
+`RobotProtocolV4` normalizes Direct and Remote telemetry into one application snapshot. UI, analysis and reports consume that normalized structure.
 
-`RobotProtocolV3` is the normalization layer. UI and analytics consume the normalized application snapshot rather than compact wire keys.
+The normalized relay object is a single state with `mask` 0/1, `on`, `power_ms` and one channel. Each normalized MQ channel maps to relay 1 while retaining its own ADS/channel identity.
+
+## Remote boundary
+
+Remote robot commands use MQTT/TLS with session ID, monotonic sequence, nonce and TTL. A relay command is accepted only when its state is exactly 0 or 1. Remote camera video is a separate WSS path and does not alter robot MQTT credentials or MQ power semantics.
+
+WAN provisioning remains a local bootstrap operation because the ESP32 must receive the modem/network credentials before the remote path can exist.
 
 ## User roles
 
-Normal users see control, unified measurement/analysis, reports and settings. Developer mode requires the session PIN and additionally exposes experiments/calibration/reference-bank tooling. The PIN is a UI/workflow barrier only and is not used to protect repository credentials or cryptographic material. The Android manifest exposes only `MainActivity`; developer laboratory classes are not independently exported activities.
+Normal and developer workflows share the same physical robot topology. Developer mode additionally exposes experiment/calibration/reference-bank and remote profile controls. Guest remote authorization is issued by a developer and can later be revoked by the robot.
 
-## Chemical knowledge versus analytical coverage
+## Measurement and evidence model
 
-The database is no longer structurally limited to 144 entries. Chemical identity/hazard/exposure records can grow independently. A database entry does not imply sensor support. Analytical results distinguish validated quantitative calibration from identification/fingerprint/research-only evidence.
+MQ power selection is manual. Starting averaging does not silently change the relay. A valid measurement must preserve the same shared MQ power state for the sampling window.
 
-Current legacy/default MQ `R0` values are not treated as proof of physical reference-gas calibration. Generic manufacturer/research curves may contribute identification evidence but do not by themselves authorize quantitative PPM or exposure-risk output.
+Saved telemetry and reports include shared MQ power state, GPIO25 traceability, hardware profile, ADS state and sensor values. Camera/media evidence remains logically separate from chemical quantification.
 
-## Evidence/session model
+## Scientific validity
 
-MQ acquisition is stored as a `measurement_session` with time-linked telemetry. Camera recording or a persistent visual-flame event reuses the currently active MQ session when one exists; otherwise it creates an independent media-evidence session. This provides temporal correlation without allowing video evidence to alter chemical PPM calculations.
-
-The gas-direction assistant consumes normalized analytical evidence, relevant MQ channels, motion commands and time history to estimate a relative bearing for a user-selected compound. Its output is advisory and is never converted to drive commands in 0.6.
+Chemical database coverage does not imply installed-sensor analytical coverage. Firmware `R0=10.0` values are placeholders and cannot authorize quantitative PPM. MQ7/MQ9 require a validated heater protocol before quantitative use.
 
 ## Offline-first rule
 
-Robot operation, measurement capture, local analysis, media recording and report generation remain functional without Internet access. GitHub publication is optional and outside the drive-control path.
-
-## Reference-bank rule
-
-Only locally `APPROVED` developer experiments can be sent to GitHub. Publication targets the dedicated `reference-bank` branch. The path is derived from canonical experiment identity/timestamp, the request contains no repository credential, and session-supplied credentials are not persisted. Existing approved files are not silently overwritten.
-
-## Deferred expansion
-
-Thermal sensing, physical MUX expansion, ESP-NOW nodes, 4G/VPN transport, autonomous gas-plume/source following and safe autonomous return-to-link remain outside the 0.6 acceptance path. The current motion/evidence schema intentionally preserves the information needed to research those functions later.
+Direct robot operation, measurement, local analysis and report generation remain available without Internet. Remote MQTT, remote WSS video and optional GitHub publication are additional transport layers, not dependencies of local control.
