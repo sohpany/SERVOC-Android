@@ -10,22 +10,20 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
-import com.servoc.app.communication.RemoteAccessPackage;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
 import org.json.JSONObject;
 import java.util.Locale;
 
-/** Compact operator settings for HazRob 0.9. Remote credentials are provisioned automatically and never shown in the UI. */
+/** Compact operator settings shared by Direct and Remote modes. */
 public final class SettingsTab {
-    private final Context context;private final HazRobHost host;private final ScrollView scroll;
+    private final HazRobHost host;private final ScrollView scroll;
     private final EditText robot,camera,speed,nl,nr,warm,measure;
-    private EditText accessCode;
     private final TextView compatibility,cameraState,libraryInfo;
 
     public SettingsTab(Context c,HazRobHost host){
-        this.context=c.getApplicationContext();this.host=host;ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
+        this.host=host;ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
         LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
 
         LinearLayout net=UiKit.card(c);net.addView(UiKit.title(c,"الشبكة"),UiKit.full(c));
@@ -37,34 +35,17 @@ public final class SettingsTab {
         speed=field(c,cfg,"السرعة %",String.valueOf(host.preferences().getInt("speed",100)));nl=field(c,cfg,"Neutral L µs",String.valueOf(host.preferences().getInt("nl",1500)));nr=field(c,cfg,"Neutral R µs",String.valueOf(host.preferences().getInt("nr",1500)));warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
-        if("DEVELOPER".equals(host.operatorRole()))addAccessCard(c,root);
-
         LinearLayout compat=UiKit.card(c);compat.addView(UiKit.title(c,"النظام"),UiKit.full(c));compatibility=UiKit.text(c,"Firmware —");compat.addView(compatibility,UiKit.full(c));root.addView(compat,UiKit.full(c));
 
         LinearLayout science=UiKit.card(c);science.addView(UiKit.title(c,"المكتبة العلمية"),UiKit.full(c));Button info=UiKit.button(c,"الحالة");science.addView(info,UiKit.full(c));libraryInfo=UiKit.small(c,"");libraryInfo.setBackgroundColor(0xFF151A20);libraryInfo.setVisibility(View.GONE);science.addView(libraryInfo,UiKit.full(c));
         info.setOnClickListener(v->{boolean show=libraryInfo.getVisibility()!=View.VISIBLE;libraryInfo.setVisibility(show?View.VISIBLE:View.GONE);if(show)libraryInfo.setText("Chemicals "+host.database().chemicalCount()+"   •   MQDataScience "+MqDataScience76Catalog.COUNT+"   •   Native "+ModelRuntimeRegistry.nativeCount()+"   •   Verified "+ModelRuntimeRegistry.verifiedCount()+"   •   Pending "+ModelRuntimeRegistry.pendingPortCount());});root.addView(science,UiKit.full(c));
-        refreshAccessCode();
-    }
-
-    private void addAccessCard(Context c,LinearLayout root){
-        LinearLayout card=UiKit.card(c);card.addView(UiKit.title(c,"تصريح المستخدم البعيد"),UiKit.full(c));
-        accessCode=UiKit.input(c,"");accessCode.setHint("لم يتم إصدار تصريح");accessCode.setSingleLine(false);accessCode.setMinLines(3);accessCode.setTextIsSelectable(true);accessCode.setKeyListener(null);accessCode.setBackgroundColor(0xFF151A20);accessCode.setTextColor(Color.WHITE);card.addView(accessCode,UiKit.full(c));
-        LinearLayout row=UiKit.hbox(c);Button make=UiKit.button(c,"إنتاج كود تصريح");make.setOnClickListener(v->issueAccess());row.addView(make,UiKit.weight(1));Button cancel=UiKit.button(c,"إلغاء كود تصريح");cancel.setOnClickListener(v->revokeAccess());row.addView(cancel,UiKit.weight(1));card.addView(row,UiKit.full(c));root.addView(card,UiKit.full(c));
-    }
-
-    /** Developer authorization is managed through the Internet and never depends on the local HazRob AP. */
-    private void issueAccess(){GuestAuthorizationUi.issue(context,host);}
-    private void revokeAccess(){GuestAuthorizationUi.withdraw(context,host);}
-
-    private void refreshAccessCode(){
-        if(accessCode==null)return;try{accessCode.setText(RemoteAccessPackage.present(context,host.preferences())?RemoteAccessPackage.exportCode(context,host.preferences()):"");}catch(Exception e){accessCode.setText("");}
     }
 
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
     public View view(){return scroll;}
 
     public void refresh(){
-        refreshAccessCode();JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware —   •   API —   •   Profile —");compatibility.setTextColor(0xFFFFB74D);return;}
+        JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware —   •   API —   •   Profile —");compatibility.setTextColor(0xFFFFB74D);return;}
         JSONObject adc=d.optJSONObject("adc");compatibility.setText("Firmware "+d.optString("firmware","—")+"   •   API "+d.optInt("api_version",0)+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"   •   ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+"   •   ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—"));compatibility.setTextColor(0xFF81C784);
     }
 
