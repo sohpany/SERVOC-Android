@@ -9,6 +9,7 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -22,6 +23,7 @@ import com.servoc.app.communication.RemoteAccessPackage;
 import com.servoc.app.communication.RemoteReadiness;
 import com.servoc.app.communication.RemoteServiceProfile;
 import com.servoc.app.communication.RemoteSessionManager;
+import com.servoc.app.communication.RemoteWifiCredentialStore;
 import com.servoc.app.communication.RobotApi;
 import com.servoc.app.ui.UiKit;
 
@@ -29,7 +31,7 @@ import org.json.JSONObject;
 
 import java.util.concurrent.ExecutorService;
 
-/** HazRob 0.9 transport gate. Remote use is ordinary Internet access; only robot WAN provisioning requires local HazRob Wi-Fi. */
+/** HazRob 0.9 transport gate. Remote use is ordinary Internet access; only robot WAN provisioning requires a temporary local HazRob Wi-Fi link. */
 public final class ConnectionGate {
     public enum Mode{DIRECT,REMOTE}
     public interface Listener{void onReady(Mode mode);}
@@ -82,38 +84,52 @@ public final class ConnectionGate {
         io.execute(()->{RemoteReadiness r=cloud.probe();ui.post(()->{render(r);if(r.ready)finishRemote(r);else{status.append("\nالروبوت غير متصل بالإنترنت أو رمز التصريح ملغى/غير مقبول");status.setTextColor(0xFFEF6C00);showBack();}});});
     }
 
-    /** First-time/changed modem provisioning. Developer only; this path intentionally requires local HazRob Wi-Fi. */
+    /** Opens WAN credentials every time. A remembered network is pre-filled and can be reused or edited as a new setup. */
     private void openProvisioning(){
         if(!developer){showChoice();return;}
-        busy("فحص الاتصال المحلي بالروبوت...",1);
-        io.execute(()->{try{local.remoteStatus();ui.post(this::showProvision);}catch(Exception e){ui.post(()->{status.setText("اتصل أولًا بشبكة HazRob المحلية لإعداد مودم الروبوت");status.setTextColor(0xFFD84315);showBack();});}});
+        showProvision();
     }
 
     private void showProvision(){
-        content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");TextView t=UiKit.title(a,"تهيئة إنترنت الروبوت");t.setGravity(Gravity.CENTER);t.setTextColor(0xFF263238);t.setBackgroundColor(Color.TRANSPARENT);content.addView(t,UiKit.full(a));
-        EditText ssid=UiKit.input(a,"");ssid.setHint("اسم شبكة المودم / SSID");content.addView(ssid,UiKit.full(a));
-        EditText pass=UiKit.input(a,"");pass.setHint("كلمة مرور الشبكة");pass.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);content.addView(pass,UiKit.full(a));
-        Button connect=UiKit.button(a,"إرسال إلى الروبوت");connect.setOnClickListener(v->{String s=ssid.getText().toString().trim(),p=pass.getText().toString();if(s.isEmpty()){status.setText("أدخل اسم الشبكة");return;}provision(s,p);});content.addView(connect,UiKit.full(a));
+        content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");
+        TextView t=UiKit.title(a,"شبكة الإنترنت الخارجية للروبوت");t.setGravity(Gravity.CENTER);t.setTextColor(0xFF263238);t.setBackgroundColor(Color.TRANSPARENT);content.addView(t,UiKit.full(a));
+
+        RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(a,prefs);RemoteWifiCredentialStore.Credentials saved=store.load();
+        EditText ssid=UiKit.input(a,saved.ssid);ssid.setHint("اسم الشبكة / SSID");content.addView(ssid,UiKit.full(a));
+        EditText pass=UiKit.input(a,saved.password);pass.setHint("كلمة السر");pass.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);content.addView(pass,UiKit.full(a));
+        CheckBox remember=new CheckBox(a);remember.setText("تذكرني");remember.setChecked(saved.present());remember.setTextColor(0xFF263238);content.addView(remember,UiKit.full(a));
+
+        TextView note=UiKit.small(a,"يمكنك استخدام الإعدادات المحفوظة كما هي أو تعديلها لإعداد شبكة جديدة. يحتاج إرسال البيانات إلى اتصال مؤقت فقط بشبكة HazRob المحلية؛ بعد الإرسال ينتقل الروبوت إلى الشبكة الخارجية.");note.setTextColor(0xFF546E7A);note.setBackgroundColor(Color.TRANSPARENT);content.addView(note,UiKit.full(a));
+
+        Button connect=UiKit.button(a,"دخول");connect.setOnClickListener(v->{String s=ssid.getText().toString().trim(),p=pass.getText().toString();if(s.isEmpty()){status.setText("أدخل اسم الشبكة");status.setTextColor(0xFFD84315);return;}provision(s,p,remember.isChecked());});content.addView(connect,UiKit.full(a));
         Button back=UiKit.button(a,"رجوع");back.setOnClickListener(v->showChoice());content.addView(back,UiKit.full(a));
     }
 
-    private void provision(String ssid,String password){busy("إرسال إعدادات الشبكة...",1);io.execute(()->{try{local.remoteProvision(ssid,password);prefs.edit().putBoolean("remote_wan_provisioned",true).putString("remote_operator_role","developer").apply();pollRobotRemote();}catch(Exception e){ui.post(()->{status.setText("تعذر إرسال إعدادات المودم");status.setTextColor(0xFFD84315);showBack();});}});}
-
-    private void pollRobotRemote(){
-        RemoteSessionManager cloud=new RemoteSessionManager(a,prefs);
-        for(int i=0;i<60;i++){
+    private void provision(String ssid,String password,boolean remember){
+        busy("إرسال إعدادات الشبكة إلى الروبوت...",1);
+        io.execute(()->{
             try{
-                RemoteReadiness robot=RemoteReadiness.fromRobot(local.remoteStatus());ui.post(()->render(robot));
-                if(robot.internet&&cloud.serviceProfileConfigured()){
-                    RemoteReadiness endToEnd=cloud.probe();RemoteReadiness combined=combine(robot,endToEnd);ui.post(()->render(combined));if(combined.ready){ui.post(()->finishRemote(combined));return;}
-                }
-            }catch(Exception ignored){}
-            try{Thread.sleep(1000);}catch(InterruptedException e){Thread.currentThread().interrupt();return;}
-        }
-        ui.post(()->{status.setText("تم إرسال إعدادات الشبكة، لكن الاتصال البعيد لم يكتمل بعد");status.setTextColor(0xFFEF6C00);showBack();});
+                local.remoteProvision(ssid,password);
+                RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(a,prefs);if(remember)store.save(ssid,password);else store.clear();
+                prefs.edit().putBoolean("remote_wan_provisioned",true).putString("remote_operator_role","developer").apply();
+                ui.post(()->{status.setText("تم إرسال الإعدادات. الروبوت ينتقل الآن إلى الشبكة الخارجية؛ أبقِ الهاتف متصلًا بالإنترنت عبر البيانات الخلوية أو أعده إلى شبكة الإنترنت المعتادة.");status.setTextColor(0xFF245A7A);});
+                pollRobotRemote();
+            }catch(Exception e){
+                ui.post(()->{status.setText("تعذر إرسال الإعدادات. اتصل مؤقتًا بشبكة HazRob المحلية ثم حاول مرة أخرى.");status.setTextColor(0xFFD84315);showBack();});
+            }
+        });
     }
 
-    private static RemoteReadiness combine(RemoteReadiness robot,RemoteReadiness cloud){boolean ready=robot.internet&&cloud.tls&&cloud.mqtt&&cloud.commandAck&&cloud.telemetry;return new RemoteReadiness(robot.configured,robot.wifi,robot.ip,robot.dns,robot.time,robot.internet,cloud.tls,cloud.mqtt,cloud.commandAck,cloud.telemetry,false,ready,ready?"remote control ready":"remote handshake incomplete");}
+    /** After provisioning, discovery is cloud-only. The phone and robot never need to remain on two Wi-Fi networks simultaneously. */
+    private void pollRobotRemote(){
+        RemoteSessionManager cloud=new RemoteSessionManager(a,prefs);
+        for(int i=0;i<90;i++){
+            RemoteReadiness r=cloud.probe();ui.post(()->render(r));
+            if(r.ready){ui.post(()->finishRemote(r));return;}
+            try{Thread.sleep(1000);}catch(InterruptedException e){Thread.currentThread().interrupt();return;}
+        }
+        ui.post(()->{status.setText("تم حفظ إعدادات الشبكة في الروبوت، لكن لم يظهر عبر الإنترنت بعد. تأكد من صحة الشبكة وأن الهاتف نفسه لديه اتصال بالإنترنت.");status.setTextColor(0xFFEF6C00);showBack();});
+    }
 
     private void render(RemoteReadiness r){progress.setVisibility(View.VISIBLE);progress.setProgress(r.completedCoreStages());StringBuilder s=new StringBuilder();stage(s,"إعداد الشبكة",r.configured);stage(s,"Wi-Fi",r.wifi);stage(s,"IP",r.ip);stage(s,"DNS",r.dns);stage(s,"الإنترنت/الوقت",r.internet&&r.time);stage(s,"TLS",r.tls);stage(s,"MQTT",r.mqtt);stage(s,"قناة الأوامر",r.commandAck);stage(s,"Telemetry",r.telemetry);stage(s,"الفيديو البعيد",r.camera);status.setText(s.toString().trim());status.setTextColor(r.ready&&r.camera?0xFF2E7D32:0xFF245A7A);}
     private static void stage(StringBuilder s,String name,boolean ok){if(s.length()>0)s.append('\n');s.append(ok?"✓ ":"○ ").append(name);}
