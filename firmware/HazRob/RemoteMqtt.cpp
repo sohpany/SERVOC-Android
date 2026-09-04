@@ -35,29 +35,14 @@ bool setCameraFlash(const String& mode){if(mode!="on"&&mode!="off")return false;
 
 void ack(const String& session,uint64_t seq,const String& nonce,bool ok,const String& payload="{}",const String& error=""){String j="{\"session\":\""+esc(session)+"\",\"seq\":"+u64(seq)+",\"nonce\":\""+esc(nonce)+"\",\"ok\":"+(ok?"true":"false");if(!error.isEmpty())j+=",\"error\":\""+esc(error)+"\"";j+=",\"payload\":"+payload+"}";if(mqttPublish(ackTopic,j,false))acked=true;}
 
+/** One remote operator command surface. Transport security remains MQTT/TLS; no per-user authorization token exists. */
 void applyCommand(const String& j){
-  String session=jstr(j,"session"),nonce=jstr(j,"nonce"),type=jstr(j,"type"),role=jstr(j,"role","developer");uint64_t seq=(uint64_t)jint(j,"seq",0);
+  String session=jstr(j,"session"),nonce=jstr(j,"nonce"),type=jstr(j,"type");uint64_t seq=(uint64_t)jint(j,"seq",0);
   if(session.isEmpty()||nonce.isEmpty()||type.isEmpty()||!seq){ack(session,seq,nonce,false,"{}","invalid");return;}
   if(!fresh(j)){ack(session,seq,nonce,false,"{}","expired");return;}
   if(lastSession.isEmpty()){lastSession=session;lastSeq=0;}
   else if(session!=lastSession){if(type!="probe"){ack(session,seq,nonce,false,"{}","session");return;}lastSession=session;lastSeq=0;}
   if(seq<=lastSeq){ack(session,seq,nonce,false,"{}","sequence");return;}lastSeq=seq;
-
-  if(role=="guest"){
-    String access=jstr(j,"access","");
-    if(!guestAccessValid(access)){ack(session,seq,nonce,false,"{}","guest_access_revoked");return;}
-  }else if(role!="developer"){
-    ack(session,seq,nonce,false,"{}","role");return;
-  }
-
-  if(type=="guest_access_set"){
-    if(role!="developer"){ack(session,seq,nonce,false,"{}","developer_required");return;}
-    bool ok=guestAccessSet(jstr(j,"token",""));ack(session,seq,nonce,ok,"{}",ok?"":"invalid_guest_token");return;
-  }
-  if(type=="guest_access_revoke"){
-    if(role!="developer"){ack(session,seq,nonce,false,"{}","developer_required");return;}
-    guestAccessRevoke();ack(session,seq,nonce,true);return;
-  }
 
   bool ok=true;String payload="{}";
   if(type=="probe"){linkHeartbeat();}
@@ -73,7 +58,8 @@ void applyCommand(const String& j){
   else if(type=="camera_flash"){String mode=jstr(j,"mode","off");ok=setCameraFlash(mode);payload="{\"mode\":\""+esc(mode)+"\"}";}
   else if(type=="config_get")payload=settingsJson();
   else if(type=="config_set"){String cam=jstr(j,"cam",settings.cam);if(!cam.isEmpty())settings.cam=cam;settings.speed=constrain((int)jint(j,"speed",settings.speed),20,100);settings.nL=constrain((int)jint(j,"nl",settings.nL),1400,1600);settings.nR=constrain((int)jint(j,"nr",settings.nR),1400,1600);settings.warm=constrain((int)jint(j,"warm",settings.warm),0,3600);settings.measure=constrain((int)jint(j,"measure",settings.measure),5,600);saveSettings();payload=settingsJson();}
-  else ok=false;ack(session,seq,nonce,ok,payload,ok?"":"unknown_command");
+  else ok=false;
+  ack(session,seq,nonce,ok,payload,ok?"":"unknown_command");
 }
 
 void processPacket(){int h=tls.read();if(h<0)return;size_t rem=0;if(!readRemaining(rem))return;uint8_t type=(uint8_t)h>>4;if(type!=3){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}if(rem<2)return;int hi=tls.read(),lo=tls.read();if(hi<0||lo<0)return;uint16_t tn=(uint16_t)((hi<<8)|lo);rem-=2;if(tn>rem||tn>256)return;String topic;topic.reserve(tn);for(uint16_t i=0;i<tn;i++){while(!tls.available()&&tls.connected())delay(1);topic+=(char)tls.read();}rem-=tn;if(rem>4096){while(rem--&&tls.connected()){while(!tls.available())delay(1);tls.read();}return;}String payload;payload.reserve(rem);while(rem--&&tls.connected()){while(!tls.available()&&tls.connected())delay(1);if(tls.connected())payload+=(char)tls.read();}if(topic==cmdTopic)applyCommand(payload);lastIo=millis();}
