@@ -56,7 +56,7 @@ const server = http.createServer((req, res) => {
   if (url.pathname === "/health") {
     const configured = Boolean(process.env.PUBLISH_TOKEN && process.env.VIEW_TOKEN);
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(JSON.stringify({ ok: true, service: "hazrob-video-relay", protocol: 1, platform: "railway", authConfigured: configured }));
+    res.end(JSON.stringify({ ok: true, service: "hazrob-video-relay", protocol: 1, platform: "render", authConfigured: configured }));
     return;
   }
 
