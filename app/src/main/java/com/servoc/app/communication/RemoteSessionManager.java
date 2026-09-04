@@ -9,9 +9,10 @@ import java.io.IOException;
 public final class RemoteSessionManager {
     private static final Object CONNECT_LOCK=new Object();
     private final Context context;private final SharedPreferences prefs;
-    public RemoteSessionManager(Context context,SharedPreferences prefs){this.context=context.getApplicationContext();this.prefs=prefs;}
+    public RemoteSessionManager(Context context,SharedPreferences prefs){this.context=context.getApplicationContext();this.prefs=prefs;RemoteServiceProfile.ensureDefaults(prefs);}
 
     public boolean serviceProfileConfigured(){
+        RemoteServiceProfile.ensureDefaults(prefs);
         if(prefs.getString("remote_broker_host","").trim().isEmpty()||prefs.getString("remote_robot_id","").trim().isEmpty())return false;
         return new RemoteCredentialStore(context,prefs).load().present();
     }
