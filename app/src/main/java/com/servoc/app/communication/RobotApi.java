@@ -44,6 +44,7 @@ public final class RobotApi {
 
     /** These endpoints intentionally remain local because they bootstrap or reset the robot WAN connection. */
     public JSONObject remoteStatus()throws Exception{return getJson("/remote/status",1800);}
+    public JSONObject remoteScan()throws Exception{return getJson("/remote/scan",15000);}
     public JSONObject remoteProvision(String ssid,String password)throws Exception{return new JSONObject(postForm("/remote/provision","ssid="+enc(ssid)+"&password="+enc(password),3000));}
     public JSONObject remoteClear()throws Exception{return new JSONObject(postForm("/remote/clear","confirm=1",1500));}
 
