@@ -17,18 +17,19 @@ import java.util.concurrent.atomic.AtomicLong;
 /** One active remote HazRob cloud session. Commands are TTL/sequence scoped; motion commands are never retained. */
 public final class RemoteConnection implements SecureMqtt311Client.Listener,AutoCloseable {
     private static volatile RemoteConnection active;private static volatile boolean transportOwned=false;
-    private final SecureMqtt311Client mqtt;private final String robotId,root,sessionId;private final AtomicLong sequence=new AtomicLong();private final SecureRandom random=new SecureRandom();
+    private final SecureMqtt311Client mqtt;private final String robotId,root,sessionId,role,access;private final AtomicLong sequence=new AtomicLong();private final SecureRandom random=new SecureRandom();
     private final ConcurrentHashMap<String,Pending> pending=new ConcurrentHashMap<>();
     private volatile JSONObject latestTelemetry,latestStatus,cameraStatus;private volatile long telemetryAt,statusAt;private volatile boolean disconnected;
     private static final class Pending{final CountDownLatch latch=new CountDownLatch(1);volatile JSONObject ack;}
 
-    private RemoteConnection(SecureMqtt311Client mqtt,String robotId){this.mqtt=mqtt;this.robotId=robotId;this.root="hazrob/"+robotId+"/";this.sessionId=UUID.randomUUID().toString();}
+    private RemoteConnection(SecureMqtt311Client mqtt,String robotId,String role,String access){this.mqtt=mqtt;this.robotId=robotId;this.root="hazrob/"+robotId+"/";this.sessionId=UUID.randomUUID().toString();this.role="guest".equalsIgnoreCase(role)?"guest":"developer";this.access=access==null?"":access;}
 
     public static synchronized RemoteConnection connect(Context context,SharedPreferences prefs)throws Exception{
         transportOwned=true;RemoteConnection previous=active;
         String host=prefs.getString("remote_broker_host","").trim(),robot=prefs.getString("remote_robot_id","").trim();int port=prefs.getInt("remote_broker_port",8883);if(host.isEmpty()||robot.isEmpty())throw new IllegalStateException("remote service profile incomplete");
         RemoteCredentialStore.Credentials c=new RemoteCredentialStore(context,prefs).load();if(!c.present())throw new IllegalStateException("remote MQTT credentials unavailable");
-        String client="hazrob-app-"+robot+"-"+Long.toHexString(System.currentTimeMillis());SecureMqtt311Client m=new SecureMqtt311Client(host,port,client,c.username,c.password);RemoteConnection r=new RemoteConnection(m,robot);
+        String role=prefs.getString("remote_operator_role","developer");String access="guest".equalsIgnoreCase(role)?new RemoteGuestAccessStore(prefs).load():"";if("guest".equalsIgnoreCase(role)&&access.trim().isEmpty())throw new IllegalStateException("guest access code required");
+        String client="hazrob-app-"+robot+"-"+Long.toHexString(System.currentTimeMillis());SecureMqtt311Client m=new SecureMqtt311Client(host,port,client,c.username,c.password);RemoteConnection r=new RemoteConnection(m,robot,role,access);
         try{m.connect(r);m.subscribe(r.root+"ack");m.subscribe(r.root+"telemetry");m.subscribe(r.root+"status");m.subscribe(r.root+"camera/status");active=r;if(previous!=null&&previous!=r)previous.close();return r;}
         catch(Exception e){try{r.close();}catch(Exception ignored){}throw e;}
     }
@@ -39,7 +40,7 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     /** Explicit mode transition back to Direct. Ordinary socket failures must never call this. */
     public static synchronized void releaseTransport(){transportOwned=false;RemoteConnection r=active;active=null;if(r!=null)r.close();}
     public boolean isConnected(){return mqtt.isConnected()&&!disconnected;}
-    public String robotId(){return robotId;}public String sessionId(){return sessionId;}
+    public String robotId(){return robotId;}public String sessionId(){return sessionId;}public String operatorRole(){return role;}
 
     public RemoteReadiness probe(long timeoutMs){
         boolean tls=isConnected(),mqttOk=tls,ack=false,telemetry=false,camera=false;JSONObject status=latestStatus;
@@ -51,7 +52,7 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
 
     public JSONObject command(String type,JSONObject payload,int ttlMs,boolean waitAck,long timeoutMs)throws Exception{
         if(!isConnected())throw new IllegalStateException("remote MQTT disconnected");
-        long seq=sequence.incrementAndGet();String nonce=Long.toHexString(random.nextLong())+Long.toHexString(System.nanoTime());JSONObject cmd=RemoteCommandEnvelope.build(sessionId,seq,nonce,type,ttlMs,System.currentTimeMillis(),payload);
+        long seq=sequence.incrementAndGet();String nonce=Long.toHexString(random.nextLong())+Long.toHexString(System.nanoTime());JSONObject cmd=RemoteCommandEnvelope.build(sessionId,seq,nonce,type,ttlMs,System.currentTimeMillis(),payload,role,access);
         Pending p=null;if(waitAck){p=new Pending();pending.put(nonce,p);}try{mqtt.publish(root+"cmd",cmd.toString(),false);if(!waitAck)return null;if(!p.latch.await(Math.max(250,timeoutMs),TimeUnit.MILLISECONDS))throw new IOException("remote ACK timeout");JSONObject a=p.ack;if(a==null)throw new IOException("remote disconnected before ACK");if(!a.optBoolean("ok",false))throw new IOException("remote command rejected: "+a.optString("error","unknown"));return a;}finally{if(waitAck)pending.remove(nonce);}
     }
 
@@ -64,6 +65,8 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     public void startMeasurement()throws Exception{command("measure_start",new JSONObject(),4000,true,3000);}
     public void cancelMeasurement()throws Exception{command("measure_cancel",new JSONObject(),3000,true,2500);}
     public void cameraFlash(String mode)throws Exception{JSONObject p=new JSONObject();p.put("mode",mode==null?"off":mode);command("camera_flash",p,3000,true,2500);}
+    public void guestAccessSet(String token)throws Exception{if(!"developer".equals(role))throw new SecurityException("developer session required");JSONObject p=new JSONObject();p.put("token",token==null?"":token);command("guest_access_set",p,4000,true,3000);}
+    public void guestAccessRevoke()throws Exception{if(!"developer".equals(role))throw new SecurityException("developer session required");command("guest_access_revoke",new JSONObject(),4000,true,3000);}
 
     public JSONObject snapshot(int left,int right){JSONObject t=latestTelemetry;if(t==null)return null;JSONObject s=t.optJSONObject("snapshot");if(s!=null)return s;JSONObject diag=t.optJSONObject("diag"),data=t.optJSONObject("data");if(diag!=null||data!=null)return RobotProtocolV4.normalize(diag,data,left,right);return t;}
     public JSONObject status(){return latestStatus;}public JSONObject cameraStatus(){return cameraStatus;}
