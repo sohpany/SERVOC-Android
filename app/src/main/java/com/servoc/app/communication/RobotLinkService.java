@@ -26,7 +26,7 @@ public final class RobotLinkService extends Service {
     @Override public void onCreate(){
         super.onCreate();prefs=getSharedPreferences("servoc",MODE_PRIVATE);api=new RobotApi(prefs.getString("robot","192.168.4.1"));remoteSessions=new RemoteSessionManager(this,prefs);
         ensureChannel();startForeground(NOTIFICATION_ID,notification("HazRob link active"));
-        worker.scheduleAtFixedRate(this::linkTick,0,2,TimeUnit.SECONDS);
+        worker.scheduleAtFixedRate(this::linkTick,0,500,TimeUnit.MILLISECONDS);
     }
 
     private void linkTick(){
@@ -40,7 +40,7 @@ public final class RobotLinkService extends Service {
         }catch(Exception ignored){}
     }
 
-    private void scheduleReconnect(long now){int shift=Math.min(reconnectAttempt,4);long delay=Math.min(30000L,2000L<<shift);reconnectAttempt=Math.min(reconnectAttempt+1,5);reconnectAt=now+delay;}
+    private void scheduleReconnect(long now){int shift=Math.min(reconnectAttempt,4);long delay=Math.min(10000L,1000L<<shift);reconnectAttempt=Math.min(reconnectAttempt+1,5);reconnectAt=now+delay;}
     private void resetBackoff(){reconnectAttempt=0;reconnectAt=0;}
 
     @Override public int onStartCommand(Intent intent,int flags,int startId){RobotApi a=api;if(a!=null)a.setRobotHost(prefs.getString("robot","192.168.4.1"));return START_STICKY;}
@@ -49,5 +49,5 @@ public final class RobotLinkService extends Service {
 
     private void ensureChannel(){if(android.os.Build.VERSION.SDK_INT<26)return;NotificationManager n=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(n==null)return;NotificationChannel c=new NotificationChannel(CHANNEL,"HazRob Link",NotificationManager.IMPORTANCE_LOW);c.setDescription("اتصال التحكم والقياس بالمركبة");n.createNotificationChannel(c);}
     private void updateNotification(String text){NotificationManager n=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(n!=null)n.notify(NOTIFICATION_ID,notification(text));}
-    private Notification notification(String text){Notification.Builder b=android.os.Build.VERSION.SDK_INT>=26?new Notification.Builder(this,CHANNEL):new Notification.Builder(this);return b.setContentTitle("HazRob 0.9").setContentText(text).setSmallIcon(android.R.drawable.stat_sys_data_bluetooth).setOngoing(true).build();}
+    private Notification notification(String text){Notification.Builder b=android.os.Build.VERSION.SDK_INT>=26?new Notification.Builder(this,CHANNEL):new Notification.Builder(this);return b.setContentTitle("HazRob").setContentText(text).setSmallIcon(android.R.drawable.stat_sys_data_bluetooth).setOngoing(true).build();}
 }
