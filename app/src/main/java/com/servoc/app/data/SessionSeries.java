@@ -24,32 +24,24 @@ public final class SessionSeries {
     /** Exact lineage path used by all new 0.9.2 reference/report records. */
     public static Series forExperiment(ExperimentsDb db,ExperimentQueries.Record r){
         if(db==null||r==null)return null;
-        if(r.sessionId!=null&&!r.sessionId.trim().isEmpty()){
-            Series exact=byId(db,r.sessionId.trim());
-            if(exact!=null)return exact;
-        }
-        return nearest(db,r.ts); // legacy fallback only
+        if(r.sessionId!=null&&!r.sessionId.trim().isEmpty()){Series exact=byId(db,r.sessionId.trim());if(exact!=null)return exact;}
+        return nearest(db,r.ts);
     }
 
     public static Series byId(ExperimentsDb db,String sessionId){
-        if(db==null||sessionId==null||sessionId.trim().isEmpty())return null;
-        String start=null,end=null,id=sessionId.trim();
-        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT started_ts,ended_ts FROM measurement_sessions WHERE session_id=? LIMIT 1",new String[]{id})){
-            if(!c.moveToFirst())return null;start=c.getString(0);end=c.getString(1);
-        }catch(Exception ignored){return null;}
-        List<Sample> rows=readSamples(db,id);return new Series(id,start,end,rows);
+        if(db==null||sessionId==null||sessionId.trim().isEmpty())return null;String start=null,end=null,id=sessionId.trim();
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT started_ts,ended_ts FROM measurement_sessions WHERE session_id=? LIMIT 1",new String[]{id})){if(!c.moveToFirst())return null;start=c.getString(0);end=c.getString(1);}catch(Exception ignored){return null;}
+        return new Series(id,start,end,readSamples(db,id));
     }
 
-    /** Legacy-only fallback: closest ended session within one hour. */
+    /** Exact-by-experiment timestamp first; nearest-time lookup is retained only for legacy records. */
     public static Series nearest(ExperimentsDb db,String experimentTs){
         if(db==null||experimentTs==null||experimentTs.trim().isEmpty())return null;
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT session_id FROM experiments WHERE ts=? AND session_id IS NOT NULL AND TRIM(session_id)<>'' ORDER BY id DESC LIMIT 1",new String[]{experimentTs})){if(c.moveToFirst()){Series exact=byId(db,c.getString(0));if(exact!=null)return exact;}}catch(Exception ignored){}
         String id=null,start=null,end=null;double delta=Double.POSITIVE_INFINITY;
         String sql="SELECT session_id,started_ts,ended_ts,ABS((julianday(COALESCE(ended_ts,started_ts))-julianday(?))*86400.0) d FROM measurement_sessions WHERE kind IN ('field_mq_cycle','developer_mq_cycle') AND ended_ts IS NOT NULL ORDER BY d ASC LIMIT 1";
-        try(Cursor c=db.getReadableDatabase().rawQuery(sql,new String[]{experimentTs})){
-            if(c.moveToFirst()){id=c.getString(0);start=c.getString(1);end=c.getString(2);delta=c.getDouble(3);}
-        }catch(Exception ignored){return null;}
-        if(id==null||!Double.isFinite(delta)||delta>3600.0)return null;
-        return new Series(id,start,end,readSamples(db,id));
+        try(Cursor c=db.getReadableDatabase().rawQuery(sql,new String[]{experimentTs})){if(c.moveToFirst()){id=c.getString(0);start=c.getString(1);end=c.getString(2);delta=c.getDouble(3);}}catch(Exception ignored){return null;}
+        if(id==null||!Double.isFinite(delta)||delta>3600.0)return null;return new Series(id,start,end,readSamples(db,id));
     }
 
     private static List<Sample> readSamples(ExperimentsDb db,String id){List<Sample> rows=new ArrayList<>();try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload,motion_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms,id",new String[]{id})){while(c.moveToNext())rows.add(new Sample(c.getLong(0),c.getString(1),c.getString(2),c.getString(3)));}catch(Exception ignored){}return rows;}
