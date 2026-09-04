@@ -31,6 +31,8 @@ public interface HazRobHost {
     int captureCleanAirBaseline();
     int evaluateCleanAirDrift();
     String cleanAirBaselineTimestamp();
+    /** Exact measurement-session identity completed by TelemetryRecorder. */
+    String lastMeasurementSessionId();
     void setTrackingTarget(int chemicalId,String name);
     int trackingTargetId();
     String trackingTargetName();
