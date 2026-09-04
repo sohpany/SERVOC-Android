@@ -85,25 +85,23 @@ public final class ExperimentsTab {
         root.setBackgroundColor(0xFF0E1116);
         scroll.addView(root);
 
-        root.addView(UiKit.title(c,"مختبر المطور • HazRob 0.8"),UiKit.full(c));
+        root.addView(UiKit.title(c,"مختبر المطور • HazRob 0.9"),UiKit.full(c));
         root.addView(UiKit.small(c,
-                "التشغيل الحالي لمجموعتي MQ والتسخين يدوي. المختبر يسجل التوصيل الفعلي والبيئة والمعايرة مع كل تجربة، ولا يحول R0 وحده إلى اعتماد PPM."),UiKit.full(c));
+                "جميع حساسات MQ الثمانية تعمل من ريلاي طاقة واحد على GPIO25. التسخين واختيار تشغيل طاقة MQ يدويان، والمختبر يسجل حالة الطاقة الفعلية والبيئة والمعايرة مع كل تجربة، ولا يحول R0 وحده إلى اعتماد PPM."),UiKit.full(c));
 
         // ------------------------------------------------------------------
         // Manual MQ power
         // ------------------------------------------------------------------
         LinearLayout power=UiKit.card(c);
-        power.addView(UiKit.title(c,"تشغيل مجموعات MQ يدويًا"),UiKit.full(c));
+        power.addView(UiKit.title(c,"طاقة MQ اليدوية"),UiKit.full(c));
         power.addView(UiKit.small(c,
-                "R1 / ADS1 0x48 → MQ2, MQ4, MQ5, MQ8\n"+
-                "R2 / ADS2 0x49 → MQ3, MQ7, MQ9, MQ135\n"+
-                "R3/R4 احتياط."),UiKit.full(c));
+                "MQ Power Relay / GPIO25 → جميع الحساسات الثمانية\n"+
+                "ADS1 0x48 → MQ2, MQ4, MQ5, MQ8\n"+
+                "ADS2 0x49 → MQ3, MQ7, MQ9, MQ135"),UiKit.full(c));
 
         LinearLayout pb=UiKit.hbox(c);
-        Button off=UiKit.button(c,"OFF");off.setOnClickListener(v->relayMask(0));pb.addView(off,UiKit.weight(1));
-        Button r1=UiKit.button(c,"R1");r1.setOnClickListener(v->relayMask(1));pb.addView(r1,UiKit.weight(1));
-        Button r2=UiKit.button(c,"R2");r2.setOnClickListener(v->relayMask(2));pb.addView(r2,UiKit.weight(1));
-        Button both=UiKit.button(c,"R1+R2");both.setOnClickListener(v->relayMask(3));pb.addView(both,UiKit.weight(1));
+        Button off=UiKit.button(c,"MQ OFF");off.setOnClickListener(v->mqPower(false));pb.addView(off,UiKit.weight(1));
+        Button on=UiKit.button(c,"MQ ON — 8");on.setOnClickListener(v->mqPower(true));pb.addView(on,UiKit.weight(1));
         power.addView(pb,UiKit.full(c));
 
         powerStatus=UiKit.small(c,"حالة الطاقة: —");
@@ -309,11 +307,11 @@ public final class ExperimentsTab {
         return p>=0&&p<chemicalOptions.size()?chemicalOptions.get(p):null;
     }
 
-    private void relayMask(int mask){
+    private void mqPower(boolean on){
         host.io().execute(()->{
             try{
-                host.robotApi().relayMask(mask);
-                host.showToast("MQ: "+HazRobHardwareProfile.groupLabel(mask));
+                host.robotApi().mqPower(on);
+                host.showToast("MQ: "+HazRobHardwareProfile.groupLabel(on?1:0));
                 host.refreshAllTabs();
             }catch(Exception e){host.showToast("تعذر التحكم بطاقة MQ");}
         });
@@ -324,7 +322,7 @@ public final class ExperimentsTab {
             try{
                 if(start)host.robotApi().startMeasurement();
                 else host.robotApi().cancelMeasurement();
-                host.showToast(start?"بدأ averaging؛ يجب أن يبقى اختيار R1/R2 تحت تحكمك اليدوي":"أُلغي averaging");
+                host.showToast(start?"بدأ averaging؛ يجب أن تبقى طاقة MQ ON طوال الجلسة":"أُلغي averaging");
             }catch(Exception e){host.showToast("تعذر إرسال الأمر");}
         });
     }
@@ -400,14 +398,16 @@ public final class ExperimentsTab {
         String state=ready?"ready_average":"manual_live";
         String analytics=AnalyticsSnapshot.toJson(d);
         JSONObject relay=d.optJSONObject("relay");
-        int mask=relay==null?0:relay.optInt("mask",0)&3;
+        int mask=relay!=null&&relay.optBoolean("on",relay.optInt("mask",0)!=0)?1:0;
 
         JSONObject meta=new JSONObject();
         try{
-            meta.put("schema","hazrob-reference-capture-v0.8");
+            meta.put("schema","hazrob-reference-capture-v0.9");
             meta.put("hardware_profile",d.optString("hardware_profile",HazRobHardwareProfile.ID));
             meta.put("relay_mask",mask);
-            meta.put("mq_group",HazRobHardwareProfile.groupLabel(mask));
+            meta.put("mq_power",mask==1);
+            meta.put("mq_power_gpio",25);
+            meta.put("mq_power_label",HazRobHardwareProfile.groupLabel(mask));
             meta.put("manual_power",true);
             meta.put("manual_warmup",true);
             meta.put("warmup_actual_s",warmSeconds);
@@ -429,7 +429,7 @@ public final class ExperimentsTab {
             meta.put("manual_r0",r0);
         }catch(Exception ignored){}
 
-        String protocol="Reference exposure: "+chemical.label()+" @ "+ppm+" ppm • "+state+" • "+HazRobHardwareProfile.groupLabel(mask)+" • warm "+warmSeconds+" s";
+        String protocol="Reference exposure: "+chemical.label()+" @ "+ppm+" ppm • "+state+" • "+HazRobHardwareProfile.groupLabel(mask)+" • GPIO25 • warm "+warmSeconds+" s";
 
         final double known=ppm;
         final String featurePayload=meta.toString();
@@ -546,8 +546,9 @@ public final class ExperimentsTab {
     private void refreshPower(){
         JSONObject d=host.latestDiagnostics();
         JSONObject r=d==null?null:d.optJSONObject("relay");
-        int mask=r==null?0:r.optInt("mask",0)&3;
-        powerStatus.setText("الحالة: "+HazRobHardwareProfile.groupLabel(mask)+" • mask "+mask+" • يدوي");
+        boolean on=r!=null&&r.optBoolean("on",r.optInt("mask",0)!=0);
+        long ms=r==null?0:r.optLong("power_ms",0);
+        powerStatus.setText("الحالة: "+HazRobHardwareProfile.groupLabel(on?1:0)+" • GPIO25"+(on?" • "+ms+" ms":"")+" • يدوي");
     }
 
     private void refreshR0(){
@@ -590,6 +591,7 @@ public final class ExperimentsTab {
         JSONObject d=json(r.payload);
         JSONObject m=d.optJSONObject("measurement");
         JSONObject e=d.optJSONObject("env");
+        JSONObject relay=d.optJSONObject("relay");
         JSONObject a=json(r.analytics);
         int results=a.optJSONArray("results")==null?0:a.optJSONArray("results").length();
 
@@ -597,6 +599,7 @@ public final class ExperimentsTab {
                 .append("\nUTC: ").append(safe(r.ts))
                 .append("\nالبروتوكول: ").append(safe(r.protocol))
                 .append("\nHardware: ").append(d.optString("hardware_profile","legacy/unknown"))
+                .append("\nMQ Power: ").append(relay!=null&&relay.optBoolean("on",relay.optInt("mask",0)!=0)?"ON • GPIO25":"OFF • GPIO25")
                 .append("\nالاعتماد المرجعي: ").append(r.approved?"معتمد":"غير معتمد");
         if(r.approved)s.append("\nاعتمد: ").append(safe(r.approvedTs)).append("\nملف: ").append(safe(r.referenceName));
         String published=ReferencePublishAudit.latestStatus(host.database(),r.id);
