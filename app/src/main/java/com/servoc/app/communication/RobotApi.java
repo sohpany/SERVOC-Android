@@ -42,14 +42,10 @@ public final class RobotApi {
 
     public JSONObject config()throws Exception{RemoteConnection r=remote();if(r!=null){JSONObject a=r.command("config_get",new JSONObject(),3000,true,2500);JSONObject p=a.optJSONObject("payload");return p==null?new JSONObject():p;}return getJson("/cfg",1200);}
 
-    /** These endpoints intentionally remain local: they bootstrap the robot onto its 4G/WAN network. */
+    /** These endpoints intentionally remain local because they bootstrap or reset the robot WAN connection. */
     public JSONObject remoteStatus()throws Exception{return getJson("/remote/status",1800);}
     public JSONObject remoteProvision(String ssid,String password)throws Exception{return new JSONObject(postForm("/remote/provision","ssid="+enc(ssid)+"&password="+enc(password),3000));}
     public JSONObject remoteClear()throws Exception{return new JSONObject(postForm("/remote/clear","confirm=1",1500));}
-
-    /** Developer-only guest authorization. Works through the active remote session or locally over HazRob Wi-Fi. */
-    public void setGuestAccess(String token)throws Exception{RemoteConnection r=remote();if(r!=null){r.guestAccessSet(token);return;}postForm("/guest/access","token="+enc(token),1500);}
-    public void revokeGuestAccess()throws Exception{RemoteConnection r=remote();if(r!=null){r.guestAccessRevoke();return;}postForm("/guest/revoke","confirm=1",1500);}
 
     public JSONObject setConfig(String cameraIp,int speed,int neutralLeft,int neutralRight,int warmupSec,int measureSec)throws Exception{
         RemoteConnection r=remote();if(r!=null){JSONObject p=new JSONObject();p.put("cam",cameraIp==null?"":cameraIp);p.put("speed",speed);p.put("nl",neutralLeft);p.put("nr",neutralRight);p.put("warm",warmupSec);p.put("measure",measureSec);JSONObject a=r.command("config_set",p,4000,true,3000);JSONObject q=a.optJSONObject("payload");return q==null?p:q;}
@@ -62,7 +58,6 @@ public final class RobotApi {
     /** Authoritative HazRob 0.9 MQ power API: false/0=OFF, true/1=all eight MQ ON. */
     public void mqPower(boolean on)throws Exception{relayMask(on?1:0);}
     public void relay(int state)throws Exception{relayMask(state);}
-    /** Compatibility name retained for existing callers; values 2/3 are no longer valid. */
     public void relayMask(int mask)throws Exception{
         if(mask!=0&&mask!=1)throw new IllegalArgumentException("MQ power state must be 0 or 1");
         RemoteConnection r=remote();if(r!=null){r.relayMask(mask);return;}
