@@ -2,15 +2,15 @@
 
 This service is the Internet-facing JPEG relay for the ESP32-CAM remote path. Direct/local MJPEG on `192.168.4.2:81` remains independent.
 
-Selected deployment platform: **Railway** as a persistent Node.js WebSocket service. Railway provides the public TLS/WSS endpoint; HazRob keeps HiveMQ responsible for control and telemetry while this service handles camera JPEG frames only.
+Selected deployment platform: **Render** as a Node.js WebSocket web service. Render provides the public TLS/WSS endpoint; HazRob keeps HiveMQ responsible for control and telemetry while this service handles camera JPEG frames only.
 
 ## Endpoints
 
-- Publisher: `wss://<railway-domain>/hazrob/video/publish/hazrob-001`
-- Viewer: `wss://<railway-domain>/hazrob/video/view/hazrob-001`
-- Health: `https://<railway-domain>/health`
+- Publisher: `wss://<render-domain>/hazrob/video/publish/hazrob-001`
+- Viewer: `wss://<render-domain>/hazrob/video/view/hazrob-001`
+- Health: `https://<render-domain>/health`
 
-Publisher and viewer use separate Bearer tokens. Configure Railway service variables named:
+Publisher and viewer use separate Bearer tokens. Configure Render environment variables named:
 
 - `PUBLISH_TOKEN`
 - `VIEW_TOKEN`
@@ -25,7 +25,7 @@ Only binary JPEG frames are forwarded. Invalid JPEG payloads, oversized frames a
 
 Service restarts are expected during deployments. ESP32-CAM and Android clients must reconnect automatically; no video state is persisted on the server.
 
-## Railway deployment
+## Render deployment
 
 Repository: `sohpany/SERVOC-Android`
 
@@ -33,13 +33,21 @@ Branch: `dev/hazrob-0.9`
 
 Service root directory:
 
-`/remote/video-relay`
+`remote/video-relay`
 
-Railway Railpack detects the Node.js `package.json`. Start command is:
+Build command:
+
+`npm install`
+
+Start command:
 
 `npm start`
 
-Before the first production test, add the two service variables `PUBLISH_TOKEN` and `VIEW_TOKEN`, deploy, then generate a public Railway domain. Verify `/health` before provisioning the resulting hostname into the camera firmware and Android developer settings.
+Health check path:
+
+`/health`
+
+Before the first production test, add `PUBLISH_TOKEN` and `VIEW_TOKEN`, deploy, then verify the public Render URL at `/health` before provisioning the resulting hostname into the camera firmware and Android developer settings.
 
 The repository intentionally contains no production token, deployed hostname or private certificate material.
 
@@ -48,7 +56,7 @@ The repository intentionally contains no production token, deployed hostname or 
 Do not mark remote video field-ready until all of these succeed over the actual 4G path:
 
 1. ESP32-CAM reaches the relay through the selected modem/NAPT path.
-2. TLS validates the Railway hostname.
+2. TLS validates the Render hostname.
 3. Publisher authentication succeeds.
 4. Android viewer authentication succeeds.
 5. First JPEG frame is received.
