@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-/** HazRob 0.9 Render video profile. Public coordinates are pinned; secrets stay in a local ignored header. */
+/** HazRob Render video profile. Public coordinates are pinned; secrets stay in a local ignored header. */
 #if __has_include("RemoteVideoSecrets.h")
 #include "RemoteVideoSecrets.h"
 #endif
@@ -19,8 +19,8 @@ constexpr char BASE_PATH[]="/hazrob/video";
 constexpr char ROBOT_ID[]="hazrob-001";
 constexpr char PUBLISH_TOKEN[]=HAZROB_VIDEO_PUBLISH_TOKEN;
 constexpr char ROOT_CA[]=HAZROB_VIDEO_ROOT_CA;
-constexpr uint32_t FRAME_INTERVAL_MS=250; // ~4 FPS over cellular by default.
-constexpr uint32_t RETRY_MS=5000;
+constexpr uint32_t FRAME_INTERVAL_MS=100; // Target ~10 FPS; actual rate adapts to capture/network throughput.
+constexpr uint32_t RETRY_MS=2500;
 constexpr size_t MAX_JPEG=160*1024;
 inline bool configured(){return HOST[0]&&ROBOT_ID[0]&&PUBLISH_TOKEN[0]&&strstr(ROOT_CA,"BEGIN CERTIFICATE")!=nullptr;}
 }
