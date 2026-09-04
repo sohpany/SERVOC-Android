@@ -5,7 +5,7 @@ import static org.junit.Assert.*;
 
 public class ReleaseAuditTest {
     @Test public void v09KeepsCriticalCameraAndEvidenceContracts(){
-        assertEquals("0.9.0",ReleaseAudit.VERSION);
+        assertEquals("0.9.1",ReleaseAudit.VERSION);
         assertTrue(ReleaseAudit.VIDEO_RECORDING);
         assertTrue(ReleaseAudit.DIRECT_ESP_CAM_MJPEG);
         assertTrue(ReleaseAudit.CAMERA_ENDPOINT_FALLBACK);
