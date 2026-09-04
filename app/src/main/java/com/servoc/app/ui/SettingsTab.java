@@ -1,5 +1,8 @@
 package com.servoc.app.ui;
 
+import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Color;
 import android.text.InputType;
@@ -12,6 +15,7 @@ import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.camera.RemoteVideoCredentialStore;
+import com.servoc.app.communication.RemoteAccessPackage;
 import com.servoc.app.communication.RemoteCredentialStore;
 import com.servoc.app.communication.RemoteSessionManager;
 import com.servoc.app.hardware.HazRobHardwareProfile;
@@ -27,20 +31,20 @@ public final class SettingsTab {
     private static final String DEFAULT_BROKER="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud";
     private static final String DEFAULT_ROBOT_ID="hazrob-001";
     private static final String DEFAULT_APP_USER="hazrob_app";
-    private final Context context;private final HazRobHost host;private final ScrollView scroll;
+    private final Context context,uiContext;private final HazRobHost host;private final ScrollView scroll;
     private final EditText robot,camera,speed,nl,nr,warm,measure;
     private EditText brokerHost,brokerPort,robotId,brokerUser,brokerPass,videoUrl,videoToken;
     private final TextView compatibility,cameraState,libraryInfo;
 
     public SettingsTab(Context c,HazRobHost host){
-        this.context=c.getApplicationContext();this.host=host;ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
+        this.uiContext=c;this.context=c.getApplicationContext();this.host=host;ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
         LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
 
         LinearLayout net=UiKit.card(c);net.addView(UiKit.title(c,"الشبكة"),UiKit.full(c));robot=field(c,net,"ESP32",host.preferences().getString("robot","192.168.4.1"));camera=field(c,net,"ESP32-CAM",host.preferences().getString("camera","192.168.4.2"));LinearLayout netButtons=UiKit.hbox(c);Button saveNet=UiKit.button(c,"حفظ");saveNet.setOnClickListener(v->saveNetwork());netButtons.addView(saveNet,UiKit.weight(1));Button testNet=UiKit.button(c,"اختبار");testNet.setOnClickListener(v->testConnections());netButtons.addView(testNet,UiKit.weight(1));net.addView(netButtons,UiKit.full(c));cameraState=UiKit.small(c,"CAM —");cameraState.setBackgroundColor(0xFF151A20);net.addView(cameraState,UiKit.full(c));root.addView(net,UiKit.full(c));
 
         LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"الضبط"),UiKit.full(c));speed=field(c,cfg,"السرعة %",String.valueOf(host.preferences().getInt("speed",100)));nl=field(c,cfg,"Neutral L µs",String.valueOf(host.preferences().getInt("nl",1500)));nr=field(c,cfg,"Neutral R µs",String.valueOf(host.preferences().getInt("nr",1500)));warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
-        if("DEVELOPER".equals(host.operatorRole())){addRemoteDeveloperCard(c,root);addRemoteVideoDeveloperCard(c,root);}
+        if("DEVELOPER".equals(host.operatorRole())){addRemoteDeveloperCard(c,root);addRemoteVideoDeveloperCard(c,root);addAccessCard(c,root);}
 
         LinearLayout compat=UiKit.card(c);compat.addView(UiKit.title(c,"النظام"),UiKit.full(c));compatibility=UiKit.text(c,"Firmware —");compat.addView(compatibility,UiKit.full(c));root.addView(compat,UiKit.full(c));
 
@@ -56,6 +60,18 @@ public final class SettingsTab {
 
     private void addRemoteVideoDeveloperCard(Context c,LinearLayout root){
         LinearLayout remote=UiKit.card(c);remote.addView(UiKit.title(c,"Remote Video / WSS"),UiKit.full(c));videoUrl=field(c,remote,"Viewer WSS URL",host.preferences().getString("remote_video_url",""));videoToken=field(c,remote,"Bearer Token","");videoToken.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);Button save=UiKit.button(c,"حفظ آمن");save.setOnClickListener(v->saveRemoteVideoProfile());remote.addView(save,UiKit.full(c));root.addView(remote,UiKit.full(c));
+    }
+
+    private void addAccessCard(Context c,LinearLayout root){
+        LinearLayout card=UiKit.card(c);card.addView(UiKit.title(c,"مشاركة التحكم البعيد"),UiKit.full(c));Button make=UiKit.button(c,"إنشاء رمز وصول");make.setOnClickListener(v->showAccessCode());card.addView(make,UiKit.full(c));root.addView(card,UiKit.full(c));
+    }
+
+    private void showAccessCode(){
+        try{
+            String code=RemoteAccessPackage.exportCode(context,host.preferences());
+            EditText box=UiKit.input(uiContext,code);box.setSingleLine(false);box.setMinLines(3);box.setTextIsSelectable(true);box.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+            new AlertDialog.Builder(uiContext).setTitle("رمز وصول HazRob").setView(box).setNegativeButton("إغلاق",null).setPositiveButton("نسخ",(d,w)->{ClipboardManager cb=(ClipboardManager)context.getSystemService(Context.CLIPBOARD_SERVICE);if(cb!=null){cb.setPrimaryClip(ClipData.newPlainText("HazRob access",code));host.showToast("تم نسخ رمز الوصول");}}).show();
+        }catch(Exception e){host.showToast("احفظ بيانات MQTT وVideo أولًا");}
     }
 
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
