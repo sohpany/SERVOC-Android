@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 namespace Cfg{
-constexpr char FW[]="HazRob 0.9.0";
+constexpr char FW[]="HazRob 0.9.2-rc1";
 constexpr uint8_t API=4;
 constexpr char HW_PROFILE[]="hazrob-0.9-1r8mq-v1";
 
@@ -11,7 +11,9 @@ constexpr char NVS[]="servoc";
 constexpr char CAM[]="192.168.4.2";
 
 constexpr uint8_t SERVO_L=18,SERVO_R=19;
-constexpr uint32_t FAILSAFE=1000,RETRACE_MS=60000,LINK_LOSS_MS=15000,ADS_REPROBE_MS=3000;
+// A stale drive stream stops motion quickly. A true link loss enters a 3 s recovery hold;
+// if the link is still absent after the hold, MQ power is removed and retrace begins.
+constexpr uint32_t DRIVE_STALE_MS=600,LINK_DETECT_MS=1000,LINK_HOLD_MS=3000,RETRACE_MS=60000,ADS_REPROBE_MS=3000;
 constexpr float ACCEL=500.0f,DECEL=800.0f,REVERSE=1000.0f;
 constexpr int RETRACE_MAX_SPEED=40;
 
