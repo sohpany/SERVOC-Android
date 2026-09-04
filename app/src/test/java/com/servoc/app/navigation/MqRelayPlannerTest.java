@@ -7,49 +7,38 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class MqRelayPlannerTest {
-    @Test public void physicalGroupsMatchInstalledSensors(){
-        assertEquals(MqSensorAffinity.B_MQ2|MqSensorAffinity.B_MQ4|MqSensorAffinity.B_MQ5|MqSensorAffinity.B_MQ8,
-                MqRelayPlanner.GROUP1_SENSORS);
-        assertEquals(MqSensorAffinity.B_MQ3|MqSensorAffinity.B_MQ7|MqSensorAffinity.B_MQ9|MqSensorAffinity.B_MQ135,
-                MqRelayPlanner.GROUP2_SENSORS);
-        assertEquals(0,MqRelayPlanner.ROW3_SENSORS);
-        assertEquals(0,MqRelayPlanner.ROW4_SENSORS);
+    @Test public void hardwareProfileUsesOneRelayForAllEightMq(){
+        assertEquals("hazrob-0.9-1r8mq-v1",HazRobHardwareProfile.ID);
+        assertEquals(1,HazRobHardwareProfile.MQ_GROUPS);
+        assertEquals(1,HazRobHardwareProfile.RELAY_CHANNELS);
+        assertEquals(1,HazRobHardwareProfile.INSTALLED_RELAY_MASK);
+        assertEquals(8,HazRobHardwareProfile.MQ.length);
+        for(HazRobHardwareProfile.Channel c:HazRobHardwareProfile.MQ)assertEquals(1,c.relay);
     }
 
-    @Test public void everyCataloguePlanMatchesTheInstalledHardwareMapping(){
+    @Test public void everyCataloguePlanMatchesInstalledPowerMapping(){
         for(int i=0;i<ChemicalCatalog.COUNT;i++){
             int sensorMask=MqSensorAffinity.forChemical(i).mask;
             int expected=HazRobHardwareProfile.relayMaskForSensorMask(sensorMask);
             int actual=MqRelayPlanner.forChemical(i);
             assertEquals("chemical "+i+" sensorMask="+sensorMask,expected,actual);
+            assertTrue(actual==0||actual==1);
         }
     }
 
-    @Test public void representativeCrossGroupPlansRemainCrossGroup(){
-        assertEquals(MqRelayPlanner.R1|MqRelayPlanner.R2,MqRelayPlanner.forChemical(20));  // CO: primary + fingerprint channels span both groups
-        assertEquals(MqRelayPlanner.R1|MqRelayPlanner.R2,MqRelayPlanner.forChemical(75));  // H2: primary + fingerprint channels span both groups
-        assertEquals(MqRelayPlanner.R1|MqRelayPlanner.R2,MqRelayPlanner.forChemical(76));  // methane
-        assertEquals(MqRelayPlanner.R1|MqRelayPlanner.R2,MqRelayPlanner.forChemical(139)); // smoke
-    }
-
-    @Test public void everyCatalogueRecommendationUsesOnlyInstalledGroups(){
-        for(int i=0;i<ChemicalCatalog.COUNT;i++){
-            int mask=MqRelayPlanner.forChemical(i);
-            assertEquals("chemical "+i+" mask="+mask,0,mask&~MqRelayPlanner.INSTALLED_MASK);
-            assertTrue("chemical "+i+" mask="+mask,MqRelayPlanner.withinPowerBudget(mask));
+    @Test public void anyInstalledMqSensorRequestsPowerOn(){
+        for(HazRobHardwareProfile.Channel c:HazRobHardwareProfile.MQ){
+            assertEquals(1,HazRobHardwareProfile.relayMaskForSensorMask(1<<c.sensorId));
         }
+        assertEquals(0,HazRobHardwareProfile.relayMaskForSensorMask(0));
     }
 
-    @Test public void genericMappingNeverUsesReservedRelays(){
-        int allSensors=MqRelayPlanner.GROUP1_SENSORS|MqRelayPlanner.GROUP2_SENSORS;
-        assertEquals(MqRelayPlanner.R1|MqRelayPlanner.R2,MqRelayPlanner.fromSensorMask(allSensors));
-        assertTrue(MqRelayPlanner.withinPowerBudget(0));
-        assertTrue(MqRelayPlanner.withinPowerBudget(MqRelayPlanner.R1));
-        assertTrue(MqRelayPlanner.withinPowerBudget(MqRelayPlanner.R2));
-        assertTrue(MqRelayPlanner.withinPowerBudget(MqRelayPlanner.R1|MqRelayPlanner.R2));
-        assertFalse(MqRelayPlanner.withinPowerBudget(MqRelayPlanner.R1|MqRelayPlanner.R3));
-        assertFalse(MqRelayPlanner.withinPowerBudget(MqRelayPlanner.R3|MqRelayPlanner.R4));
-        assertEquals(HazRobHardwareProfile.groupLabel(MqRelayPlanner.R1|MqRelayPlanner.R2),
-                MqRelayPlanner.rowsLabel(MqRelayPlanner.R1|MqRelayPlanner.R2));
+    @Test public void onlyOffAndOnAreValidStates(){
+        assertTrue(MqRelayPlanner.withinPowerBudget(MqRelayPlanner.OFF));
+        assertTrue(MqRelayPlanner.withinPowerBudget(MqRelayPlanner.ON));
+        assertFalse(MqRelayPlanner.withinPowerBudget(2));
+        assertFalse(MqRelayPlanner.withinPowerBudget(3));
+        assertEquals("MQ Power OFF",MqRelayPlanner.rowsLabel(0));
+        assertEquals("MQ Power ON — 8 sensors",MqRelayPlanner.rowsLabel(1));
     }
 }
