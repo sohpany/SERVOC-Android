@@ -38,12 +38,30 @@ bool setCameraFlash(const String& mode){
 void ack(const String& session,uint64_t seq,const String& nonce,bool ok,const String& payload="{}",const String& error=""){String j="{\"session\":\""+esc(session)+"\",\"seq\":"+u64(seq)+",\"nonce\":\""+esc(nonce)+"\",\"ok\":"+(ok?"true":"false");if(!error.isEmpty())j+=",\"error\":\""+esc(error)+"\"";j+=",\"payload\":"+payload+"}";if(mqttPublish(ackTopic,j,false))acked=true;}
 
 void applyCommand(const String& j){
-  String session=jstr(j,"session"),nonce=jstr(j,"nonce"),type=jstr(j,"type");uint64_t seq=(uint64_t)jint(j,"seq",0);
+  String session=jstr(j,"session"),nonce=jstr(j,"nonce"),type=jstr(j,"type"),role=jstr(j,"role","developer");uint64_t seq=(uint64_t)jint(j,"seq",0);
   if(session.isEmpty()||nonce.isEmpty()||type.isEmpty()||!seq){ack(session,seq,nonce,false,"{}","invalid");return;}
   if(!fresh(j)){ack(session,seq,nonce,false,"{}","expired");return;}
   if(lastSession.isEmpty()){lastSession=session;lastSeq=0;}
   else if(session!=lastSession){if(type!="probe"){ack(session,seq,nonce,false,"{}","session");return;}lastSession=session;lastSeq=0;}
-  if(seq<=lastSeq){ack(session,seq,nonce,false,"{}","sequence");return;}lastSeq=seq;bool ok=true;String payload="{}";
+  if(seq<=lastSeq){ack(session,seq,nonce,false,"{}","sequence");return;}lastSeq=seq;
+
+  if(role=="guest"){
+    String access=jstr(j,"access","");
+    if(!guestAccessValid(access)){ack(session,seq,nonce,false,"{}","guest_access_revoked");return;}
+  }else if(role!="developer"){
+    ack(session,seq,nonce,false,"{}","role");return;
+  }
+
+  if(type=="guest_access_set"){
+    if(role!="developer"){ack(session,seq,nonce,false,"{}","developer_required");return;}
+    bool ok=guestAccessSet(jstr(j,"token",""));ack(session,seq,nonce,ok,"{}",ok?"":"invalid_guest_token");return;
+  }
+  if(type=="guest_access_revoke"){
+    if(role!="developer"){ack(session,seq,nonce,false,"{}","developer_required");return;}
+    guestAccessRevoke();ack(session,seq,nonce,true);return;
+  }
+
+  bool ok=true;String payload="{}";
   if(type=="probe"){linkHeartbeat();}
   else if(type=="drive"){int l=constrain((int)jint(j,"left",0),-100,100),r=constrain((int)jint(j,"right",0),-100,100);linkHeartbeat();driveSet(l,r);}
   else if(type=="motion_stop")motionStop();
