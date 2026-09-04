@@ -11,7 +11,6 @@ import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.communication.RemoteAccessPackage;
-import com.servoc.app.communication.RemoteSessionManager;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
@@ -53,19 +52,9 @@ public final class SettingsTab {
         LinearLayout row=UiKit.hbox(c);Button make=UiKit.button(c,"إنتاج كود تصريح");make.setOnClickListener(v->issueAccess());row.addView(make,UiKit.weight(1));Button cancel=UiKit.button(c,"إلغاء كود تصريح");cancel.setOnClickListener(v->revokeAccess());row.addView(cancel,UiKit.weight(1));card.addView(row,UiKit.full(c));root.addView(card,UiKit.full(c));
     }
 
-    private void issueAccess(){
-        host.io().execute(()->{
-            try{
-                new RemoteSessionManager(context,host.preferences()).probeTemporary();
-                String token=RemoteAccessPackage.newGuestToken();host.robotApi().setGuestAccess(token);RemoteAccessPackage.saveGuestToken(host.preferences(),token);
-                String code=RemoteAccessPackage.exportCode(context,host.preferences());new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{if(accessCode!=null)accessCode.setText(code);host.showToast("تم إنتاج كود التصريح");});
-            }catch(Exception e){host.showToast("تعذر إنتاج التصريح: تحقق من اتصال الروبوت بالإنترنت أو بشبكة HazRob");}
-        });
-    }
-
-    private void revokeAccess(){
-        host.io().execute(()->{try{host.robotApi().revokeGuestAccess();RemoteAccessPackage.clearGuestToken(host.preferences());new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{if(accessCode!=null)accessCode.setText("");host.showToast("تم إلغاء كود التصريح");});}catch(Exception e){host.showToast("تعذر إلغاء التصريح: الروبوت غير متصل");}});
-    }
+    /** Developer authorization is managed through the Internet and never depends on the local HazRob AP. */
+    private void issueAccess(){GuestAuthorizationUi.issue(context,host);}
+    private void revokeAccess(){GuestAuthorizationUi.withdraw(context,host);}
 
     private void refreshAccessCode(){
         if(accessCode==null)return;try{accessCode.setText(RemoteAccessPackage.present(context,host.preferences())?RemoteAccessPackage.exportCode(context,host.preferences()):"");}catch(Exception e){accessCode.setText("");}
