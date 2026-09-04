@@ -29,7 +29,7 @@ public final class RobotApi {
     public void motionStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.motionStop();return;}try{getText("/motion/stop",450);}catch(Exception e){getText("/stop",450);}}
     public void stop()throws Exception{motionStop();}
     public void emergencyStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.emergencyStop();return;}try{getText("/estop",650);}catch(Exception e){getText("/stop",650);}}
-    public void sensorPowerOff()throws Exception{RemoteConnection r=remote();if(r!=null){r.sensorOff();return;}try{getText("/sensor/off",650);}catch(Exception e){relayMask(0);}}
+    public void sensorPowerOff()throws Exception{RemoteConnection r=remote();if(r!=null){r.sensorOff();return;}try{getText("/sensor/off",650);}catch(Exception e){mqPower(false);}}
     public void heartbeat()throws Exception{RemoteConnection r=remote();if(r!=null){r.heartbeat();return;}getText("/heartbeat",500);}
     public void disarmHeartbeat()throws Exception{RemoteConnection r=remote();if(r!=null){r.command("heartbeat_disarm",new JSONObject(),2000,false,0);return;}getText("/heartbeat?arm=0",500);}
 
@@ -58,8 +58,17 @@ public final class RobotApi {
 
     public void startMeasurement()throws Exception{RemoteConnection r=remote();if(r!=null){r.startMeasurement();return;}getText("/measure?cmd=start",800);}
     public void cancelMeasurement()throws Exception{RemoteConnection r=remote();if(r!=null){r.cancelMeasurement();return;}getText("/measure?cmd=cancel",800);}
-    public void relay(int group)throws Exception{if(group<0||group>2)throw new IllegalArgumentException("installed MQ relay group 0..2");relayMask(group==0?0:1<<(group-1));}
-    public void relayMask(int mask)throws Exception{if(mask<0||mask>3)throw new IllegalArgumentException("installed MQ relay mask 0..3");RemoteConnection r=remote();if(r!=null){r.relayMask(mask);return;}getText("/relay?mask="+mask,800);}
+
+    /** Authoritative HazRob 0.9 MQ power API: false/0=OFF, true/1=all eight MQ ON. */
+    public void mqPower(boolean on)throws Exception{relayMask(on?1:0);}
+    public void relay(int state)throws Exception{relayMask(state);}
+    /** Compatibility name retained for existing callers; values 2/3 are no longer valid. */
+    public void relayMask(int mask)throws Exception{
+        if(mask!=0&&mask!=1)throw new IllegalArgumentException("MQ power state must be 0 or 1");
+        RemoteConnection r=remote();if(r!=null){r.relayMask(mask);return;}
+        getText("/relay?mask="+mask,800);
+    }
+
     public void cameraFlash(String mode)throws Exception{RemoteConnection r=remote();if(r==null)throw new IllegalStateException("remote session unavailable");r.cameraFlash(mode);}
     public JSONObject remoteCameraStatus(){RemoteConnection r=RemoteConnection.current();return r==null?null:r.cameraStatus();}
     private static String enc(String s)throws Exception{return URLEncoder.encode(s==null?"":s,StandardCharsets.UTF_8.name());}
