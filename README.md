@@ -1,58 +1,76 @@
 # HazRob Android
 
-HazRob is the Android operator, evidence and analytical application for the remote hazard-inspection robot.
+HazRob is the Android operator, evidence and analytical application for the HazRob remote hazard-inspection robot.
 
-## HazRob 0.6 core
+## HazRob 0.9 system
 
-- Android application: `com.servoc.app`, versionCode `8`, versionName `0.6.1`.
-- Master ESP32 firmware API v3 is intentionally compact and deterministic: drive, STOP/failsafe, relay control, MQ acquisition, BME/BMP acquisition, measurement sequencing and settings.
-- ESP32-CAM remains an independent camera/flash subsystem; Android receives one MJPEG stream and fans frames out internally to display, recording and experimental vision analysis.
-- Session role gate: normal `USER` mode and PIN-protected `DEVELOPER` mode. Developer experiments/calibration/reference-bank functions are absent from the normal-user UI.
-- One unified **Measurement & Analysis** workflow replaces the previous separate sensor/chemical/measurement tabs.
-- Offline-first SQLite schema v7 is no longer structurally limited to 144 chemicals; legacy IDs are retained only where old analytical models still require them.
-- Bundled pinned official datasets include 652 NIOSH CAS-index chemical identity records, 402 NIOSH IDLH records and 638 normalized OSHA Table Z-1 exposure-limit records, each with provenance and SHA-256 manifests.
-- Developer reference captures accept dynamic database UID, CAS or exact chemical name rather than being limited to the legacy 1–144 set.
-- MQ time-series, transient-feature extraction and sensor-health/drift support are available for validation workflows.
-- Camera recording converts ESP32-CAM MJPEG frames to H.264/MP4 on the phone, retains frame timing evidence and exports the finalized video to `Movies/HazRob`.
-- Experimental visual-flame evidence stores temporal confidence, region and event snapshots; it never commands the robot or validates gas PPM.
-- A compound-specific gas-direction assistant combines movement history with relevant MQ response changes to estimate a relative source bearing. It is advisory only and does not autonomously drive.
-- Approved developer experiments can be exported locally as immutable JSON records and optionally published directly to the dedicated GitHub `reference-bank` branch. The developer supplies a fine-grained token for the current session only; no GitHub credential is embedded or persisted by HazRob.
+- Android application: `com.servoc.app`, HazRob `0.9.0` development line.
+- Master ESP32 uses **HazRob API v4** and remains the authority for drive I/O, local safety behavior, MQ power, ADS acquisition and direct telemetry.
+- ESP32-CAM remains a separate camera subsystem at `192.168.4.2`, with local MJPEG and optional remote WSS video.
+- Local robot AP is `HazRob`; master ESP32 is `192.168.4.1`.
+- Android supports Direct Wi-Fi and secure remote MQTT/TLS operation.
+- USER and DEVELOPER workflows remain separated; developer mode exposes experiments, calibration, remote profiles and reference-bank tools.
 
-## Camera and evidence
+## Authoritative MQ hardware profile
 
-Camera display and flash remain independent of the master ESP32 control path. A single MJPEG connection feeds display, optional H.264/MP4 recording and experimental visual-flame analysis.
+Hardware profile: `hazrob-0.9-1r8mq-v1`.
 
-When media capture occurs during an active MQ measurement cycle, video and visual events reuse that measurement `session_id`, allowing later correlation with environmental, MQ and motion telemetry. Outside a measurement cycle, the media subsystem creates a separate evidence session. Vision evidence is not used to calculate compound identity, PPM or exposure limits.
+All eight installed MQ sensors share **one active-LOW power relay on GPIO25**. There are no separate R1/R2 MQ power banks in this profile.
 
-## Analytical validity
+- `0` = MQ Power OFF — all eight sensors/heaters off.
+- `1` = MQ Power ON — all eight sensors/heaters on.
+- Any relay state other than `0` or `1` is invalid.
 
-Chemical-knowledge coverage and MQ analytical coverage are separate. The presence of a chemical, exposure limit or hazard record in the database does not imply that the installed MQ array can identify or quantify it.
+ADS acquisition remains split independently of power:
 
-Legacy/default MQ `R0=10` values are not treated as physical reference-gas calibration. Quantitative PPM and exposure-risk interpretation require a suitable validated sensor/compound calibration path and domain checks. Otherwise HazRob reports identification/fingerprint/research evidence without fabricated PPM.
+- ADS1 `0x48`: MQ2=A0, MQ4=A1, MQ5=A2, MQ8=A3.
+- ADS2 `0x49`: MQ3=A0, MQ7=A1, MQ9=A2, MQ135=A3.
 
-## Current robot sensors
+GPIO26, GPIO27 and GPIO32 are not MQ relay channels in the authoritative 0.9 profile.
 
-Installed direct MQ channels: MQ-2, MQ-3, MQ-4, MQ-7, MQ-8 and MQ-135. MQ-5 and MQ-9 remain library expansion slots. BME280/BMP280 environmental acquisition is direct I²C and independent of MQ relay switching.
+The Android measurement UI, developer experiment UI, status display, MQTT command layer, PDF reports and XLSX reports all use the same single-relay model.
+
+## Other installed channels
+
+- MG995 continuous servo left: GPIO18.
+- MG995 continuous servo right: GPIO19.
+- MAX4466 microphone: GPIO36, electrical RMS and peak-to-peak only unless separately calibrated for dB SPL.
+- IR digital warning input: GPIO35, active LOW.
+- BME280/BMP280: I2C auto-detection at `0x76/0x77`.
+- GPIO33 / GPIO34 / GPIO39: reserved auxiliary inputs.
+
+## Measurement and analytical validity
+
+Firmware acquires physical signals; Android owns chemical evidence fusion, candidate ranking, calibration models, PPM interpretation, exposure references, time-series analysis and reporting.
+
+Default firmware `R0=10.0` values are placeholders and are not device-specific calibration. Quantitative PPM requires a validated sensor/compound calibration path. MQ7/MQ9 quantitative use additionally requires a validated heater protocol; shared 5 V ON/OFF power alone does not establish the manufacturer heater cycle.
+
+## Reports and traceability
+
+Saved sessions and exported reports record the unified MQ power state as **ON/OFF on GPIO25**, alongside the hardware profile, ADS status and measured data. Developer reference captures also record the shared MQ power topology and actual warm-up information.
+
+## Remote operation
+
+The master ESP32 preserves the HazRob AP while optionally joining a WAN/modem network as STA. When Internet readiness is validated it can provide NAPT to ESP32-CAM. Robot remote control uses MQTT/TLS; remote camera video uses the separate WSS relay path.
+
+MQ commands are strict on both paths: only `0` and `1` are accepted.
 
 ## Firmware source of truth
 
-The current compact master firmware is stored under `firmware/HazRob/` as four Arduino tabs:
+Master firmware is under `firmware/HazRob/`:
 
 - `HazRob.ino`
 - `Config.h`
 - `Hardware.h`
 - `Hardware.cpp`
+- remote connectivity tabs and protected local secret tab where applicable
 
-The local Wi-Fi SSID remains `Servoc` for compatibility with the existing ESP32-CAM setup. The project/application identity remains HazRob.
+ESP32-CAM firmware is maintained separately under `firmware/HazRob-CAM/`.
 
-## Scientific data and references
+## Scientific data and reference bank
 
-Scientific-library design, source provenance and the wider research bibliography are documented in `docs/SCIENTIFIC_LIBRARY_v0.6.md`, `docs/GAS_MODEL_RESEARCH.md` and `REFERENCES_APA.md`. Pinned dataset integrity is checked by CI before the APK build.
+Scientific identity/hazard coverage is not equivalent to analytical sensor coverage. Approved developer experiments can be exported as immutable reference-bank JSON records and optionally published to the dedicated GitHub reference-bank workflow. Production credentials are not committed to the repository.
 
-## Reference-bank publication
+## Power validation
 
-Only an already `APPROVED` developer experiment can be published. The GitHub destination is the `reference-bank` branch under `reference_bank/approved_experiments/`. Publication filenames are canonical and derived from immutable experiment identity/timestamp; the create request deliberately omits an existing-file SHA, so a duplicate path is rejected instead of silently overwriting an approved record. Repository credentials remain session-only input.
-
-## Deferred beyond 0.6
-
-4G/VPN transport, thermal sensing, physical MUX expansion, ESP-NOW nodes, autonomous plume-following and autonomous return-on-link-loss remain separate development layers. Motion history and gas-direction evidence are recorded in 0.6 as foundations for later navigation research, but the ESP32 local STOP/failsafe remains the authority on communication loss.
+All eight MQ heaters now start from the same relay. Validate the actual 5 V rail under simultaneous MQ load plus ESP32, ADS boards, camera and other loads. Servo and MQ heater current must not be routed through the ESP32 regulator or thin logic jumpers.
