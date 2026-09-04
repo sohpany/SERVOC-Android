@@ -65,9 +65,7 @@ public final class ConnectionGate {
     private void openRemote(){
         if(!developer){showUserRemote();return;}
         prefs.edit().putString("remote_operator_role","developer").apply();
-        RemoteSessionManager cloud=new RemoteSessionManager(a,prefs);
-        if(!cloud.serviceProfileConfigured()){status.setText("بيانات اتصال المطور البعيد غير مضبوطة على هذا الهاتف");status.setTextColor(0xFFEF6C00);showBack();return;}
-        connectRemote(cloud);
+        connectRemote(new RemoteSessionManager(a,prefs));
     }
 
     /** Ordinary-user remote entry: the authorization-code field appears only after choosing Internet control. */
