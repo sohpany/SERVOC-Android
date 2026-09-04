@@ -31,9 +31,7 @@ int64_t jint(const String& j,const char* key,int64_t def=0){int p=keyPos(j,key);
 
 bool fresh(const String& j){uint64_t sent=(uint64_t)jint(j,"sent_ms",0),ttlMs=(uint64_t)jint(j,"ttl_ms",0);if(!sent||!ttlMs)return false;time_t now=time(nullptr);if(now<1700000000)return false;uint64_t nowMs=(uint64_t)now*1000ULL;return sent<=nowMs+60000ULL&&nowMs<=sent+ttlMs;}
 
-bool setCameraFlash(const String& mode){
-  if(mode!="on"&&mode!="off")return false;String host=settings.cam;host.trim();if(host.isEmpty())host=Cfg::CAM;WiFiClient c;c.setTimeout(2);if(!c.connect(host.c_str(),80))return false;String req="GET /flash?mode="+mode+" HTTP/1.1\r\nHost: "+host+"\r\nConnection: close\r\n\r\n";c.print(req);c.flush();uint32_t until=millis()+2000;while((int32_t)(until-millis())>0&&!c.available()&&c.connected())delay(2);String line=c.available()?c.readStringUntil('\n'):"";c.stop();return line.indexOf(" 200 ")>=0;
-}
+bool setCameraFlash(const String& mode){if(mode!="on"&&mode!="off")return false;String host=settings.cam;host.trim();if(host.isEmpty())host=Cfg::CAM;WiFiClient c;c.setTimeout(2);if(!c.connect(host.c_str(),80))return false;String req="GET /flash?mode="+mode+" HTTP/1.1\r\nHost: "+host+"\r\nConnection: close\r\n\r\n";c.print(req);c.flush();uint32_t until=millis()+2000;while((int32_t)(until-millis())>0&&!c.available()&&c.connected())delay(2);String line=c.available()?c.readStringUntil('\n'):"";c.stop();return line.indexOf(" 200 ")>=0;}
 
 void ack(const String& session,uint64_t seq,const String& nonce,bool ok,const String& payload="{}",const String& error=""){String j="{\"session\":\""+esc(session)+"\",\"seq\":"+u64(seq)+",\"nonce\":\""+esc(nonce)+"\",\"ok\":"+(ok?"true":"false");if(!error.isEmpty())j+=",\"error\":\""+esc(error)+"\"";j+=",\"payload\":"+payload+"}";if(mqttPublish(ackTopic,j,false))acked=true;}
 
@@ -69,7 +67,7 @@ void applyCommand(const String& j){
   else if(type=="sensor_off")sensorPowerOff();
   else if(type=="heartbeat")linkHeartbeat();
   else if(type=="heartbeat_disarm")linkSetArmed(false);
-  else if(type=="relay"){linkHeartbeat();ok=relaySetMask((uint8_t)jint(j,"mask",0)&Cfg::MQ_INSTALLED_MASK);}
+  else if(type=="relay"){linkHeartbeat();int64_t v=jint(j,"mask",-1);ok=(v==0||v==1)&&relaySetMask((uint8_t)v);}
   else if(type=="measure_start"){linkHeartbeat();measureStart();}
   else if(type=="measure_cancel")measureCancel();
   else if(type=="camera_flash"){String mode=jstr(j,"mode","off");ok=setCameraFlash(mode);payload="{\"mode\":\""+esc(mode)+"\"}";}
