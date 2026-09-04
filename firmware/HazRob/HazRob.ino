@@ -9,6 +9,13 @@ uint32_t wifiAt=0;
 bool naptEnabled=false;
 
 void reply(int c,const char* s){web.send(c,"text/plain",s);}
+String jsonEsc(const String& s){String o;o.reserve(s.length()+8);for(size_t i=0;i<s.length();i++){char c=s[i];if(c=='\\'||c=='\"'){o+='\\';o+=c;}else if((uint8_t)c>=0x20)o+=c;}return o;}
+String wifiScanJson(){
+  int n=WiFi.scanNetworks(false,true,false,300);
+  String j="{\"networks\":[";
+  if(n>0){for(int i=0;i<n;i++){if(i)j+=",";j+="{\"ssid\":\""+jsonEsc(WiFi.SSID(i))+"\",\"rssi\":"+String(WiFi.RSSI(i))+",\"secure\":"+(WiFi.encryptionType(i)==WIFI_AUTH_OPEN?"false":"true")+",\"channel\":"+String(WiFi.channel(i))+"}";}}
+  j+="]}";WiFi.scanDelete();return j;
+}
 void startAP(){
   WiFi.persistent(false);WiFi.mode(WIFI_AP_STA);WiFi.setSleep(false);
   IPAddress ip(192,168,4,1),subnet(255,255,255,0),dhcpStart(192,168,4,100);
@@ -30,6 +37,7 @@ void setup(){
   web.on("/heartbeat",[]{if(web.hasArg("arm")&&web.arg("arm")=="0"){linkSetArmed(false);reply(200,"DISARMED");return;}linkHeartbeat();reply(200,"OK");});
 
   web.on("/remote/status",HTTP_GET,[]{String j=remoteStatusJson();if(j.endsWith("}")){j.remove(j.length()-1);j+=",\"napt\":";j+=naptEnabled?"true":"false";j+="}";}web.send(200,"application/json",j);});
+  web.on("/remote/scan",HTTP_GET,[]{web.send(200,"application/json",wifiScanJson());});
   web.on("/remote/provision",HTTP_POST,[]{if(!web.hasArg("ssid")||!web.hasArg("password")){web.send(400,"application/json","{\"ok\":false,\"error\":\"missing_fields\"}");return;}bool ok=remoteProvision(web.arg("ssid"),web.arg("password"));web.send(ok?200:400,"application/json",ok?"{\"ok\":true}":"{\"ok\":false,\"error\":\"invalid_credentials_format\"}");});
   web.on("/remote/clear",HTTP_POST,[]{if(!web.hasArg("confirm")||web.arg("confirm")!="1"){web.send(400,"application/json","{\"ok\":false}");return;}remoteMqttDisconnect();if(naptEnabled)WiFi.AP.enableNAPT(false);naptEnabled=false;remoteClear();web.send(200,"application/json","{\"ok\":true}");});
 
