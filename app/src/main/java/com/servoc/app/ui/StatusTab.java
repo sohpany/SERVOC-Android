@@ -35,12 +35,12 @@ public final class StatusTab {
         int warm=Math.max(0,host.preferences().getInt("warm",60)),analysis=Math.max(0,host.preferences().getInt("measure",30));
         science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native\nTiming   Warm "+warm+" s   •   Analysis "+analysis+" s   •   Tracking CONTINUOUS");
         JSONObject d=host.latestDiagnostics();
-        if(d==null){master.setText("Master ESP32   ● OFFLINE");master.setTextColor(0xFFFF7043);renderNetwork(null);hardware.setText("ADS / ENV / Relay   —");sensors.setText("MQ   —");renderCamera();return;}
-        master.setText("Master ESP32   ● ONLINE\nFirmware   "+d.optString("firmware","HazRob")+"\nAPI   "+d.optInt("api_version",0)+"\nHeap   "+d.optLong("heap",0)+" B");master.setTextColor(0xFF81C784);
+        if(d==null){master.setText("Master ESP32   ● OFFLINE");master.setTextColor(0xFFFF7043);renderNetwork(null);hardware.setText("ADS / ENV / MQ Power   —");sensors.setText("MQ   —");renderCamera();return;}
+        master.setText("Master ESP32   ● ONLINE\nFirmware   "+d.optString("firmware","HazRob")+"\nAPI   "+d.optInt("api_version",0)+"\nProfile   "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"\nHeap   "+d.optLong("heap",0)+" B");master.setTextColor(0xFF81C784);
         renderNetwork(d);
-        JSONObject adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay"),env=d.optJSONObject("env");int mask=relay==null?0:relay.optInt("mask",0)&3;
-        hardware.setText("ADS1 0x48   "+ok(adc!=null&&adc.optBoolean("ads1",false))+"\nADS2 0x49   "+ok(adc!=null&&adc.optBoolean("ads2",false))+"\nR1   "+on((mask&1)!=0)+"   R2   "+on((mask&2)!=0)+"\nENV   "+ok(env!=null&&env.optBoolean("ok",false)));
-        JSONObject mq=d.optJSONObject("mq");StringBuilder s=new StringBuilder();for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){if(s.length()>0)s.append('\n');SensorHealthEngine.Snapshot h=host.sensorHealth(hw.key);JSONObject r=mq==null?null:mq.optJSONObject(hw.key);boolean valid=r!=null&&r.optBoolean("valid",r.optBoolean("ok",false));boolean calibrated=r==null||r.optBoolean("manual_calibration_confirmed",true);s.append(hw.key.toUpperCase(Locale.US)).append("   R").append(hw.relay).append("   ").append(valid?"● SIGNAL   ":"○ —   ").append(SensorHealthEngine.stateAr(h.state)).append(calibrated?"   •   CAL ●":"   •   CAL —");}sensors.setText(s.toString());
+        JSONObject adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay"),env=d.optJSONObject("env");boolean mqOn=relay!=null&&(relay.optBoolean("on",false)||relay.optInt("mask",0)!=0);
+        hardware.setText("ADS1 0x48   "+ok(adc!=null&&adc.optBoolean("ads1",false))+"\nADS2 0x49   "+ok(adc!=null&&adc.optBoolean("ads2",false))+"\nMQ POWER GPIO25   "+on(mqOn)+"   •   8 sensors\nENV   "+ok(env!=null&&env.optBoolean("ok",false)));
+        JSONObject mq=d.optJSONObject("mq");StringBuilder s=new StringBuilder();for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){if(s.length()>0)s.append('\n');SensorHealthEngine.Snapshot h=host.sensorHealth(hw.key);JSONObject r=mq==null?null:mq.optJSONObject(hw.key);boolean valid=r!=null&&r.optBoolean("valid",r.optBoolean("ok",false));boolean calibrated=r==null||r.optBoolean("manual_calibration_confirmed",true);s.append(hw.key.toUpperCase(Locale.US)).append("   ADS").append(hw.ads).append(" A").append(hw.adcChannel).append("   ").append(valid?"● SIGNAL   ":"○ —   ").append(SensorHealthEngine.stateAr(h.state)).append(calibrated?"   •   CAL ●":"   •   CAL —");}sensors.setText(s.toString());
         renderCamera();long now=SystemClock.elapsedRealtime();if(now-cameraProbeAt>5000){cameraProbeAt=now;if(remoteMode()){cameraSnapshot=host.robotApi().remoteCameraStatus();scroll.post(this::renderCamera);}else host.io().execute(()->{JSONObject q=null;try{q=host.cameraDiagnostics();}catch(Exception ignored){}cameraSnapshot=q;scroll.post(this::renderCamera);});}
     }
 
@@ -58,7 +58,7 @@ public final class StatusTab {
         JSONObject cam=cameraSnapshot;
         if(remoteMode()){
             if(cam!=null){camera.setText("ESP32-CAM / REMOTE   "+(cam.optBoolean("online",cam.optBoolean("ok",false))?"● ONLINE":"○ —")+"\nWSS   "+(host.preferences().getString("remote_video_url","").isEmpty()?"NOT CONFIGURED":"CONFIGURED"));}
-            else camera.setText("ESP32-CAM / REMOTE\nWSS   "+(host.preferences().getString("remote_video_url","").isEmpty()?"○ NOT CONFIGURED":"● CONFIGURED")+"\nRelay status   —");
+            else camera.setText("ESP32-CAM / REMOTE\nWSS   "+(host.preferences().getString("remote_video_url","").isEmpty()?"○ NOT CONFIGURED":"● CONFIGURED")+"\nCamera status   —");
             return;
         }
         if(cam!=null)camera.setText("ESP32-CAM   "+(cam.optBoolean("camera_ok",cam.optBoolean("ok",true))?"● ONLINE":"● ERROR")+"\nFW   "+cam.optString("fw","—")+"\nFPS   "+String.format(Locale.US,"%.1f",cam.optDouble("fps",0))+"\nRSSI   "+cam.optInt("rssi",0)+" dBm");else camera.setText("ESP32-CAM   ○ OFFLINE");
