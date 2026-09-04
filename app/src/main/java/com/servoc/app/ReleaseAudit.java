@@ -3,7 +3,7 @@ package com.servoc.app;
 /** Build markers for the HazRob 0.9 API4 development release. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.9.0";
+    public static final String VERSION="0.9.1";
     public static final int DATABASE_SCHEMA=7;
     public static final String ESP32_API="HazRob API v4 / single MQ power relay / dual ADS recovery / remote-ready transport";
 
@@ -40,7 +40,6 @@ public final class ReleaseAudit {
     public static final boolean REMOTE_MQTT_TLS=true;
     public static final boolean REMOTE_WSS_VIDEO=true;
 
-    // Compatibility markers retained for regression tests and legacy audit consumers.
     public static final boolean TWO_MQ_POWER_BANKS=false;
     public static final boolean FOUR_MQ_RELAY_ROWS=false;
     public static final boolean MANUAL_MQ_WARMUP_SETTING=true;
