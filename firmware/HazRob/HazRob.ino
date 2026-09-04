@@ -37,9 +37,11 @@ void setup(){
   web.on("/sensor/off",[]{sensorPowerOff();reply(200,"OK");});
   web.on("/heartbeat",[]{if(web.hasArg("arm")&&web.arg("arm")=="0"){linkSetArmed(false);reply(200,"DISARMED");return;}linkHeartbeat();reply(200,"OK");});
 
-  web.on("/remote/status",HTTP_GET,[]{String j=remoteStatusJson();if(j.endsWith("}")){j.remove(j.length()-1);j+=",\"napt\":";j+=naptEnabled?"true":"false";j+="}";}web.send(200,"application/json",j);});
+  web.on("/remote/status",HTTP_GET,[]{String j=remoteStatusJson();if(j.endsWith("}")){j.remove(j.length()-1);j+=",\"napt\":";j+=naptEnabled?"true":"false";j+=",\"guest_access\":";j+=guestAccessEnabled()?"true":"false";j+="}";}web.send(200,"application/json",j);});
   web.on("/remote/provision",HTTP_POST,[]{if(!web.hasArg("ssid")||!web.hasArg("password")){web.send(400,"application/json","{\"ok\":false,\"error\":\"missing_fields\"}");return;}bool ok=remoteProvision(web.arg("ssid"),web.arg("password"));web.send(ok?200:400,"application/json",ok?"{\"ok\":true}":"{\"ok\":false,\"error\":\"invalid_credentials_format\"}");});
   web.on("/remote/clear",HTTP_POST,[]{if(!web.hasArg("confirm")||web.arg("confirm")!="1"){web.send(400,"application/json","{\"ok\":false}");return;}remoteMqttDisconnect();if(naptEnabled)WiFi.AP.enableNAPT(false);naptEnabled=false;remoteClear();web.send(200,"application/json","{\"ok\":true}");});
+  web.on("/guest/access",HTTP_POST,[]{if(!web.hasArg("token")){web.send(400,"application/json","{\"ok\":false,\"error\":\"missing_token\"}");return;}bool ok=guestAccessSet(web.arg("token"));web.send(ok?200:400,"application/json",ok?"{\"ok\":true}":"{\"ok\":false,\"error\":\"invalid_token\"}");});
+  web.on("/guest/revoke",HTTP_POST,[]{if(!web.hasArg("confirm")||web.arg("confirm")!="1"){web.send(400,"application/json","{\"ok\":false}");return;}guestAccessRevoke();web.send(200,"application/json","{\"ok\":true}");});
 
   web.on("/relay",[]{uint8_t mask=0;if(web.hasArg("mask")){int v=web.arg("mask").toInt();if(v<0||v>Cfg::MQ_INSTALLED_MASK)return reply(409,"ONLY R1/R2 ARE INSTALLED MQ GROUPS");mask=(uint8_t)v;}else if(web.hasArg("g")){int g=web.arg("g").toInt();if(g<0||g>2)return reply(409,"ONLY R1/R2 ARE INSTALLED MQ GROUPS");mask=g==0?0:(uint8_t)(1U<<(g-1));}else return reply(400,"BAD");if(!relaySetMask(mask))return reply(409,"RELAY MASK REJECTED");reply(200,"OK");});
   web.on("/measure",[]{String c=web.arg("cmd");if(c=="start")measureStart();else if(c=="cancel")measureCancel();else return reply(400,"BAD");reply(200,"OK");});
