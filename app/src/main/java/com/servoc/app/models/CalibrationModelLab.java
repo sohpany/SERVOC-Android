@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/** Reads controlled reference captures and evaluates the native calibration candidates for one MQ channel. */
+/** Evaluates model candidates only against APPROVED, averaged, session-linked calibration experiments. */
 public final class CalibrationModelLab {
     private CalibrationModelLab(){}
 
@@ -23,7 +23,7 @@ public final class CalibrationModelLab {
 
     public static Report evaluate(ExperimentsDb db,long chemicalUid,String sensorKey){
         List<Double> x=new ArrayList<>(),y=new ArrayList<>();Set<String> levels=new HashSet<>();
-        String sql="SELECT known_ppm,sensor_payload FROM captures WHERE chemical_uid=? AND known_ppm IS NOT NULL AND known_ppm>0 ORDER BY id";
+        String sql="SELECT e.known_ppm,c.sensor_payload FROM experiments e JOIN captures c ON c.id=e.capture_id WHERE e.chemical_uid=? AND e.reference_kind='calibration' AND e.approved=1 AND c.phase='ready_average' AND e.known_ppm IS NOT NULL AND e.known_ppm>0 ORDER BY e.id";
         try(Cursor c=db.getReadableDatabase().rawQuery(sql,new String[]{String.valueOf(chemicalUid)})){
             while(c.moveToNext()){
                 double ppm=c.getDouble(0);String payload=c.getString(1);try{JSONObject root=new JSONObject(payload);JSONObject q=root.optJSONObject(sensorKey);if(q==null)continue;double ratio=q.optDouble("ratio",Double.NaN);if(!Double.isFinite(ratio)||ratio<=0||!Double.isFinite(ppm)||ppm<=0)continue;x.add(ratio);y.add(ppm);levels.add(String.format(java.util.Locale.US,"%.9g",ppm));}catch(Exception ignored){}
