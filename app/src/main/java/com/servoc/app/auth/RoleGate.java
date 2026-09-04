@@ -19,6 +19,14 @@ public final class RoleGate {
     public static final String DEVELOPER_PIN="1166";
 
     public static View build(Activity a,Listener listener){
+        // EntryActivity authenticates the role before transport selection. MainActivity receives that
+        // authenticated role and must not ask the operator a second time.
+        if(a.getIntent()!=null&&a.getIntent().hasExtra("developer_mode")){
+            LinearLayout placeholder=new LinearLayout(a);placeholder.setBackgroundColor(0xFF0A0D11);
+            boolean developer=a.getIntent().getBooleanExtra("developer_mode",false);
+            placeholder.post(()->{if(developer)listener.onDeveloper();else listener.onUser();});
+            return placeholder;
+        }
         LinearLayout root=new LinearLayout(a);root.setOrientation(LinearLayout.VERTICAL);root.setGravity(Gravity.CENTER);root.setPadding(dp(a,28),dp(a,28),dp(a,28),dp(a,28));root.setBackgroundColor(0xFF0A0D11);root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
         TextView title=new TextView(a);title.setText("HazRob");title.setTextSize(31);title.setTextColor(Color.WHITE);title.setGravity(Gravity.CENTER);title.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);root.addView(title,new LinearLayout.LayoutParams(-1,-2));
         TextView sub=new TextView(a);sub.setText("روبوت فحص وتحليل المخاطر عن بُعد\nاختر نمط الدخول");sub.setTextSize(15);sub.setTextColor(0xFFB0BEC5);sub.setGravity(Gravity.CENTER);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.setMargins(0,dp(a,8),0,dp(a,28));root.addView(sub,sp);
