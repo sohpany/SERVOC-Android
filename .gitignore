@@ -13,3 +13,5 @@
 *.jks
 *.keystore
 keystore.properties
+firmware/HazRob/RemoteCloudSecrets.h
+firmware/HazRob-CAM/RemoteVideoSecrets.h
