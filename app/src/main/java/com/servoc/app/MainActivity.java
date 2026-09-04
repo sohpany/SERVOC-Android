@@ -17,7 +17,6 @@ import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.servoc.app.auth.RoleGate;
 import com.servoc.app.camera.CameraApi;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.chemical.ChemicalSeedBootstrap;
@@ -33,7 +32,7 @@ import com.servoc.app.navigation.MotionHistory;
 import com.servoc.app.report.ReferenceBankExporter;
 import com.servoc.app.report.ReportExporter;
 import com.servoc.app.ui.ControlTab;
-import com.servoc.app.ui.ExperimentsTab;
+import com.servoc.app.ui.DeveloperTab;
 import com.servoc.app.ui.HazRobHost;
 import com.servoc.app.ui.MeasurementsTab;
 import com.servoc.app.ui.SettingsTab;
@@ -45,7 +44,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
@@ -53,7 +51,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/** HazRob 0.9 coordinator. Motion safety, MQ power and application lifecycle are independent. */
+/** HazRob 0.9.1 coordinator. Direct and Remote are transports for the same operator workspace. */
 public final class MainActivity extends Activity implements HazRobHost {
     private static final int EXPORT_XLSX=8101,EXPORT_PDF=8102,EXPORT_REFERENCE=8103,EXPORT_RAW=8104;
     private final Handler ui=new Handler(Looper.getMainLooper());
@@ -64,24 +62,29 @@ public final class MainActivity extends Activity implements HazRobHost {
     private volatile JSONObject latestDiag;private volatile int left=0,right=0;private volatile boolean foreground=false;private volatile String flashMode="off";
     private volatile int trackingTarget=-1;private volatile String trackingName="";
     private boolean developerMode=false,entered=false,commsScheduled=false;private FrameLayout page;private TextView globalStatus;private Button[] tabButtons;private int selectedTab=0;private long pendingExperimentId=-1;
-    private ControlTab controlTab;private MeasurementsTab measurementsTab;private StatusTab statusTab;private ExperimentsTab experimentsTab;private SettingsTab settingsTab;private View[] tabViews;
+    private ControlTab controlTab;private MeasurementsTab measurementsTab;private StatusTab statusTab;private SettingsTab settingsTab;private DeveloperTab developerTab;private View[] tabViews;
 
     @Override public void onCreate(Bundle b){
         super.onCreate(b);prefs=getSharedPreferences("servoc",MODE_PRIVATE);robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));flashMode="on".equals(prefs.getString("flash_mode","off"))?"on":"off";trackingTarget=prefs.getInt("tracking_id",-1);trackingName=prefs.getString("tracking_name","");db=new ExperimentsDb(this);telemetryRecorder=new TelemetryRecorder(db);loadSensorBaselines();
+        String mode=getIntent()==null?null:getIntent().getStringExtra("connection_mode");if(mode!=null&&!mode.trim().isEmpty())prefs.edit().putString("connection_mode",mode).apply();
         workers.execute(()->{ChemicalSeedBootstrap.ensureNiosh(getApplicationContext(),db);ExposureSeedBootstrap.ensureOshaZ1(getApplicationContext(),db);ui.post(this::refreshAllTabs);});
-        setContentView(RoleGate.build(this,new RoleGate.Listener(){@Override public void onUser(){enter(false);}@Override public void onDeveloper(){enter(true);}}));
+        enter();
     }
 
     private void loadSensorBaselines(){for(String key:SensorHealthEngine.INSTALLED){String v=db.getMeta("health_baseline_"+key,"");try{double q=Double.parseDouble(v);if(Double.isFinite(q)&&q>0)sensorHealth.setBaseline(key,q);}catch(Exception ignored){}}}
-    private void enter(boolean developer){developerMode=developer;entered=true;buildTabs();setContentView(buildShell());showTab(0);scheduleComms();startLinkService();if(foreground)controlTab.startCamera();}
-    private void buildTabs(){controlTab=new ControlTab(this,this);measurementsTab=new MeasurementsTab(this,this);statusTab=new StatusTab(this,this);settingsTab=new SettingsTab(this,this);if(developerMode){experimentsTab=new ExperimentsTab(this,this);tabViews=new View[]{controlTab.view(),measurementsTab.view(),statusTab.view(),experimentsTab.view(),settingsTab.view()};}else{experimentsTab=null;tabViews=new View[]{controlTab.view(),measurementsTab.view(),statusTab.view(),settingsTab.view()};}}
-
-    private View buildShell(){
-        LinearLayout root=UiKit.vbox(this);root.setBackgroundColor(0xFF0A0D11);root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);LinearLayout header=UiKit.hbox(this);header.setPadding(UiKit.dp(this,8),UiKit.dp(this,4),UiKit.dp(this,8),UiKit.dp(this,2));TextView title=UiKit.title(this,"HazRob "+ReleaseAudit.VERSION+" • "+(developerMode?"المطور":"المستخدم"));title.setTextColor(Color.WHITE);header.addView(title,new LinearLayout.LayoutParams(0,-2,1f));globalStatus=UiKit.small(this,"غير متصل");globalStatus.setTextColor(0xFFFFB74D);globalStatus.setGravity(Gravity.END);header.addView(globalStatus,new LinearLayout.LayoutParams(-2,-2));root.addView(header,UiKit.full(this));
-        HorizontalScrollView tabsScroll=new HorizontalScrollView(this);tabsScroll.setHorizontalScrollBarEnabled(false);LinearLayout tabs=UiKit.hbox(this);String[] names=developerMode?new String[]{"القيادة","القياسات","الحالة","التجارب والمعايرة","الإعدادات"}:new String[]{"القيادة","القياسات","الحالة","الإعدادات"};tabButtons=new Button[names.length];for(int i=0;i<names.length;i++){final int x=i;Button bt=UiKit.button(this,names[i]);bt.setTextSize(12);bt.setOnClickListener(v->showTab(x));tabButtons[i]=bt;tabs.addView(bt,new LinearLayout.LayoutParams(UiKit.dp(this,developerMode&&i==3?145:110),UiKit.dp(this,44)));}tabsScroll.addView(tabs);root.addView(tabsScroll,new LinearLayout.LayoutParams(-1,-2));page=new FrameLayout(this);root.addView(page,new LinearLayout.LayoutParams(-1,0,1f));TextView footer=UiKit.small(this,"HazRob 0.9.0 • تصميم المستشار/ شهاب الصهباني.");footer.setTextSize(10);footer.setGravity(Gravity.CENTER);footer.setTextColor(0xFF607D8B);root.addView(footer,new LinearLayout.LayoutParams(-1,-2));return root;
+    private void enter(){entered=true;buildTabs();setContentView(buildShell());showTab(0);scheduleComms();startLinkService();if(foreground)controlTab.startCamera();}
+    private void buildTabs(){
+        controlTab=new ControlTab(this,this);measurementsTab=new MeasurementsTab(this,this);statusTab=new StatusTab(this,this);settingsTab=new SettingsTab(this,this);
+        developerTab=new DeveloperTab(this,this,()->{developerMode=true;refreshAllTabs();});
+        tabViews=new View[]{controlTab.view(),measurementsTab.view(),statusTab.view(),settingsTab.view(),developerTab.view()};
     }
 
-    private void showTab(int index){if(!entered||index<0||index>=tabViews.length)return;if(selectedTab==0&&index!=0)controlTab.stopCamera();selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}if(index==0&&foreground)controlTab.startCamera();refreshVisibleTab();}
+    private View buildShell(){
+        LinearLayout root=UiKit.vbox(this);root.setBackgroundColor(0xFF0A0D11);root.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);LinearLayout header=UiKit.hbox(this);header.setPadding(UiKit.dp(this,8),UiKit.dp(this,4),UiKit.dp(this,8),UiKit.dp(this,2));String mode="remote".equalsIgnoreCase(prefs.getString("connection_mode","direct"))?"عن بُعد":"مباشر";TextView title=UiKit.title(this,"HazRob "+ReleaseAudit.VERSION+" • "+mode);title.setTextColor(Color.WHITE);header.addView(title,new LinearLayout.LayoutParams(0,-2,1f));globalStatus=UiKit.small(this,"غير متصل");globalStatus.setTextColor(0xFFFFB74D);globalStatus.setGravity(Gravity.END);header.addView(globalStatus,new LinearLayout.LayoutParams(-2,-2));root.addView(header,UiKit.full(this));
+        HorizontalScrollView tabsScroll=new HorizontalScrollView(this);tabsScroll.setHorizontalScrollBarEnabled(false);LinearLayout tabs=UiKit.hbox(this);String[] names={"القيادة","القياسات","الحالة","الإعدادات","المطور"};tabButtons=new Button[names.length];for(int i=0;i<names.length;i++){final int x=i;Button bt=UiKit.button(this,names[i]);bt.setTextSize(12);bt.setOnClickListener(v->showTab(x));tabButtons[i]=bt;tabs.addView(bt,new LinearLayout.LayoutParams(UiKit.dp(this,110),UiKit.dp(this,44)));}tabsScroll.addView(tabs);root.addView(tabsScroll,new LinearLayout.LayoutParams(-1,-2));page=new FrameLayout(this);root.addView(page,new LinearLayout.LayoutParams(-1,0,1f));TextView footer=UiKit.small(this,"HazRob "+ReleaseAudit.VERSION+" • تصميم المستشار/ شهاب الصهباني.");footer.setTextSize(10);footer.setGravity(Gravity.CENTER);footer.setTextColor(0xFF607D8B);root.addView(footer,new LinearLayout.LayoutParams(-1,-2));return root;
+    }
+
+    private void showTab(int index){if(!entered||index<0||index>=tabViews.length)return;if(selectedTab==0&&index!=0)controlTab.stopCamera();selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}if(index==4&&!developerTab.isUnlocked())developerTab.requestUnlock();if(index==0&&foreground)controlTab.startCamera();refreshVisibleTab();}
 
     private void scheduleComms(){
         if(commsScheduled)return;commsScheduled=true;
@@ -89,9 +92,9 @@ public final class MainActivity extends Activity implements HazRobHost {
         workers.scheduleAtFixedRate(()->{if(!entered)return;try{JSONObject snap=robotApi.snapshot(left,right);latestDiag=snap;sensorHealth.accept(snap,SystemClock.elapsedRealtime());telemetryRecorder.accept(snap,left,right,developerMode);ui.post(this::onTelemetryUpdated);}catch(Exception e){latestDiag=null;ui.post(this::onTelemetryUpdated);}},0,500,TimeUnit.MILLISECONDS);
     }
     private void onTelemetryUpdated(){JSONObject d=latestDiag;if(globalStatus==null)return;if(d==null){globalStatus.setText("غير متصل");globalStatus.setTextColor(0xFFFFB74D);}else{JSONObject ir=d.optJSONObject("ir"),drv=d.optJSONObject("drive");boolean warn=ir!=null&&ir.optBoolean("warning",false),back=drv!=null&&drv.optBoolean("retrace",false);globalStatus.setText("متصل"+(back?" • عودة":warn?" • ⚠ IR":""));globalStatus.setTextColor(back?0xFFFFB74D:warn?0xFFFF7043:0xFF81C784);}refreshVisibleTab();}
-    private void refreshVisibleTab(){if(!entered)return;if(selectedTab==0)controlTab.refresh();else if(selectedTab==1)measurementsTab.refresh();else if(selectedTab==2)statusTab.refresh();else if(developerMode&&selectedTab==3)experimentsTab.refresh();else settingsTab.refresh();}
+    private void refreshVisibleTab(){if(!entered)return;if(selectedTab==0)controlTab.refresh();else if(selectedTab==1)measurementsTab.refresh();else if(selectedTab==2)statusTab.refresh();else if(selectedTab==3)settingsTab.refresh();else if(selectedTab==4)developerTab.refresh();}
 
-    @Override protected void onResume(){super.onResume();WifiRoute.bindConnectedWifi(this);foreground=true;if(entered){startLinkService();if(selectedTab==0)controlTab.startCamera();refreshVisibleTab();}}
+    @Override protected void onResume(){super.onResume();if(!"remote".equalsIgnoreCase(prefs.getString("connection_mode","direct")))WifiRoute.bindConnectedWifi(this);foreground=true;if(entered){startLinkService();if(selectedTab==0)controlTab.startCamera();refreshVisibleTab();}}
     @Override protected void onPause(){foreground=false;if(entered){controlTab.stopCamera();left=right=0;motionHistory.record(0,0,SystemClock.elapsedRealtime());controlTab.resetJoystick();workers.execute(()->{try{robotApi.motionStop();}catch(Exception ignored){}});}super.onPause();}
     @Override protected void onDestroy(){if(controlTab!=null)controlTab.releaseCamera();workers.shutdownNow();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
     private void startLinkService(){try{RobotLinkService.start(getApplicationContext());}catch(Exception ignored){}}
