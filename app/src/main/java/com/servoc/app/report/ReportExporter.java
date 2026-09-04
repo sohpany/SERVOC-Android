@@ -84,7 +84,8 @@ public final class ReportExporter {
 
     private static void summary(Canvas c,ExperimentQueries.Record r,JSONObject d,JSONObject a,SessionSeries.Series s,ChemicalRepository chemicals){
         text(c,"HazRob 0.9.0 — Analytical Report",32,44,18,Color.BLACK,true);float y=78;
-        String[][] rows={{"Experiment",String.valueOf(r.id)},{"UTC",nz(r.ts)},{"Protocol",nz(r.protocol)},{"Firmware",d.optString("firmware","—")},{"API",String.valueOf(d.optInt("api_version",0))},{"Hardware",d.optString("hardware_profile",HazRobHardwareProfile.ID)},{"Time-series",s!=null&&s.usable()?s.samples.size()+" samples / "+String.format(Locale.US,"%.1f s",s.durationMs()/1000.0):"not available"},{"Knowledge base",chemicals==null?"—":String.valueOf(chemicals.count())},{"Candidates",String.valueOf(resultCount(a))}};
+        JSONObject relay=d.optJSONObject("relay");boolean mqOn=relay!=null&&relay.optBoolean("on",relay.optInt("mask",0)!=0);long mqPowerMs=relay==null?0:relay.optLong("power_ms",0);
+        String[][] rows={{"Experiment",String.valueOf(r.id)},{"UTC",nz(r.ts)},{"Protocol",nz(r.protocol)},{"Firmware",d.optString("firmware","—")},{"API",String.valueOf(d.optInt("api_version",0))},{"Hardware",d.optString("hardware_profile",HazRobHardwareProfile.ID)},{"MQ Power",(mqOn?"ON":"OFF")+" • GPIO25 • 8 sensors"},{"MQ Power Time",mqOn?mqPowerMs+" ms":"0 ms"},{"Time-series",s!=null&&s.usable()?s.samples.size()+" samples / "+String.format(Locale.US,"%.1f s",s.durationMs()/1000.0):"not available"},{"Knowledge base",chemicals==null?"—":String.valueOf(chemicals.count())},{"Candidates",String.valueOf(resultCount(a))}};
         for(String[] row:rows){text(c,row[0],38,y,10,Color.DKGRAY,true);text(c,row[1],170,y,10,Color.BLACK,false);y+=25;}
         y+=12;text(c,"Top analytical candidates",38,y,13,Color.BLACK,true);y+=24;
         JSONArray rs=a.optJSONArray("results");
