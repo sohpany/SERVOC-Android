@@ -63,7 +63,7 @@ public final class SettingsTab {
     }
 
     private void addAccessCard(Context c,LinearLayout root){
-        LinearLayout card=UiKit.card(c);card.addView(UiKit.title(c,"مشاركة التحكم البعيد"),UiKit.full(c));Button make=UiKit.button(c,"إنشاء رمز وصول");make.setOnClickListener(v->showAccessCode());card.addView(make,UiKit.full(c));root.addView(card,UiKit.full(c));
+        LinearLayout card=UiKit.card(c);card.addView(UiKit.title(c,"تصريح المستخدم البعيد"),UiKit.full(c));LinearLayout row=UiKit.hbox(c);Button make=UiKit.button(c,"إنشاء رمز");make.setOnClickListener(v->GuestAuthorizationUi.issue(uiContext,host));row.addView(make,UiKit.weight(1));Button cancel=UiKit.button(c,"إلغاء الرمز");cancel.setOnClickListener(v->GuestAuthorizationUi.withdraw(uiContext,host));row.addView(cancel,UiKit.weight(1));card.addView(row,UiKit.full(c));root.addView(card,UiKit.full(c));
     }
 
     private void showAccessCode(){
@@ -83,7 +83,7 @@ public final class SettingsTab {
 
     private void saveRemoteProfile(){
         if(brokerHost==null)return;String h=brokerHost.getText().toString().trim(),rid=robotId.getText().toString().trim(),u=brokerUser.getText().toString().trim(),p=brokerPass.getText().toString();int port=clamp(parse(brokerPort,8883),1,65535);if(h.isEmpty()||rid.isEmpty()||u.isEmpty()){host.showToast("أكمل Broker / Robot ID / Username");return;}try{RemoteCredentialStore store=new RemoteCredentialStore(context,host.preferences());RemoteCredentialStore.Credentials old=store.load();if(p.isEmpty())p=old.password;store.save(u,p);host.preferences().edit().putString("remote_broker_host",h).putInt("remote_broker_port",port).putString("remote_robot_id",rid).apply();brokerPass.setText("");host.showToast("تم حفظ Remote بأمان");}catch(Exception e){host.showToast("تعذر حفظ بيانات Remote");}}
-    private void testRemoteProfile(){host.io().execute(()->{RemoteSessionManager r=new RemoteSessionManager(context,host.preferences());com.servoc.app.communication.RemoteReadiness x=r.probeTemporary();host.showToast(x.ready?"REMOTE READY":"Remote: "+x.detail);});}
+    private void testRemoteProfile(){host.io().execute(()->{host.preferences().edit().putString("remote_operator_role","developer").apply();RemoteSessionManager r=new RemoteSessionManager(context,host.preferences());com.servoc.app.communication.RemoteReadiness x=r.probeTemporary();host.showToast(x.ready?"REMOTE READY":"Remote: "+x.detail);});}
 
     private void saveRemoteVideoProfile(){
         if(videoUrl==null)return;String u=videoUrl.getText().toString().trim(),token=videoToken.getText().toString();if(!validWss(u)){host.showToast("أدخل WSS URL صالح");return;}try{RemoteVideoCredentialStore store=new RemoteVideoCredentialStore(host.preferences());if(token.isEmpty())token=store.load();store.save(token);host.preferences().edit().putString("remote_video_url",u).apply();videoToken.setText("");host.showToast("تم حفظ Remote Video بأمان");}catch(Exception e){host.showToast("تعذر حفظ Remote Video");}}
