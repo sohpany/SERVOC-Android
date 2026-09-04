@@ -89,16 +89,16 @@ jobs:
           EXPECTED=d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0
           ACTUAL=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$APK" | awk -F': ' '/SHA-256 digest/ {print $2; exit}' | tr -d ': ' | tr 'A-F' 'a-f')
           test "$ACTUAL" = "$EXPECTED"
-          sha256sum "$APK" | tee HazRob-v0.8.0-sha256.txt
-          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" > HazRob-v0.8.0-signing.txt
-      - name: Upload HazRob v0.8 artifact
+          sha256sum "$APK" | tee HazRob-v0.9.0-sha256.txt
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" > HazRob-v0.9.0-signing.txt
+      - name: Upload HazRob v0.9 artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-v0.8.0-prototype
+          name: HazRob-v0.9.0-prototype
           path: |
             app/build/outputs/apk/release/app-release.apk
-            HazRob-v0.8.0-sha256.txt
-            HazRob-v0.8.0-signing.txt
+            HazRob-v0.9.0-sha256.txt
+            HazRob-v0.9.0-signing.txt
             app/src/main/assets/generated/niosh/manifest.json
             app/src/main/assets/generated/exposure/manifest.json
             app/src/main/assets/generated/exposure/osha_z1/manifest.json
