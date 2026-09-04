@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.9.0 — 2026-09-04
+- Unified HazRob MQ power around hardware profile `hazrob-0.9-1r8mq-v1`.
+- Replaced the previous multi-bank relay model with one active-LOW relay on GPIO25 powering all eight installed MQ modules simultaneously.
+- Defined the only valid MQ power states as `0=OFF` and `1=ON`; removed operational use of masks 2/3 and R1/R2 group selection.
+- Preserved dual ADS1115 acquisition independently: ADS1 `0x48` handles MQ2/MQ4/MQ5/MQ8 and ADS2 `0x49` handles MQ3/MQ7/MQ9/MQ135.
+- Updated master firmware telemetry to publish a single relay object with ON/OFF state and shared `power_ms`.
+- Hardened local HTTP `/relay` and remote MQTT relay commands to reject any state other than 0 or 1.
+- Updated Android hardware profile, relay planner, remote command path, protocol normalization, status UI, measurement UI and developer experiment UI to the same single-relay model.
+- Updated saved-session descriptions and developer reference-capture metadata to record shared MQ power and GPIO25 traceability.
+- Updated PDF and XLSX reports to record MQ Power ON/OFF, GPIO25 and the shared power duration rather than R1/R2 rows.
+- Updated release-audit assertions and regression tests for the one-relay architecture.
+- Updated project and firmware documentation to remove stale multi-relay topology.
+- ESP32-CAM remains a separate subsystem and is not controlled by the MQ power relay.
+
 ## 0.6.1 — 2026-08-31
 - Packaged the current post-0.6 migration state as versionCode `8` / versionName `0.6.1`.
 - Preserved the latest API-v3 integration, unified measurement workflow, schema-v7 scientific database, pinned NIOSH/OSHA datasets, MQ validity gates, time-series/health analysis, phone-side video recording, experimental flame evidence, gas-direction assistance and developer Reference Bank publication workflow.
