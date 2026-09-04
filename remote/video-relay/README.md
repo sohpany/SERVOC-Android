@@ -4,11 +4,13 @@ This service is the Internet-facing JPEG relay for the ESP32-CAM remote path. Di
 
 Selected deployment platform: **Render** as a Node.js WebSocket web service. Render provides the public TLS/WSS endpoint; HazRob keeps HiveMQ responsible for control and telemetry while this service handles camera JPEG frames only.
 
-## Endpoints
+## Production endpoints
 
-- Publisher: `wss://<render-domain>/hazrob/video/publish/hazrob-001`
-- Viewer: `wss://<render-domain>/hazrob/video/view/hazrob-001`
-- Health: `https://<render-domain>/health`
+- Public service: `https://hazrob-video-relay.onrender.com`
+- Publisher: `wss://hazrob-video-relay.onrender.com/hazrob/video/publish/hazrob-001`
+- Viewer: `wss://hazrob-video-relay.onrender.com/hazrob/video/view/hazrob-001`
+- Health: `https://hazrob-video-relay.onrender.com/health`
+- Authenticated robot-video status: `https://hazrob-video-relay.onrender.com/hazrob/video/status/hazrob-001`
 
 Publisher and viewer use separate Bearer tokens. Configure Render environment variables named:
 
@@ -16,6 +18,8 @@ Publisher and viewer use separate Bearer tokens. Configure Render environment va
 - `VIEW_TOKEN`
 
 Never commit their values. The ESP32-CAM uses the publisher token; the Android app uses the viewer token.
+
+The status endpoint requires the viewer Bearer token and reports whether the selected robot currently has a live publisher. This allows the Android Remote entry gate to verify the actual video path before admitting the operator to Remote mode.
 
 ## Runtime behavior
 
@@ -47,21 +51,22 @@ Health check path:
 
 `/health`
 
-Before the first production test, add `PUBLISH_TOKEN` and `VIEW_TOKEN`, deploy, then verify the public Render URL at `/health` before provisioning the resulting hostname into the camera firmware and Android developer settings.
+Render Auto-Deploy is enabled on commit. Changes under this service directory therefore deploy automatically from the selected branch.
 
-The repository intentionally contains no production token, deployed hostname or private certificate material.
+The repository intentionally contains no production token or private certificate material.
 
 ## Field acceptance
 
 Do not mark remote video field-ready until all of these succeed over the actual 4G path:
 
 1. ESP32-CAM reaches the relay through the selected modem/NAPT path.
-2. TLS validates the Render hostname.
+2. TLS validates `hazrob-video-relay.onrender.com`.
 3. Publisher authentication succeeds.
 4. Android viewer authentication succeeds.
-5. First JPEG frame is received.
-6. Continuous viewing remains stable under cellular latency.
-7. Local MJPEG remains functional when Direct mode is selected.
-8. Recording, flame evidence and remote flash still operate.
+5. Authenticated status reports `publisher_online=true`.
+6. First JPEG frame is received.
+7. Continuous viewing remains stable under cellular latency.
+8. Local MJPEG remains functional when Direct mode is selected.
+9. Recording, flame evidence and remote flash still operate.
 
 A successful cloud deployment is not a substitute for this end-to-end field test.
