@@ -89,6 +89,13 @@ constexpr uint16_t MQ_PERIOD=100;
 constexpr uint16_t SAMPLE_PERIOD=200;
 constexpr uint8_t ADC_SAMPLES=4;
 
+// Unified field operating profile for all installed MQ channels.
+// Manufacturer >48h conditioning/aging is a separate prerequisite and is not repeated per session.
+// These values are the operational stabilization and averaged-analysis windows after conditioned manual calibration.
+constexpr uint16_t OPERATIONAL_WARMUP_SEC=60;
+constexpr uint16_t ANALYSIS_WINDOW_SEC=30;
+constexpr bool TRACKING_CONTINUOUS=true;
+
 // Sound
 constexpr uint16_t SOUND_PERIOD=100;
 constexpr uint16_t SOUND_SAMPLES=128;
@@ -106,6 +113,6 @@ struct Settings{
   int speed=100;
   int nL=1500;
   int nR=1500;
-  uint16_t warm=60;
-  uint16_t measure=30;
+  uint16_t warm=Cfg::OPERATIONAL_WARMUP_SEC;
+  uint16_t measure=Cfg::ANALYSIS_WINDOW_SEC;
 };
