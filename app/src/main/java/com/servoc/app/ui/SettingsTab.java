@@ -1,11 +1,7 @@
 package com.servoc.app.ui;
 
-import android.app.AlertDialog;
-import android.content.ClipData;
-import android.content.ClipboardManager;
 import android.content.Context;
 import android.graphics.Color;
-import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -14,80 +10,76 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
-import com.servoc.app.camera.RemoteVideoCredentialStore;
 import com.servoc.app.communication.RemoteAccessPackage;
-import com.servoc.app.communication.RemoteCredentialStore;
 import com.servoc.app.communication.RemoteSessionManager;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
 import org.json.JSONObject;
-
-import java.net.URI;
 import java.util.Locale;
 
-/** Compact operator settings for HazRob 0.9. MQ power belongs to Measurements, device state to Status. */
+/** Compact operator settings for HazRob 0.9. Remote credentials are provisioned automatically and never shown in the UI. */
 public final class SettingsTab {
-    private static final String DEFAULT_BROKER="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud";
-    private static final String DEFAULT_ROBOT_ID="hazrob-001";
-    private static final String DEFAULT_APP_USER="hazrob_app";
-    private final Context context,uiContext;private final HazRobHost host;private final ScrollView scroll;
+    private final Context context;private final HazRobHost host;private final ScrollView scroll;
     private final EditText robot,camera,speed,nl,nr,warm,measure;
-    private EditText brokerHost,brokerPort,robotId,brokerUser,brokerPass,videoUrl,videoToken;
+    private EditText accessCode;
     private final TextView compatibility,cameraState,libraryInfo;
 
     public SettingsTab(Context c,HazRobHost host){
-        this.uiContext=c;this.context=c.getApplicationContext();this.host=host;ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
+        this.context=c.getApplicationContext();this.host=host;ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
         LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
 
-        LinearLayout net=UiKit.card(c);net.addView(UiKit.title(c,"الشبكة"),UiKit.full(c));robot=field(c,net,"ESP32",host.preferences().getString("robot","192.168.4.1"));camera=field(c,net,"ESP32-CAM",host.preferences().getString("camera","192.168.4.2"));LinearLayout netButtons=UiKit.hbox(c);Button saveNet=UiKit.button(c,"حفظ");saveNet.setOnClickListener(v->saveNetwork());netButtons.addView(saveNet,UiKit.weight(1));Button testNet=UiKit.button(c,"اختبار");testNet.setOnClickListener(v->testConnections());netButtons.addView(testNet,UiKit.weight(1));net.addView(netButtons,UiKit.full(c));cameraState=UiKit.small(c,"CAM —");cameraState.setBackgroundColor(0xFF151A20);net.addView(cameraState,UiKit.full(c));root.addView(net,UiKit.full(c));
+        LinearLayout net=UiKit.card(c);net.addView(UiKit.title(c,"الشبكة"),UiKit.full(c));
+        robot=field(c,net,"ESP32",host.preferences().getString("robot","192.168.4.1"));camera=field(c,net,"ESP32-CAM",host.preferences().getString("camera","192.168.4.2"));
+        LinearLayout netButtons=UiKit.hbox(c);Button saveNet=UiKit.button(c,"حفظ");saveNet.setOnClickListener(v->saveNetwork());netButtons.addView(saveNet,UiKit.weight(1));Button testNet=UiKit.button(c,"اختبار");testNet.setOnClickListener(v->testConnections());netButtons.addView(testNet,UiKit.weight(1));net.addView(netButtons,UiKit.full(c));
+        cameraState=UiKit.small(c,"CAM —");cameraState.setBackgroundColor(0xFF151A20);net.addView(cameraState,UiKit.full(c));root.addView(net,UiKit.full(c));
 
-        LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"الضبط"),UiKit.full(c));speed=field(c,cfg,"السرعة %",String.valueOf(host.preferences().getInt("speed",100)));nl=field(c,cfg,"Neutral L µs",String.valueOf(host.preferences().getInt("nl",1500)));nr=field(c,cfg,"Neutral R µs",String.valueOf(host.preferences().getInt("nr",1500)));warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
+        LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"الضبط"),UiKit.full(c));
+        speed=field(c,cfg,"السرعة %",String.valueOf(host.preferences().getInt("speed",100)));nl=field(c,cfg,"Neutral L µs",String.valueOf(host.preferences().getInt("nl",1500)));nr=field(c,cfg,"Neutral R µs",String.valueOf(host.preferences().getInt("nr",1500)));warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));
+        LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
-        if("DEVELOPER".equals(host.operatorRole())){addRemoteDeveloperCard(c,root);addRemoteVideoDeveloperCard(c,root);addAccessCard(c,root);}
+        if("DEVELOPER".equals(host.operatorRole()))addAccessCard(c,root);
 
         LinearLayout compat=UiKit.card(c);compat.addView(UiKit.title(c,"النظام"),UiKit.full(c));compatibility=UiKit.text(c,"Firmware —");compat.addView(compatibility,UiKit.full(c));root.addView(compat,UiKit.full(c));
 
-        LinearLayout science=UiKit.card(c);science.addView(UiKit.title(c,"المكتبة العلمية"),UiKit.full(c));Button info=UiKit.button(c,"الحالة");science.addView(info,UiKit.full(c));libraryInfo=UiKit.small(c,"");libraryInfo.setBackgroundColor(0xFF151A20);libraryInfo.setVisibility(View.GONE);science.addView(libraryInfo,UiKit.full(c));info.setOnClickListener(v->{boolean show=libraryInfo.getVisibility()!=View.VISIBLE;libraryInfo.setVisibility(show?View.VISIBLE:View.GONE);if(show)libraryInfo.setText("Chemicals "+host.database().chemicalCount()+"   •   MQDataScience "+MqDataScience76Catalog.COUNT+"   •   Native "+ModelRuntimeRegistry.nativeCount()+"   •   Verified "+ModelRuntimeRegistry.verifiedCount()+"   •   Pending "+ModelRuntimeRegistry.pendingPortCount());});root.addView(science,UiKit.full(c));
-    }
-
-    private void addRemoteDeveloperCard(Context c,LinearLayout root){
-        LinearLayout remote=UiKit.card(c);remote.addView(UiKit.title(c,"Remote MQTT/TLS"),UiKit.full(c));
-        brokerHost=field(c,remote,"Broker",host.preferences().getString("remote_broker_host",DEFAULT_BROKER));brokerPort=field(c,remote,"Port",String.valueOf(host.preferences().getInt("remote_broker_port",8883)));robotId=field(c,remote,"Robot ID",host.preferences().getString("remote_robot_id",DEFAULT_ROBOT_ID));
-        RemoteCredentialStore.Credentials current=new RemoteCredentialStore(context,host.preferences()).load();brokerUser=field(c,remote,"Username",current.username.isEmpty()?DEFAULT_APP_USER:current.username);brokerPass=field(c,remote,"Password","");brokerPass.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        LinearLayout row=UiKit.hbox(c);Button save=UiKit.button(c,"حفظ آمن");save.setOnClickListener(v->saveRemoteProfile());row.addView(save,UiKit.weight(1));Button test=UiKit.button(c,"اختبار");test.setOnClickListener(v->testRemoteProfile());row.addView(test,UiKit.weight(1));remote.addView(row,UiKit.full(c));root.addView(remote,UiKit.full(c));
-    }
-
-    private void addRemoteVideoDeveloperCard(Context c,LinearLayout root){
-        LinearLayout remote=UiKit.card(c);remote.addView(UiKit.title(c,"Remote Video / WSS"),UiKit.full(c));videoUrl=field(c,remote,"Viewer WSS URL",host.preferences().getString("remote_video_url",""));videoToken=field(c,remote,"Bearer Token","");videoToken.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);Button save=UiKit.button(c,"حفظ آمن");save.setOnClickListener(v->saveRemoteVideoProfile());remote.addView(save,UiKit.full(c));root.addView(remote,UiKit.full(c));
+        LinearLayout science=UiKit.card(c);science.addView(UiKit.title(c,"المكتبة العلمية"),UiKit.full(c));Button info=UiKit.button(c,"الحالة");science.addView(info,UiKit.full(c));libraryInfo=UiKit.small(c,"");libraryInfo.setBackgroundColor(0xFF151A20);libraryInfo.setVisibility(View.GONE);science.addView(libraryInfo,UiKit.full(c));
+        info.setOnClickListener(v->{boolean show=libraryInfo.getVisibility()!=View.VISIBLE;libraryInfo.setVisibility(show?View.VISIBLE:View.GONE);if(show)libraryInfo.setText("Chemicals "+host.database().chemicalCount()+"   •   MQDataScience "+MqDataScience76Catalog.COUNT+"   •   Native "+ModelRuntimeRegistry.nativeCount()+"   •   Verified "+ModelRuntimeRegistry.verifiedCount()+"   •   Pending "+ModelRuntimeRegistry.pendingPortCount());});root.addView(science,UiKit.full(c));
+        refreshAccessCode();
     }
 
     private void addAccessCard(Context c,LinearLayout root){
-        LinearLayout card=UiKit.card(c);card.addView(UiKit.title(c,"تصريح المستخدم البعيد"),UiKit.full(c));LinearLayout row=UiKit.hbox(c);Button make=UiKit.button(c,"إنشاء رمز");make.setOnClickListener(v->GuestAuthorizationUi.issue(uiContext,host));row.addView(make,UiKit.weight(1));Button cancel=UiKit.button(c,"إلغاء الرمز");cancel.setOnClickListener(v->GuestAuthorizationUi.withdraw(uiContext,host));row.addView(cancel,UiKit.weight(1));card.addView(row,UiKit.full(c));root.addView(card,UiKit.full(c));
+        LinearLayout card=UiKit.card(c);card.addView(UiKit.title(c,"تصريح المستخدم البعيد"),UiKit.full(c));
+        accessCode=UiKit.input(c,"");accessCode.setHint("لم يتم إصدار تصريح");accessCode.setSingleLine(false);accessCode.setMinLines(3);accessCode.setTextIsSelectable(true);accessCode.setKeyListener(null);accessCode.setBackgroundColor(0xFF151A20);accessCode.setTextColor(Color.WHITE);card.addView(accessCode,UiKit.full(c));
+        LinearLayout row=UiKit.hbox(c);Button make=UiKit.button(c,"إنتاج كود تصريح");make.setOnClickListener(v->issueAccess());row.addView(make,UiKit.weight(1));Button cancel=UiKit.button(c,"إلغاء كود تصريح");cancel.setOnClickListener(v->revokeAccess());row.addView(cancel,UiKit.weight(1));card.addView(row,UiKit.full(c));root.addView(card,UiKit.full(c));
     }
 
-    private void showAccessCode(){
-        try{
-            String code=RemoteAccessPackage.exportCode(context,host.preferences());
-            EditText box=UiKit.input(uiContext,code);box.setSingleLine(false);box.setMinLines(3);box.setTextIsSelectable(true);box.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_FLAG_MULTI_LINE);
-            new AlertDialog.Builder(uiContext).setTitle("رمز وصول HazRob").setView(box).setNegativeButton("إغلاق",null).setPositiveButton("نسخ",(d,w)->{ClipboardManager cb=(ClipboardManager)context.getSystemService(Context.CLIPBOARD_SERVICE);if(cb!=null){cb.setPrimaryClip(ClipData.newPlainText("HazRob access",code));host.showToast("تم نسخ رمز الوصول");}}).show();
-        }catch(Exception e){host.showToast("احفظ بيانات MQTT وVideo أولًا");}
+    private void issueAccess(){
+        host.io().execute(()->{
+            try{
+                new RemoteSessionManager(context,host.preferences()).probeTemporary();
+                String token=RemoteAccessPackage.newGuestToken();host.robotApi().setGuestAccess(token);RemoteAccessPackage.saveGuestToken(host.preferences(),token);
+                String code=RemoteAccessPackage.exportCode(context,host.preferences());new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{if(accessCode!=null)accessCode.setText(code);host.showToast("تم إنتاج كود التصريح");});
+            }catch(Exception e){host.showToast("تعذر إنتاج التصريح: تحقق من اتصال الروبوت بالإنترنت أو بشبكة HazRob");}
+        });
+    }
+
+    private void revokeAccess(){
+        host.io().execute(()->{try{host.robotApi().revokeGuestAccess();RemoteAccessPackage.clearGuestToken(host.preferences());new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{if(accessCode!=null)accessCode.setText("");host.showToast("تم إلغاء كود التصريح");});}catch(Exception e){host.showToast("تعذر إلغاء التصريح: الروبوت غير متصل");}});
+    }
+
+    private void refreshAccessCode(){
+        if(accessCode==null)return;try{accessCode.setText(RemoteAccessPackage.present(context,host.preferences())?RemoteAccessPackage.exportCode(context,host.preferences()):"");}catch(Exception e){accessCode.setText("");}
     }
 
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
     public View view(){return scroll;}
 
-    public void refresh(){JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware —   •   API —   •   Profile —");compatibility.setTextColor(0xFFFFB74D);return;}JSONObject adc=d.optJSONObject("adc");compatibility.setText("Firmware "+d.optString("firmware","—")+"   •   API "+d.optInt("api_version",0)+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"   •   ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+"   •   ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—"));compatibility.setTextColor(0xFF81C784);}
+    public void refresh(){
+        refreshAccessCode();JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware —   •   API —   •   Profile —");compatibility.setTextColor(0xFFFFB74D);return;}
+        JSONObject adc=d.optJSONObject("adc");compatibility.setText("Firmware "+d.optString("firmware","—")+"   •   API "+d.optInt("api_version",0)+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"   •   ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+"   •   ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—"));compatibility.setTextColor(0xFF81C784);
+    }
 
     private void saveNetwork(){host.setDriveCommand(0,0);String rh=robot.getText().toString().trim(),ch=camera.getText().toString().trim();host.robotApi().setRobotHost(rh);host.setCameraHost(ch);camera.setText(host.cameraHost());robot.setText(host.robotApi().getRobotHost());host.preferences().edit().putString("robot",host.robotApi().getRobotHost()).putString("camera",host.cameraHost()).apply();host.showToast("تم حفظ الشبكة");host.refreshAllTabs();}
-
-    private void saveRemoteProfile(){
-        if(brokerHost==null)return;String h=brokerHost.getText().toString().trim(),rid=robotId.getText().toString().trim(),u=brokerUser.getText().toString().trim(),p=brokerPass.getText().toString();int port=clamp(parse(brokerPort,8883),1,65535);if(h.isEmpty()||rid.isEmpty()||u.isEmpty()){host.showToast("أكمل Broker / Robot ID / Username");return;}try{RemoteCredentialStore store=new RemoteCredentialStore(context,host.preferences());RemoteCredentialStore.Credentials old=store.load();if(p.isEmpty())p=old.password;store.save(u,p);host.preferences().edit().putString("remote_broker_host",h).putInt("remote_broker_port",port).putString("remote_robot_id",rid).apply();brokerPass.setText("");host.showToast("تم حفظ Remote بأمان");}catch(Exception e){host.showToast("تعذر حفظ بيانات Remote");}}
-    private void testRemoteProfile(){host.io().execute(()->{host.preferences().edit().putString("remote_operator_role","developer").apply();RemoteSessionManager r=new RemoteSessionManager(context,host.preferences());com.servoc.app.communication.RemoteReadiness x=r.probeTemporary();host.showToast(x.ready?"REMOTE READY":"Remote: "+x.detail);});}
-
-    private void saveRemoteVideoProfile(){
-        if(videoUrl==null)return;String u=videoUrl.getText().toString().trim(),token=videoToken.getText().toString();if(!validWss(u)){host.showToast("أدخل WSS URL صالح");return;}try{RemoteVideoCredentialStore store=new RemoteVideoCredentialStore(host.preferences());if(token.isEmpty())token=store.load();store.save(token);host.preferences().edit().putString("remote_video_url",u).apply();videoToken.setText("");host.showToast("تم حفظ Remote Video بأمان");}catch(Exception e){host.showToast("تعذر حفظ Remote Video");}}
-    private static boolean validWss(String value){try{URI u=new URI(value);return"wss".equalsIgnoreCase(u.getScheme())&&u.getHost()!=null&&!u.getHost().isEmpty();}catch(Exception e){return false;}}
 
     private void testConnections(){host.io().execute(()->{boolean robotOk=false;try{robotOk=host.robotApi().diagnostics()!=null;}catch(Exception ignored){}JSONObject cam=null;try{cam=host.cameraDiagnostics();}catch(Exception ignored){}boolean cameraOk=cam!=null;if(!cameraOk)try{cameraOk=host.cameraReachable();}catch(Exception ignored){}final boolean rOk=robotOk,cOk=cameraOk;final JSONObject cdiag=cam;new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{if(cdiag!=null){String fps=cdiag.has("fps")?String.format(Locale.US,"%.2f",cdiag.optDouble("fps",0)):"—";String rssi=cdiag.has("rssi")?cdiag.optInt("rssi",0)+" dBm":"—";cameraState.setText("CAM "+(cdiag.optBoolean("camera_ok",cdiag.optBoolean("ok",true))?"OK":"FAIL")+"   •   FPS "+fps+"   •   RSSI "+rssi);cameraState.setTextColor(cOk?0xFF81C784:0xFFFF7043);}else{cameraState.setText("CAM "+(cOk?"HTTP OK":"OFFLINE"));cameraState.setTextColor(cOk?0xFF81C784:0xFFFF7043);}host.showToast("ESP32 "+(rOk?"OK":"OFFLINE")+" • CAM "+(cOk?"OK":"OFFLINE"));});});}
     private void sync(){host.io().execute(()->{try{JSONObject x=host.robotApi().config();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showConfig(x));}catch(Exception e){host.showToast("تعذر المزامنة");}});}
