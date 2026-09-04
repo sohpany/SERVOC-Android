@@ -16,7 +16,9 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import com.servoc.app.R;
 import com.servoc.app.ReleaseAudit;
+import com.servoc.app.camera.RemoteVideoReadiness;
 import com.servoc.app.communication.RemoteReadiness;
+import com.servoc.app.communication.RemoteServiceProfile;
 import com.servoc.app.communication.RemoteSessionManager;
 import com.servoc.app.communication.RobotApi;
 import com.servoc.app.ui.UiKit;
@@ -32,14 +34,14 @@ public final class ConnectionGate {
     private final LinearLayout root,content;private final TextView status;private final ProgressBar progress;
 
     public ConnectionGate(Activity a,RobotApi local,SharedPreferences prefs,ExecutorService io,Listener listener){
-        this.a=a;this.local=local;this.prefs=prefs;this.io=io;this.listener=listener;
+        this.a=a;this.local=local;this.prefs=prefs;this.io=io;this.listener=listener;RemoteServiceProfile.ensureDefaults(prefs);
         root=UiKit.vbox(a);root.setGravity(Gravity.CENTER_HORIZONTAL);root.setPadding(UiKit.dp(a,24),UiKit.dp(a,18),UiKit.dp(a,24),UiKit.dp(a,14));root.setBackgroundColor(Color.WHITE);
 
         ImageView robot=new ImageView(a);robot.setImageResource(R.drawable.ic_hazrob_app);robot.setScaleType(ImageView.ScaleType.CENTER_INSIDE);robot.setAdjustViewBounds(true);robot.setContentDescription("HazRob");
         LinearLayout.LayoutParams imageParams=new LinearLayout.LayoutParams(-1,0,1f);imageParams.setMargins(0,0,0,UiKit.dp(a,12));root.addView(robot,imageParams);
 
         content=UiKit.vbox(a);root.addView(content,new LinearLayout.LayoutParams(-1,-2));
-        progress=new ProgressBar(a,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);progress.setVisibility(View.GONE);root.addView(progress,new LinearLayout.LayoutParams(-1,UiKit.dp(a,10)));
+        progress=new ProgressBar(a,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(11);progress.setVisibility(View.GONE);root.addView(progress,new LinearLayout.LayoutParams(-1,UiKit.dp(a,10)));
         status=UiKit.small(a,"");status.setGravity(Gravity.CENTER);status.setTextColor(0xFF245A7A);status.setBackgroundColor(Color.TRANSPARENT);root.addView(status,UiKit.full(a));
 
         TextView footer=UiKit.small(a,"HazRob "+ReleaseAudit.VERSION+" • إعداد المستشار/ شهاب الصهباني");footer.setGravity(Gravity.CENTER);footer.setTextColor(0xFF616161);footer.setBackgroundColor(Color.TRANSPARENT);LinearLayout.LayoutParams fp=UiKit.full(a);fp.topMargin=UiKit.dp(a,10);root.addView(footer,fp);
@@ -78,19 +80,33 @@ public final class ConnectionGate {
                 RemoteReadiness robot=RemoteReadiness.fromRobot(local.remoteStatus());ui.post(()->render(robot));
                 if(robot.internet&&robot.mqtt&&cloud.serviceProfileConfigured()){
                     RemoteReadiness endToEnd=cloud.probe();RemoteReadiness combined=combine(robot,endToEnd);ui.post(()->render(combined));if(combined.ready){ui.post(()->finishRemote(combined));return;}
-                }else if(robot.internet&&!cloud.serviceProfileConfigured())ui.post(()->status.setText("الإنترنت جاهز • ملف خدمة MQTT/TLS لم يُضبط بعد"));
+                }else if(robot.internet&&!cloud.serviceProfileConfigured())ui.post(()->status.setText("الإنترنت جاهز • بيانات دخول MQTT لم تُضبط بعد"));
             }catch(Exception ignored){}
             try{Thread.sleep(1000);}catch(InterruptedException e){Thread.currentThread().interrupt();return;}
         }
         ui.post(()->{status.setText("لم تكتمل جاهزية الاتصال البعيد");status.setTextColor(0xFFEF6C00);showBack();});
     }
 
-    private static RemoteReadiness combine(RemoteReadiness robot,RemoteReadiness cloud){boolean ready=robot.internet&&cloud.tls&&cloud.mqtt&&cloud.commandAck&&cloud.telemetry;return new RemoteReadiness(robot.configured,robot.wifi,robot.ip,robot.dns,robot.time,robot.internet,cloud.tls,cloud.mqtt,cloud.commandAck,cloud.telemetry,cloud.camera||robot.camera,ready,ready?"remote end-to-end ready":"remote handshake incomplete");}
-    private void monitorProvisioned(RemoteReadiness first){render(first);if(first.ready){RemoteReadiness cloud=new RemoteSessionManager(a,prefs).probe();RemoteReadiness combined=combine(first,cloud);if(combined.ready){finishRemote(combined);return;}}io.execute(this::pollRobotRemote);}
+    private static RemoteReadiness combine(RemoteReadiness robot,RemoteReadiness cloud){boolean ready=robot.internet&&cloud.tls&&cloud.mqtt&&cloud.commandAck&&cloud.telemetry;return new RemoteReadiness(robot.configured,robot.wifi,robot.ip,robot.dns,robot.time,robot.internet,cloud.tls,cloud.mqtt,cloud.commandAck,cloud.telemetry,false,ready,ready?"remote control ready":"remote handshake incomplete");}
+    private void monitorProvisioned(RemoteReadiness first){render(first);if(first.ready){io.execute(()->{RemoteReadiness cloud=new RemoteSessionManager(a,prefs).probe();RemoteReadiness combined=combine(first,cloud);ui.post(()->{render(combined);if(combined.ready)finishRemote(combined);else io.execute(this::pollRobotRemote);});});return;}io.execute(this::pollRobotRemote);}
 
-    private void render(RemoteReadiness r){progress.setVisibility(View.VISIBLE);progress.setProgress(r.completedCoreStages());StringBuilder s=new StringBuilder();stage(s,"إعداد الشبكة",r.configured);stage(s,"Wi-Fi",r.wifi);stage(s,"IP",r.ip);stage(s,"DNS",r.dns);stage(s,"الإنترنت/الوقت",r.internet&&r.time);stage(s,"TLS",r.tls);stage(s,"MQTT",r.mqtt);stage(s,"قناة الأوامر",r.commandAck);stage(s,"Telemetry",r.telemetry);stage(s,"الكاميرا",r.camera);status.setText(s.toString().trim());status.setTextColor(r.ready?0xFF2E7D32:0xFF245A7A);}
+    private void render(RemoteReadiness r){progress.setVisibility(View.VISIBLE);progress.setProgress(r.completedCoreStages());StringBuilder s=new StringBuilder();stage(s,"إعداد الشبكة",r.configured);stage(s,"Wi-Fi",r.wifi);stage(s,"IP",r.ip);stage(s,"DNS",r.dns);stage(s,"الإنترنت/الوقت",r.internet&&r.time);stage(s,"TLS",r.tls);stage(s,"MQTT",r.mqtt);stage(s,"قناة الأوامر",r.commandAck);stage(s,"Telemetry",r.telemetry);stage(s,"الفيديو البعيد",r.camera);status.setText(s.toString().trim());status.setTextColor(r.ready&&r.camera?0xFF2E7D32:0xFF245A7A);}
     private static void stage(StringBuilder s,String name,boolean ok){if(s.length()>0)s.append('\n');s.append(ok?"✓ ":"○ ").append(name);}
-    private void finishRemote(RemoteReadiness r){prefs.edit().putString("connection_mode","remote").apply();render(r);status.postDelayed(()->listener.onReady(Mode.REMOTE),350);}
+
+    private void finishRemote(RemoteReadiness control){
+        busy("فحص الفيديو البعيد...",10);
+        io.execute(()->{
+            RemoteVideoReadiness.Result v=RemoteVideoReadiness.probe(a,prefs);
+            RemoteReadiness full=new RemoteReadiness(control.configured,control.wifi,control.ip,control.dns,control.time,control.internet,control.tls,control.mqtt,control.commandAck,control.telemetry,v.ready,control.ready&&v.ready,v.detail);
+            ui.post(()->{
+                render(full);
+                if(!full.ready){status.append("\n"+v.detail);status.setTextColor(0xFFEF6C00);showBack();return;}
+                prefs.edit().putString("connection_mode","remote").apply();
+                status.postDelayed(()->listener.onReady(Mode.REMOTE),350);
+            });
+        });
+    }
+
     private void busy(String text,int stage){content.removeAllViews();progress.setVisibility(View.VISIBLE);progress.setProgress(stage);status.setText(text);status.setTextColor(0xFF245A7A);}
     private void showBack(){content.removeAllViews();Button b=UiKit.button(a,"رجوع");b.setOnClickListener(v->showChoice());content.addView(b,UiKit.full(a));}
 }
