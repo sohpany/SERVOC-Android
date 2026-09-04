@@ -17,7 +17,8 @@ Preferences nv;
 Servo sL,sR;
 float tarL=0,tarR=0,curL=0,curR=0;
 uint32_t cmdAt=0,driveAt=0;
-bool fs=false,retracing=false,lossHandled=false;
+bool fs=false,retracing=false,lossHandled=false,linkHold=false;
+uint32_t linkHoldAt=0;
 
 float lim(float v){float m=constrain(settings.speed,20,100);return constrain(v,-m,m);}
 int pulse(float v,int n,int dir){v=constrain(v*dir,-100.0f,100.0f);return v>=0?n+(2000-n)*v/100:n+(n-1000)*v/100;}
@@ -34,11 +35,17 @@ struct Hist{int8_t l,r;};Hist hist[HIST_N];
 uint16_t histHead=0,histCount=0,retrIdx=0,retrRemain=0;
 uint32_t histAt=0,retrAt=0;
 void clearHistory(){histHead=histCount=retrIdx=retrRemain=0;}
-void historyUpdate(uint32_t now){if(retracing||fs||now-histAt<HIST_STEP)return;histAt=now;hist[histHead]={(int8_t)constrain((int)roundf(curL),-100,100),(int8_t)constrain((int)roundf(curR),-100,100)};histHead=(histHead+1)%HIST_N;if(histCount<HIST_N)histCount++;}
-void beginRetrace(uint32_t now){tarL=tarR=curL=curR=0;driveWrite();fs=true;lossHandled=true;retracing=false;if(!histCount)return;uint16_t i=(histHead+HIST_N-1)%HIST_N,n=histCount;while(n&&!hist[i].l&&!hist[i].r){i=(i+HIST_N-1)%HIST_N;n--;}if(!n)return;retrIdx=i;retrRemain=n;retrAt=now;retracing=true;}
+void historyUpdate(uint32_t now){if(retracing||fs||linkHold||now-histAt<HIST_STEP)return;histAt=now;hist[histHead]={(int8_t)constrain((int)roundf(curL),-100,100),(int8_t)constrain((int)roundf(curR),-100,100)};histHead=(histHead+1)%HIST_N;if(histCount<HIST_N)histCount++;}
+void holdMotion(uint32_t now){tarL=tarR=curL=curR=0;driveWrite();retracing=false;fs=true;linkHold=true;linkHoldAt=now;}
+void beginRetrace(uint32_t now){tarL=tarR=curL=curR=0;driveWrite();fs=true;lossHandled=true;linkHold=false;retracing=false;if(!histCount)return;uint16_t i=(histHead+HIST_N-1)%HIST_N,n=histCount;while(n&&!hist[i].l&&!hist[i].r){i=(i+HIST_N-1)%HIST_N;n--;}if(!n)return;retrIdx=i;retrRemain=n;retrAt=now;retracing=true;}
 void retraceUpdate(uint32_t now){if(!retracing||now-retrAt<HIST_STEP)return;retrAt=now;if(!retrRemain){tarL=tarR=0;retracing=false;return;}Hist h=hist[retrIdx];tarL=constrain(-(int)h.l,-Cfg::RETRACE_MAX_SPEED,Cfg::RETRACE_MAX_SPEED);tarR=constrain(-(int)h.r,-Cfg::RETRACE_MAX_SPEED,Cfg::RETRACE_MAX_SPEED);retrIdx=(retrIdx+HIST_N-1)%HIST_N;retrRemain--;}
-void driveUpdate(){uint32_t now=millis();if(!retracing&&!lossHandled&&now-cmdAt>Cfg::FAILSAFE)beginRetrace(now);retraceUpdate(now);historyUpdate(now);if(now-driveAt<10)return;float dt=min(now-driveAt,50UL)/1000.0f;driveAt=now;curL=ramp(curL,tarL,dt);curR=ramp(curR,tarR,dt);driveWrite();}
-void motionStopInternal(){tarL=tarR=curL=curR=0;retracing=false;lossHandled=true;fs=false;clearHistory();driveWrite();}
+void driveUpdate(){
+  uint32_t now=millis();
+  if(!retracing&&!linkHold&&now-cmdAt>Cfg::DRIVE_STALE_MS&&(fabsf(tarL)>.1f||fabsf(tarR)>.1f||fabsf(curL)>.1f||fabsf(curR)>.1f)){tarL=tarR=0;fs=true;}
+  retraceUpdate(now);historyUpdate(now);
+  if(now-driveAt<10)return;float dt=min(now-driveAt,50UL)/1000.0f;driveAt=now;curL=ramp(curL,tarL,dt);curR=ramp(curR,tarR,dt);driveWrite();
+}
+void motionStopInternal(){tarL=tarR=curL=curR=0;retracing=false;linkHold=false;linkHoldAt=0;lossHandled=true;fs=false;clearHistory();driveWrite();}
 
 /* ---------- ONE MQ POWER RELAY ---------- */
 bool mqPowerOn=false;
@@ -95,7 +102,15 @@ void measureUpdate(){if(stage!=MEASURE)return;if(mqPowerOn!=measurePower){resetM
 
 /* ---------- LINK WATCHDOG ---------- */
 bool linkArmed=false,linkLost=false;uint32_t linkAt=0;
-void linkWatchUpdate(){if(!linkArmed||linkLost)return;if(millis()-linkAt<=Cfg::LINK_LOSS_MS)return;linkLost=true;resetMeasurement();relayRaw(false);}
+void linkWatchUpdate(){
+  if(!linkArmed)return;
+  uint32_t now=millis(),age=now-linkAt;
+  if(age<=Cfg::LINK_DETECT_MS)return;
+  if(!linkHold&&!retracing&&!linkLost)holdMotion(now);
+  if(linkHold&&now-linkHoldAt>=Cfg::LINK_HOLD_MS){
+    linkHold=false;linkLost=true;resetMeasurement();relayRaw(false);beginRetrace(now);
+  }
+}
 
 /* ---------- SETTINGS / JSON ---------- */
 String num(float v,uint8_t d=2){return isfinite(v)?String(v,(unsigned)d):"null";}
@@ -122,15 +137,26 @@ void hwBegin(){
   Wire.begin(Cfg::SDA,Cfg::SCL);adsBegin(0);adsBegin(1);adsHealthAt=millis();envBegin();
 }
 void hwUpdate(){driveUpdate();adsHealthUpdate();mqUpdate();envUpdate();soundUpdate();irUpdate();measureUpdate();linkWatchUpdate();}
-void driveSet(int l,int r){if(retracing||fs)clearHistory();retracing=false;lossHandled=false;fs=false;tarL=lim(l);tarR=lim(r);cmdAt=millis();}
+void driveSet(int l,int r){
+  if(retracing){retracing=false;clearHistory();}
+  if(linkHold){linkHold=false;linkHoldAt=0;}
+  lossHandled=false;fs=false;tarL=lim(l);tarR=lim(r);cmdAt=millis();
+}
 void motionStop(){motionStopInternal();}
 void emergencyStop(){motionStopInternal();resetMeasurement();relayRaw(false);}
 bool relaySetMask(uint8_t on){if(on>1)return false;if(stage==MEASURE||stage==WARM)resetMeasurement();relayRaw(on==1);return true;}
 void sensorPowerOff(){resetMeasurement();relayRaw(false);}
 void measureStart(){clearSums();measurePower=mqPowerOn;stageAt=sampleAt=millis();stage=measurePower?MEASURE:ERROR;}
 void measureCancel(){resetMeasurement();}
-void linkHeartbeat(){linkArmed=true;linkLost=false;linkAt=millis();}
-void linkSetArmed(bool armed){linkArmed=armed;linkLost=false;linkAt=armed?millis():0;}
+void linkHeartbeat(){
+  linkArmed=true;linkAt=millis();
+  if(linkHold||linkLost||retracing){
+    tarL=tarR=curL=curR=0;driveWrite();
+    if(retracing)clearHistory();
+    retracing=false;linkHold=false;linkHoldAt=0;linkLost=false;lossHandled=true;fs=false;
+  }
+}
+void linkSetArmed(bool armed){linkArmed=armed;linkLost=false;linkHold=false;linkHoldAt=0;linkAt=armed?millis():0;}
 void saveSettings(){nv.putString("camIP",settings.cam);nv.putInt("speed",settings.speed);nv.putInt("neutralL",settings.nL);nv.putInt("neutralR",settings.nR);nv.putUInt("warmup",settings.warm);nv.putUInt("measure",settings.measure);}
 String settingsJson(){return "{\"cam\":\""+settings.cam+"\",\"speed\":"+String(settings.speed)+",\"nl\":"+String(settings.nL)+",\"nr\":"+String(settings.nR)+",\"warm\":"+String(settings.warm)+",\"measure\":"+String(settings.measure)+",\"warm_manual\":true,\"mq_power_manual\":true}";}
 String dataJson(){
@@ -139,7 +165,7 @@ String dataJson(){
   j+=",\"ir\":{\"warning\":"+String(boolJson(irWarning))+",\"level\":"+String(irLevel)+"}";
   j+=",\"relay\":{\"mask\":"+String(mqPowerOn?1:0)+",\"on\":"+String(boolJson(mqPowerOn))+",\"gpio\":"+String(Cfg::RELAY_MQ)+",\"power_ms\":"+String(mqPowerMs())+",\"channels\":1}";
   j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+"}";
-  j+=",\"drive\":{\"failsafe\":"+String(boolJson(fs))+",\"retrace\":"+String(boolJson(retracing))+",\"history\":"+String(histCount)+"}";
+  j+=",\"drive\":{\"failsafe\":"+String(boolJson(fs))+",\"hold\":"+String(boolJson(linkHold))+",\"retrace\":"+String(boolJson(retracing))+",\"history\":"+String(histCount)+"}";
   j+=",\"mq\":"+mqJson(false);
   j+=",\"measurement\":{\"state\":"+String((uint8_t)stage)+",\"mask\":"+String(measurePower?1:0)+",\"power\":"+String(boolJson(measurePower))+",\"manual_power\":true,\"manual_warmup\":true,\"duration_s\":"+String(settings.measure)+",\"mq\":"+mqJson(true)+"}}";
   return j;
@@ -148,11 +174,12 @@ String diagJson(){
   String j="{\"fw\":\""+String(Cfg::FW)+"\",\"api\":"+String(Cfg::API)+",\"hardware_profile\":\""+String(Cfg::HW_PROFILE)+"\"";
   j+=",\"heap\":"+String(ESP.getFreeHeap())+",\"clients\":"+String(WiFi.softAPgetStationNum());
   j+=",\"failsafe\":"+String(boolJson(fs))+",\"retrace\":"+String(boolJson(retracing));
-  j+=",\"drive\":{\"failsafe\":"+String(boolJson(fs))+",\"retrace\":"+String(boolJson(retracing))+",\"history\":"+String(histCount)+"}";
+  j+=",\"drive\":{\"failsafe\":"+String(boolJson(fs))+",\"hold\":"+String(boolJson(linkHold))+",\"retrace\":"+String(boolJson(retracing))+",\"history\":"+String(histCount)+"}";
   j+=",\"relay\":{\"mask\":"+String(mqPowerOn?1:0)+",\"on\":"+String(boolJson(mqPowerOn))+",\"gpio\":"+String(Cfg::RELAY_MQ)+",\"power_ms\":"+String(mqPowerMs())+",\"channels\":1}";
   j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+"}";
   j+=",\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok));
-  j+=",\"link\":{\"armed\":"+String(boolJson(linkArmed))+",\"lost\":"+String(boolJson(linkLost))+",\"heartbeat_age_ms\":"+String(linkArmed?millis()-linkAt:0)+"}";
+  uint32_t holdRemaining=linkHold&&millis()-linkHoldAt<Cfg::LINK_HOLD_MS?Cfg::LINK_HOLD_MS-(millis()-linkHoldAt):0;
+  j+=",\"link\":{\"armed\":"+String(boolJson(linkArmed))+",\"lost\":"+String(boolJson(linkLost))+",\"hold\":"+String(boolJson(linkHold))+",\"hold_remaining_ms\":"+String(holdRemaining)+",\"heartbeat_age_ms\":"+String(linkArmed?millis()-linkAt:0)+"}";
   j+=",\"envType\":"+String(envType)+",\"envAddr\":"+String(envAddr)+",\"envId\":"+String(envId);
   j+=",\"ir\":{\"warning\":"+String(boolJson(irWarning))+",\"level\":"+String(irLevel)+"},\"mqPowerManual\":true,\"warmupManual\":true}";
   return j;
