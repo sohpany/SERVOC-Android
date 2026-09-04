@@ -14,18 +14,8 @@ void startAP(){
   IPAddress ip(192,168,4,1),subnet(255,255,255,0),dhcpStart(192,168,4,100);
   WiFi.softAPConfig(ip,ip,subnet,dhcpStart);WiFi.softAP(Cfg::SSID);naptEnabled=false;
 }
-void gatewayUpdate(){
-  bool want=remoteInternetReady();
-  if(want==naptEnabled)return;
-  if(WiFi.AP.enableNAPT(want))naptEnabled=want;
-}
-void wifiWatch(){
-  if(millis()-wifiAt<5000)return;wifiAt=millis();
-  if(!(WiFi.getMode()&WIFI_AP)||WiFi.softAPIP()!=IPAddress(192,168,4,1)){
-    if(naptEnabled)WiFi.AP.enableNAPT(false);naptEnabled=false;
-    WiFi.softAPdisconnect(true);delay(20);startAP();
-  }
-}
+void gatewayUpdate(){bool want=remoteInternetReady();if(want==naptEnabled)return;if(WiFi.AP.enableNAPT(want))naptEnabled=want;}
+void wifiWatch(){if(millis()-wifiAt<5000)return;wifiAt=millis();if(!(WiFi.getMode()&WIFI_AP)||WiFi.softAPIP()!=IPAddress(192,168,4,1)){if(naptEnabled)WiFi.AP.enableNAPT(false);naptEnabled=false;WiFi.softAPdisconnect(true);delay(20);startAP();}}
 
 void setup(){
   hwBegin();startAP();remoteBegin();remoteMqttBegin();
@@ -43,7 +33,7 @@ void setup(){
   web.on("/guest/access",HTTP_POST,[]{if(!web.hasArg("token")){web.send(400,"application/json","{\"ok\":false,\"error\":\"missing_token\"}");return;}bool ok=guestAccessSet(web.arg("token"));web.send(ok?200:400,"application/json",ok?"{\"ok\":true}":"{\"ok\":false,\"error\":\"invalid_token\"}");});
   web.on("/guest/revoke",HTTP_POST,[]{if(!web.hasArg("confirm")||web.arg("confirm")!="1"){web.send(400,"application/json","{\"ok\":false}");return;}guestAccessRevoke();web.send(200,"application/json","{\"ok\":true}");});
 
-  web.on("/relay",[]{uint8_t mask=0;if(web.hasArg("mask")){int v=web.arg("mask").toInt();if(v<0||v>Cfg::MQ_INSTALLED_MASK)return reply(409,"ONLY R1/R2 ARE INSTALLED MQ GROUPS");mask=(uint8_t)v;}else if(web.hasArg("g")){int g=web.arg("g").toInt();if(g<0||g>2)return reply(409,"ONLY R1/R2 ARE INSTALLED MQ GROUPS");mask=g==0?0:(uint8_t)(1U<<(g-1));}else return reply(400,"BAD");if(!relaySetMask(mask))return reply(409,"RELAY MASK REJECTED");reply(200,"OK");});
+  web.on("/relay",[]{if(!web.hasArg("mask"))return reply(400,"BAD");String v=web.arg("mask");if(v!="0"&&v!="1")return reply(409,"MQ POWER MUST BE 0 OR 1");if(!relaySetMask(v=="1"?1:0))return reply(409,"MQ POWER REJECTED");reply(200,"OK");});
   web.on("/measure",[]{String c=web.arg("cmd");if(c=="start")measureStart();else if(c=="cancel")measureCancel();else return reply(400,"BAD");reply(200,"OK");});
   web.on("/data",[]{web.send(200,"application/json",dataJson());});
   web.on("/diag",[]{web.send(200,"application/json",diagJson());});
