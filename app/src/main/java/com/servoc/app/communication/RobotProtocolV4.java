@@ -24,7 +24,8 @@ public final class RobotProtocolV4 {
             JSONObject dd=first(data.optJSONObject("drive"),diag.optJSONObject("drive"));
             boolean retrace=dd!=null?dd.optBoolean("retrace",false):diag.optBoolean("retrace",data.optBoolean("retrace",false));
             boolean failsafe=dd!=null?dd.optBoolean("failsafe",false):diag.optBoolean("failsafe",false);
-            JSONObject drive=new JSONObject();drive.put("left",commandedLeft);drive.put("right",commandedRight);drive.put("failsafe",failsafe);drive.put("retrace",retrace);if(dd!=null&&dd.has("history"))drive.put("history",dd.optInt("history",0));out.put("drive",drive);out.put("retrace",retrace);
+            boolean hold=dd!=null&&dd.optBoolean("hold",false);
+            JSONObject drive=new JSONObject();drive.put("left",commandedLeft);drive.put("right",commandedRight);drive.put("failsafe",failsafe);drive.put("hold",hold);drive.put("retrace",retrace);if(dd!=null&&dd.has("history"))drive.put("history",dd.optInt("history",0));out.put("drive",drive);out.put("retrace",retrace);
 
             out.put("env",environment(diag,data.optJSONObject("env")));
             out.put("relay",relay(diag,data));
@@ -72,7 +73,7 @@ public final class RobotProtocolV4 {
 
     private static JSONObject adc(JSONObject diag,JSONObject data){JSONObject x=new JSONObject();try{JSONObject a=first(data==null?null:data.optJSONObject("adc"),diag==null?null:diag.optJSONObject("adc"));boolean a1=a!=null?a.optBoolean("ads1",false):diag.optBoolean("ads1",false);boolean a2=a!=null?a.optBoolean("ads2",false):diag.optBoolean("ads2",false);x.put("ads1",a1);x.put("ads2",a2);x.put("ads1_address","0x48");x.put("ads2_address","0x49");}catch(Exception ignored){}return x;}
 
-    private static JSONObject link(JSONObject diag){JSONObject x=new JSONObject();try{JSONObject l=diag==null?null:diag.optJSONObject("link");x.put("armed",l!=null?l.optBoolean("armed",false):diag.optBoolean("linkArmed",false));x.put("lost",l!=null?l.optBoolean("lost",false):diag.optBoolean("linkLost",false));x.put("heartbeat_age_ms",l!=null?l.optLong("heartbeat_age_ms",0):diag.optLong("heartbeatAgeMs",0));}catch(Exception ignored){}return x;}
+    private static JSONObject link(JSONObject diag){JSONObject x=new JSONObject();try{JSONObject l=diag==null?null:diag.optJSONObject("link");x.put("armed",l!=null?l.optBoolean("armed",false):diag.optBoolean("linkArmed",false));x.put("lost",l!=null?l.optBoolean("lost",false):diag.optBoolean("linkLost",false));x.put("hold",l!=null&&l.optBoolean("hold",false));x.put("hold_remaining_ms",l!=null?l.optLong("hold_remaining_ms",0):0);x.put("heartbeat_age_ms",l!=null?l.optLong("heartbeat_age_ms",0):diag.optLong("heartbeatAgeMs",0));}catch(Exception ignored){}return x;}
 
     private static JSONObject measurement(JSONObject m){
         JSONObject x=new JSONObject();try{
