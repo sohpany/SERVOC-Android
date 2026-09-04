@@ -1,18 +1,24 @@
 #pragma once
 #include <Arduino.h>
 
-/**
- * Remote video relay provisioning template.
- * Keep real production credentials out of the repository; inject them in the local flashing copy.
- */
+/** HazRob 0.9 Render video profile. Public coordinates are pinned; secrets stay in a local ignored header. */
+#if __has_include("RemoteVideoSecrets.h")
+#include "RemoteVideoSecrets.h"
+#endif
+#ifndef HAZROB_VIDEO_PUBLISH_TOKEN
+#define HAZROB_VIDEO_PUBLISH_TOKEN ""
+#endif
+#ifndef HAZROB_VIDEO_ROOT_CA
+#define HAZROB_VIDEO_ROOT_CA ""
+#endif
+
 namespace RemoteVideoCfg {
-constexpr char HOST[]="";
+constexpr char HOST[]="hazrob-video-relay.onrender.com";
 constexpr uint16_t PORT=443;
 constexpr char BASE_PATH[]="/hazrob/video";
 constexpr char ROBOT_ID[]="hazrob-001";
-constexpr char PUBLISH_TOKEN[]="";
-constexpr char ROOT_CA[] = R"PEM(
-)PEM";
+constexpr char PUBLISH_TOKEN[]=HAZROB_VIDEO_PUBLISH_TOKEN;
+constexpr char ROOT_CA[]=HAZROB_VIDEO_ROOT_CA;
 constexpr uint32_t FRAME_INTERVAL_MS=250; // ~4 FPS over cellular by default.
 constexpr uint32_t RETRY_MS=5000;
 constexpr size_t MAX_JPEG=160*1024;
