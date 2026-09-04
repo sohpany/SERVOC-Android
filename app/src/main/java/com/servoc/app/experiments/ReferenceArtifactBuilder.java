@@ -19,8 +19,8 @@ import java.util.Set;
 
 /**
  * Converts an operator-approved reference experiment into a traceable scientific artifact.
- * Fingerprints are derived from the exact recorded session. Quantitative calibration bundles
- * use only already-approved experiments plus the current candidate being approved.
+ * The primary fingerprint is the eight-channel averaged Rs/R0 pattern captured by the controlled
+ * reference measurement. Exact-session transient evidence is retained alongside it for audit.
  */
 public final class ReferenceArtifactBuilder {
     private ReferenceArtifactBuilder(){}
@@ -57,18 +57,22 @@ public final class ReferenceArtifactBuilder {
     private static Result buildFingerprint(ExperimentsDb db,ExperimentQueries.Record r,ChemicalRepository.Chemical chemical,String approvedTs)throws Exception{
         JSONObject payload=json(r.payload);String sid=payload.optString("reference_session_id","").trim();
         SessionSeries.Series s=SessionSeries.byId(db,sid);if(s==null||!s.usable())throw new IllegalStateException("exact reference session unavailable");
-        JSONObject sensors=new JSONObject();double max=0;double[] response=new double[HazRobHardwareProfile.MQ.length],base=new double[response.length],end=new double[response.length];
-        for(int i=0;i<HazRobHardwareProfile.MQ.length;i++){
-            String key=HazRobHardwareProfile.MQ[i].key;base[i]=medianWindow(s,key,0.00,0.25);end[i]=medianWindow(s,key,0.75,1.00);
-            double v=Double.isFinite(base[i])&&Double.isFinite(end[i])&&base[i]>0&&end[i]>0?Math.abs(Math.log(end[i]/base[i])):Double.NaN;response[i]=v;if(Double.isFinite(v))max=Math.max(max,v);
+        JSONObject averaged=payload.optJSONObject("reference_sensor_average");if(averaged==null||averaged.length()==0)throw new IllegalStateException("averaged reference vector unavailable");
+
+        int n=HazRobHardwareProfile.MQ.length;double[] ratio=new double[n],response=new double[n],base=new double[n],end=new double[n],dynamic=new double[n];double max=0;
+        for(int i=0;i<n;i++){
+            String key=HazRobHardwareProfile.MQ[i].key;JSONObject q=averaged.optJSONObject(key);ratio[i]=q==null?Double.NaN:q.optDouble("ratio",Double.NaN);
+            response[i]=Double.isFinite(ratio[i])&&ratio[i]>0?Math.abs(Math.log(ratio[i])):Double.NaN;if(Double.isFinite(response[i]))max=Math.max(max,response[i]);
+            base[i]=medianWindow(s,key,0.00,0.25);end[i]=medianWindow(s,key,0.75,1.00);dynamic[i]=Double.isFinite(base[i])&&Double.isFinite(end[i])&&base[i]>0&&end[i]>0?Math.abs(Math.log(end[i]/base[i])):Double.NaN;
         }
-        int valid=0;for(int i=0;i<response.length;i++){
-            String key=HazRobHardwareProfile.MQ[i].key;JSONObject q=new JSONObject();q.put("baseline_ratio",finiteOrNull(base[i]));q.put("exposed_ratio",finiteOrNull(end[i]));q.put("log_response",finiteOrNull(response[i]));
-            double norm=Double.isFinite(response[i])&&max>0?response[i]/max:Double.NaN;q.put("normalized_response",finiteOrNull(norm));if(Double.isFinite(norm))valid++;sensors.put(key,q);
+        JSONObject sensors=new JSONObject();int valid=0;
+        for(int i=0;i<n;i++){
+            String key=HazRobHardwareProfile.MQ[i].key;JSONObject q=new JSONObject();q.put("average_ratio",finiteOrNull(ratio[i]));q.put("static_log_response",finiteOrNull(response[i]));double norm=Double.isFinite(response[i])&&max>0?response[i]/max:Double.NaN;q.put("normalized_response",finiteOrNull(norm));
+            q.put("session_first_quarter_median_ratio",finiteOrNull(base[i]));q.put("session_last_quarter_median_ratio",finiteOrNull(end[i]));q.put("transient_log_delta",finiteOrNull(dynamic[i]));if(Double.isFinite(norm))valid++;sensors.put(key,q);
         }
         if(valid<2)throw new IllegalStateException("insufficient fingerprint channels");
-        JSONObject a=baseArtifact("hazrob-approved-fingerprint/1","FINGERPRINT",r,chemical,approvedTs);a.put("session_samples",s.samples.size());a.put("session_duration_ms",s.durationMs());a.put("method","abs(ln(median(last25%)/median(first25%))) normalized to strongest valid channel");a.put("valid_channels",valid);a.put("sensors",sensors);
-        return new Result("fingerprint",a,"بصمة معتمدة موثقة من "+valid+" قنوات MQ");
+        JSONObject a=baseArtifact("hazrob-approved-fingerprint/2","FINGERPRINT",r,chemical,approvedTs);a.put("session_samples",s.samples.size());a.put("session_duration_ms",s.durationMs());a.put("primary_method","abs(ln(averaged Rs/R0)) normalized to strongest valid MQ channel");a.put("secondary_transient_method","abs(ln(last-quarter median / first-quarter median)) from exact source session");a.put("valid_channels",valid);a.put("sensors",sensors);
+        return new Result("fingerprint",a,"بصمة معتمدة موثقة من "+valid+" قنوات MQ وبسلسلة زمنية مرتبطة");
     }
 
     private static Result buildCalibration(ExperimentsDb db,ExperimentQueries.Record current,ChemicalRepository.Chemical chemical,String approvedTs)throws Exception{
