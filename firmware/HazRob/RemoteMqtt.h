@@ -5,3 +5,5 @@ void remoteMqttBegin();
 void remoteMqttUpdate();
 void remoteMqttDisconnect();
 bool remoteMqttConnected();
+int remoteMqttConnAck();
+const char* remoteMqttError();
