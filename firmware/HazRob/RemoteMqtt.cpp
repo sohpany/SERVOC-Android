@@ -116,3 +116,15 @@ void remoteMqttUpdate(){
 }
 void remoteMqttDisconnect(){if(mqtt&&tls.connected()){tls.write((uint8_t)0xE0);tls.write((uint8_t)0);tls.flush();}tls.stop();mqtt=false;acked=false;telemetrySent=false;tlsHandshakeOk=false;mqttConnAck=-1;lastSession="";lastSeq=0;setCloudState();}
 bool remoteMqttConnected(){return mqtt&&tls.connected();}
+int remoteMqttConnAck(){return mqttConnAck;}
+const char* remoteMqttError(){
+  switch(mqttConnAck){
+    case 0:return "ok";
+    case 1:return "protocol_rejected";
+    case 2:return "client_id_rejected";
+    case 3:return "server_unavailable";
+    case 4:return "bad_credentials";
+    case 5:return "not_authorized";
+    default:return "no_connack";
+  }
+}
