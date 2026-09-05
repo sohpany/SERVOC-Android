@@ -1,4 +1,5 @@
 #include "RemoteLink.h"
+#include "RemoteMqtt.h"
 #include "Config.h"
 #include <WiFi.h>
 #include <Preferences.h>
@@ -50,7 +51,7 @@ void remoteSetCloudState(bool tls,bool mqtt,bool commandAck,bool telemetry,bool 
 String remoteStatusJson(){
   bool connected=WiFi.status()==WL_CONNECTED;String shownSsid=pending?pendingSsid:ssid;String ip=connected?WiFi.localIP().toString():"0.0.0.0";bool internet=connected&&dnsOk&&timeOk;bool ready=!pending&&internet&&cloudTls&&cloudMqtt&&cloudAck&&cloudTelemetry;
   uint32_t pendingRemain=pending&&millis()-pendingAt<PROVISION_TEST_MS?PROVISION_TEST_MS-(millis()-pendingAt):0;
-  String j="{\"configured\":";j+=configured?"true":"false";j+=",\"ssid\":\""+esc(shownSsid)+"\"";j+=",\"active_ssid\":\""+esc(ssid)+"\"";j+=",\"provision_pending\":";j+=pending?"true":"false";j+=",\"provision_remaining_ms\":"+String(pendingRemain);j+=",\"wifi\":";j+=connected?"true":"false";j+=",\"ip\":\""+ip+"\",\"ip_ok\":";j+=connected?"true":"false";j+=",\"rssi\":"+String(connected?WiFi.RSSI():0);j+=",\"dns\":";j+=dnsOk?"true":"false";j+=",\"time\":";j+=timeOk?"true":"false";j+=",\"internet\":";j+=internet?"true":"false";j+=",\"tls\":";j+=cloudTls?"true":"false";j+=",\"mqtt\":";j+=cloudMqtt?"true":"false";j+=",\"command_ack\":";j+=cloudAck?"true":"false";j+=",\"telemetry\":";j+=cloudTelemetry?"true":"false";j+=",\"camera\":";j+=cloudCamera?"true":"false";j+=",\"remote_ready\":";j+=ready?"true":"false";j+="}";return j;
+  String j="{\"configured\":";j+=configured?"true":"false";j+=",\"ssid\":\""+esc(shownSsid)+"\"";j+=",\"active_ssid\":\""+esc(ssid)+"\"";j+=",\"provision_pending\":";j+=pending?"true":"false";j+=",\"provision_remaining_ms\":"+String(pendingRemain);j+=",\"wifi\":";j+=connected?"true":"false";j+=",\"ip\":\""+ip+"\",\"ip_ok\":";j+=connected?"true":"false";j+=",\"rssi\":"+String(connected?WiFi.RSSI():0);j+=",\"dns\":";j+=dnsOk?"true":"false";j+=",\"time\":";j+=timeOk?"true":"false";j+=",\"internet\":";j+=internet?"true":"false";j+=",\"tls\":";j+=cloudTls?"true":"false";j+=",\"mqtt\":";j+=cloudMqtt?"true":"false";j+=",\"mqtt_connack\":"+String(remoteMqttConnAck());j+=",\"mqtt_error\":\""+String(remoteMqttError())+"\"";j+=",\"command_ack\":";j+=cloudAck?"true":"false";j+=",\"telemetry\":";j+=cloudTelemetry?"true":"false";j+=",\"camera\":";j+=cloudCamera?"true":"false";j+=",\"remote_ready\":";j+=ready?"true":"false";j+="}";return j;
 }
 String remoteSsid(){return pending?pendingSsid:ssid;}
 bool remoteInternetReady(){return !pending&&configured&&WiFi.status()==WL_CONNECTED&&dnsOk&&timeOk;}
