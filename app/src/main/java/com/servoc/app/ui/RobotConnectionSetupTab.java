@@ -73,11 +73,7 @@ public final class RobotConnectionSetupTab {
 
     public View view(){return scroll;}
 
-    /**
-     * Intentionally no automatic network/status polling here.
-     * MainActivity refreshes visible tabs at telemetry rate (4 Hz); polling from this method made
-     * this setup screen continuously relayout/flicker. Status and Wi-Fi scans are user-triggered.
-     */
+    /** MainActivity refreshes visible tabs frequently; this page is deliberately user-triggered only. */
     public void refresh(){ }
 
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
@@ -91,12 +87,17 @@ public final class RobotConnectionSetupTab {
             try{
                 JSONObject j=host.robotApi().remoteStatus();boolean pending=j.optBoolean("provision_pending",false);long remain=j.optLong("provision_remaining_ms",0);
                 String active=j.optString("active_ssid",j.optString("ssid","")),shown=j.optString("ssid","");
+                boolean internet=j.optBoolean("internet",false),tls=j.optBoolean("tls",false),mqtt=j.optBoolean("mqtt",false),telemetry=j.optBoolean("telemetry",false);
+                int mqttCode=j.optInt("mqtt_connack",-1);String mqttError=j.optString("mqtt_error","");
+                String mqttDetail=mqtt?"":"\nسبب MQTT: "+mqttErrorAr(mqttError)+"   •   CONNACK: "+mqttCode;
                 String text=(pending?"اختبار شبكة جديدة: "+dash(shown)+"\nالشبكة المحفوظة: "+dash(active)+"   •   مهلة: "+String.format(java.util.Locale.US,"%.1f s",remain/1000.0):"SSID: "+dash(shown))+"\n"+
                         "Wi-Fi: "+yes(j.optBoolean("wifi",false))+"   •   IP: "+dash(j.optString("ip",""))+"\n"+
-                        "RSSI: "+j.optInt("rssi",0)+" dBm   •   Internet: "+yes(j.optBoolean("internet",false))+"\n"+
-                        "TLS: "+yes(j.optBoolean("tls",false))+"   •   MQTT: "+yes(j.optBoolean("mqtt",false))+"   •   Telemetry: "+yes(j.optBoolean("telemetry",false))+
+                        "RSSI: "+j.optInt("rssi",0)+" dBm   •   Internet: "+yes(internet)+"\n"+
+                        "DNS: "+yes(j.optBoolean("dns",false))+"   •   Time: "+yes(j.optBoolean("time",false))+"\n"+
+                        "TLS: "+yes(tls)+"   •   MQTT: "+yes(mqtt)+"   •   Telemetry: "+yes(telemetry)+mqttDetail+
                         (pending?"\nلن يُحفظ الإعداد الجديد إلا بعد نجاح اختبار الإنترنت؛ وإلا سيتم Rollback تلقائيًا.":"");
-                root.post(()->{statusInProgress=false;refreshButton.setEnabled(true);refreshButton.setText("تحديث الحالة");status.setText(text);status.setTextColor(pending?0xFFFFB74D:j.optBoolean("internet",false)?0xFF81C784:0xFFFFB74D);});
+                boolean cloudOk=internet&&tls&&mqtt&&telemetry;
+                root.post(()->{statusInProgress=false;refreshButton.setEnabled(true);refreshButton.setText("تحديث الحالة");status.setText(text);status.setTextColor(pending?0xFFFFB74D:cloudOk?0xFF81C784:0xFFFFB74D);});
             }catch(Exception e){root.post(()->{statusInProgress=false;refreshButton.setEnabled(true);refreshButton.setText("تحديث الحالة");status.setText("تعذر الوصول إلى إعداد الشبكة. اتصل بشبكة HazRob المحلية ثم أعد المحاولة.");status.setTextColor(0xFFFF7043);});}
         });
     }
@@ -135,4 +136,13 @@ public final class RobotConnectionSetupTab {
 
     private static String yes(boolean b){return b?"● نعم":"○ لا";}
     private static String dash(String s){return s==null||s.trim().isEmpty()?"—":s;}
+    private static String mqttErrorAr(String e){
+        if("ok".equals(e))return"لا يوجد خطأ";
+        if("protocol_rejected".equals(e))return"إصدار MQTT مرفوض";
+        if("client_id_rejected".equals(e))return"معرّف العميل مرفوض";
+        if("server_unavailable".equals(e))return"خادم MQTT غير متاح";
+        if("bad_credentials".equals(e))return"اسم المستخدم أو كلمة المرور مرفوضة";
+        if("not_authorized".equals(e))return"الحساب غير مخوّل";
+        return"لم تصل استجابة CONNACK";
+    }
 }
