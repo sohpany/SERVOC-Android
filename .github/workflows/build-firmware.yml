@@ -39,6 +39,7 @@ jobs:
           arduino-cli lib install "Adafruit ADS1X15"
           arduino-cli lib install "Adafruit BME280 Library"
           arduino-cli lib install "Adafruit BMP280 Library"
+          arduino-cli lib install "PubSubClient"
 
       - name: Compile HazRob master ESP32
         run: |
