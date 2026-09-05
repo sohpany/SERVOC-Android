@@ -14,6 +14,7 @@ bool mqtt=false,acked=false,telemetrySent=false,tlsHandshakeOk=false;
 int mqttConnAck=-1;
 uint32_t retryAt=0,lastTelemetry=0,lastStatus=0;
 String root,cmdTopic,ackTopic,telemetryTopic,statusTopic,lastSession;
+String passwordMode="none";
 uint64_t lastSeq=0;
 
 String u64(uint64_t v){char b[24];snprintf(b,sizeof(b),"%llu",(unsigned long long)v);return String(b);}
@@ -81,24 +82,53 @@ void onMessage(char* topic,byte* payload,unsigned int len){
 
 void setCloudState(){remoteSetCloudState(tlsHandshakeOk,mqtt&&mqttClient.connected(),acked,telemetrySent,false);}
 
-bool connectCloud(){
-  if(!RemoteCfg::configured()||!remoteInternetReady())return false;
-  if(mqttClient.connected())mqttClient.disconnect();tls.stop();
-  mqtt=false;acked=false;telemetrySent=false;mqttConnAck=-1;setCloudState();
+String compactPassword(){String p=String(RemoteCfg::PASSWORD);p.replace(" ","");return p;}
+String spacedPassword(const String& compact){
+  // Temporary migration test for the current experimental 55-character credential.
+  // The secret itself is never committed; only the two original separator positions are reconstructed.
+  if(compact.length()!=55)return "";
+  return compact.substring(0,14)+" "+compact.substring(14,35)+" "+compact.substring(35);
+}
 
+bool connectAttempt(const String& clientId,const String& password,const char* mode){
+  if(password.isEmpty())return false;
+  if(mqttClient.connected())mqttClient.disconnect();
+  tls.stop();tlsHandshakeOk=false;setCloudState();
   tls.setCACert(RemoteCfg::ROOT_CA);tls.setTimeout(4);
-  tlsHandshakeOk=false;
-  if(!tls.connect(RemoteCfg::BROKER_HOST,RemoteCfg::BROKER_PORT)){setCloudState();return false;}
+  if(!tls.connect(RemoteCfg::BROKER_HOST,RemoteCfg::BROKER_PORT)){mqttConnAck=-2;setCloudState();return false;}
   tlsHandshakeOk=true;setCloudState();
-
-  String clientId="hazrob-"+String(RemoteCfg::ROBOT_ID);
-  if(!mqttClient.connect(clientId.c_str(),RemoteCfg::USERNAME,RemoteCfg::PASSWORD)){
+  if(!mqttClient.connect(clientId.c_str(),RemoteCfg::USERNAME,password.c_str())){
     mqttConnAck=mqttClient.state();mqtt=false;setCloudState();tls.stop();return false;
   }
+  passwordMode=mode;mqttConnAck=0;return true;
+}
+
+bool connectCloud(){
+  if(!RemoteCfg::configured()||!remoteInternetReady())return false;
+  mqtt=false;acked=false;telemetrySent=false;mqttConnAck=-1;passwordMode="none";setCloudState();
+
+  String clientId="hazrob-"+String(RemoteCfg::ROBOT_ID);
+  String stored=String(RemoteCfg::PASSWORD);
+  String compact=compactPassword();
+  String spaced=spacedPassword(compact);
+  bool ok=false;
+
+  // Try the exact stored form first. If it has no spaces, this is the compact form.
+  if(stored.indexOf(' ')>=0){
+    ok=connectAttempt(clientId,stored,"with_spaces");
+    if(!ok&&compact!=stored)ok=connectAttempt(clientId,compact,"without_spaces");
+  }else{
+    ok=connectAttempt(clientId,compact,"without_spaces");
+    if(!ok&&!spaced.isEmpty()&&spaced!=compact)ok=connectAttempt(clientId,spaced,"with_spaces");
+  }
+
+  if(!ok){mqtt=false;setCloudState();return false;}
 
   mqtt=true;mqttConnAck=0;
-  if(!mqttClient.subscribe(cmdTopic.c_str())){mqttConnAck=mqttClient.state();}
-  acked=false;telemetrySent=false;setCloudState();return true;
+  if(!mqttClient.subscribe(cmdTopic.c_str()))mqttConnAck=mqttClient.state();
+  acked=false;telemetrySent=false;setCloudState();
+  Serial.print("[MQTT] connected using password variant: ");Serial.println(passwordMode);
+  return true;
 }
 
 void publishTelemetry(){String j="{\"diag\":"+diagJson()+",\"data\":"+dataJson()+"}";if(mqttPublish(telemetryTopic,j,false))telemetrySent=true;setCloudState();}
@@ -117,10 +147,10 @@ void remoteMqttBegin(){
 void remoteMqttUpdate(){
   uint32_t now=millis();
   if(!RemoteCfg::configured()){
-    if(mqttClient.connected())mqttClient.disconnect();tls.stop();mqtt=false;tlsHandshakeOk=false;mqttConnAck=-1;setCloudState();return;
+    if(mqttClient.connected())mqttClient.disconnect();tls.stop();mqtt=false;tlsHandshakeOk=false;mqttConnAck=-1;passwordMode="none";setCloudState();return;
   }
   if(!remoteInternetReady()){
-    if(mqttClient.connected())mqttClient.disconnect();tls.stop();mqtt=false;acked=false;telemetrySent=false;tlsHandshakeOk=false;mqttConnAck=-1;setCloudState();return;
+    if(mqttClient.connected())mqttClient.disconnect();tls.stop();mqtt=false;acked=false;telemetrySent=false;tlsHandshakeOk=false;mqttConnAck=-1;passwordMode="none";setCloudState();return;
   }
   if(!mqttClient.connected()){
     int s=mqttClient.state();if(s!=0)mqttConnAck=s;mqtt=false;acked=false;telemetrySent=false;setCloudState();
@@ -135,7 +165,7 @@ void remoteMqttUpdate(){
 }
 
 void remoteMqttDisconnect(){
-  if(mqttClient.connected())mqttClient.disconnect();tls.stop();mqtt=false;acked=false;telemetrySent=false;tlsHandshakeOk=false;mqttConnAck=-1;lastSession="";lastSeq=0;setCloudState();
+  if(mqttClient.connected())mqttClient.disconnect();tls.stop();mqtt=false;acked=false;telemetrySent=false;tlsHandshakeOk=false;mqttConnAck=-1;passwordMode="none";lastSession="";lastSeq=0;setCloudState();
 }
 
 bool remoteMqttConnected(){return mqtt&&mqttClient.connected();}
