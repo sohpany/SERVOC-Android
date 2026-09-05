@@ -1,4 +1,5 @@
 import http from "node:http";
+import tls from "node:tls";
 import { timingSafeEqual } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 
@@ -18,6 +19,47 @@ function distinct(a,b){return present(a)&&present(b)&&!safeEq(a,b);}
 function reject(socket,status,text){const body=Buffer.from(text,"utf8");const reason=status===400?"Bad Request":status===401?"Unauthorized":status===404?"Not Found":"Service Unavailable";try{socket.write(`HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: ${body.length}\r\n\r\n`);socket.write(body);}finally{socket.destroy();}}
 function roomFor(robotId){let room=rooms.get(robotId);if(!room){room={publisher:null,viewers:new Set()};rooms.set(robotId,room);}return room;}
 function cleanRoom(robotId,room){if(!room.publisher&&room.viewers.size===0)rooms.delete(robotId);}
+
+function mqttUtf(value){const b=Buffer.from(String(value),"utf8");const h=Buffer.alloc(2);h.writeUInt16BE(b.length);return Buffer.concat([h,b]);}
+function mqttRemainingLength(n){const out=[];do{let d=n%128;n=Math.floor(n/128);if(n>0)d|=0x80;out.push(d);}while(n>0);return Buffer.from(out);}
+function mqttConnectPacket(user,password,clientId){
+  const variable=Buffer.concat([mqttUtf("MQTT"),Buffer.from([4,0xC2,0,10])]);
+  const payload=Buffer.concat([mqttUtf(clientId),mqttUtf(user),mqttUtf(password)]);
+  const body=Buffer.concat([variable,payload]);
+  return Buffer.concat([Buffer.from([0x10]),mqttRemainingLength(body.length),body]);
+}
+function mqttConnackText(code){return ({0:"accepted",1:"protocol_rejected",2:"client_id_rejected",3:"server_unavailable",4:"bad_credentials",5:"not_authorized"})[code]||"unknown";}
+function testRobotMqtt(password,variant){
+  return new Promise(resolve=>{
+    const host="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud",port=8883,user="hazrob_robot";
+    let done=false,tlsOk=false,buf=Buffer.alloc(0);
+    const finish=(extra={})=>{if(done)return;done=true;clearTimeout(timer);try{sock.destroy();}catch{}resolve({variant,tls:tlsOk,mqtt:false,connack:-1,...extra});};
+    const sock=tls.connect({host,port,servername:host,rejectUnauthorized:true},()=>{
+      tlsOk=true;
+      try{sock.write(mqttConnectPacket(user,password,`hazrob-render-diag-${Date.now()}`));}catch(e){finish({error:"write_failed"});}
+    });
+    const timer=setTimeout(()=>finish({error:"timeout"}),6000);
+    sock.on("data",chunk=>{
+      buf=Buffer.concat([buf,chunk]);
+      if(buf.length>=4&&buf[0]===0x20&&buf[1]===0x02){
+        const code=buf[3];
+        if(done)return;done=true;clearTimeout(timer);try{sock.end(Buffer.from([0xE0,0x00]));}catch{}
+        resolve({variant,tls:tlsOk,mqtt:code===0,connack:code,result:mqttConnackText(code)});
+      }
+    });
+    sock.on("error",()=>finish({error:tlsOk?"socket_error":"tls_error"}));
+    sock.on("close",()=>{if(!done)finish({error:tlsOk?"closed_before_connack":"tls_closed"});});
+  });
+}
+async function runRobotCredentialDiagnostic(){
+  const spaced=process.env.MQTT_ROBOT_PASSWORD_TEST||"";
+  if(!present(spaced))return;
+  const compact=spaced.replace(/\s+/g,"");
+  const results=[];
+  results.push(await testRobotMqtt(spaced,"with_spaces"));
+  if(compact!==spaced)results.push(await testRobotMqtt(compact,"without_spaces"));
+  console.log("HAZROB_MQTT_CREDENTIAL_DIAGNOSTIC "+JSON.stringify(results));
+}
 
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url||"/","http://localhost");
@@ -127,7 +169,7 @@ const heartbeat=setInterval(()=>{
   }
 },PING_MS);
 heartbeat.unref();
-server.listen(PORT,"0.0.0.0",()=>console.log(`HazRob video relay ${SERVICE_VERSION} listening on ${PORT}`));
+server.listen(PORT,"0.0.0.0",()=>{console.log(`HazRob video relay ${SERVICE_VERSION} listening on ${PORT}`);runRobotCredentialDiagnostic().catch(()=>console.log("HAZROB_MQTT_CREDENTIAL_DIAGNOSTIC failed"));});
 function shutdown(){
   clearInterval(heartbeat);
   for(const ws of wss.clients){try{ws.close(1001,"server restart");}catch{}}
