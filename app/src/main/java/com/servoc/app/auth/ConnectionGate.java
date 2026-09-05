@@ -149,19 +149,36 @@ public final class ConnectionGate {
     private void render(RemoteReadiness r){
         progress.setVisibility(View.VISIBLE);progress.setProgress(r.completedCoreStages());StringBuilder s=new StringBuilder();
         stage(s,"إعداد الشبكة",r.configured);stage(s,"Wi-Fi",r.wifi);stage(s,"IP",r.ip);stage(s,"DNS",r.dns);stage(s,"الإنترنت/الوقت",r.internet&&r.time);stage(s,"TLS",r.tls);stage(s,"MQTT",r.mqtt);stage(s,"قناة الأوامر",r.commandAck);stage(s,"Telemetry",r.telemetry);stage(s,"الفيديو البعيد",r.camera);
-        status.setText(s.toString().trim());status.setTextColor(r.ready&&r.camera?0xFF2E7D32:0xFF245A7A);
+        status.setText(s.toString().trim());status.setTextColor(r.ready?0xFF2E7D32:0xFF245A7A);
     }
 
     private static void stage(StringBuilder s,String name,boolean ok){if(s.length()>0)s.append('\n');s.append(ok?"✓ ":"○ ").append(name);}
 
+    /**
+     * Remote control readiness is independent of the optional video relay.
+     * MQTT command/ACK/telemetry success is sufficient to enter the operator workspace.
+     * Video is probed and reported, but it must never block remote robot control.
+     */
     private void finishRemote(RemoteReadiness control){
         busy("فحص الفيديو البعيد...",10);
         io.execute(()->{
             RemoteVideoReadiness.Result v=RemoteVideoReadiness.probe(a,prefs);
-            RemoteReadiness full=new RemoteReadiness(control.configured,control.wifi,control.ip,control.dns,control.time,control.internet,control.tls,control.mqtt,control.commandAck,control.telemetry,v.ready,control.ready&&v.ready,v.detail);
+            RemoteReadiness full=new RemoteReadiness(
+                    control.configured,control.wifi,control.ip,control.dns,control.time,control.internet,
+                    control.tls,control.mqtt,control.commandAck,control.telemetry,
+                    v.ready,control.ready,v.detail);
             ui.post(()->{
                 render(full);
-                if(!full.ready){status.append("\n"+v.detail);status.setTextColor(0xFFEF6C00);showBack();return;}
+                if(!control.ready){
+                    status.append("\nقناة التحكم البعيد غير جاهزة");
+                    status.setTextColor(0xFFEF6C00);
+                    showBack();
+                    return;
+                }
+                if(!v.ready){
+                    status.append("\nالفيديو البعيد غير جاهز حالياً؛ سيتم الدخول إلى التحكم بدونه.");
+                    status.setTextColor(0xFFEF6C00);
+                }
                 prefs.edit().putString("connection_mode","remote").apply();
                 status.postDelayed(()->listener.onReady(Mode.REMOTE),350);
             });
