@@ -65,6 +65,15 @@ public final class RobotApi {
         getText("/relay?mask="+mask,800);
     }
 
+    /** Operational local audible alert. 0=clear, 1=elevated response, 2=high response. */
+    public void setAlertLevel(int severity)throws Exception{setAlertLevel(severity,3000);}
+    public void setAlertLevel(int severity,int ttlMs)throws Exception{
+        if(severity<0||severity>2)throw new IllegalArgumentException("Alert severity must be 0..2");
+        int ttl=Math.max(500,Math.min(10000,ttlMs));RemoteConnection r=remote();if(r!=null){r.setAlertLevel(severity,ttl);return;}
+        getText("/alert?severity="+severity+"&ttl="+ttl,800);
+    }
+    public void alertTest()throws Exception{RemoteConnection r=remote();if(r!=null){r.alertTest();return;}getText("/alert?cmd=test",800);}
+
     public void cameraFlash(String mode)throws Exception{RemoteConnection r=remote();if(r==null)throw new IllegalStateException("remote session unavailable");r.cameraFlash(mode);}
     public JSONObject remoteCameraStatus(){RemoteConnection r=RemoteConnection.current();return r==null?null:r.cameraStatus();}
     private static String enc(String s)throws Exception{return URLEncoder.encode(s==null?"":s,StandardCharsets.UTF_8.name());}

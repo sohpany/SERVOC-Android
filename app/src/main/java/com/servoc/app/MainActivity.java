@@ -26,6 +26,7 @@ import com.servoc.app.communication.WifiRoute;
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
+import com.servoc.app.measurement.GasAlertCoordinator;
 import com.servoc.app.measurement.SensorHealthEngine;
 import com.servoc.app.measurement.TelemetryRecorder;
 import com.servoc.app.navigation.MotionHistory;
@@ -51,16 +52,18 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/** HazRob 0.9.2-rc1 coordinator. Direct and Remote are transports for the same operator workspace. */
+/** HazRob 0.9.3-rc1 coordinator. Direct and Remote are transports for the same operator workspace. */
 public final class MainActivity extends Activity implements HazRobHost {
     private static final int EXPORT_XLSX=8101,EXPORT_PDF=8102,EXPORT_REFERENCE=8103,EXPORT_RAW=8104;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final ScheduledExecutorService workers=Executors.newScheduledThreadPool(7);
     private final MotionHistory motionHistory=new MotionHistory();
     private final SensorHealthEngine sensorHealth=new SensorHealthEngine();
+    private final GasAlertCoordinator gasAlertCoordinator=new GasAlertCoordinator();
     private SharedPreferences prefs;private RobotApi robotApi;private CameraApi cameraApi;private ExperimentsDb db;private TelemetryRecorder telemetryRecorder;
     private volatile JSONObject latestDiag;private volatile int left=0,right=0;private volatile boolean foreground=false;private volatile String flashMode="off";
     private volatile int trackingTarget=-1;private volatile String trackingName="";
+    private volatile int lastGasAlertLevel=GasAlertCoordinator.NONE;private volatile long gasAlertSentAt=0;
     private boolean developerMode=false,entered=false,commsScheduled=false;private FrameLayout page;private TextView globalStatus;private Button[] tabButtons;private int selectedTab=0;private long pendingExperimentId=-1;
     private ControlTab controlTab;private MeasurementsTab measurementsTab;private StatusTab statusTab;private SettingsTab settingsTab;private DeveloperTab developerTab;private View[] tabViews;
 
@@ -92,14 +95,20 @@ public final class MainActivity extends Activity implements HazRobHost {
         // 10 Hz operator command cadence; the ESP32 drive lease independently stops stale motion.
         workers.scheduleAtFixedRate(()->{if(!foreground||!entered)return;try{robotApi.drive(left,right);}catch(Exception ignored){}},0,100,TimeUnit.MILLISECONDS);
         // 4 Hz state/telemetry refresh matches the accelerated remote telemetry cadence.
-        workers.scheduleAtFixedRate(()->{if(!entered)return;try{JSONObject snap=robotApi.snapshot(left,right);latestDiag=snap;sensorHealth.accept(snap,SystemClock.elapsedRealtime());telemetryRecorder.accept(snap,left,right,developerMode);ui.post(this::onTelemetryUpdated);}catch(Exception e){latestDiag=null;ui.post(this::onTelemetryUpdated);}},0,250,TimeUnit.MILLISECONDS);
+        workers.scheduleAtFixedRate(()->{if(!entered)return;try{long now=SystemClock.elapsedRealtime();JSONObject snap=robotApi.snapshot(left,right);latestDiag=snap;sensorHealth.accept(snap,now);updateGasAlert(snap,now);telemetryRecorder.accept(snap,left,right,developerMode);ui.post(this::onTelemetryUpdated);}catch(Exception e){latestDiag=null;gasAlertCoordinator.reset();lastGasAlertLevel=GasAlertCoordinator.NONE;gasAlertSentAt=0;ui.post(this::onTelemetryUpdated);}},0,250,TimeUnit.MILLISECONDS);
     }
-    private void onTelemetryUpdated(){JSONObject d=latestDiag;if(globalStatus==null)return;if(d==null){globalStatus.setText("غير متصل");globalStatus.setTextColor(0xFFFFB74D);}else{JSONObject ir=d.optJSONObject("ir"),drv=d.optJSONObject("drive");boolean warn=ir!=null&&ir.optBoolean("warning",false),back=drv!=null&&drv.optBoolean("retrace",false),hold=drv!=null&&drv.optBoolean("hold",false);globalStatus.setText(hold?"فقد الاتصال • انتظار 3 ثوانٍ":"متصل"+(back?" • عودة":warn?" • ⚠ IR":""));globalStatus.setTextColor(hold?0xFFFFB74D:back?0xFFFFB74D:warn?0xFFFF7043:0xFF81C784);}refreshVisibleTab();}
+    /** Audible gas warnings are baseline-response alarms only; they do not imply calibrated ppm or IDLH. */
+    private void updateGasAlert(JSONObject snap,long now){
+        int warm=Math.max(0,prefs.getInt("warm",60));int level=gasAlertCoordinator.evaluate(snap,sensorHealth,warm,now);boolean changed=level!=lastGasAlertLevel;boolean refresh=level>0&&now-gasAlertSentAt>=1000;
+        if(!changed&&!refresh)return;
+        try{robotApi.setAlertLevel(level,3000);lastGasAlertLevel=level;gasAlertSentAt=now;}catch(Exception ignored){}
+    }
+    private void onTelemetryUpdated(){JSONObject d=latestDiag;if(globalStatus==null)return;if(d==null){globalStatus.setText("غير متصل");globalStatus.setTextColor(0xFFFFB74D);}else{JSONObject ir=d.optJSONObject("ir"),drv=d.optJSONObject("drive"),alert=d.optJSONObject("alert");boolean warn=ir!=null&&ir.optBoolean("warning",false),back=drv!=null&&drv.optBoolean("retrace",false),hold=drv!=null&&drv.optBoolean("hold",false),gas=alert!=null&&alert.optInt("gas",0)>0;globalStatus.setText(hold?"فقد الاتصال • انتظار 3 ثوانٍ":"متصل"+(back?" • عودة":gas?" • ⚠ غازات":warn?" • ⚠ IR":""));globalStatus.setTextColor(hold?0xFFFFB74D:back?0xFFFFB74D:gas?0xFFFF7043:warn?0xFFFF7043:0xFF81C784);}refreshVisibleTab();}
     private void refreshVisibleTab(){if(!entered)return;if(selectedTab==0)controlTab.refresh();else if(selectedTab==1)measurementsTab.refresh();else if(selectedTab==2)statusTab.refresh();else if(selectedTab==3)settingsTab.refresh();else if(selectedTab==4)developerTab.refresh();}
 
     @Override protected void onResume(){super.onResume();if(!"remote".equalsIgnoreCase(prefs.getString("connection_mode","direct")))WifiRoute.bindConnectedWifi(this);foreground=true;if(entered){startLinkService();if(selectedTab==0)controlTab.startCamera();refreshVisibleTab();}}
     @Override protected void onPause(){foreground=false;if(entered){controlTab.stopCamera();stopOperatorMotion();}super.onPause();}
-    @Override protected void onDestroy(){if(controlTab!=null)controlTab.releaseCamera();workers.shutdownNow();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
+    @Override protected void onDestroy(){if(controlTab!=null)controlTab.releaseCamera();try{if(lastGasAlertLevel!=GasAlertCoordinator.NONE)robotApi.setAlertLevel(GasAlertCoordinator.NONE,500);}catch(Exception ignored){}workers.shutdownNow();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
     private void startLinkService(){try{RobotLinkService.start(getApplicationContext());}catch(Exception ignored){}}
 
     @Override public RobotApi robotApi(){return robotApi;}@Override public SharedPreferences preferences(){return prefs;}@Override public ExperimentsDb database(){return db;}@Override public ExecutorService io(){return workers;}@Override public String operatorRole(){return developerMode?"DEVELOPER":"USER";}@Override public JSONObject latestDiagnostics(){return latestDiag;}@Override public void setLatestDiagnostics(JSONObject value){latestDiag=value;}@Override public void showToast(String text){ui.post(()->android.widget.Toast.makeText(this,text,android.widget.Toast.LENGTH_SHORT).show());}

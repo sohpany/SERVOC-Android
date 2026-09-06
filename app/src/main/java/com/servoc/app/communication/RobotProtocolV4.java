@@ -31,6 +31,7 @@ public final class RobotProtocolV4 {
             out.put("sound",sound(first(data.optJSONObject("sound"),diag.optJSONObject("sound"))));
             out.put("ir",ir(diag,first(data.optJSONObject("ir"),diag.optJSONObject("ir"))));
             out.put("ldr",ldr(diag,first(data.optJSONObject("ldr"),diag.optJSONObject("ldr"))));
+            out.put("alert",alert(first(data.optJSONObject("alert"),diag.optJSONObject("alert"))));
             out.put("adc",adc(diag,data));
             out.put("mq",mq(data.optJSONObject("mq"),false));
             out.put("measurement",measurement(data.optJSONObject("measurement")));
@@ -68,7 +69,8 @@ public final class RobotProtocolV4 {
 
     private static JSONObject sound(JSONObject s){JSONObject x=new JSONObject();try{if(s==null)s=new JSONObject();Object rms=finiteAny(s,"rms_v","rms"),p2p=finiteAny(s,"p2p_v","p2p");x.put("rms_v",rms);x.put("p2p_v",p2p);x.put("ok",rms!=JSONObject.NULL||p2p!=JSONObject.NULL);x.put("calibrated_db_spl",false);}catch(Exception ignored){}return x;}
     private static JSONObject ir(JSONObject diag,JSONObject i){JSONObject x=new JSONObject();try{boolean warning=i!=null?i.optBoolean("warning",diag.optBoolean("ir",false)):diag.optBoolean("ir",false);x.put("installed",true);x.put("warning",warning);x.put("level",i==null?JSONObject.NULL:i.optInt("level",-1));x.put("drive_interlock",false);}catch(Exception ignored){}return x;}
-    private static JSONObject ldr(JSONObject diag,JSONObject i){JSONObject x=new JSONObject();try{boolean installed=i!=null&&i.optBoolean("installed",i.has("active")||i.has("level"));x.put("installed",installed);x.put("active",installed&&i.optBoolean("active",diag.optBoolean("ldr",false)));x.put("level",installed&&i.has("level")?i.optInt("level",-1):JSONObject.NULL);x.put("quantitative_lux",false);}catch(Exception ignored){}return x;}
+    private static JSONObject ldr(JSONObject diag,JSONObject i){JSONObject x=new JSONObject();try{boolean installed=i!=null&&i.optBoolean("installed",i.has("active")||i.has("level"));x.put("installed",installed);x.put("active",installed&&i.optBoolean("active",diag.optBoolean("ldr",false)));x.put("level",installed&&i.has("level")?i.optInt("level",-1):JSONObject.NULL);x.put("gpio",installed&&i.has("gpio")?i.optInt("gpio",34):34);x.put("quantitative_lux",false);}catch(Exception ignored){}return x;}
+    private static JSONObject alert(JSONObject a){JSONObject x=new JSONObject();try{if(a==null)a=new JSONObject();x.put("active",a.optBoolean("active",false));x.put("level",a.optInt("level",0));x.put("name",a.optString("name","none"));x.put("gpio",a.optInt("gpio",26));x.put("gas",Math.max(0,Math.min(2,a.optInt("gas",0))));x.put("ir",a.optBoolean("ir",false));x.put("link",a.optBoolean("link",false));}catch(Exception ignored){}return x;}
 
     private static JSONObject adc(JSONObject diag,JSONObject data){JSONObject x=new JSONObject();try{JSONObject a=first(data==null?null:data.optJSONObject("adc"),diag==null?null:diag.optJSONObject("adc"));boolean a1=a!=null?a.optBoolean("ads1",false):diag.optBoolean("ads1",false);boolean a2=a!=null?a.optBoolean("ads2",false):diag.optBoolean("ads2",false);x.put("ads1",a1);x.put("ads2",a2);x.put("ads1_address","0x48");x.put("ads2_address","0x49");}catch(Exception ignored){}return x;}
 

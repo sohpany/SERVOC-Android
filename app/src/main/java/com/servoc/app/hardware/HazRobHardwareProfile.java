@@ -2,14 +2,19 @@ package com.servoc.app.hardware;
 
 import com.servoc.app.chemical.GasEngine;
 
-/** Single source of truth for the field-wired HazRob 0.9 sensor/power/ADS topology. */
+/** Single source of truth for the field-wired HazRob 0.9.3 sensor/power/ADS topology. */
 public final class HazRobHardwareProfile {
     private HazRobHardwareProfile(){}
 
-    public static final String ID="hazrob-0.9-1r8mq-v1";
+    public static final String ID="hazrob-0.9.3-1r8mq-alert-ldr-v1";
     public static final int MQ_GROUPS=1;
     public static final int RELAY_CHANNELS=1;
     public static final int INSTALLED_RELAY_MASK=0x01;
+    public static final int MQ_RELAY_GPIO=25;
+    public static final int ALERT_GPIO=26;
+    public static final int LDR_GPIO=34;
+    public static final int IR_GPIO=35;
+    public static final int SOUND_GPIO=36;
 
     public static final class Channel {
         public final int sensorId;

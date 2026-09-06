@@ -4,8 +4,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ReleaseAuditTest {
-    @Test public void v092KeepsCriticalCameraAndEvidenceContracts(){
-        assertEquals("0.9.2-rc1",ReleaseAudit.VERSION);
+    @Test public void v093KeepsCriticalCameraAndEvidenceContracts(){
+        assertEquals("0.9.3-rc1",ReleaseAudit.VERSION);
         assertEquals(8,ReleaseAudit.DATABASE_SCHEMA);
         assertTrue(ReleaseAudit.VIDEO_RECORDING);
         assertTrue(ReleaseAudit.DIRECT_ESP_CAM_MJPEG);
@@ -21,7 +21,7 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.THREE_SECOND_LINK_RECOVERY_HOLD);
     }
 
-    @Test public void v092UsesSingleMqPowerRelayAndUnifiedRemoteBoundary(){
+    @Test public void v093UsesSingleMqPowerRelayAndUnifiedRemoteBoundary(){
         assertTrue(ReleaseAudit.DUAL_ADS1115);
         assertTrue(ReleaseAudit.SINGLE_MQ_POWER_RELAY);
         assertFalse(ReleaseAudit.TWO_MQ_POWER_BANKS);
@@ -34,5 +34,14 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.REMOTE_CONNECTIVITY);
         assertTrue(ReleaseAudit.REMOTE_MQTT_TLS);
         assertTrue(ReleaseAudit.REMOTE_WSS_VIDEO);
+    }
+
+    @Test public void v093AddsLocalAlertsAndLdrWithoutAudioStreaming(){
+        assertTrue(ReleaseAudit.LDR_DIGITAL_THRESHOLD);
+        assertTrue(ReleaseAudit.LOCAL_ALERT_OUTPUT);
+        assertTrue(ReleaseAudit.GAS_RESPONSE_AUDIBLE_ALERT);
+        assertTrue(ReleaseAudit.ALERT_TTL_FAILSAFE);
+        assertFalse(ReleaseAudit.AUDIO_STREAMING);
+        assertFalse(ReleaseAudit.AUDIO_VIDEO_RECORDING);
     }
 }

@@ -43,6 +43,13 @@ void setup(){
 
   web.on("/relay",[]{if(!web.hasArg("mask"))return reply(400,"BAD");String v=web.arg("mask");if(v!="0"&&v!="1")return reply(409,"MQ POWER MUST BE 0 OR 1");linkHeartbeat();if(!relaySetMask(v=="1"?1:0))return reply(409,"MQ POWER REJECTED");reply(200,"OK");});
   web.on("/measure",[]{String c=web.arg("cmd");if(c=="start"){linkHeartbeat();measureStart();}else if(c=="cancel")measureCancel();else return reply(400,"BAD");reply(200,"OK");});
+  web.on("/alert",[]{
+    if(web.hasArg("cmd")&&web.arg("cmd")=="test"){alertTest();reply(200,"OK");return;}
+    if(!web.hasArg("severity"))return reply(400,"MISSING SEVERITY");
+    long severity=web.arg("severity").toInt();if(severity<0||severity>2)return reply(409,"SEVERITY MUST BE 0..2");
+    uint32_t ttl=web.hasArg("ttl")?(uint32_t)constrain(web.arg("ttl").toInt(),500L,10000L):3000UL;
+    if(!alertSet((uint8_t)severity,ttl))return reply(409,"ALERT REJECTED");reply(200,"OK");
+  });
   web.on("/data",[]{web.send(200,"application/json",dataJson());});
   web.on("/diag",[]{web.send(200,"application/json",diagJson());});
   web.on("/cfg",[]{bool save=false;if(web.hasArg("cam")){settings.cam=web.arg("cam");save=true;}if(web.hasArg("speed")){settings.speed=constrain(web.arg("speed").toInt(),20L,100L);save=true;}if(web.hasArg("nl")){settings.nL=constrain(web.arg("nl").toInt(),1400L,1600L);save=true;}if(web.hasArg("nr")){settings.nR=constrain(web.arg("nr").toInt(),1400L,1600L);save=true;}if(web.hasArg("warm")){settings.warm=constrain(web.arg("warm").toInt(),0L,3600L);save=true;}if(web.hasArg("measure")){settings.measure=constrain(web.arg("measure").toInt(),5L,600L);save=true;}if(save)saveSettings();web.send(200,"application/json",settingsJson());});
