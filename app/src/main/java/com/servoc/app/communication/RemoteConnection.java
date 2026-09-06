@@ -62,6 +62,9 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     public void relayMask(int mask)throws Exception{if(mask!=0&&mask!=1)throw new IllegalArgumentException("MQ power state must be 0 or 1");JSONObject p=new JSONObject();p.put("mask",mask);command("relay",p,3000,true,2500);}
     public void startMeasurement()throws Exception{command("measure_start",new JSONObject(),4000,true,3000);}
     public void cancelMeasurement()throws Exception{command("measure_cancel",new JSONObject(),3000,true,2500);}
+    /** Alert refreshes are intentionally fire-and-forget; firmware TTL clears a stale gas alert. */
+    public void setAlertLevel(int severity,int ttlMs)throws Exception{if(severity<0||severity>2)throw new IllegalArgumentException("Alert severity must be 0..2");JSONObject p=new JSONObject();p.put("severity",severity);p.put("ttl",Math.max(500,Math.min(10000,ttlMs)));command("alert",p,3500,false,0);}
+    public void alertTest()throws Exception{command("alert_test",new JSONObject(),2000,true,1500);}
     public void cameraFlash(String mode)throws Exception{JSONObject p=new JSONObject();p.put("mode",mode==null?"off":mode);command("camera_flash",p,3000,true,2500);}
 
     public JSONObject snapshot(int left,int right){JSONObject t=latestTelemetry;if(t==null)return null;JSONObject s=t.optJSONObject("snapshot");if(s!=null)return s;JSONObject diag=t.optJSONObject("diag"),data=t.optJSONObject("data");if(diag!=null||data!=null)return RobotProtocolV4.normalize(diag,data,left,right);return t;}
