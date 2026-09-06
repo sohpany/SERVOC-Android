@@ -3,9 +3,9 @@ package com.servoc.app;
 /** Build markers for the HazRob 0.9 API4 integration release candidate. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.9.2-rc1";
+    public static final String VERSION="0.9.3-rc1";
     public static final int DATABASE_SCHEMA=8;
-    public static final String ESP32_API="HazRob API v4 / single MQ relay / exact session lineage / accelerated unified remote transport";
+    public static final String ESP32_API="HazRob API v4 / single MQ relay / GPIO26 local alerts / GPIO34 LDR / exact session lineage / unified remote transport";
 
     public static final boolean PRECALIBRATED_MQ=true;
     public static final boolean ARABIC_RTL_UI=true;
@@ -21,6 +21,10 @@ public final class ReleaseAudit {
     public static final boolean INSTANT_MQ_WARNINGS=true;
     public static final boolean IR_WARNING_ONLY=true;
     public static final boolean SOUND_RAW_RMS=true;
+    public static final boolean LDR_DIGITAL_THRESHOLD=true;
+    public static final boolean LOCAL_ALERT_OUTPUT=true;
+    public static final boolean GAS_RESPONSE_AUDIBLE_ALERT=true;
+    public static final boolean ALERT_TTL_FAILSAFE=true;
     public static final boolean NIOSH_CHEMICAL_SEED=true;
     public static final boolean NIOSH_IDLH_SEED=true;
     public static final boolean OSHA_Z1_PEL_SEED=true;
@@ -50,4 +54,6 @@ public final class ReleaseAudit {
     public static final boolean VIDEO_STANDALONE_FROM_REPORTS=true;
     public static final boolean VIDEO_LINKED_TO_MEASUREMENTS=false;
     public static final boolean FLAME_EVIDENCE_EXPERIMENTAL=true;
+    public static final boolean AUDIO_STREAMING=false;
+    public static final boolean AUDIO_VIDEO_RECORDING=false;
 }
