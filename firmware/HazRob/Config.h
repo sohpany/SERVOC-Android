@@ -2,9 +2,9 @@
 #include <Arduino.h>
 
 namespace Cfg{
-constexpr char FW[]="HazRob 0.9.2-rc1";
+constexpr char FW[]="HazRob 0.9.3-rc1";
 constexpr uint8_t API=4;
-constexpr char HW_PROFILE[]="hazrob-0.9-1r8mq-v1";
+constexpr char HW_PROFILE[]="hazrob-0.9.3-1r8mq-alert-ldr-v1";
 
 constexpr char SSID[]="HazRob";
 constexpr char NVS[]="servoc";
@@ -25,7 +25,11 @@ constexpr uint8_t SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49;
 // One active-LOW relay powers all eight MQ heaters/sensors.
 constexpr uint8_t RELAY_MQ=25,RELAY_ON=LOW,RELAY_OFF=HIGH;
 
-constexpr uint8_t SOUND_PIN=36,IR_PIN=35,AUX1=33,AUX2=34,AUX3=39;
+// GPIO26 drives only the alert signal. A dynamic low-impedance speaker must use
+// an external transistor/driver stage; do not connect an 4/8-ohm speaker directly.
+constexpr uint8_t ALERT_PIN=26;
+constexpr uint8_t SOUND_PIN=36,IR_PIN=35,LDR_PIN=34,AUX1=33,AUX3=39;
+constexpr uint8_t AUX2=LDR_PIN; // compatibility alias for the previous profile.
 constexpr uint8_t IR_ACTIVE=LOW;
 
 struct MQ{const char* name;uint8_t ads,ch;float r0;};
@@ -41,7 +45,7 @@ constexpr uint8_t ADC_SAMPLES=4;
 constexpr uint16_t OPERATIONAL_WARMUP_SEC=60,ANALYSIS_WINDOW_SEC=30;
 constexpr bool TRACKING_CONTINUOUS=true;
 
-constexpr uint16_t SOUND_PERIOD=100,SOUND_SAMPLES=128,ENV_PERIOD=1000,IR_PERIOD=50;
+constexpr uint16_t SOUND_PERIOD=100,SOUND_SAMPLES=128,ENV_PERIOD=1000,IR_PERIOD=50,LDR_PERIOD=100;
 }
 
 struct Settings{
