@@ -26,7 +26,8 @@ constexpr uint8_t SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49;
 constexpr uint8_t RELAY_MQ=25,RELAY_ON=LOW,RELAY_OFF=HIGH;
 
 // GPIO26 drives only the alert signal. A dynamic low-impedance speaker must use
-// an external transistor/driver stage; do not connect an 4/8-ohm speaker directly.
+// an external transistor/driver stage; do not connect a 4/8-ohm speaker directly.
+// Alert patterns are non-blocking at the application state-machine level.
 constexpr uint8_t ALERT_PIN=26;
 constexpr uint8_t SOUND_PIN=36,IR_PIN=35,LDR_PIN=34,AUX1=33,AUX3=39;
 constexpr uint8_t AUX2=LDR_PIN; // compatibility alias for the previous profile.
