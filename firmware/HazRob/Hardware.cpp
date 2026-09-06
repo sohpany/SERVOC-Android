@@ -1,4 +1,5 @@
 #include "Hardware.h"
+#include "Alerts.h"
 #include <Preferences.h>
 #include <ESP32Servo.h>
 #include <Wire.h>
@@ -67,7 +68,7 @@ void motionStopInternal(){tarL=tarR=curL=curR=0;retracing=false;fs=false;clearHi
 /* ---------- ONE MQ POWER RELAY ---------- */
 bool mqPowerOn=false;
 uint32_t mqPowerAt=0;
-void relayRaw(bool on){if(on&&!mqPowerOn)mqPowerAt=millis();else if(!on)mqPowerAt=0;digitalWrite(Cfg::RELAY_MQ,on?Cfg::RELAY_ON:Cfg::RELAY_OFF);mqPowerOn=on;}
+void relayRaw(bool on){if(on&&!mqPowerOn)mqPowerAt=millis();else if(!on)mqPowerAt=0;digitalWrite(Cfg::RELAY_MQ,on?Cfg::RELAY_ON:Cfg::RELAY_OFF);mqPowerOn=on;if(!on)Alerts::setGas(0);}
 uint32_t mqPowerMs(){return mqPowerOn&&mqPowerAt?millis()-mqPowerAt:0;}
 
 /* ---------- I2C / ADS1115 + MQ ---------- */
@@ -105,7 +106,11 @@ void soundUpdate(){uint32_t now=millis();if(now-soundAt<Cfg::SOUND_PERIOD)return
 
 /* ---------- IR ---------- */
 bool irWarning=false;uint8_t irLevel=HIGH;uint32_t irAt=0;
-void irUpdate(){uint32_t now=millis();if(now-irAt<Cfg::IR_PERIOD)return;irAt=now;irLevel=digitalRead(Cfg::IR_PIN);irWarning=irLevel==Cfg::IR_ACTIVE;}
+void irUpdate(){uint32_t now=millis();if(now-irAt<Cfg::IR_PERIOD)return;irAt=now;irLevel=digitalRead(Cfg::IR_PIN);irWarning=irLevel==Cfg::IR_ACTIVE;Alerts::setIr(irWarning);}
+
+/* ---------- LDR / LM393 DIGITAL THRESHOLD ---------- */
+uint8_t ldrLevel=HIGH;uint32_t ldrAt=0;
+void ldrUpdate(){uint32_t now=millis();if(now-ldrAt<Cfg::LDR_PERIOD)return;ldrAt=now;ldrLevel=digitalRead(Cfg::LDR_PIN);}
 
 /* ---------- MEASUREMENT ---------- */
 enum Stage:uint8_t{IDLE,WARM,MEASURE,READY,ERROR};Stage stage=IDLE;
@@ -120,12 +125,12 @@ void measureUpdate(){if(stage!=MEASURE)return;if(mqPowerOn!=measurePower){resetM
 /* ---------- LINK WATCHDOG: STOP -> 3 s HOLD -> MQ OFF + RETRACE ---------- */
 bool linkArmed=false,linkLost=false,linkHold=false;uint32_t linkAt=0,holdAt=0;
 void recoverLink(uint32_t now){
-  if(linkHold||linkLost||retracing){zeroMotionPreserveHistory();retracing=false;fs=false;linkHold=false;linkLost=false;clearHistory();}
+  if(linkHold||linkLost||retracing){zeroMotionPreserveHistory();retracing=false;fs=false;linkHold=false;linkLost=false;clearHistory();Alerts::setLink(false);}
   linkAt=now;
 }
 void beginLinkHold(uint32_t now){
   if(linkHold||retracing)return;
-  zeroMotionPreserveHistory();fs=true;linkHold=true;linkLost=true;holdAt=now;
+  zeroMotionPreserveHistory();fs=true;linkHold=true;linkLost=true;holdAt=now;Alerts::setLink(true);
 }
 void linkWatchUpdate(){
   if(!linkArmed)return;
@@ -159,31 +164,35 @@ uint32_t holdRemaining(){if(!linkHold)return 0;uint32_t elapsed=millis()-holdAt;
 
 /* ================= PUBLIC ================= */
 void hwBegin(){
-  loadSettings();pinMode(Cfg::RELAY_MQ,OUTPUT);relayRaw(false);
-  pinMode(Cfg::IR_PIN,INPUT);pinMode(Cfg::SOUND_PIN,INPUT);analogReadResolution(12);analogSetPinAttenuation(Cfg::SOUND_PIN,ADC_11db);
+  loadSettings();Alerts::begin();pinMode(Cfg::RELAY_MQ,OUTPUT);relayRaw(false);
+  pinMode(Cfg::IR_PIN,INPUT);pinMode(Cfg::LDR_PIN,INPUT);pinMode(Cfg::SOUND_PIN,INPUT);analogReadResolution(12);analogSetPinAttenuation(Cfg::SOUND_PIN,ADC_11db);
   sL.setPeriodHertz(50);sR.setPeriodHertz(50);sL.attach(Cfg::SERVO_L,1000,2000);sR.attach(Cfg::SERVO_R,1000,2000);cmdAt=driveAt=histAt=millis();driveWrite();
   Wire.begin(Cfg::SDA,Cfg::SCL);adsBegin(0);adsBegin(1);adsHealthAt=millis();envBegin();
 }
-void hwUpdate(){driveUpdate();adsHealthUpdate();mqUpdate();envUpdate();soundUpdate();irUpdate();measureUpdate();linkWatchUpdate();}
+void hwUpdate(){driveUpdate();adsHealthUpdate();mqUpdate();envUpdate();soundUpdate();irUpdate();ldrUpdate();measureUpdate();linkWatchUpdate();Alerts::update();}
 void driveSet(int l,int r){
   // linkHeartbeat() is invoked by both Direct HTTP and Remote MQTT before driveSet().
   if(retracing||linkHold||linkLost)recoverLink(millis());
   fs=false;tarL=lim(l);tarR=lim(r);cmdAt=millis();
 }
 void motionStop(){motionStopInternal();}
-void emergencyStop(){motionStopInternal();resetMeasurement();relayRaw(false);}
+void emergencyStop(){motionStopInternal();resetMeasurement();relayRaw(false);Alerts::emergencyStop();}
 bool relaySetMask(uint8_t on){if(on>1)return false;if(stage==MEASURE||stage==WARM)resetMeasurement();relayRaw(on==1);return true;}
 void sensorPowerOff(){resetMeasurement();relayRaw(false);}
 void measureStart(){clearSums();measurePower=mqPowerOn;stageAt=sampleAt=millis();stage=measurePower?MEASURE:ERROR;}
-void measureCancel(){resetMeasurement();}
+void measureCancel(){resetMeasurement();Alerts::setGas(0);}
+bool alertSet(uint8_t severity,uint32_t ttlMs){if(severity>2)return false;Alerts::setGas(severity,ttlMs);return true;}
+void alertTest(){Alerts::test();}
 void linkHeartbeat(){uint32_t now=millis();linkArmed=true;if(linkHold||linkLost||retracing)recoverLink(now);else linkAt=now;}
-void linkSetArmed(bool armed){linkArmed=armed;linkHold=false;linkLost=false;if(!armed){fs=false;linkAt=holdAt=0;}else linkAt=millis();}
+void linkSetArmed(bool armed){linkArmed=armed;linkHold=false;linkLost=false;Alerts::setLink(false);if(!armed){fs=false;linkAt=holdAt=0;}else linkAt=millis();}
 void saveSettings(){nv.putString("camIP",settings.cam);nv.putInt("speed",settings.speed);nv.putInt("neutralL",settings.nL);nv.putInt("neutralR",settings.nR);nv.putUInt("warmup",settings.warm);nv.putUInt("measure",settings.measure);}
 String settingsJson(){return "{\"cam\":\""+settings.cam+"\",\"speed\":"+String(settings.speed)+",\"nl\":"+String(settings.nL)+",\"nr\":"+String(settings.nR)+",\"warm\":"+String(settings.warm)+",\"measure\":"+String(settings.measure)+",\"warm_manual\":true,\"mq_power_manual\":true}";}
 String dataJson(){
   String j="{\"env\":"+envJson();
   j+=",\"sound\":{\"rms\":"+num(soundRms,3)+",\"p2p\":"+num(soundP2P,3)+"}";
   j+=",\"ir\":{\"warning\":"+String(boolJson(irWarning))+",\"level\":"+String(irLevel)+"}";
+  j+=",\"ldr\":{\"installed\":true,\"gpio\":"+String(Cfg::LDR_PIN)+",\"level\":"+String(ldrLevel)+",\"quantitative_lux\":false}";
+  j+=",\"alert\":"+Alerts::json();
   j+=",\"relay\":{\"mask\":"+String(mqPowerOn?1:0)+",\"on\":"+String(boolJson(mqPowerOn))+",\"gpio\":"+String(Cfg::RELAY_MQ)+",\"power_ms\":"+String(mqPowerMs())+",\"channels\":1}";
   j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+"}";
   j+=",\"drive\":{\"failsafe\":"+String(boolJson(fs))+",\"retrace\":"+String(boolJson(retracing))+",\"hold\":"+String(boolJson(linkHold))+",\"history\":"+String(histCount)+"}";
@@ -201,6 +210,8 @@ String diagJson(){
   j+=",\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok));
   j+=",\"link\":{\"armed\":"+String(boolJson(linkArmed))+",\"lost\":"+String(boolJson(linkLost))+",\"hold\":"+String(boolJson(linkHold))+",\"state\":\""+String(linkState())+"\",\"hold_remaining_ms\":"+String(holdRemaining())+",\"heartbeat_age_ms\":"+String(linkArmed?millis()-linkAt:0)+"}";
   j+=",\"envType\":"+String(envType)+",\"envAddr\":"+String(envAddr)+",\"envId\":"+String(envId);
+  j+=",\"ldr\":{\"installed\":true,\"gpio\":"+String(Cfg::LDR_PIN)+",\"level\":"+String(ldrLevel)+"}";
+  j+=",\"alert\":"+Alerts::json();
   j+=",\"ir\":{\"warning\":"+String(boolJson(irWarning))+",\"level\":"+String(irLevel)+"},\"mqPowerManual\":true,\"warmupManual\":true}";
   return j;
 }
