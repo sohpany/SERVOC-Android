@@ -7,7 +7,7 @@ import static org.junit.Assert.*;
 
 public class RobotProtocolV4AlertTest {
     @Test public void normalizesAlertAndLdrFromData()throws Exception{
-        JSONObject diag=new JSONObject().put("fw","HazRob 0.9.3-rc1").put("api",4).put("hardware_profile",HazRobHardwareProfile.ID);
+        JSONObject diag=new JSONObject().put("fw","HazRob 0.9.3-rc2").put("api",4).put("hardware_profile",HazRobHardwareProfile.ID);
         JSONObject data=new JSONObject()
                 .put("alert",new JSONObject().put("gpio",26).put("level",5).put("name","gas_danger").put("active",true).put("gas",2).put("ir",false).put("link",false))
                 .put("ldr",new JSONObject().put("installed",true).put("gpio",34).put("level",0).put("quantitative_lux",false));
@@ -17,8 +17,13 @@ public class RobotProtocolV4AlertTest {
         assertTrue(l.getBoolean("installed"));assertEquals(HazRobHardwareProfile.LDR_GPIO,l.getInt("gpio"));assertEquals(0,l.getInt("level"));assertFalse(l.getBoolean("quantitative_lux"));
     }
 
-    @Test public void profilePinContractMatchesFirmware093(){
-        assertEquals("hazrob-0.9.3-1r8mq-alert-ldr-v1",HazRobHardwareProfile.ID);
+    @Test public void profilePinContractMatchesFirmware093Rc2(){
+        assertEquals("hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1",HazRobHardwareProfile.ID);
+        assertEquals("L298N",HazRobHardwareProfile.DRIVE_DRIVER);
+        assertEquals(18,HazRobHardwareProfile.DRIVE_L_IN1);
+        assertEquals(27,HazRobHardwareProfile.DRIVE_L_IN2);
+        assertEquals(19,HazRobHardwareProfile.DRIVE_R_IN1);
+        assertEquals(32,HazRobHardwareProfile.DRIVE_R_IN2);
         assertEquals(25,HazRobHardwareProfile.MQ_RELAY_GPIO);
         assertEquals(26,HazRobHardwareProfile.ALERT_GPIO);
         assertEquals(34,HazRobHardwareProfile.LDR_GPIO);
