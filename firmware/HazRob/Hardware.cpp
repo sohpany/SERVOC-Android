@@ -1,7 +1,6 @@
 #include "Hardware.h"
 #include "Alerts.h"
 #include <Preferences.h>
-#include <ESP32Servo.h>
 #include <Wire.h>
 #include <WiFi.h>
 #include <Adafruit_ADS1X15.h>
@@ -14,15 +13,24 @@ Settings settings;
 namespace{
 Preferences nv;
 
-/* ---------- DRIVE / LINK LOSS STATE MACHINE ---------- */
-Servo sL,sR;
+/* ---------- L298N DRIVE / LINK LOSS STATE MACHINE ---------- */
 float tarL=0,tarR=0,curL=0,curR=0;
 uint32_t cmdAt=0,driveAt=0;
 bool fs=false,retracing=false;
 
 float lim(float v){float m=constrain(settings.speed,20,100);return constrain(v,-m,m);}
-int pulse(float v,int n,int dir){v=constrain(v*dir,-100.0f,100.0f);return v>=0?n+(2000-n)*v/100:n+(n-1000)*v/100;}
-void driveWrite(){sL.writeMicroseconds(pulse(curL,settings.nL,1));sR.writeMicroseconds(pulse(curR,settings.nR,-1));}
+void motorWrite(uint8_t in1,uint8_t in2,float value,bool invert){
+  int cmd=constrain((int)roundf(value),-100,100);if(invert)cmd=-cmd;
+  int duty=map(abs(cmd),0,100,0,255);
+  // Always remove drive from the opposite leg before applying PWM. Zero is coast.
+  if(cmd>0){analogWrite(in2,0);analogWrite(in1,duty);}
+  else if(cmd<0){analogWrite(in1,0);analogWrite(in2,duty);}
+  else{analogWrite(in1,0);analogWrite(in2,0);}
+}
+void driveWrite(){
+  motorWrite(Cfg::DRIVE_L_IN1,Cfg::DRIVE_L_IN2,curL,Cfg::DRIVE_L_INVERT);
+  motorWrite(Cfg::DRIVE_R_IN1,Cfg::DRIVE_R_IN2,curR,Cfg::DRIVE_R_INVERT);
+}
 float ramp(float c,float t,float dt){
   if(fabsf(t-c)<.1f)return t;
   bool rev=(c>0&&t<0)||(c<0&&t>0);
@@ -146,7 +154,7 @@ void linkWatchUpdate(){
 /* ---------- SETTINGS / JSON ---------- */
 String num(float v,uint8_t d=2){return isfinite(v)?String(v,(unsigned)d):"null";}
 const char* boolJson(bool v){return v?"true":"false";}
-void loadSettings(){nv.begin(Cfg::NVS,false);settings.cam=nv.getString("camIP",Cfg::CAM);settings.speed=constrain(nv.getInt("speed",100),20,100);settings.nL=constrain(nv.getInt("neutralL",1500),1400,1600);settings.nR=constrain(nv.getInt("neutralR",1500),1400,1600);settings.warm=constrain(nv.getUInt("warmup",Cfg::OPERATIONAL_WARMUP_SEC),0UL,3600UL);settings.measure=constrain(nv.getUInt("measure",Cfg::ANALYSIS_WINDOW_SEC),5UL,600UL);}
+void loadSettings(){nv.begin(Cfg::NVS,false);settings.cam=nv.getString("camIP",Cfg::CAM);settings.speed=constrain(nv.getInt("speed",100),20,100);settings.warm=constrain(nv.getUInt("warmup",Cfg::OPERATIONAL_WARMUP_SEC),0UL,3600UL);settings.measure=constrain(nv.getUInt("measure",Cfg::ANALYSIS_WINDOW_SEC),5UL,600UL);}
 String envJson(){String j="{\"ok\":"+String(boolJson(envType!=0))+",\"t\":"+num(temp,2)+",\"h\":"+num(hum,2)+",\"p\":"+num(press,1)+"}";return j;}
 String mqJson(bool avg){
   bool powered=avg?measurePower:mqPowerOn;String j="{";
@@ -158,6 +166,9 @@ String mqJson(bool avg){
   }
   return j+"}";
 }
+String driveJson(){
+  return "{\"driver\":\"L298N\",\"left\":"+String((int)roundf(curL))+",\"right\":"+String((int)roundf(curR))+",\"failsafe\":"+String(boolJson(fs))+",\"retrace\":"+String(boolJson(retracing))+",\"hold\":"+String(boolJson(linkHold))+",\"history\":"+String(histCount)+",\"pins\":{\"l_in1\":"+String(Cfg::DRIVE_L_IN1)+",\"l_in2\":"+String(Cfg::DRIVE_L_IN2)+",\"r_in1\":"+String(Cfg::DRIVE_R_IN1)+",\"r_in2\":"+String(Cfg::DRIVE_R_IN2)+"}}";
+}
 const char* linkState(){return retracing?"retrace":linkHold?"hold":linkLost?"lost":"ok";}
 uint32_t holdRemaining(){if(!linkHold)return 0;uint32_t elapsed=millis()-holdAt;return elapsed>=Cfg::LINK_HOLD_MS?0:Cfg::LINK_HOLD_MS-elapsed;}
 } // namespace
@@ -166,7 +177,9 @@ uint32_t holdRemaining(){if(!linkHold)return 0;uint32_t elapsed=millis()-holdAt;
 void hwBegin(){
   loadSettings();Alerts::begin();pinMode(Cfg::RELAY_MQ,OUTPUT);relayRaw(false);
   pinMode(Cfg::IR_PIN,INPUT);pinMode(Cfg::LDR_PIN,INPUT);pinMode(Cfg::SOUND_PIN,INPUT);analogReadResolution(12);analogSetPinAttenuation(Cfg::SOUND_PIN,ADC_11db);
-  sL.setPeriodHertz(50);sR.setPeriodHertz(50);sL.attach(Cfg::SERVO_L,1000,2000);sR.attach(Cfg::SERVO_R,1000,2000);cmdAt=driveAt=histAt=millis();driveWrite();
+  pinMode(Cfg::DRIVE_L_IN1,OUTPUT);pinMode(Cfg::DRIVE_L_IN2,OUTPUT);pinMode(Cfg::DRIVE_R_IN1,OUTPUT);pinMode(Cfg::DRIVE_R_IN2,OUTPUT);
+  analogWrite(Cfg::DRIVE_L_IN1,0);analogWrite(Cfg::DRIVE_L_IN2,0);analogWrite(Cfg::DRIVE_R_IN1,0);analogWrite(Cfg::DRIVE_R_IN2,0);
+  cmdAt=driveAt=histAt=millis();driveWrite();
   Wire.begin(Cfg::SDA,Cfg::SCL);adsBegin(0);adsBegin(1);adsHealthAt=millis();envBegin();
 }
 void hwUpdate(){driveUpdate();adsHealthUpdate();mqUpdate();envUpdate();soundUpdate();irUpdate();ldrUpdate();measureUpdate();linkWatchUpdate();Alerts::update();}
@@ -185,8 +198,8 @@ bool alertSet(uint8_t severity,uint32_t ttlMs){if(severity>2)return false;Alerts
 void alertTest(){Alerts::test();}
 void linkHeartbeat(){uint32_t now=millis();linkArmed=true;if(linkHold||linkLost||retracing)recoverLink(now);else linkAt=now;}
 void linkSetArmed(bool armed){linkArmed=armed;linkHold=false;linkLost=false;Alerts::setLink(false);if(!armed){fs=false;linkAt=holdAt=0;}else linkAt=millis();}
-void saveSettings(){nv.putString("camIP",settings.cam);nv.putInt("speed",settings.speed);nv.putInt("neutralL",settings.nL);nv.putInt("neutralR",settings.nR);nv.putUInt("warmup",settings.warm);nv.putUInt("measure",settings.measure);}
-String settingsJson(){return "{\"cam\":\""+settings.cam+"\",\"speed\":"+String(settings.speed)+",\"nl\":"+String(settings.nL)+",\"nr\":"+String(settings.nR)+",\"warm\":"+String(settings.warm)+",\"measure\":"+String(settings.measure)+",\"warm_manual\":true,\"mq_power_manual\":true}";}
+void saveSettings(){nv.putString("camIP",settings.cam);nv.putInt("speed",settings.speed);nv.putUInt("warmup",settings.warm);nv.putUInt("measure",settings.measure);}
+String settingsJson(){return "{\"cam\":\""+settings.cam+"\",\"speed\":"+String(settings.speed)+",\"warm\":"+String(settings.warm)+",\"measure\":"+String(settings.measure)+",\"drive_driver\":\"L298N\",\"warm_manual\":true,\"mq_power_manual\":true}";}
 String dataJson(){
   String j="{\"env\":"+envJson();
   j+=",\"sound\":{\"rms\":"+num(soundRms,3)+",\"p2p\":"+num(soundP2P,3)+"}";
@@ -195,7 +208,7 @@ String dataJson(){
   j+=",\"alert\":"+Alerts::json();
   j+=",\"relay\":{\"mask\":"+String(mqPowerOn?1:0)+",\"on\":"+String(boolJson(mqPowerOn))+",\"gpio\":"+String(Cfg::RELAY_MQ)+",\"power_ms\":"+String(mqPowerMs())+",\"channels\":1}";
   j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+"}";
-  j+=",\"drive\":{\"failsafe\":"+String(boolJson(fs))+",\"retrace\":"+String(boolJson(retracing))+",\"hold\":"+String(boolJson(linkHold))+",\"history\":"+String(histCount)+"}";
+  j+=",\"drive\":"+driveJson();
   j+=",\"mq\":"+mqJson(false);
   j+=",\"measurement\":{\"state\":"+String((uint8_t)stage)+",\"mask\":"+String(measurePower?1:0)+",\"power\":"+String(boolJson(measurePower))+",\"manual_power\":true,\"manual_warmup\":true,\"duration_s\":"+String(settings.measure)+",\"mq\":"+mqJson(true)+"}}";
   return j;
@@ -204,7 +217,7 @@ String diagJson(){
   String j="{\"fw\":\""+String(Cfg::FW)+"\",\"api\":"+String(Cfg::API)+",\"hardware_profile\":\""+String(Cfg::HW_PROFILE)+"\"";
   j+=",\"heap\":"+String(ESP.getFreeHeap())+",\"clients\":"+String(WiFi.softAPgetStationNum());
   j+=",\"failsafe\":"+String(boolJson(fs))+",\"retrace\":"+String(boolJson(retracing));
-  j+=",\"drive\":{\"failsafe\":"+String(boolJson(fs))+",\"retrace\":"+String(boolJson(retracing))+",\"hold\":"+String(boolJson(linkHold))+",\"history\":"+String(histCount)+"}";
+  j+=",\"drive\":"+driveJson();
   j+=",\"relay\":{\"mask\":"+String(mqPowerOn?1:0)+",\"on\":"+String(boolJson(mqPowerOn))+",\"gpio\":"+String(Cfg::RELAY_MQ)+",\"power_ms\":"+String(mqPowerMs())+",\"channels\":1}";
   j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+"}";
   j+=",\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok));
