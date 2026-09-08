@@ -35,7 +35,6 @@ jobs:
       - name: Install master firmware libraries
         run: |
           arduino-cli lib update-index
-          arduino-cli lib install "ESP32Servo"
           arduino-cli lib install "Adafruit ADS1X15"
           arduino-cli lib install "Adafruit BME280 Library"
           arduino-cli lib install "Adafruit BMP280 Library"
@@ -53,7 +52,7 @@ jobs:
       - name: Upload firmware binaries
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-v0.9.3-rc1-firmware
+          name: HazRob-v0.9.3-rc2-firmware
           path: |
             build/master/*.bin
             build/camera/*.bin
