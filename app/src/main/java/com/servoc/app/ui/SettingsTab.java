@@ -18,8 +18,9 @@ import java.util.Locale;
 
 /** Compact operator settings shared by Direct and Remote modes. */
 public final class SettingsTab {
+    private static final int DRIVE_FIRMWARE_LIMIT=100;
     private final HazRobHost host;private final ScrollView scroll;
-    private final EditText robot,camera,speed,warm,measure;
+    private final EditText robot,camera,warm,measure;
     private final TextView compatibility,cameraState,libraryInfo;
 
     public SettingsTab(Context c,HazRobHost host){
@@ -32,7 +33,8 @@ public final class SettingsTab {
         cameraState=UiKit.small(c,"CAM —");cameraState.setBackgroundColor(0xFF151A20);net.addView(cameraState,UiKit.full(c));root.addView(net,UiKit.full(c));
 
         LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"الضبط"),UiKit.full(c));
-        speed=field(c,cfg,"حد سرعة المحركات %",String.valueOf(host.preferences().getInt("speed",100)));warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));
+        warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));
+        cfg.addView(UiKit.small(c,"سرعة حركة المركبة تضبط الآن من عمود السرعة في شاشة القيادة: 0–100%، والقيمة الافتراضية عند بدء التطبيق 50%."),UiKit.full(c));
         cfg.addView(UiKit.small(c,"منظومة الحركة: L298N • يسار GPIO18/27 • يمين GPIO19/32 • ENA/ENB مفعّلان على اللوحة. لا توجد إعدادات Neutral Servo في هذا الإصدار."),UiKit.full(c));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
@@ -57,8 +59,8 @@ public final class SettingsTab {
     private void testConnections(){host.io().execute(()->{boolean robotOk=false;try{robotOk=host.robotApi().diagnostics()!=null;}catch(Exception ignored){}JSONObject cam=null;try{cam=host.cameraDiagnostics();}catch(Exception ignored){}boolean cameraOk=cam!=null;if(!cameraOk)try{cameraOk=host.cameraReachable();}catch(Exception ignored){}final boolean rOk=robotOk,cOk=cameraOk;final JSONObject cdiag=cam;new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{if(cdiag!=null){String fps=cdiag.has("fps")?String.format(Locale.US,"%.2f",cdiag.optDouble("fps",0)):"—";String rssi=cdiag.has("rssi")?cdiag.optInt("rssi",0)+" dBm":"—";cameraState.setText("CAM "+(cdiag.optBoolean("camera_ok",cdiag.optBoolean("ok",true))?"OK":"FAIL")+"   •   FPS "+fps+"   •   RSSI "+rssi);cameraState.setTextColor(cOk?0xFF81C784:0xFFFF7043);}else{cameraState.setText("CAM "+(cOk?"HTTP OK":"OFFLINE"));cameraState.setTextColor(cOk?0xFF81C784:0xFFFF7043);}host.showToast("ESP32 "+(rOk?"OK":"OFFLINE")+" • CAM "+(cOk?"OK":"OFFLINE"));});});}
     private void testAlert(){host.io().execute(()->{try{host.robotApi().alertTest();host.showToast("تم إرسال اختبار التنبيه");}catch(Exception e){host.showToast("تعذر اختبار التنبيه");}});}
     private void sync(){host.io().execute(()->{try{JSONObject x=host.robotApi().config();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showConfig(x));}catch(Exception e){host.showToast("تعذر المزامنة");}});}
-    private void apply(){final int s=clamp(parse(speed,100),20,100),w=clamp(parse(warm,60),0,3600),m=clamp(parse(measure,30),5,600);final String cam=host.cameraHost();host.setDriveCommand(0,0);host.io().execute(()->{try{JSONObject x=host.robotApi().setConfig(cam,s,w,m);host.preferences().edit().putInt("speed",s).putInt("warm",w).putInt("measure",m).remove("nl").remove("nr").apply();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showConfig(x));host.showToast("تم تطبيق الضبط");}catch(Exception e){host.showToast("فشل تطبيق الضبط");}});}
-    private void showConfig(JSONObject x){if(x==null)return;String cam=x.optString("cam",camera.getText().toString());camera.setText(cam);host.setCameraHost(cam);speed.setText(String.valueOf(x.optInt("speed",parse(speed,100))));warm.setText(String.valueOf(x.optInt("warm",parse(warm,60))));measure.setText(String.valueOf(x.optInt("measure",parse(measure,30))));}
+    private void apply(){final int w=clamp(parse(warm,60),0,3600),m=clamp(parse(measure,30),5,600);final String cam=host.cameraHost();host.setDriveCommand(0,0);host.io().execute(()->{try{JSONObject x=host.robotApi().setConfig(cam,DRIVE_FIRMWARE_LIMIT,w,m);host.preferences().edit().remove("speed").putInt("warm",w).putInt("measure",m).remove("nl").remove("nr").apply();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showConfig(x));host.showToast("تم تطبيق الضبط");}catch(Exception e){host.showToast("فشل تطبيق الضبط");}});}
+    private void showConfig(JSONObject x){if(x==null)return;String cam=x.optString("cam",camera.getText().toString());camera.setText(cam);host.setCameraHost(cam);warm.setText(String.valueOf(x.optInt("warm",parse(warm,60))));measure.setText(String.valueOf(x.optInt("measure",parse(measure,30))));}
     private static int parse(EditText e,int def){try{return Integer.parseInt(e.getText().toString().trim());}catch(Exception ignored){return def;}}
     private static int clamp(int v,int lo,int hi){return Math.max(lo,Math.min(hi,v));}
 }
