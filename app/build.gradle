@@ -8,8 +8,8 @@ android {
         applicationId 'com.servoc.app'
         minSdk 26
         targetSdk 36
-        versionCode 17
-        versionName '0.9.3-rc1'
+        versionCode 18
+        versionName '0.9.3-rc2'
     }
 
     signingConfigs {
