@@ -2,7 +2,8 @@ name: Validate HazRob Video Relay
 
 on:
   push:
-    branches: [ dev/hazrob-0.9 ]
+    branches:
+      - 'dev/**'
     paths:
       - 'remote/video-relay/**'
       - '.github/workflows/validate-video-relay.yml'
