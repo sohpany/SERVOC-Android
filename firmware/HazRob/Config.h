@@ -2,15 +2,24 @@
 #include <Arduino.h>
 
 namespace Cfg{
-constexpr char FW[]="HazRob 0.9.3-rc1";
+constexpr char FW[]="HazRob 0.9.3-rc2";
 constexpr uint8_t API=4;
-constexpr char HW_PROFILE[]="hazrob-0.9.3-1r8mq-alert-ldr-v1";
+constexpr char HW_PROFILE[]="hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1";
 
 constexpr char SSID[]="HazRob";
 constexpr char NVS[]="servoc";
 constexpr char CAM[]="192.168.4.2";
 
-constexpr uint8_t SERVO_L=18,SERVO_R=19;
+// L298N 4WD differential drive.
+// ENA/ENB remain enabled on the L298N module; speed PWM is applied directly
+// to the direction inputs so only four ESP32 GPIO outputs are required.
+// Two motors on each side are wired in parallel to the corresponding bridge.
+constexpr uint8_t DRIVE_L_IN1=18,DRIVE_L_IN2=27;
+constexpr uint8_t DRIVE_R_IN1=19,DRIVE_R_IN2=32;
+// If one side runs opposite to the intended command after final wiring,
+// change only the corresponding inversion flag instead of remapping the API.
+constexpr bool DRIVE_L_INVERT=false,DRIVE_R_INVERT=false;
+
 // Motion/link safety: stale drive command stops motion quickly. If the whole link
 // is absent, hold stopped for 3 s to permit recovery; only then power MQ off and retrace.
 constexpr uint32_t DRIVE_LEASE_MS=450,LINK_DETECT_MS=900,LINK_HOLD_MS=3000;
@@ -51,6 +60,6 @@ constexpr uint16_t SOUND_PERIOD=100,SOUND_SAMPLES=128,ENV_PERIOD=1000,IR_PERIOD=
 
 struct Settings{
   String cam;
-  int speed=100,nL=1500,nR=1500;
+  int speed=100;
   uint16_t warm=Cfg::OPERATIONAL_WARMUP_SEC,measure=Cfg::ANALYSIS_WINDOW_SEC;
 };
