@@ -3,11 +3,11 @@ package com.servoc.app;
 /** Build markers for the HazRob 0.9 API4 integration release candidate. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.9.3-rc1";
+    public static final String VERSION="0.9.3-rc2";
     public static final int DATABASE_SCHEMA=8;
-    public static final String ESP32_API="HazRob API v4 / single MQ relay / GPIO26 local alerts / GPIO34 LDR / exact session lineage / unified remote transport";
+    public static final String ESP32_API="HazRob API v4 / L298N 4WD GPIO18-27-19-32 / single MQ relay / GPIO26 local alerts / GPIO34 LDR / exact session lineage / unified remote transport";
 
-    public static final boolean PRECALIBRATED_MQ=true;
+    public static final boolean PRECALIBRATED_MQ=false;
     public static final boolean ARABIC_RTL_UI=true;
     public static final boolean ROLE_GATE=true;
     public static final boolean UNIFIED_MEASUREMENT_UI=true;
@@ -46,7 +46,9 @@ public final class ReleaseAudit {
     public static final boolean REMOTE_CONNECTIVITY=true;
     public static final boolean REMOTE_MQTT_TLS=true;
     public static final boolean REMOTE_WSS_VIDEO=true;
+    public static final boolean L298N_4WD_DRIVE=true;
 
+    public static final boolean SERVO_DRIVE=false;
     public static final boolean TWO_MQ_POWER_BANKS=false;
     public static final boolean FOUR_MQ_RELAY_ROWS=false;
     public static final boolean MANUAL_MQ_WARMUP_SETTING=true;
