@@ -52,7 +52,7 @@ void setup(){
   });
   web.on("/data",[]{web.send(200,"application/json",dataJson());});
   web.on("/diag",[]{web.send(200,"application/json",diagJson());});
-  web.on("/cfg",[]{bool save=false;if(web.hasArg("cam")){settings.cam=web.arg("cam");save=true;}if(web.hasArg("speed")){settings.speed=constrain(web.arg("speed").toInt(),20L,100L);save=true;}if(web.hasArg("nl")){settings.nL=constrain(web.arg("nl").toInt(),1400L,1600L);save=true;}if(web.hasArg("nr")){settings.nR=constrain(web.arg("nr").toInt(),1400L,1600L);save=true;}if(web.hasArg("warm")){settings.warm=constrain(web.arg("warm").toInt(),0L,3600L);save=true;}if(web.hasArg("measure")){settings.measure=constrain(web.arg("measure").toInt(),5L,600L);save=true;}if(save)saveSettings();web.send(200,"application/json",settingsJson());});
+  web.on("/cfg",[]{bool save=false;if(web.hasArg("cam")){settings.cam=web.arg("cam");save=true;}if(web.hasArg("speed")){settings.speed=constrain(web.arg("speed").toInt(),20L,100L);save=true;}if(web.hasArg("warm")){settings.warm=constrain(web.arg("warm").toInt(),0L,3600L);save=true;}if(web.hasArg("measure")){settings.measure=constrain(web.arg("measure").toInt(),5L,600L);save=true;}if(save)saveSettings();web.send(200,"application/json",settingsJson());});
   web.onNotFound([]{reply(404,"NOT FOUND");});web.begin();
 }
 
