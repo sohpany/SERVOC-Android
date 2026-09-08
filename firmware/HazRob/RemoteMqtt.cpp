@@ -59,7 +59,7 @@ void applyCommand(const String& j){
   else if(type=="alert_test")alertTest();
   else if(type=="camera_flash"){String mode=jstr(j,"mode","off");ok=setCameraFlash(mode);payload="{\"mode\":\""+esc(mode)+"\"}";}
   else if(type=="config_get")payload=settingsJson();
-  else if(type=="config_set"){String cam=jstr(j,"cam",settings.cam);if(!cam.isEmpty())settings.cam=cam;settings.speed=constrain((int)jint(j,"speed",settings.speed),20,100);settings.nL=constrain((int)jint(j,"nl",settings.nL),1400,1600);settings.nR=constrain((int)jint(j,"nr",settings.nR),1400,1600);settings.warm=constrain((int)jint(j,"warm",settings.warm),0,3600);settings.measure=constrain((int)jint(j,"measure",settings.measure),5,600);saveSettings();payload=settingsJson();}
+  else if(type=="config_set"){String cam=jstr(j,"cam",settings.cam);if(!cam.isEmpty())settings.cam=cam;settings.speed=constrain((int)jint(j,"speed",settings.speed),20,100);settings.warm=constrain((int)jint(j,"warm",settings.warm),0,3600);settings.measure=constrain((int)jint(j,"measure",settings.measure),5,600);saveSettings();payload=settingsJson();}
   else ok=false;
   ack(session,seq,nonce,ok,payload,ok?"":"unknown_command");
 }
