@@ -2,12 +2,14 @@ package com.servoc.app.camera;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.BitmapFactory;
 
 import com.servoc.app.communication.RemoteServiceProfile;
 
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -17,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 public final class RemoteVideoReadiness {
     private static final long WAKE_TIMEOUT_MS=75000L;
     private static final long RETRY_MS=3000L;
+    private static final long FIRST_FRAME_TIMEOUT_MS=9000L;
 
     public static final class Result{
         public final boolean service,publisher,wss,ready;
@@ -56,18 +59,27 @@ public final class RemoteVideoReadiness {
         Exception lastWs=null;
         for(int attempt=0;attempt<3;attempt++){
             RemoteJpegWebSocketClient client=new RemoteJpegWebSocketClient();
+            final boolean[] gotDecodableJpeg={false};
+            final long firstFrameDeadline=System.currentTimeMillis()+FIRST_FRAME_TIMEOUT_MS;
             try{
                 client.stream(viewerUrl,token,new RemoteJpegWebSocketClient.Sink(){
-                    @Override public boolean active(){return false;}
-                    @Override public void frame(byte[] jpeg){}
+                    @Override public boolean active(){return !gotDecodableJpeg[0]&&System.currentTimeMillis()<firstFrameDeadline;}
+                    @Override public void frame(byte[] jpeg){
+                        if(jpeg==null||jpeg.length<4)return;
+                        if((jpeg[0]&0xFF)!=0xFF||(jpeg[1]&0xFF)!=0xD8||(jpeg[jpeg.length-2]&0xFF)!=0xFF||(jpeg[jpeg.length-1]&0xFF)!=0xD9)return;
+                        // Readiness means the same payload the live view receives is actually
+                        // decodable by Android, not merely that the WebSocket handshake succeeded.
+                        gotDecodableJpeg[0]=BitmapFactory.decodeByteArray(jpeg,0,jpeg.length)!=null;
+                    }
                     @Override public void status(String state,String detail){}
                 });
-                return new Result(true,true,true,"remote video ready");
+                if(gotDecodableJpeg[0])return new Result(true,true,true,"remote video ready • first JPEG decoded");
+                lastWs=new IOException("no decodable JPEG frame");
             }catch(Exception e){lastWs=e;}
             finally{client.close();}
             try{Thread.sleep(1000);}catch(InterruptedException e){Thread.currentThread().interrupt();break;}
         }
-        return new Result(true,true,false,"WSS: "+(lastWs==null?"not ready":lastWs.getClass().getSimpleName()));
+        return new Result(true,true,false,"WSS/JPEG: "+(lastWs==null?"not ready":lastWs.getClass().getSimpleName()));
     }
 
     private static JSONObject getJson(String url,String token)throws Exception{
