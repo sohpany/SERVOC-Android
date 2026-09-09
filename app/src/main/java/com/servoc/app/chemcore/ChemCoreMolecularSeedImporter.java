@@ -35,13 +35,17 @@ public final class ChemCoreMolecularSeedImporter {
             for(int i=0;i<rows.length();i++){
                 JSONObject r=rows.optJSONObject(i);if(r==null||!"RESOLVED".equals(r.optString("status")))continue;resolved++;String cas=r.optString("cas","").trim();if(cas.isEmpty())continue;long uid=chemicalUidByCas(db,cas);if(uid<=0)continue;matched++;
                 JSONObject p=r.optJSONObject("pubchem");if(p==null)continue;
-                String canonical=text(p,"CanonicalSMILES"),isomeric=text(p,"IsomericSMILES"),inchi=text(p,"InChI"),inchikey=text(p,"InChIKey");
-                if(nonempty(canonical)||nonempty(isomeric)||nonempty(inchi)||nonempty(inchikey))if(repo.saveStructure(uid,canonical,isomeric,inchi,inchikey,null,"PUBCHEM"))structures++;
+                // Current PubChem PUG REST uses SMILES (stereo/isotopic) and ConnectivitySMILES.
+                // Legacy DB column names are retained for compatibility: connectivity -> canonical slot,
+                // full SMILES -> isomeric/stereo slot. The raw descriptor artifact preserves exact names.
+                String connectivity=text(p,"ConnectivitySMILES"),smiles=text(p,"SMILES"),inchi=text(p,"InChI"),inchikey=text(p,"InChIKey");
+                if(nonempty(connectivity)||nonempty(smiles)||nonempty(inchi)||nonempty(inchikey))if(repo.saveStructure(uid,connectivity,smiles,inchi,inchikey,null,"PUBCHEM"))structures++;
                 String[] numeric={"MolecularWeight","XLogP","TPSA","Complexity","HBondDonorCount","HBondAcceptorCount","RotatableBondCount","ExactMass","MonoisotopicMass","HeavyAtomCount","FormalCharge","CovalentUnitCount","DefinedAtomStereoCount","UndefinedAtomStereoCount","DefinedBondStereoCount","UndefinedBondStereoCount"};
                 for(String key:numeric){JSONObject q=p.optJSONObject(key);if(q==null)continue;double v=q.optDouble("value",Double.NaN);if(!Double.isFinite(v))continue;String unit=q.optString("unit","");String method=q.optString("method","PubChem PUG REST property endpoint");if(repo.saveProperty(new MolecularProperty(uid,key,v,null,unit,Double.NaN,Double.NaN,method,"PUBCHEM",Double.NaN,"A_SOURCE"))>0)properties++;}
-                String formula=text(p,"MolecularFormula");if(nonempty(formula))if(repo.saveProperty(new MolecularProperty(uid,"MolecularFormula",Double.NaN,formula,"",Double.NaN,Double.NaN,"PubChem PUG REST property endpoint","PUBCHEM",Double.NaN,"A_SOURCE"))>0)properties++;
+                String[] textProperties={"MolecularFormula","IUPACName","Title","SMILES","ConnectivitySMILES"};
+                for(String key:textProperties){String value=text(p,key);if(nonempty(value))if(repo.saveProperty(new MolecularProperty(uid,key,Double.NaN,value,"",Double.NaN,Double.NaN,"PubChem PUG REST property endpoint","PUBCHEM",Double.NaN,"A_SOURCE"))>0)properties++;}
                 // Store the raw PubChem molecular record as a versioned descriptor artifact for reproducibility.
-                String payload=p.toString();repo.saveDescriptorSet(uid,"pubchem-basic/1","PubChem PUG REST property endpoint","PUBCHEM",payload,sha256(payload),true);
+                String payload=p.toString();repo.saveDescriptorSet(uid,"pubchem-basic/2","PubChem PUG REST property endpoint","PUBCHEM",payload,sha256(payload),true);
             }
             return new Result(true,rows.length(),resolved,matched,structures,properties,"ChemCore molecular seed imported");
         }catch(java.io.FileNotFoundException e){return new Result(false,0,0,0,0,0,"molecular seed asset not installed");}
