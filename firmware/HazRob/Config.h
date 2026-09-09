@@ -4,7 +4,7 @@
 namespace Cfg{
 constexpr char FW[]="HazRob 0.10.0";
 constexpr uint8_t API=4;
-constexpr char HW_PROFILE[]="hazrob-0.10-1r8mq-l298n6-batt-ultra-temp-v1";
+constexpr char HW_PROFILE[]="hazrob-0.10-1r8mq-l298n6-batt-ultra-ldr-v1";
 constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 
 // L298N 4WD differential drive: two motors per side in parallel.
@@ -24,12 +24,15 @@ constexpr uint8_t RELAY_MQ=25,RELAY_ON=LOW,RELAY_OFF=HIGH;
 constexpr uint8_t ALERT_PIN=26;          // reserved 8-ohm speaker alert signal; safe interface required before installation
 constexpr uint8_t SOUND_PIN=36;          // MAX4466 ADC1
 constexpr uint8_t IR_PIN=35;             // lower-front fall-edge warning
-constexpr uint8_t LDR_PIN=34;            // LM393 digital threshold
+constexpr uint8_t LDR_PIN=34;            // LM393 digital light-threshold output; NOT quantitative lux
 constexpr uint8_t BATTERY_PIN=33;        // ADC1, divider required
 constexpr uint8_t ULTRA_TRIG_PIN=23;      // front ultrasonic trigger
 constexpr uint8_t ULTRA_ECHO_PIN=39;      // input only; reduce 5 V echo to <=3.3 V
-constexpr uint8_t INTERNAL_TEMP_PIN=14;   // compact one-wire internal/battery temperature input (DS18B20 default)
+constexpr uint8_t INTERNAL_TEMP_RESERVED_PIN=14; // reserved only; no sensor/driver assumed until hardware is selected
 constexpr uint8_t IR_ACTIVE=LOW;
+
+// Future quantitative illuminance: prefer BH1750 on this same I2C bus (0x23/0x5C) after installation.
+constexpr bool LUX_SENSOR_INSTALLED=false;
 
 struct MQ{const char* name;uint8_t ads,ch;float r0;};
 constexpr MQ mq[]={
@@ -47,7 +50,7 @@ constexpr bool TRACKING_CONTINUOUS=true;
 
 // Compact device-health timing / conversion constants.
 constexpr uint16_t SOUND_PERIOD=100,SOUND_SAMPLES=128,ENV_PERIOD=1000,IR_PERIOD=50,LDR_PERIOD=100;
-constexpr uint16_t BATTERY_PERIOD=1000,ULTRA_PERIOD=150,INTERNAL_TEMP_PERIOD=1500;
+constexpr uint16_t BATTERY_PERIOD=1000,ULTRA_PERIOD=150;
 constexpr uint32_t ULTRA_TIMEOUT_US=25000;
 constexpr float ULTRA_WARN_CM=35.0f;
 // 47k/10k divider reference. Final assembled divider and ADC correction are calibrated in device settings later.
