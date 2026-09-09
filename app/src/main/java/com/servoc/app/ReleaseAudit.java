@@ -1,11 +1,11 @@
 package com.servoc.app;
 
-/** Build markers for the HazRob 0.10 ChemCore research release candidate. */
+/** Build markers for the HazRob 0.10.0 major ChemCore release. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.10.0-rc1";
+    public static final String VERSION="0.10.0";
     public static final int DATABASE_SCHEMA=8;
-    public static final String ESP32_API="HazRob API v4 / compatible firmware 0.9.3-rc2 / L298N 4WD GPIO18-27-19-32 / single MQ relay / GPIO26 local alerts / GPIO34 LDR / exact session lineage / unified remote transport";
+    public static final String ESP32_API="HazRob API v4 / firmware 0.10.0 / L298N 4WD GPIO18-27-19-32 / single MQ relay / fixed ADS1115 5V supply / exact session lineage / unified direct+remote transport";
 
     public static final boolean PRECALIBRATED_MQ=false;
     public static final boolean ARABIC_RTL_UI=true;
@@ -15,6 +15,7 @@ public final class ReleaseAudit {
     public static final boolean DYNAMIC_DEVELOPER_CHEMICAL_SELECTION=true;
     public static final boolean BME_BMP_DIAGNOSTICS=true;
     public static final boolean DUAL_ADS1115=true;
+    public static final boolean ADS_FIXED_5V_SUPPLY=true;
     public static final boolean SINGLE_MQ_POWER_RELAY=true;
     public static final boolean MANUAL_MQ_RELAY_CONTROL=true;
     public static final boolean MQ_WARMUP_STATE=true;
@@ -46,10 +47,15 @@ public final class ReleaseAudit {
     public static final boolean REMOTE_CONNECTIVITY=true;
     public static final boolean REMOTE_MQTT_TLS=true;
     public static final boolean REMOTE_WSS_VIDEO=true;
+    public static final boolean MQTT_RETAINED_LAST_WILL=true;
     public static final boolean L298N_4WD_DRIVE=true;
     public static final boolean CHEMCORE_FOUNDATION=true;
     public static final boolean CHEMCORE_CONTROLLED_RUNTIME=true;
     public static final boolean CHEMCORE_DYNAMIC_LIBRARY=true;
+    public static final boolean CHEMCORE_MOLECULAR_INTELLIGENCE=true;
+    public static final boolean CHEMCORE_OPEN_SET=true;
+    public static final boolean CHEMCORE_AMCI=true;
+    public static final boolean CHEMCORE_LIBRARY_SIGNATURE_VERIFY=true;
     public static final boolean END_USER_APP_UPDATER=true;
 
     public static final boolean SERVO_DRIVE=false;
