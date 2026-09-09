@@ -70,7 +70,7 @@ public final class ChemCoreFeatureReferenceBuilder {
     private static double validFraction(double[] v){if(v==null||v.length==0)return 0;int n=0;for(double x:v)if(Double.isFinite(x))n++;return (double)n/v.length;}
     private static double finiteFraction(double[] v){return validFraction(v);}
     private static JSONArray array(double[] a){JSONArray j=new JSONArray();for(double x:a)j.put(Double.isFinite(x)?x:JSONObject.NULL);return j;}
-    private static void putFinite(JSONObject o,String k,double x){if(Double.isFinite(x))o.put(k,x);else o.put(k,JSONObject.NULL);}
+    private static void putFinite(JSONObject o,String k,double x)throws Exception{if(Double.isFinite(x))o.put(k,x);else o.put(k,JSONObject.NULL);}
     private static String joinIds(List<Exposure> x,boolean experiments){StringBuilder s=new StringBuilder();for(Exposure e:x){if(s.length()>0)s.append(',');s.append(experiments?String.valueOf(e.experimentId):e.sessionId);}return s.toString();}
     private static String sha256(String s)throws Exception{byte[] h=MessageDigest.getInstance("SHA-256").digest(s.getBytes(java.nio.charset.StandardCharsets.UTF_8));StringBuilder x=new StringBuilder();for(byte b:h)x.append(String.format(Locale.US,"%02x",b&255));return x.toString();}
     private static String stamp(){SimpleDateFormat f=new SimpleDateFormat("yyyyMMddHHmmss",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
