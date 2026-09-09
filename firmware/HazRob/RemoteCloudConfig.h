@@ -1,16 +1,18 @@
 #pragma once
 #include <Arduino.h>
 
-/** HazRob 0.10 HiveMQ Cloud profile. Password stays in an ignored/generated secret header. */
+/** HazRob 0.10 HiveMQ Cloud profile. Credentials stay in an ignored/generated secret header. */
 #if __has_include("RemoteCloudSecrets.h")
 #include "RemoteCloudSecrets.h"
+#endif
+#ifndef HAZROB_MQTT_USERNAME
+#define HAZROB_MQTT_USERNAME "hazrob_robot"
 #endif
 #ifndef HAZROB_MQTT_PASSWORD
 #define HAZROB_MQTT_PASSWORD ""
 #endif
 #ifndef HAZROB_MQTT_ROOT_CA
-// HiveMQ Cloud Serverless currently chains to Let's Encrypt ISRG Root X1.
-// This CA certificate is public trust material, not a credential.
+// Public trust anchor used by the HiveMQ Cloud endpoint; not a credential.
 #define HAZROB_MQTT_ROOT_CA R"PEM(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
@@ -49,7 +51,7 @@ namespace RemoteCfg {
 constexpr char BROKER_HOST[]="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud";
 constexpr uint16_t BROKER_PORT=8883;
 constexpr char ROBOT_ID[]="hazrob-001";
-constexpr char USERNAME[]="hazrob_robot";
+constexpr char USERNAME[]=HAZROB_MQTT_USERNAME;
 constexpr char PASSWORD[]=HAZROB_MQTT_PASSWORD;
 constexpr char ROOT_CA[]=HAZROB_MQTT_ROOT_CA;
 constexpr uint16_t KEEPALIVE_SEC=20;
