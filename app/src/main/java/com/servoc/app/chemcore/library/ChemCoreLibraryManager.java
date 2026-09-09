@@ -92,10 +92,7 @@ public final class ChemCoreLibraryManager {
 
     public boolean usingDeveloperManifestOverride() { return !manifestUrlOverride().isEmpty(); }
 
-    /**
-     * Developer configuration only. Passing an empty value clears the override and restores the
-     * build-pinned Stable endpoint used by normal users.
-     */
+    /** Developer-only override; empty restores the build-pinned Stable endpoint. */
     public void setManifestUrl(String raw) {
         String value = raw == null ? "" : raw.trim();
         if (!value.isEmpty()) {
@@ -146,16 +143,20 @@ public final class ChemCoreLibraryManager {
     }
 
     public File activePayload() { return store.activePayload(); }
+    public ChemCoreLibraryStore.InstallResult rollback(boolean measurementActive) { return store.rollbackToPrevious(measurementActive); }
 
-    public ChemCoreLibraryStore.InstallResult rollback(boolean measurementActive) {
-        return store.rollbackToPrevious(measurementActive);
-    }
-
+    /** Fail closed for both firmware numeric states and Android/ChemCore named states. */
     public static boolean measurementOrAnalysisActive(JSONObject snapshot) {
         if (snapshot == null) return false;
         JSONObject m = snapshot.optJSONObject("measurement");
         if (m == null) return false;
-        String state = m.optString("state", "idle").trim().toLowerCase();
-        return "warmup".equals(state) || "measuring".equals(state) || "analysis".equals(state) || "recovering".equals(state);
+        Object raw = m.opt("state");
+        if (raw instanceof Number) {
+            int s=((Number)raw).intValue();
+            if (s==1 || s==2) return true; // firmware WARM / MEASURE
+        }
+        String state=String.valueOf(raw==null?"":raw).trim().toLowerCase();
+        return "warm".equals(state)||"warmup".equals(state)||"measure".equals(state)||"measuring".equals(state)
+                ||"analysis".equals(state)||"analyzing".equals(state)||"recovering".equals(state);
     }
 }
