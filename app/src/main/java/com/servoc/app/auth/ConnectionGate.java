@@ -18,6 +18,7 @@ import android.widget.TextView;
 
 import com.servoc.app.R;
 import com.servoc.app.ReleaseAudit;
+import com.servoc.app.communication.LocalNetworkContract;
 import com.servoc.app.communication.RemoteReadiness;
 import com.servoc.app.communication.RemoteServiceProfile;
 import com.servoc.app.communication.RemoteSessionManager;
@@ -26,14 +27,12 @@ import com.servoc.app.communication.RobotApi;
 import com.servoc.app.communication.WifiRoute;
 import com.servoc.app.ui.UiKit;
 
-import org.json.JSONObject;
-
 import java.util.concurrent.ExecutorService;
 
 /**
  * HazRob transport selector. Direct and Remote are two transports for the same robot API.
- * Remote control readiness is deliberately independent from remote video readiness: a slow,
- * sleeping or temporarily unavailable ESP32-CAM must never prevent MQTT control/telemetry entry.
+ * Direct mode admission is intentionally non-blocking: connectivity is reported inside the
+ * operator workspace, not used as a gate that can strand the user before MainActivity starts.
  */
 public final class ConnectionGate {
     public enum Mode{DIRECT,REMOTE}
@@ -70,32 +69,34 @@ public final class ConnectionGate {
 
     private void showChoice(){
         content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");
-        Button direct=UiKit.button(a,"التحكم المباشر عبر Wi-Fi");direct.setTextSize(17);direct.setOnClickListener(v->verifyDirect());content.addView(direct,new LinearLayout.LayoutParams(-1,UiKit.dp(a,60)));
+        Button direct=UiKit.button(a,"التحكم المباشر عبر Wi-Fi");direct.setTextSize(17);direct.setOnClickListener(v->enterDirect());content.addView(direct,new LinearLayout.LayoutParams(-1,UiKit.dp(a,60)));
         Button remote=UiKit.button(a,"التحكم عبر الإنترنت");remote.setTextSize(17);remote.setOnClickListener(v->openRemote());LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,UiKit.dp(a,60));rp.topMargin=UiKit.dp(a,10);content.addView(remote,rp);
         if(developer){
             Button provision=UiKit.button(a,"تهيئة إنترنت الروبوت");provision.setTextSize(15);provision.setOnClickListener(v->openProvisioning());LinearLayout.LayoutParams pp=new LinearLayout.LayoutParams(-1,UiKit.dp(a,54));pp.topMargin=UiKit.dp(a,10);content.addView(provision,pp);
         }
     }
 
-    private void verifyDirect(){
-        busy("فحص الاتصال المباشر...",1);
+    private void enterDirect(){
+        busy("تهيئة الاتصال المباشر...",1);
         io.execute(()->{
-            try{
-                // Critical ordering: pin local HTTP to the phone's Wi-Fi network BEFORE
-                // probing 192.168.4.1. Otherwise Android may route the admission probe
-                // through cellular/default Internet and reject a healthy HazRob SoftAP.
-                WifiRoute.bindConnectedWifi(a);
-                JSONObject d=local.diagnosticsRaw();int api=d.optInt("api",d.optInt("api_version",0));if(api<3)throw new IllegalStateException("API");
-                new RemoteSessionManager(a,prefs).close();
-                prefs.edit().putString("connection_mode","direct").apply();
-                ui.post(()->listener.onReady(Mode.DIRECT));
-            }catch(Exception e){ui.post(()->{status.setText("تعذر الوصول إلى HazRob عبر Wi-Fi. تأكد من اتصال الهاتف بشبكة HazRob ثم أعد المحاولة.");status.setTextColor(0xFFD84315);showBack();});}
+            // Direct is a fixed local hardware contract. Purge any stale host persisted by an
+            // older APK before MainActivity constructs its RobotApi/CameraApi instances.
+            prefs.edit()
+                    .putString("robot",LocalNetworkContract.ROBOT_HOST)
+                    .putString("camera",LocalNetworkContract.CAMERA_HOST)
+                    .putString("connection_mode","direct")
+                    .apply();
+            local.setRobotHost(LocalNetworkContract.ROBOT_HOST);
+            try{new RemoteSessionManager(a,prefs).close();}catch(Exception ignored){}
+            // Best-effort route pinning. Failure to identify the Network object must not block
+            // entry; MainActivity will retry and show the real live connection state.
+            WifiRoute.bindRobotWifi(a);
+            ui.post(()->listener.onReady(Mode.DIRECT));
         });
     }
 
     /** Remote mode uses the same operator command set as Direct mode; no guest token is requested. */
     private void openRemote(){
-        // Remote traffic must return to Android's normal default route (Internet/cellular).
         WifiRoute.unbind(a);
         prefs.edit().putString("remote_operator_role","operator").apply();
         connectRemote(new RemoteSessionManager(a,prefs));
@@ -134,8 +135,8 @@ public final class ConnectionGate {
         busy("إرسال إعدادات الشبكة إلى الروبوت...",1);
         io.execute(()->{
             try{
-                // Provisioning also targets the local master at 192.168.4.1.
-                WifiRoute.bindConnectedWifi(a);
+                local.setRobotHost(LocalNetworkContract.ROBOT_HOST);
+                WifiRoute.bindRobotWifi(a);
                 local.remoteProvision(ssid,password);
                 RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(a,prefs);if(remember)store.save(ssid,password);else store.clear();
                 prefs.edit().putBoolean("remote_wan_provisioned",true).apply();
@@ -164,10 +165,6 @@ public final class ConnectionGate {
 
     private static void stage(StringBuilder s,String name,boolean ok){if(s.length()>0)s.append('\n');s.append(ok?"✓ ":"○ ").append(name);}
 
-    /**
-     * Control/telemetry readiness is the admission criterion for Remote mode.
-     * Video is a parallel optional transport and is allowed to become ready after entry.
-     */
     private void finishRemote(RemoteReadiness control){
         prefs.edit().putString("connection_mode","remote").apply();
         status.append("\nتم اتصال التحكم والقياسات. سيظهر الفيديو البعيد عند جاهزية ESP32-CAM.");
