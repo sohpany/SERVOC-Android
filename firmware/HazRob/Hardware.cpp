@@ -83,8 +83,11 @@ uint32_t mqPowerMs(){return mqPowerOn&&mqPowerAt?millis()-mqPowerAt:0;}
 bool i2cProbe(uint8_t a){Wire.beginTransmission(a);return Wire.endTransmission()==0;}
 Adafruit_ADS1115 ads1,ads2;
 bool ads1ok=false,ads2ok=false;uint32_t adsHealthAt=0;
-struct Reading{uint16_t raw=0;float adc=NAN,ao=NAN,rs=NAN,ratio=NAN;bool ok=false;};
-Reading mq[Cfg::MQ_N];uint32_t mqAt=0;uint8_t mqIndex=0;
+struct Reading{
+  uint16_t raw=0;float adc=NAN,ao=NAN,rs=NAN,ratio=NAN;bool ok=false;
+  uint32_t sampleUs=0,scanCycle=0,channelOffsetUs=0;
+};
+Reading mq[Cfg::MQ_N];uint32_t mqAt=0,mqScanCycle=0,mqCycleStartUs=0;uint8_t mqIndex=0;
 Adafruit_ADS1115* getAds(uint8_t n){return n?&ads2:&ads1;}
 bool adsOK(uint8_t n){return n?ads2ok:ads1ok;}
 bool adsBegin(uint8_t n){Adafruit_ADS1115 *a=getAds(n);uint8_t addr=n?Cfg::ADS2_ADDR:Cfg::ADS1_ADDR;bool ok=a->begin(addr,&Wire);if(ok){a->setGain(GAIN_TWOTHIRDS);a->setDataRate(RATE_ADS1115_860SPS);}if(n)ads2ok=ok;else ads1ok=ok;return ok;}
@@ -94,11 +97,16 @@ void readMQ(uint8_t i){
   if(!mqPowerOn||!adsOK(c.ads)){r=Reading();return;}
   Adafruit_ADS1115 *a=getAds(c.ads);int32_t sum=0;float volts=0;
   for(uint8_t n=0;n<Cfg::ADC_SAMPLES;n++){int16_t x=a->readADC_SingleEnded(c.ch);sum+=x;volts+=a->computeVolts(x);}
-  int32_t av=sum/Cfg::ADC_SAMPLES;if(av<0)av=0;r.raw=(uint16_t)av;r.adc=volts/Cfg::ADC_SAMPLES;r.ao=r.adc;
+  uint32_t sampled=micros();int32_t av=sum/Cfg::ADC_SAMPLES;if(av<0)av=0;r.raw=(uint16_t)av;r.adc=volts/Cfg::ADC_SAMPLES;r.ao=r.adc;
+  r.sampleUs=sampled;r.scanCycle=mqScanCycle;r.channelOffsetUs=sampled-mqCycleStartUs;
   if(r.ao<=.01f||r.ao>=Cfg::MQ_VCC){r.ok=false;return;}
   r.rs=Cfg::RL*(Cfg::MQ_VCC-r.ao)/r.ao;r.ratio=r.rs/c.r0;r.ok=isfinite(r.rs)&&r.rs>0;
 }
-void mqUpdate(){uint32_t now=millis();uint16_t slot=Cfg::MQ_PERIOD/Cfg::MQ_N;if(slot<2)slot=2;if(now-mqAt<slot)return;mqAt=now;readMQ(mqIndex);if(++mqIndex>=Cfg::MQ_N)mqIndex=0;}
+void mqUpdate(){
+  uint32_t now=millis();uint16_t slot=Cfg::MQ_PERIOD/Cfg::MQ_N;if(slot<2)slot=2;if(now-mqAt<slot)return;mqAt=now;
+  if(mqIndex==0){mqScanCycle++;if(!mqScanCycle)mqScanCycle=1;mqCycleStartUs=micros();}
+  readMQ(mqIndex);if(++mqIndex>=Cfg::MQ_N)mqIndex=0;
+}
 
 /* ---------- BME / BMP ---------- */
 Adafruit_BME280 bme;Adafruit_BMP280 bmp(&Wire);
@@ -156,12 +164,18 @@ String num(float v,uint8_t d=2){return isfinite(v)?String(v,(unsigned)d):"null";
 const char* boolJson(bool v){return v?"true":"false";}
 void loadSettings(){nv.begin(Cfg::NVS,false);settings.cam=nv.getString("camIP",Cfg::CAM);settings.speed=constrain(nv.getInt("speed",100),20,100);settings.warm=constrain(nv.getUInt("warmup",Cfg::OPERATIONAL_WARMUP_SEC),0UL,3600UL);settings.measure=constrain(nv.getUInt("measure",Cfg::ANALYSIS_WINDOW_SEC),5UL,600UL);}
 String envJson(){String j="{\"ok\":"+String(boolJson(envType!=0))+",\"t\":"+num(temp,2)+",\"h\":"+num(hum,2)+",\"p\":"+num(press,1)+"}";return j;}
+String acquisitionJson(){
+  return "{\"model\":\"ADS1115\",\"rate_sps\":"+String(Cfg::ADS_RATE_SPS)+",\"gain\":\"GAIN_TWOTHIRDS\",\"full_scale_v\":"+num(Cfg::ADS_FULL_SCALE_V,3)+",\"supply_v\":"+num(Cfg::ADS_SUPPLY_V,3)+",\"conversions_per_channel\":"+String(Cfg::ADC_SAMPLES)+",\"scan_period_ms\":"+String(Cfg::MQ_PERIOD)+",\"channels\":"+String(Cfg::MQ_N)+",\"sequential\":true}";
+}
 String mqJson(bool avg){
-  bool powered=avg?measurePower:mqPowerOn;String j="{";
+  bool powered=avg?measurePower:mqPowerOn;String j="{";uint32_t nowUs=micros();
   for(uint8_t i=0;i<Cfg::MQ_N;i++){
     if(i)j+=",";const auto &c=Cfg::mq[i];j+="\"";j+=c.name;j+="\":{";
     if(avg){if(!cnt[i])j+="\"ok\":false";else{float n=cnt[i];j+="\"ok\":true";j+=",\"raw\":"+num(rawSum[i]/n,1)+",\"adc\":"+num(adcSum[i]/n,3)+",\"ao\":"+num(aoSum[i]/n,3)+",\"rs\":"+num(rsSum[i]/n,3)+",\"ratio\":";j+=rcnt[i]?num(expf(logSum[i]/rcnt[i]),3):"null";}}
-    else{j+="\"ok\":"+String(boolJson(mq[i].ok))+",\"raw\":"+String(mq[i].raw)+",\"adc\":"+num(mq[i].adc,3)+",\"ao\":"+num(mq[i].ao,3)+",\"rs\":"+num(mq[i].rs,3)+",\"ratio\":"+num(mq[i].ratio,3);}
+    else{
+      j+="\"ok\":"+String(boolJson(mq[i].ok))+",\"raw\":"+String(mq[i].raw)+",\"adc\":"+num(mq[i].adc,3)+",\"ao\":"+num(mq[i].ao,3)+",\"rs\":"+num(mq[i].rs,3)+",\"ratio\":"+num(mq[i].ratio,3);
+      if(mq[i].sampleUs){j+=",\"sample_us\":"+String(mq[i].sampleUs)+",\"scan_cycle\":"+String(mq[i].scanCycle)+",\"channel_offset_us\":"+String(mq[i].channelOffsetUs)+",\"age_us\":"+String(nowUs-mq[i].sampleUs);}
+    }
     j+=",\"powered\":"+String(boolJson(powered))+",\"relay\":1,\"row\":1,\"ads\":"+String(c.ads)+",\"ch\":"+String(c.ch)+",\"r0\":"+num(c.r0,3)+",\"r0_calibrated\":false,\"r0_source\":\"firmware_default\"}";
   }
   return j+"}";
@@ -207,7 +221,7 @@ String dataJson(){
   j+=",\"ldr\":{\"installed\":true,\"gpio\":"+String(Cfg::LDR_PIN)+",\"level\":"+String(ldrLevel)+",\"quantitative_lux\":false}";
   j+=",\"alert\":"+Alerts::json();
   j+=",\"relay\":{\"mask\":"+String(mqPowerOn?1:0)+",\"on\":"+String(boolJson(mqPowerOn))+",\"gpio\":"+String(Cfg::RELAY_MQ)+",\"power_ms\":"+String(mqPowerMs())+",\"channels\":1}";
-  j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+"}";
+  j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+",\"acquisition\":"+acquisitionJson()+"}";
   j+=",\"drive\":"+driveJson();
   j+=",\"mq\":"+mqJson(false);
   j+=",\"measurement\":{\"state\":"+String((uint8_t)stage)+",\"mask\":"+String(measurePower?1:0)+",\"power\":"+String(boolJson(measurePower))+",\"manual_power\":true,\"manual_warmup\":true,\"duration_s\":"+String(settings.measure)+",\"mq\":"+mqJson(true)+"}}";
@@ -219,7 +233,7 @@ String diagJson(){
   j+=",\"failsafe\":"+String(boolJson(fs))+",\"retrace\":"+String(boolJson(retracing));
   j+=",\"drive\":"+driveJson();
   j+=",\"relay\":{\"mask\":"+String(mqPowerOn?1:0)+",\"on\":"+String(boolJson(mqPowerOn))+",\"gpio\":"+String(Cfg::RELAY_MQ)+",\"power_ms\":"+String(mqPowerMs())+",\"channels\":1}";
-  j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+"}";
+  j+=",\"adc\":{\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok))+",\"acquisition\":"+acquisitionJson()+"}";
   j+=",\"ads1\":"+String(boolJson(ads1ok))+",\"ads2\":"+String(boolJson(ads2ok));
   j+=",\"link\":{\"armed\":"+String(boolJson(linkArmed))+",\"lost\":"+String(boolJson(linkLost))+",\"hold\":"+String(boolJson(linkHold))+",\"state\":\""+String(linkState())+"\",\"hold_remaining_ms\":"+String(holdRemaining())+",\"heartbeat_age_ms\":"+String(linkArmed?millis()-linkAt:0)+"}";
   j+=",\"envType\":"+String(envType)+",\"envAddr\":"+String(envAddr)+",\"envId\":"+String(envId);
