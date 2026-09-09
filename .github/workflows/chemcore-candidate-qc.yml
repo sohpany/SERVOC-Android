@@ -1,0 +1,40 @@
+name: ChemCore Candidate QC
+
+on:
+  push:
+    branches:
+      - dev/hazrob-0.10-chemcore-foundation
+    paths:
+      - 'chemcore/research/candidates/**/*.json'
+      - 'tools/validate_chemcore_candidate.py'
+      - '.github/workflows/chemcore-candidate-qc.yml'
+  pull_request:
+    paths:
+      - 'chemcore/research/candidates/**/*.json'
+      - 'tools/validate_chemcore_candidate.py'
+      - '.github/workflows/chemcore-candidate-qc.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-candidates:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate all research candidates
+        run: |
+          shopt -s nullglob globstar
+          files=(chemcore/research/candidates/**/*.json)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No candidate JSON files to validate."
+            exit 0
+          fi
+          for f in "${files[@]}"; do
+            echo "Validating $f"
+            python3 tools/validate_chemcore_candidate.py "$f"
+          done
