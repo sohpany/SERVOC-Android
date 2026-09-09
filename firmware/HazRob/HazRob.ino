@@ -1,59 +1,39 @@
 #include <WiFi.h>
-#include <WebServer.h>
 #include "Hardware.h"
 #include "RemoteLink.h"
 #include "RemoteMqtt.h"
 
-WebServer web(80);
-uint32_t wifiAt=0;
-bool naptEnabled=false;
+WiFiServer web(80);
+uint32_t wifiAt=0;bool naptEnabled=false;
 
-void reply(int c,const char* s){web.send(c,"text/plain",s);}
-String jsonEsc(const String& s){String o;o.reserve(s.length()+8);for(size_t i=0;i<s.length();i++){char c=s[i];if(c=='\\'||c=='\"'){o+='\\';o+=c;}else if((uint8_t)c>=0x20)o+=c;}return o;}
-String wifiScanJson(){
-  int n=WiFi.scanNetworks(false,true,false,300);
-  String j="{\"networks\":[";
-  if(n>0){for(int i=0;i<n;i++){if(i)j+=",";j+="{\"ssid\":\""+jsonEsc(WiFi.SSID(i))+"\",\"rssi\":"+String(WiFi.RSSI(i))+",\"secure\":"+(WiFi.encryptionType(i)==WIFI_AUTH_OPEN?"false":"true")+",\"channel\":"+String(WiFi.channel(i))+"}";}}
-  j+="]}";WiFi.scanDelete();return j;
-}
-void startAP(){
-  WiFi.persistent(false);WiFi.mode(WIFI_AP_STA);WiFi.setSleep(false);
-  IPAddress ip(192,168,4,1),subnet(255,255,255,0),dhcpStart(192,168,4,100);
-  WiFi.softAPConfig(ip,ip,subnet,dhcpStart);WiFi.softAP(Cfg::SSID);naptEnabled=false;
-}
-void gatewayUpdate(){bool want=remoteInternetReady();if(want==naptEnabled)return;if(WiFi.AP.enableNAPT(want))naptEnabled=want;}
-void wifiWatch(){if(millis()-wifiAt<5000)return;wifiAt=millis();if(!(WiFi.getMode()&WIFI_AP)||WiFi.softAPIP()!=IPAddress(192,168,4,1)){if(naptEnabled)WiFi.AP.enableNAPT(false);naptEnabled=false;WiFi.softAPdisconnect(true);delay(20);startAP();}}
+String dec(const String&s){String o;o.reserve(s.length());for(size_t i=0;i<s.length();i++){char c=s[i];if(c=='+')o+=' ';else if(c=='%'&&i+2<s.length()){char h[3]={s[i+1],s[i+2],0};o+=(char)strtol(h,nullptr,16);i+=2;}else o+=c;}return o;}
+String esc(const String&s){String o;o.reserve(s.length()+8);for(char c:s){if(c=='\\'||c=='\"'){o+='\\';o+=c;}else if((uint8_t)c>=0x20)o+=c;}return o;}
+String arg(const String&q,const String&b,const char*k){String key=String(k)+"=";auto scan=[&](const String&s)->String{int p=0;while(p<(int)s.length()){int e=s.indexOf('&',p);if(e<0)e=s.length();if(s.substring(p,p+key.length())==key)return dec(s.substring(p+key.length(),e));p=e+1;}return "";};String v=scan(q);return v.length()?v:scan(b);}
+void send(WiFiClient&c,int code,const char*type,const String&body){const char*msg=code==200?"OK":code==400?"Bad Request":code==404?"Not Found":"Conflict";c.printf("HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %u\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n",code,msg,type,(unsigned)body.length());c.print(body);}
+String scanJson(){int n=WiFi.scanNetworks(false,true,false,250);String j="{\"networks\":[";for(int i=0;i<n;i++){if(i)j+=',';j+="{\"ssid\":\""+esc(WiFi.SSID(i))+"\",\"rssi\":"+String(WiFi.RSSI(i))+",\"secure\":"+(WiFi.encryptionType(i)==WIFI_AUTH_OPEN?"false":"true")+",\"channel\":"+String(WiFi.channel(i))+"}";}WiFi.scanDelete();return j+"]}";}
+void startAP(){WiFi.persistent(false);WiFi.mode(WIFI_AP_STA);WiFi.setSleep(false);IPAddress ip(192,168,4,1),mask(255,255,255,0),dhcp(192,168,4,100);WiFi.softAPConfig(ip,ip,mask,dhcp);WiFi.softAP(Cfg::SSID);naptEnabled=false;}
+void gatewayUpdate(){bool w=remoteInternetReady();if(w!=naptEnabled&&WiFi.AP.enableNAPT(w))naptEnabled=w;}
+void wifiWatch(){if(millis()-wifiAt<5000)return;wifiAt=millis();if(!(WiFi.getMode()&WIFI_AP)||WiFi.softAPIP()!=IPAddress(192,168,4,1)){if(naptEnabled)WiFi.AP.enableNAPT(false);WiFi.softAPdisconnect(true);startAP();}}
 
-void setup(){
-  hwBegin();startAP();remoteBegin();remoteMqttBegin();
-  web.on("/",[]{reply(200,Cfg::FW);});
+void httpUpdate(){WiFiClient c=web.available();if(!c)return;c.setTimeout(250);String line=c.readStringUntil('\n');line.trim();int a=line.indexOf(' '),z=line.indexOf(' ',a+1);if(a<1||z<a){c.stop();return;}String method=line.substring(0,a),target=line.substring(a+1,z),body;int qi=target.indexOf('?');String path=qi<0?target:target.substring(0,qi),q=qi<0?"":target.substring(qi+1);int len=0;while(c.connected()){line=c.readStringUntil('\n');line.trim();if(!line.length())break;if(line.startsWith("Content-Length:"))len=line.substring(15).toInt();}if(len>0&&len<2048){uint32_t until=millis()+300;while((int)body.length()<len&&c.connected()&&(int32_t)(until-millis())>0){while(c.available()&&(int)body.length()<len)body+=(char)c.read();delay(1);}}
+  auto A=[&](const char*k){return arg(q,body,k);};
+  if(path=="/")send(c,200,"text/plain",Cfg::FW);
+  else if(path=="/drive"){String l=A("l"),r=A("r");if(!l.length()||!r.length())send(c,400,"text/plain","BAD");else{linkHeartbeat();driveSet(constrain(l.toInt(),-100L,100L),constrain(r.toInt(),-100L,100L));send(c,200,"text/plain","OK");}}
+  else if(path=="/stop"||path=="/motion/stop"){motionStop();send(c,200,"text/plain","OK");}
+  else if(path=="/estop"){emergencyStop();send(c,200,"text/plain","OK");}
+  else if(path=="/sensor/off"){sensorPowerOff();send(c,200,"text/plain","OK");}
+  else if(path=="/heartbeat"){if(A("arm")=="0"){linkSetArmed(false);send(c,200,"text/plain","DISARMED");}else{linkHeartbeat();send(c,200,"text/plain","OK");}}
+  else if(path=="/remote/status"){String j=remoteStatusJson();if(j.endsWith("}")){j.remove(j.length()-1);j+=",\"napt\":";j+=naptEnabled?"true":"false";j+='}';}send(c,200,"application/json",j);}
+  else if(path=="/remote/scan")send(c,200,"application/json",scanJson());
+  else if(path=="/remote/provision"&&method=="POST"){String s=A("ssid"),p=A("password");bool ok=s.length()&&remoteProvision(s,p);send(c,ok?200:400,"application/json",ok?"{\"ok\":true}":"{\"ok\":false}");}
+  else if(path=="/remote/clear"&&method=="POST"){if(A("confirm")!="1")send(c,400,"application/json","{\"ok\":false}");else{remoteMqttDisconnect();if(naptEnabled)WiFi.AP.enableNAPT(false);naptEnabled=false;remoteClear();send(c,200,"application/json","{\"ok\":true}");}}
+  else if(path=="/relay"){String v=A("mask");if(v!="0"&&v!="1")send(c,409,"text/plain","MQ POWER MUST BE 0 OR 1");else{linkHeartbeat();send(c,relaySetMask(v=="1")?200:409,"text/plain","OK");}}
+  else if(path=="/measure"){String x=A("cmd");if(x=="start"){linkHeartbeat();measureStart();send(c,200,"text/plain","OK");}else if(x=="cancel"){measureCancel();send(c,200,"text/plain","OK");}else send(c,400,"text/plain","BAD");}
+  else if(path=="/alert"){if(A("cmd")=="test"){alertTest();send(c,200,"text/plain","OK");}else{String sv=A("severity");long s=sv.toInt();if(!sv.length()||s<0||s>2)send(c,409,"text/plain","BAD");else{String tv=A("ttl");uint32_t ttl=tv.length()?constrain(tv.toInt(),500L,10000L):3000;send(c,alertSet((uint8_t)s,ttl)?200:409,"text/plain","OK");}}}
+  else if(path=="/data")send(c,200,"application/json",dataJson());
+  else if(path=="/diag")send(c,200,"application/json",diagJson());
+  else if(path=="/cfg"){String v;if((v=A("cam")).length())settings.cam=v;if((v=A("speed")).length())settings.speed=constrain(v.toInt(),20L,100L);if((v=A("warm")).length())settings.warm=constrain(v.toInt(),0L,3600L);if((v=A("measure")).length())settings.measure=constrain(v.toInt(),5L,600L);if(q.length()||body.length())saveSettings();send(c,200,"application/json",settingsJson());}
+  else send(c,404,"text/plain","NOT FOUND");c.stop();}
 
-  // Direct and Remote use the same safety heartbeat semantics.
-  web.on("/drive",[]{if(!web.hasArg("l")||!web.hasArg("r"))return reply(400,"BAD");linkHeartbeat();driveSet(constrain(web.arg("l").toInt(),-100L,100L),constrain(web.arg("r").toInt(),-100L,100L));reply(200,"OK");});
-  web.on("/stop",[]{motionStop();reply(200,"OK");});
-  web.on("/motion/stop",[]{motionStop();reply(200,"OK");});
-  web.on("/estop",[]{emergencyStop();reply(200,"OK");});
-  web.on("/sensor/off",[]{sensorPowerOff();reply(200,"OK");});
-  web.on("/heartbeat",[]{if(web.hasArg("arm")&&web.arg("arm")=="0"){linkSetArmed(false);reply(200,"DISARMED");return;}linkHeartbeat();reply(200,"OK");});
-
-  web.on("/remote/status",HTTP_GET,[]{String j=remoteStatusJson();if(j.endsWith("}")){j.remove(j.length()-1);j+=",\"napt\":";j+=naptEnabled?"true":"false";j+="}";}web.send(200,"application/json",j);});
-  web.on("/remote/scan",HTTP_GET,[]{web.send(200,"application/json",wifiScanJson());});
-  web.on("/remote/provision",HTTP_POST,[]{if(!web.hasArg("ssid")||!web.hasArg("password")){web.send(400,"application/json","{\"ok\":false,\"error\":\"missing_fields\"}");return;}bool ok=remoteProvision(web.arg("ssid"),web.arg("password"));web.send(ok?200:400,"application/json",ok?"{\"ok\":true}":"{\"ok\":false,\"error\":\"invalid_credentials_format\"}");});
-  web.on("/remote/clear",HTTP_POST,[]{if(!web.hasArg("confirm")||web.arg("confirm")!="1"){web.send(400,"application/json","{\"ok\":false}");return;}remoteMqttDisconnect();if(naptEnabled)WiFi.AP.enableNAPT(false);naptEnabled=false;remoteClear();web.send(200,"application/json","{\"ok\":true}");});
-
-  web.on("/relay",[]{if(!web.hasArg("mask"))return reply(400,"BAD");String v=web.arg("mask");if(v!="0"&&v!="1")return reply(409,"MQ POWER MUST BE 0 OR 1");linkHeartbeat();if(!relaySetMask(v=="1"?1:0))return reply(409,"MQ POWER REJECTED");reply(200,"OK");});
-  web.on("/measure",[]{String c=web.arg("cmd");if(c=="start"){linkHeartbeat();measureStart();}else if(c=="cancel")measureCancel();else return reply(400,"BAD");reply(200,"OK");});
-  web.on("/alert",[]{
-    if(web.hasArg("cmd")&&web.arg("cmd")=="test"){alertTest();reply(200,"OK");return;}
-    if(!web.hasArg("severity"))return reply(400,"MISSING SEVERITY");
-    long severity=web.arg("severity").toInt();if(severity<0||severity>2)return reply(409,"SEVERITY MUST BE 0..2");
-    uint32_t ttl=web.hasArg("ttl")?(uint32_t)constrain(web.arg("ttl").toInt(),500L,10000L):3000UL;
-    if(!alertSet((uint8_t)severity,ttl))return reply(409,"ALERT REJECTED");reply(200,"OK");
-  });
-  web.on("/data",[]{web.send(200,"application/json",dataJson());});
-  web.on("/diag",[]{web.send(200,"application/json",diagJson());});
-  web.on("/cfg",[]{bool save=false;if(web.hasArg("cam")){settings.cam=web.arg("cam");save=true;}if(web.hasArg("speed")){settings.speed=constrain(web.arg("speed").toInt(),20L,100L);save=true;}if(web.hasArg("warm")){settings.warm=constrain(web.arg("warm").toInt(),0L,3600L);save=true;}if(web.hasArg("measure")){settings.measure=constrain(web.arg("measure").toInt(),5L,600L);save=true;}if(save)saveSettings();web.send(200,"application/json",settingsJson());});
-  web.onNotFound([]{reply(404,"NOT FOUND");});web.begin();
-}
-
-void loop(){hwUpdate();remoteUpdate();gatewayUpdate();remoteMqttUpdate();web.handleClient();wifiWatch();delay(1);}
+void setup(){hwBegin();startAP();remoteBegin();remoteMqttBegin();web.begin();}
+void loop(){hwUpdate();remoteUpdate();gatewayUpdate();remoteMqttUpdate();httpUpdate();wifiWatch();delay(1);}
