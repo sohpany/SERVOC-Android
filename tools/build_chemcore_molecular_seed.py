@@ -7,9 +7,10 @@ intentionally separate from exposure-limit and sensor-response evidence.
 
 Design goals:
 - resumable local cache so a 600+ compound build does not restart after interruption;
-- conservative retry/backoff and request pacing;
+- conservative retry/backoff and request pacing (PubChem asks clients to stay <=5 req/s);
 - explicit unresolved records instead of silently dropping compounds;
 - deterministic output ordering and SHA-256 manifest;
+- current PubChem property names (SMILES and ConnectivitySMILES, not deprecated aliases);
 - no claim that a PubChem descriptor implies MQ detectability.
 
 Typical use from repository root:
@@ -42,13 +43,16 @@ PUBCHEM_BASE = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
 PUBCHEM_SOURCE = "https://pubchem.ncbi.nlm.nih.gov/"
 UA = "HazRob-ChemCore-molecular-seed/0.10 (+scientific research; provenance-preserving)"
 
+# Names follow the current PubChem PUG REST specification.
 PROPERTIES = [
     "MolecularFormula",
     "MolecularWeight",
-    "CanonicalSMILES",
-    "IsomericSMILES",
+    "SMILES",
+    "ConnectivitySMILES",
     "InChI",
     "InChIKey",
+    "IUPACName",
+    "Title",
     "XLogP",
     "TPSA",
     "Complexity",
@@ -113,10 +117,8 @@ def request_json(url: str, retries: int, backoff_s: float) -> dict[str, Any]:
                 return json.loads(response.read().decode("utf-8"))
         except HTTPError as e:
             last = e
-            # 404 is a stable unresolved identity; do not hammer the service.
             if e.code == 404:
                 raise
-            # PubChem may throttle with 429/503. Backoff then retry.
             if e.code not in (408, 429, 500, 502, 503, 504) or attempt >= retries:
                 raise
         except (URLError, TimeoutError, json.JSONDecodeError) as e:
@@ -150,7 +152,7 @@ def resolve_pubchem(cas: str, cache_dir: Path, refresh: bool, retries: int,
     except HTTPError as e:
         status = "UNRESOLVED" if e.code == 404 else "ERROR"
         error = f"HTTP {e.code}: {e.reason}"
-    except Exception as e:  # retained in cache for explicit audit/retry
+    except Exception as e:
         status = "ERROR"
         error = f"{type(e).__name__}: {e}"
 
@@ -242,6 +244,7 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
             "source_url": PUBCHEM_SOURCE,
             "interface": "PubChem PUG REST property endpoint",
             "properties_requested": PROPERTIES,
+            "usage_policy_note": "PUG REST clients should remain at or below five requests per second; bulk data should use an optimized workflow.",
         },
         "records": result_records,
     }
@@ -256,6 +259,7 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
         "sha256": sha256_bytes(payload),
         "source_identity_sha256": sha256_bytes(args.input.read_bytes()),
         "descriptor_source": PUBCHEM_SOURCE,
+        "property_names": PROPERTIES,
     }
     return root, manifest
 
@@ -270,8 +274,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--refresh", action="store_true")
     p.add_argument("--retries", type=int, default=4)
     p.add_argument("--backoff", type=float, default=1.0)
-    p.add_argument("--delay", type=float, default=0.20,
-                   help="minimum sleep after uncached requests; use a conservative value for bulk builds")
+    p.add_argument("--delay", type=float, default=0.25,
+                   help="minimum sleep after uncached requests; keep >=0.20 s to respect PubChem's <=5 requests/s guidance")
     return p.parse_args()
 
 
