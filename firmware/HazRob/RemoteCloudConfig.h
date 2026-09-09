@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-/** HazRob 0.10 HiveMQ Cloud profile. Credentials stay in an ignored/generated secret header. */
+/** HazRob 0.10 cloud profile. MQTT credentials are resolved at runtime from the prototype bootstrap service. */
 #if __has_include("RemoteCloudSecrets.h")
 #include "RemoteCloudSecrets.h"
 #endif
@@ -12,7 +12,6 @@
 #define HAZROB_MQTT_PASSWORD ""
 #endif
 #ifndef HAZROB_MQTT_ROOT_CA
-// Public trust anchor used by the HiveMQ Cloud endpoint; not a credential.
 #define HAZROB_MQTT_ROOT_CA R"PEM(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
@@ -52,11 +51,15 @@ constexpr char BROKER_HOST[]="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.clou
 constexpr uint16_t BROKER_PORT=8883;
 constexpr char ROBOT_ID[]="hazrob-001";
 constexpr char USERNAME[]=HAZROB_MQTT_USERNAME;
-constexpr char PASSWORD[]=HAZROB_MQTT_PASSWORD;
+constexpr char PASSWORD[]=HAZROB_MQTT_PASSWORD; // optional build-time fallback only
 constexpr char ROOT_CA[]=HAZROB_MQTT_ROOT_CA;
+constexpr char BOOTSTRAP_HOST[]="hazrob-video-relay.onrender.com";
+constexpr uint16_t BOOTSTRAP_PORT=443;
+constexpr char BOOTSTRAP_PATH[]="/hazrob/bootstrap";
+constexpr char BOOTSTRAP_TOKEN[]="hazrob-prototype-bootstrap-v1";
 constexpr uint16_t KEEPALIVE_SEC=20;
 constexpr uint32_t RETRY_MS=2000;
 constexpr uint32_t TELEMETRY_MS=250;
 constexpr uint32_t STATUS_MS=2000;
-inline bool configured(){return BROKER_HOST[0]&&ROBOT_ID[0]&&USERNAME[0]&&PASSWORD[0]&&strstr(ROOT_CA,"BEGIN CERTIFICATE")!=nullptr;}
+inline bool configured(){return BROKER_HOST[0]&&ROBOT_ID[0]&&strstr(ROOT_CA,"BEGIN CERTIFICATE")!=nullptr;}
 }
