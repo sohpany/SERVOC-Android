@@ -28,14 +28,22 @@ Endpoints: `/`, `/status`, `/stream`, `/flash`, `/led`, `/control`.
 
 ## Remote video
 
-`RemoteVideo.cpp` publishes binary JPEG frames through WSS to the configured Render relay. Credentials and token are kept outside source control in the protected secrets header. Connection recovery uses bounded backoff rather than an aggressive fixed reconnect loop.
+`RemoteVideo.cpp` publishes binary JPEG frames through WSS to the Render relay.
+
+For the normal HazRob 0.10 field build, **do not create `RemoteVideoSecrets.h` and do not paste a token or certificate into Arduino IDE**. The camera obtains `video_publish_token` at runtime from the authenticated Render bootstrap endpoint, removes whitespace, then opens the WSS publisher connection. The trusted public root CA is embedded in `RemoteVideoConfig.h`.
+
+`RemoteVideoSecrets.example.h` is retained only as an optional controlled fallback for diagnostics and contains no live secret.
+
+If Render rejects a WSS publisher token with HTTP 401, the camera invalidates its cached runtime credential and obtains a fresh one on the next reconnect attempt. Connection recovery uses bounded exponential backoff from 2 to 30 seconds rather than an aggressive fixed reconnect loop.
 
 The master ESP32 provides the outbound Internet route via NAPT when its STA/WAN path is ready. Loss of remote video does not disable local MJPEG.
 
 ## Capacity policy
 
-The 0.10 sketch was deliberately compacted. It contains no robot drive code, no ChemCore, no molecular database and no analytical models. GitHub Actions compiles the exact source, records Flash/RAM usage and packages this directory as the `HazRob-ESP32-CAM-v0.10.0-source` release artifact.
+The 0.10 sketch contains no robot drive code, no ChemCore, no molecular database and no analytical models. GitHub Actions compiles the exact source, records Flash/RAM usage and packages this directory as the `HazRob-ESP32-CAM-v0.10.0-source` release artifact.
 
 ## Field test
 
-Power the master ESP32 first, then ESP32-CAM. Verify `http://192.168.4.2/status` and the local stream before testing WSS/Render. Phone-side MP4 recording remains an Android function; it is separate from the camera firmware.
+Power the master ESP32 first, then ESP32-CAM. Verify `http://192.168.4.2/status` and the local stream before testing WSS/Render. In `/status`, `remote_video.credential_ready=true` confirms that the camera successfully obtained a runtime publisher credential; `remote_video.connected=true` confirms the WSS publisher connection.
+
+Phone-side MP4 recording remains an Android function and is separate from camera firmware.
