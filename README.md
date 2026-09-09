@@ -178,7 +178,7 @@ GitHub Actions validates pinned scientific datasets, executes Android regression
 
 ## Research references
 
-See [`REFERENCES_APA.md`](REFERENCES_APA.md) for manufacturer manuals, NIOSH/OSHA/standards, MQSensorsLib/MQDataScience provenance, and the peer-reviewed 2024–2026 literature used to design ChemCore preprocessing, molecular-descriptor response modeling, drift handling, open-set recognition, uncertainty/selective classification, calibration transfer and mixture analysis.
+The canonical standards/manufacturer/software-provenance bibliography is [`REFERENCES_APA.md`](REFERENCES_APA.md). The recent peer-reviewed evidence specifically used to design ChemCore preprocessing, molecular-descriptor response modeling, drift handling, open-set recognition, uncertainty/selective classification, calibration transfer and mixture analysis is maintained in [`docs/CHEMCORE_RESEARCH_REFERENCES_2024_2026.md`](docs/CHEMCORE_RESEARCH_REFERENCES_2024_2026.md).
 
 ## Current scientific limitations
 
