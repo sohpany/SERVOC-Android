@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import android.os.Bundle;
 
 import com.servoc.app.auth.ConnectionGate;
+import com.servoc.app.communication.LocalNetworkContract;
 import com.servoc.app.communication.RobotApi;
 
 import java.util.concurrent.ExecutorService;
@@ -20,7 +21,9 @@ public final class EntryActivity extends Activity {
     @Override public void onCreate(Bundle b){
         super.onCreate(b);
         prefs=getSharedPreferences("servoc",MODE_PRIVATE);
-        local=new RobotApi(prefs.getString("robot","192.168.4.1"));
+        // Direct transport is a fixed hardware contract. Never inherit a stale saved host
+        // from a previous build, remote experiment, or developer setting.
+        local=new RobotApi(LocalNetworkContract.ROBOT_HOST);
         showConnection();
     }
 
