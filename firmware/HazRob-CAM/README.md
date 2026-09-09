@@ -1,51 +1,41 @@
-# HazRob ESP32-CAM 0.7.1
+# HazRob ESP32-CAM — 0.10.0
 
-Standalone AI-Thinker-style ESP32-CAM firmware for HazRob.
-
-## Required migration
-
-The camera must be flashed with this sketch (or another firmware using the same network/API contract). Updating the Android APK cannot change an old ESP32-CAM sketch that is still searching only for the old `Servoc` SSID. A camera that never joins the master ESP32 Wi-Fi will have both video and flash unavailable.
-
-This 0.7.1 firmware alternates automatically between the open SSIDs `HazRob` and `Servoc` during migration. The final master network is `HazRob`.
+Target: AI-Thinker-style ESP32-CAM. This controller is intentionally isolated from robot motion and chemical inference: it provides local video/flash status and the remote WSS JPEG publisher only.
 
 ## Network contract
 
-- Preferred AP: `HazRob`; legacy fallback: `Servoc`.
-- Static camera IP: `192.168.4.2`.
-- Gateway/master ESP32: `192.168.4.1`.
-- Control/status: HTTP port 80.
-- MJPEG: port 81, canonical path `/stream`.
-- `GET /stream` on port 80 redirects to the canonical stream.
+- Wi-Fi SSID: `HazRob`.
+- static IP: `192.168.4.2`.
+- gateway/master ESP32: `192.168.4.1`.
+- HTTP status/control: port 80.
+- local MJPEG: port 81, canonical `/stream`.
+- `GET /stream` on port 80 redirects to port 81.
 
-Status and control endpoints:
-
-- `/` -> firmware identity.
-- `/status` -> JSON containing firmware, SSID, IP, sensor PID, 320x240 resolution, format, FPS, RSSI and flash state.
-- `/flash?mode=off|auto|on`
-- `/flash?on=0|1`
-- `/led?on=0|1`
-- `/led?state=0|1`
-- `/control?var=led_intensity&val=0..255`
-- `/control?var=flash&val=0|1`
-- `/control?var=led&val=0|1`
-
-Android 0.7.1 intentionally uses ON/OFF only. `auto` remains a compatibility mode and keeps the lamp physically OFF until an ambient-light policy is implemented.
+Endpoints: `/`, `/status`, `/stream`, `/flash`, `/led`, `/control`.
 
 ## Camera pipeline
 
 - AI-Thinker pin map; flash GPIO4.
 - XCLK 20 MHz.
-- RGB565 QVGA 320x240, one PSRAM framebuffer, `CAMERA_GRAB_WHEN_EMPTY`.
-- Software JPEG conversion, quality 35, into a fixed PSRAM buffer.
-- Framebuffer returned before Wi-Fi transmission.
+- QVGA 320×240 RGB565 capture in PSRAM.
+- one framebuffer, `CAMERA_GRAB_WHEN_EMPTY`.
+- software JPEG conversion through `frame2jpg_cb` into a fixed 160 KiB PSRAM buffer.
+- JPEG structural validation before transmission.
+- local MJPEG and remote WSS share a camera mutex so frame capture is serialized safely.
 - Wi-Fi sleep disabled.
 
-The GC2145 is identified by PID `0x2145` (8517 decimal) in `/status`. No undocumented GC2145 register-windowing writes are used.
+`/status` reports firmware ID, camera/PSRAM state, PID/sensor label, dimensions, JPEG quality, measured FPS, encode time, JPEG size, capture/encode error counters, stream clients, RSSI, flash state and remote-video diagnostics.
 
-Classic ESP32 + GC2145 performs RGB capture + software JPEG + Wi-Fi; do not assume 20-30 FPS. The Android client uses actual incoming frame timestamps when creating MP4.
+## Remote video
 
-## First field test
+`RemoteVideo.cpp` publishes binary JPEG frames through WSS to the configured Render relay. Credentials and token are kept outside source control in the protected secrets header. Connection recovery uses bounded backoff rather than an aggressive fixed reconnect loop.
 
-After flashing, power the main ESP32 first and connect the phone to `HazRob`. Then power ESP32-CAM. In HazRob settings, the robot should respond at `192.168.4.1` and the camera at `192.168.4.2`. The control screen should progress from `CAM: اتصال...` to `CAM: بث مباشر`. If it remains in retry, test `/status` before investigating the video decoder.
+The master ESP32 provides the outbound Internet route via NAPT when its STA/WAN path is ready. Loss of remote video does not disable local MJPEG.
 
-MP4 recording is independent: files are exported to `Movies/HazRob` and are not attached to measurement sessions or PDF/Excel reports.
+## Capacity policy
+
+The 0.10 sketch was deliberately compacted. It contains no robot drive code, no ChemCore, no molecular database and no analytical models. GitHub Actions compiles the exact source, records Flash/RAM usage and packages this directory as the `HazRob-ESP32-CAM-v0.10.0-source` release artifact.
+
+## Field test
+
+Power the master ESP32 first, then ESP32-CAM. Verify `http://192.168.4.2/status` and the local stream before testing WSS/Render. Phone-side MP4 recording remains an Android function; it is separate from the camera firmware.
