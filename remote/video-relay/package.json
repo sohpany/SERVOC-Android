@@ -1,9 +1,9 @@
 {
   "name": "hazrob-video-relay",
-  "version": "0.9.3-rc2",
+  "version": "0.10.0-rc1",
   "private": true,
   "type": "module",
-  "description": "HazRob 0.9 authenticated JPEG WebSocket relay",
+  "description": "HazRob 0.10 authenticated JPEG WebSocket relay",
   "engines": {
     "node": ">=20"
   },
