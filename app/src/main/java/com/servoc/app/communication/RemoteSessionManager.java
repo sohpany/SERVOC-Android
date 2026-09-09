@@ -29,7 +29,7 @@ public final class RemoteSessionManager {
     private void bootstrapIfNeeded()throws Exception{
         if(serviceProfileConfigured())return;
         HttpURLConnection c=(HttpURLConnection)new URL(BOOTSTRAP_URL).openConnection();
-        c.setConnectTimeout(7000);c.setReadTimeout(7000);c.setUseCaches(false);c.setRequestMethod("GET");
+        c.setConnectTimeout(5000);c.setReadTimeout(5000);c.setUseCaches(false);c.setRequestMethod("GET");
         c.setRequestProperty("Authorization","Bearer "+BOOTSTRAP_TOKEN);c.setRequestProperty("Accept","application/json");
         try{
             int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();String body=read(in,8192);
@@ -45,22 +45,29 @@ public final class RemoteSessionManager {
         if(in==null)return"";try(InputStream x=in;ByteArrayOutputStream o=new ByteArrayOutputStream()){byte[] b=new byte[1024];int n,total=0;while((n=x.read(b))!=-1){total+=n;if(total>max)throw new IOException("bootstrap response too large");o.write(b,0,n);}return o.toString(StandardCharsets.UTF_8.name());}
     }
 
-    /** Returns a connected session whose new session id has been accepted by the robot through a probe ACK. */
+    /** Returns one accepted remote session. Existing live sessions are reused. */
     public RemoteConnection ensureConnected()throws Exception{
         bootstrapIfNeeded();if(!serviceProfileConfigured())throw new IllegalStateException("remote service profile not configured");
         synchronized(CONNECT_LOCK){
             RemoteConnection live=RemoteConnection.active();if(live!=null)return live;
             RemoteConnection stale=RemoteConnection.current();if(stale!=null)stale.close();
             RemoteConnection r=RemoteConnection.connect(context,prefs);
-            try{RemoteReadiness handshake=r.probe(3000);if(!handshake.commandAck)throw new IOException("remote session handshake failed");return r;}
+            try{RemoteReadiness handshake=r.probe(2800);if(!handshake.commandAck)throw new IOException("remote session handshake failed");return r;}
             catch(Exception e){try{r.close();}catch(Exception ignored){}throw e;}
         }
     }
 
+    /** Entry/readiness check performs exactly one command/telemetry probe, not two consecutive probes. */
     public RemoteReadiness probe(){
         try{bootstrapIfNeeded();}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"automatic remote setup failed");}
         if(!serviceProfileConfigured())return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"remote service profile not configured");
-        try{RemoteConnection r=ensureConnected();return r.probe(3500);}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,e.getClass().getSimpleName());}
+        synchronized(CONNECT_LOCK){
+            RemoteConnection r=RemoteConnection.active();
+            try{
+                if(r==null){RemoteConnection stale=RemoteConnection.current();if(stale!=null)stale.close();r=RemoteConnection.connect(context,prefs);}
+                RemoteReadiness h=r.probe(2800);if(!h.commandAck){try{r.close();}catch(Exception ignored){}}return h;
+            }catch(Exception e){if(r!=null)try{r.close();}catch(Exception ignored){}return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,e.getClass().getSimpleName());}
+        }
     }
 
     /** Developer connectivity check that never changes a Direct session into Remote. */
