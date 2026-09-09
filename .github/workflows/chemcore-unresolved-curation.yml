@@ -1,0 +1,90 @@
+name: Build ChemCore Unresolved Curation
+
+on:
+  push:
+    branches:
+      - dev/hazrob-0.10-chemcore-foundation
+    paths:
+      - tools/build_chemcore_unresolved_curation.py
+      - app/src/main/assets/generated/chemcore/molecular_descriptors.json
+      - .github/workflows/chemcore-unresolved-curation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chemcore-unresolved-curation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-curation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build complete unresolved-identity curation
+        run: python3 tools/build_chemcore_unresolved_curation.py
+
+      - name: Validate fail-closed molecular eligibility
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          seed_path=Path('app/src/main/assets/generated/chemcore/molecular_descriptors.json')
+          out_path=Path('app/src/main/assets/generated/chemcore/unresolved_curation.json')
+          seed=json.loads(seed_path.read_text(encoding='utf-8'))
+          out=json.loads(out_path.read_text(encoding='utf-8'))
+          unresolved=[r for r in seed['records'] if r.get('status')=='UNRESOLVED']
+          assert len(unresolved)==37, len(unresolved)
+          assert out['schema']=='chemcore-unresolved-curation-v1'
+          assert out['record_count']==37
+          assert len(out['records'])==37
+          assert out['source_seed_sha256']==hashlib.sha256(seed_path.read_bytes()).hexdigest()
+          assert all(r.get('molecular_qspr_eligible') is False for r in out['records'])
+          allowed={'PURE_COMPOUND','MIXTURE','MATERIAL','ISOMER_GROUP','OCCUPATIONAL_CATEGORY'}
+          assert {r['entity_type'] for r in out['records']} <= allowed
+          assert {(r['cas'],r['name_en']) for r in out['records']} == {(r['cas'],r['name_en']) for r in unresolved}
+          print('Curated unresolved identities:', out['entity_type_counts'])
+          PY
+
+      - name: Commit pinned curation safely
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/assets/generated/chemcore/unresolved_curation.json
+          if git diff --cached --quiet; then
+            echo "Unresolved curation already pinned; no changes."
+            exit 0
+          fi
+          git commit -m "data(chemcore): pin unresolved identity curation"
+          for attempt in 1 2 3; do
+            git fetch origin dev/hazrob-0.10-chemcore-foundation
+            if git rebase origin/dev/hazrob-0.10-chemcore-foundation; then
+              if git push origin HEAD:dev/hazrob-0.10-chemcore-foundation; then exit 0; fi
+            else
+              git rebase --abort || true
+              echo "Curation rebase conflict; refusing to overwrite branch."
+              exit 1
+            fi
+            sleep $((attempt * 2))
+          done
+          exit 1
+
+      - name: Upload curation audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chemcore-unresolved-curation
+          path: app/src/main/assets/generated/chemcore/unresolved_curation.json
+          if-no-files-found: error
+          retention-days: 90
