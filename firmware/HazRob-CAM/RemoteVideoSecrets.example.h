@@ -1,10 +1,9 @@
 #pragma once
 
-// Copy this file to RemoteVideoSecrets.h before field flashing.
-// RemoteVideoSecrets.h is ignored by Git and must never be committed.
-#define HAZROB_VIDEO_PUBLISH_TOKEN "PASTE_RENDER_PUBLISH_TOKEN_HERE"
-#define HAZROB_VIDEO_ROOT_CA R"PEM(
------BEGIN CERTIFICATE-----
-PASTE_TRUSTED_ROOT_CA_FOR_hazrob-video-relay.onrender.com_HERE
------END CERTIFICATE-----
-)PEM"
+// HazRob-CAM 0.10 normally obtains the Render publisher credential at runtime.
+// DO NOT copy this file for the normal field build.
+// This file is retained only as an optional controlled fallback for diagnostics.
+#define HAZROB_VIDEO_PUBLISH_TOKEN ""
+
+// The trusted public root CA is already embedded in RemoteVideoConfig.h.
+// Leave HAZROB_VIDEO_ROOT_CA undefined unless intentionally testing another CA.
