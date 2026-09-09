@@ -12,6 +12,7 @@ import com.servoc.app.BuildConfig;
 import com.servoc.app.ReleaseAudit;
 import com.servoc.app.chemical.GasEngine;
 import com.servoc.app.chemical.ResearchCurveRegistry;
+import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
 import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
 import com.servoc.app.chemcore.library.ChemCoreLibraryStore;
 import com.servoc.app.communication.RemoteConnection;
@@ -27,6 +28,7 @@ import java.util.Locale;
 
 /** Compact operational status dashboard; transport state is kept separate from sensor health. */
 public final class StatusTab {
+    private final Context context;
     private final HazRobHost host;private final ScrollView scroll;
     private final TextView master,network,hardware,sensors,science,camera;
     private final Button updateButton;
@@ -36,7 +38,7 @@ public final class StatusTab {
     private volatile boolean updateBusy=false;
 
     public StatusTab(Context c,HazRobHost host){
-        this.host=host;appUpdater=new AppUpdateManager(c);libraryUpdater=new ChemCoreLibraryManager(c);scroll=new ScrollView(c);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,10));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
+        this.context=c.getApplicationContext();this.host=host;appUpdater=new AppUpdateManager(c);libraryUpdater=new ChemCoreLibraryManager(c);scroll=new ScrollView(c);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,10));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
         root.addView(UiKit.title(c,"الحالة"),UiKit.full(c));
         updateButton=UiKit.button(c,initialUpdateLabel());updateButton.setOnClickListener(v->runUnifiedUpdate());root.addView(updateButton,UiKit.full(c));
         TextView updateNote=UiKit.small(c,"زر التحديث متاح لجميع المستخدمين ويبحث عن تحديثات التطبيق ومكتبة ChemCore المستقرة. إدارة المكتبة وتطويرها ومصدر التحديث والرجوع للإصدارات السابقة تبقى داخل تبويب المطور فقط.");updateNote.setTextColor(0xFFB0BEC5);root.addView(updateNote,UiKit.full(c));
@@ -67,19 +69,20 @@ public final class StatusTab {
 
     private void performUnifiedUpdate(){
         boolean libraryUpdated=false;String libraryVersion="";String libraryIssue="";
-        String manifestUrl=libraryUpdater.manifestUrl();
-        if(manifestUrl!=null&&!manifestUrl.trim().isEmpty()){
-            try{
-                scroll.post(()->updateButton.setText("جار فحص مكتبة ChemCore..."));
-                ChemCoreLibraryManager.CheckSummary checked=libraryUpdater.check(ReleaseAudit.VERSION);
-                if(checked.updateAvailable){
-                    scroll.post(()->updateButton.setText("جار تحديث مكتبة ChemCore..."));
-                    ChemCoreLibraryStore.InstallResult r=libraryUpdater.install(checked,ReleaseAudit.VERSION,
-                            ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics()));
-                    if(r.installed){libraryUpdated=true;libraryVersion=r.version;}else libraryIssue=r.reason;
-                }
-            }catch(Exception e){libraryIssue=safe(e);}
-        }
+        try{
+            scroll.post(()->updateButton.setText("جار فحص مكتبة ChemCore..."));
+            ChemCoreLibraryManager.CheckSummary checked=libraryUpdater.check(ReleaseAudit.VERSION);
+            if(checked.updateAvailable){
+                scroll.post(()->updateButton.setText("جار تحديث مكتبة ChemCore..."));
+                ChemCoreLibraryStore.InstallResult r=libraryUpdater.install(checked,ReleaseAudit.VERSION,
+                        ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics()));
+                if(r.installed){
+                    libraryUpdated=true;libraryVersion=r.version;
+                    ChemCoreMolecularSeedImporter.Result applied=ChemCoreMolecularSeedImporter.importVerifiedPayload(libraryUpdater.activePayload(),host.database());
+                    if(!applied.available)libraryIssue="ثبتت المكتبة لكن لم توجد طبقة جزيئية قابلة للتطبيق: "+applied.message;
+                }else libraryIssue=r.reason;
+            }
+        }catch(Exception e){libraryIssue=safe(e);}
         final boolean libUpdated=libraryUpdated;final String libVersion=libraryVersion;final String libIssue=libraryIssue;
         appUpdater.updateNow(s->scroll.post(()->renderUnifiedUpdateState(s,libUpdated,libVersion,libIssue)));
     }
@@ -88,8 +91,9 @@ public final class StatusTab {
         if(s==null)return;
         String message=s.message;
         if(s.phase==AppUpdateManager.Phase.UP_TO_DATE){
-            if(libraryUpdated)message="تم التحديث • ChemCore "+libraryVersion;
-            else if(!libraryIssue.isEmpty())message="لا يوجد تحديث للتطبيق • تعذر فحص المكتبة";
+            if(libraryUpdated&&libraryIssue.isEmpty())message="تم التحديث • ChemCore "+libraryVersion;
+            else if(libraryUpdated)message="تم تحديث ChemCore "+libraryVersion+" • تحذير تطبيق المعرفة";
+            else if(!libraryIssue.isEmpty())message="لا يوجد تحديث للتطبيق • تعذر فحص/تحديث المكتبة";
             else message="لا يوجد تحديث جديد";
         }else if(s.phase==AppUpdateManager.Phase.ERROR){
             if(libraryUpdated)message="تم تحديث ChemCore • تعذر فحص/تحديث التطبيق";
@@ -122,7 +126,7 @@ public final class StatusTab {
         master.setText("HazRob App   v"+BuildConfig.VERSION_NAME+" ("+BuildConfig.VERSION_CODE+")\nMaster ESP32   ● ONLINE\nFirmware   "+d.optString("firmware","HazRob")+"\nAPI   "+d.optInt("api_version",0)+"\nProfile   "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"\nHeap   "+d.optLong("heap",0)+" B");master.setTextColor(0xFF81C784);
         renderNetwork(d);
         JSONObject adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay"),env=d.optJSONObject("env"),ldr=d.optJSONObject("ldr"),alert=d.optJSONObject("alert");boolean mqOn=relay!=null&&(relay.optBoolean("on",false)||relay.optInt("mask",0)!=0);boolean ldrOk=ldr!=null&&ldr.optBoolean("installed",false);int alertLevel=alert==null?0:alert.optInt("level",0),alertGpio=alert==null?26:alert.optInt("gpio",26);String alertName=alert==null?"—":alert.optString("name","none");
-        hardware.setText("ADS1 0x48   "+ok(adc!=null&&adc.optBoolean("ads1",false))+"\nADS2 0x49   "+ok(adc!=null&&adc.optBoolean("ads2",false))+"\nMQ POWER GPIO25   "+on(mqOn)+"   •   8 sensors\nENV   "+ok(env!=null&&env.optBoolean("ok",false))+"\nLDR GPIO34   "+ok(ldrOk)+(ldrOk?"   •   LEVEL "+ldr.optInt("level",-1):"")+"\nALERT GPIO"+alertGpio+"   "+(alert==null?"○ —":alertLevel>0?"● "+alertName.toUpperCase(Locale.US):"● READY"));
+        hardware.setText("ADS1 0x48   "+ok(adc!=null&&adc.optBoolean("ads1",false))+"\nADS2 0x49   "+ok(adc!=null&&adc.optBoolean("ads2",false))+"\nADS VDD   "+String.format(Locale.US,"%.1f V (fixed design)",HazRobHardwareProfile.ADS_SUPPLY_V)+"\nMQ POWER GPIO25   "+on(mqOn)+"   •   8 sensors\nENV   "+ok(env!=null&&env.optBoolean("ok",false))+"\nLDR GPIO34   "+ok(ldrOk)+(ldrOk?"   •   LEVEL "+ldr.optInt("level",-1):"")+"\nALERT GPIO"+alertGpio+"   "+(alert==null?"○ —":alertLevel>0?"● "+alertName.toUpperCase(Locale.US):"● READY"));
         JSONObject mq=d.optJSONObject("mq");StringBuilder s=new StringBuilder();for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){if(s.length()>0)s.append('\n');SensorHealthEngine.Snapshot h=host.sensorHealth(hw.key);JSONObject r=mq==null?null:mq.optJSONObject(hw.key);boolean valid=r!=null&&r.optBoolean("valid",r.optBoolean("ok",false));boolean calibrated=r==null||r.optBoolean("manual_calibration_confirmed",true);s.append(hw.key.toUpperCase(Locale.US)).append("   ADS").append(hw.ads).append(" A").append(hw.adcChannel).append("   ").append(valid?"● SIGNAL   ":"○ —   ").append(SensorHealthEngine.stateAr(h.state)).append(calibrated?"   •   CAL ●":"   •   CAL —");}sensors.setText(s.toString());
         renderCamera();long now=SystemClock.elapsedRealtime();if(now-cameraProbeAt>5000){cameraProbeAt=now;if(remoteMode()){cameraSnapshot=host.robotApi().remoteCameraStatus();scroll.post(this::renderCamera);}else host.io().execute(()->{JSONObject q=null;try{q=host.cameraDiagnostics();}catch(Exception ignored){}cameraSnapshot=q;scroll.post(this::renderCamera);});}
     }
