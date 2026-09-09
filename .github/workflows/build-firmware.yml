@@ -15,14 +15,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: arduino/setup-arduino-cli@v2
-      - name: Install ESP32 core and libraries
+      - name: Install ESP32 core
         run: |
           arduino-cli config init
           arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
-          arduino-cli lib update-index
-          arduino-cli lib install "Adafruit ADS1X15" "Adafruit BME280 Library" "Adafruit BMP280 Library"
       - name: Compile master ESP32
         shell: bash
         run: |
@@ -59,3 +57,17 @@ jobs:
             build/*-size.log
           if-no-files-found: error
           retention-days: 30
+      - name: Package master ESP32 source
+        uses: actions/upload-artifact@v4
+        with:
+          name: HazRob-ESP32-v0.10.0-source
+          path: firmware/HazRob/
+          if-no-files-found: error
+          retention-days: 90
+      - name: Package ESP32-CAM source
+        uses: actions/upload-artifact@v4
+        with:
+          name: HazRob-ESP32-CAM-v0.10.0-source
+          path: firmware/HazRob-CAM/
+          if-no-files-found: error
+          retention-days: 90
