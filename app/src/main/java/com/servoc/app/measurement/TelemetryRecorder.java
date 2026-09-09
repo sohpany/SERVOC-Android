@@ -2,6 +2,7 @@ package com.servoc.app.measurement;
 
 import android.content.ContentValues;
 import android.os.SystemClock;
+import com.servoc.app.chemcore.ChemCoreSchema;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import org.json.JSONObject;
@@ -13,7 +14,7 @@ import java.util.TimeZone;
 /** Automatically records normalized telemetry across ESP32 MQ cycles and controlled ChemCore captures. */
 public final class TelemetryRecorder {
     private final ExperimentsDb db;private String sessionId,lastCompletedSessionId="";private long startedElapsed,lastSampleElapsed;private boolean chemCoreCaptureSession=false;
-    public TelemetryRecorder(ExperimentsDb db){this.db=db;lastCompletedSessionId=db.getMeta("last_measurement_session_id","");}
+    public TelemetryRecorder(ExperimentsDb db){this.db=db;ChemCoreSchema.ensure(db.getWritableDatabase());lastCompletedSessionId=db.getMeta("last_measurement_session_id","");}
 
     public synchronized void accept(JSONObject snapshot,int left,int right,boolean developer){
         if(snapshot==null)return;JSONObject m=snapshot.optJSONObject("measurement");String state=m==null?"idle":m.optString("state","idle");long now=SystemClock.elapsedRealtime();
@@ -36,12 +37,12 @@ public final class TelemetryRecorder {
     private void start(boolean developer,long now,boolean chemCore){
         chemCoreCaptureSession=chemCore;sessionId=(developer?"DEV":"FIELD")+(chemCore?"-CHEMCORE-":"-")+System.currentTimeMillis();startedElapsed=lastSampleElapsed=now;
         ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("started_ts",isoNow());v.put("kind",chemCore?"developer_chemcore_controlled_capture":(developer?"developer_mq_cycle":"field_mq_cycle"));v.put("operator_role",developer?"DEVELOPER":"USER");
-        try{JSONObject meta=new JSONObject();meta.put("chemcore_controlled_capture",chemCore);meta.put("sample_period_ms",chemCore?200:250);v.put("analytics",meta.toString());}catch(Exception ignored){}
+        try{JSONObject meta=new JSONObject();meta.put("chemcore_controlled_capture",chemCore);meta.put("sample_period_ms",chemCore?200:250);meta.put("mq_scan_timing_capture",chemCore);v.put("analytics",meta.toString());}catch(Exception ignored){}
         db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);MeasurementSessionRegistry.started(sessionId);
     }
 
     private void sample(JSONObject snapshot,int left,int right,long now){
-        ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("t_ms",Math.max(0,now-startedElapsed));
+        long tMs=Math.max(0,now-startedElapsed);ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("t_ms",tMs);
         JSONObject e=snapshot.optJSONObject("env"),mq=snapshot.optJSONObject("mq");v.put("env_payload",e==null?"{}":e.toString());v.put("mq_payload",mq==null?"{}":mq.toString());
         JSONObject state=new JSONObject();
         try{
@@ -55,13 +56,25 @@ public final class TelemetryRecorder {
             JSONObject measurement=snapshot.optJSONObject("measurement");if(measurement!=null){state.put("measurement_phase",measurement.optInt("phase",0));state.put("measurement_mask",measurement.optInt("mask",0));}
         }catch(Exception ignored){}
         v.put("motion_payload",state.toString());db.getWritableDatabase().insert("telemetry_samples",null,v);
+        if(chemCoreCaptureSession)persistMqTiming(mq,tMs);
+    }
+
+    private void persistMqTiming(JSONObject mq,long sampleTMs){
+        if(mq==null||sessionId==null)return;
+        for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){
+            JSONObject r=mq.optJSONObject(hw.key);if(r==null||!r.has("scan_cycle")||!r.has("channel_offset_us"))continue;
+            long cycle=r.optLong("scan_cycle",-1),offset=r.optLong("channel_offset_us",-1);if(cycle<0||offset<0)continue;
+            ContentValues t=new ContentValues();t.put("session_id",sessionId);t.put("sample_t_ms",sampleTMs);t.put("scan_cycle_id",cycle);t.put("sensor_key",hw.key);t.put("channel_offset_us",offset);
+            db.getWritableDatabase().insert("chemcore_channel_timing",null,t);
+        }
     }
 
     private void finish(JSONObject snapshot,String state){
         final String completed=sessionId;final boolean wasChemCore=chemCoreCaptureSession;ContentValues v=new ContentValues();v.put("ended_ts",isoNow());v.put("payload",snapshot.toString());
         try{
             JSONObject meta=new JSONObject();meta.put("terminal_state",state);meta.put("contains_aux_sensors",true);meta.put("chemcore_controlled_capture",wasChemCore);
-            meta.put("hardware_profile",HazRobHardwareProfile.ID);meta.put("mq_power_architecture","single_relay_8_sensors");meta.put("installed_relays","R1");meta.put("relay_gpio",25);meta.put("mq_sensor_count",8);meta.put("manual_warmup",true);meta.put("sample_period_ms",wasChemCore?200:250);
+            meta.put("hardware_profile",HazRobHardwareProfile.ID);meta.put("mq_power_architecture","single_relay_8_sensors");meta.put("installed_relays","R1");meta.put("relay_gpio",25);meta.put("mq_sensor_count",8);meta.put("manual_warmup",true);meta.put("sample_period_ms",wasChemCore?200:250);meta.put("mq_scan_timing_capture",wasChemCore);
+            JSONObject adc=snapshot.optJSONObject("adc");if(adc!=null&&adc.optJSONObject("acquisition")!=null)meta.put("adc_acquisition",adc.optJSONObject("acquisition"));
             v.put("analytics",meta.toString());
         }catch(Exception ignored){}
         db.getWritableDatabase().update("measurement_sessions",v,"session_id=?",new String[]{completed});
