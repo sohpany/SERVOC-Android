@@ -1,125 +1,66 @@
-# HazRob master ESP32 firmware — 0.9.3-rc1
+# HazRob master ESP32 firmware — 0.10.0
 
-Target: **DOIT ESP32 DEVKIT V1** master controller.
+Target: **DOIT ESP32 DEVKIT V1** · API v4 · hardware profile `hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1`.
 
-## Local network
+## Design boundary
 
-- SoftAP SSID: `HazRob`.
-- Master ESP32: `192.168.4.1/24`.
+The master firmware is intentionally compact and deterministic. It performs hardware I/O, acquisition, drive safety, local API and remote transport. **ChemCore molecular intelligence, open-set inference, QSPR/AMCI and scientific-library data remain on Android.**
+
+The 0.10 implementation uses compact direct-I2C ADS1115 and BME280/BMP280 drivers and therefore does **not** require the former Adafruit ADS/BME/BMP libraries or ESP32Servo.
+
+## Network
+
+- SoftAP: `HazRob`.
+- master: `192.168.4.1/24`.
 - ESP32-CAM: `192.168.4.2/24`.
-- NVS namespace remains `servoc`.
-- Wi-Fi mode is AP+STA. Direct/local control remains available through the AP while WAN is configured.
-- When STA has validated Internet connectivity, the master enables NAPT so HazRob AP clients, including ESP32-CAM, can reach the Internet through the modem.
+- Wi-Fi mode: AP+STA; direct control remains available while WAN is configured.
+- NAPT is enabled only when the STA side has validated Internet connectivity.
 
-## Required Arduino libraries
+## 4WD motion — L298N, no servo propulsion
 
-- ESP32Servo
-- Adafruit ADS1X15
-- Adafruit BME280 Library
-- Adafruit BMP280 Library
-- Adafruit Unified Sensor dependencies required by the environment libraries
+| Side | GPIO | Motors |
+|---|---|---|
+| Left | 18 / 27 | two motors in parallel |
+| Right | 19 / 32 | two motors in parallel |
 
-## I2C topology
+ENA/ENB remain enabled on the L298N; PWM is applied on the direction inputs. Firmware retains ramping, a 450 ms drive lease, STOP/E-STOP, 900 ms link-loss detection, a 3 s recovery hold and bounded retrace. If final physical polarity differs, use the side inversion flag rather than remapping the API.
 
-ESP32 uses GPIO21=SDA and GPIO22=SCL. BME280/BMP280 is on the 3.3 V/LV side. ADS1115 boards are powered from the 5 V domain and share the bus through a bidirectional I2C level shifter.
+## MQ / ADS topology
 
-- ADS1115 #1: `0x48`
-- ADS1115 #2: `0x49`
+One active-LOW relay on GPIO25 powers all eight MQ modules simultaneously. Valid power states are strictly `0=OFF` and `1=ON`.
 
-## Authoritative MQ topology: one relay / eight sensors
+| ADS1115 | Address | Mapping |
+|---|---|---|
+| ADS1 | `0x48` | MQ2 A0 · MQ4 A1 · MQ5 A2 · MQ8 A3 |
+| ADS2 | `0x49` | MQ3 A0 · MQ7 A1 · MQ9 A2 · MQ135 A3 |
 
-HazRob uses **one active-LOW relay on GPIO25** to power all eight installed MQ modules/heaters simultaneously.
+Both ADS1115 boards use the fixed regulated **5 V** HazRob rail. Acquisition is configured for ±6.144 V PGA full-scale, 860 SPS and four conversions per channel. Eight channels are scanned sequentially; telemetry includes `sample_us`, `scan_cycle`, `channel_offset_us` and `age_us`.
 
-| MQ Power | GPIO | ADS1115 | Channels |
-| --- | --- | --- | --- |
-| One shared relay | GPIO25 | ADS1 `0x48` | MQ2 → A0, MQ4 → A1, MQ5 → A2, MQ8 → A3 |
-| Same shared relay | GPIO25 | ADS2 `0x49` | MQ3 → A0, MQ7 → A1, MQ9 → A2, MQ135 → A3 |
+The firmware currently carries `RL=10` and `R0=10` engineering/default values. These are **not device calibration** and cannot authorize M4 quantitative interpretation. MQ7/MQ9 quantitative use additionally requires a validated heater-cycle protocol.
 
-GPIO27 and GPIO32 remain free of MQ relay duties. **GPIO26 is reserved for the local alert signal** in the 0.9.3 profile.
+## Other I/O
 
-Valid MQ power state is strictly:
+- GPIO26: alert logic/PWM output; low-impedance speaker requires an external driver.
+- GPIO36: MAX4466 electrical RMS/P2P channel, not calibrated dB SPL.
+- GPIO35: IR digital warning, active LOW.
+- GPIO34: LDR/LM393 digital threshold, not quantitative lux.
+- GPIO21/22: I2C SDA/SCL.
+- environment sensor: BME280 (`0x60`) or BMP280 (`0x56/0x57/0x58`) auto-detected at `0x76/0x77` by the compact direct-I2C driver.
 
-- `0` = all eight MQ OFF
-- `1` = all eight MQ ON
+## API v4
 
-There are no R1/R2 groups and no multi-relay mask in the authoritative `hazrob-0.9.3-1r8mq-alert-ldr-v1` profile.
+Local HTTP endpoints remain: `/drive`, `/stop`, `/motion/stop`, `/estop`, `/sensor/off`, `/heartbeat`, `/relay`, `/measure`, `/alert`, `/data`, `/diag`, `/cfg`, plus developer remote provisioning/status endpoints.
 
-## Other installed interfaces
+`/relay` accepts only 0 or 1. Direct and remote drive commands share the same heartbeat/failsafe semantics.
 
-- Left continuous MG995: GPIO18.
-- Right continuous MG995: GPIO19.
-- MAX4466 microphone: GPIO36. Reported sound values are electrical RMS / peak-to-peak, not calibrated dB SPL.
-- IR digital sensor: GPIO35, active LOW.
-- LDR/LM393 digital threshold output: GPIO34. This is a binary threshold input, **not a lux meter**.
-- Local alert output: GPIO26.
-- GPIO33 and GPIO39 remain auxiliary inputs.
-- Environment sensor: BME280/BMP280 on I2C when detected.
+## Remote path
 
-### Alert output electrical boundary
+MQTT 3.1.1 over TLS uses provisioned credentials/CA outside source control. Commands carry session/sequence/nonce/TTL and application ACK semantics. A retained Last Will publishes an unavailable state after an unexpected disconnect. The master also provides Internet routing to ESP32-CAM when WAN is ready.
 
-GPIO26 is a **logic/PWM alert signal only**. Do not connect a 4 Ω, 8 Ω or other low-impedance dynamic speaker directly to the ESP32 pin. A dynamic toy speaker requires an external transistor/driver stage and an appropriate current-limiting/output network. A compatible piezo/active buzzer may use a simpler interface if its current and voltage are within the GPIO/driver design limits.
+## Capacity policy
 
-## Alert behavior
+GitHub Actions compiles the exact source and records actual Flash/RAM use. Release CI rejects a master or camera image above the configured Flash budget. The metric is **compiled binary size**; source comments or shorter variable names are not counted as capacity savings.
 
-`Alerts.cpp` implements non-blocking patterns so buzzer operation never intentionally blocks drive control, sensor acquisition, link-loss handling or measurement timing. Priority is:
+## Safety / scientific boundary
 
-1. Emergency stop
-2. High MQ-response alert
-3. Elevated MQ-response alert
-4. IR warning
-5. Link-loss warning
-6. Manual test
-
-Gas-response alerts sent by the Android application carry a short TTL. If the app or transport disappears, the gas alert expires automatically instead of remaining latched indefinitely. Internal IR and link warnings continue to be generated by the firmware itself.
-
-The Android gas alert is based on the existing clean-air-baseline MQ response deviation after warm-up. It is an **operational sensor-response warning only**. It must not be interpreted as a calibrated PPM, exposure-limit or IDLH determination unless the relevant sensor/analyte calibration and analytical validation have been completed separately.
-
-## Direct API4 behavior
-
-Local HTTP API remains available on the master:
-
-- `/drive`
-- `/motion/stop`
-- `/estop`
-- `/sensor/off`
-- `/heartbeat`
-- `/relay?mask=0|1`
-- `/measure`
-- `/alert?severity=0|1|2&ttl=...`
-- `/alert?cmd=test`
-- `/data`
-- `/diag`
-- `/cfg`
-
-`/relay` rejects any value other than exactly `0` or `1`. Alert severity is `0=clear`, `1=elevated response`, `2=high response`; TTL is constrained to 500–10000 ms.
-
-Motion stop and MQ power control remain independent. Backgrounding the Android app stops motion; it does not automatically switch off an active MQ warm-up session.
-
-## Remote 4G path
-
-1. The master keeps the HazRob AP alive and joins the modem network as STA.
-2. WAN readiness validates Wi-Fi/IP, DNS and usable time before TLS.
-3. Secure MQTT uses a trusted root CA; firmware does not use `setInsecure()`.
-4. Commands carry session ID, monotonically increasing sequence, TTL and nonce.
-5. ACK, telemetry and status are published over MQTT.
-6. MQ relay commands accept only `0` or `1` remotely as well as locally.
-7. Alert commands are supported over the same MQTT command boundary; repeated active alert refreshes are fire-and-forget and protected by firmware TTL expiry.
-8. The master can route a remote camera-flash command to ESP32-CAM over the HazRob LAN.
-
-`RemoteCloudConfig.h` is credential-free in the repository. Broker credentials and CA belong only in the protected flashing copy/build process.
-
-## ESP32-CAM Internet route
-
-ESP32-CAM remains at `192.168.4.2`. When WAN is ready, the master NAPT path provides outbound Internet while local MJPEG remains independently available. Live audio streaming and audio/video recording are intentionally **out of scope for 0.9.3-rc1**.
-
-## Analytical boundary
-
-Firmware acquires and reports sensor values and executes the requested local alert pattern. Chemical identity, evidence fusion, PPM models, exposure interpretation, time-series analysis and source-direction logic remain in the Android application.
-
-The `R0=10.0` values in `Config.h` are placeholders, not device-specific calibration.
-
-MQ7/MQ9 quantitative use still requires a validated heater-phase/calibration protocol. A shared 5 V relay path does not by itself establish the manufacturer heater cycle.
-
-## Power validation
-
-Because all eight MQ modules power together, validate the actual 5 V rail under the simultaneous load of all MQ heaters plus relay coil, ESP32, ADS boards, ESP32-CAM and the servo power domain. Use proper distribution wiring and common ground; do not route MQ or servo current through the ESP32 regulator or thin logic jumpers.
+HazRob is a research prototype and is not Ex-certified/intrinsically safe. Firmware reports electrical sensor evidence; compound identity, quantitative validity, occupational limits and uncertainty are decided by the Android analytical layer under its evidence gates.
