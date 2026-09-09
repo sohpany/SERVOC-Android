@@ -105,9 +105,12 @@ public final class ChemCoreStableKnowledgeReader {
             if(!"INDEPENDENT_KNOWN_UNKNOWN".equalsIgnoreCase(v.optString("threshold_source","")))continue;
             String protocol=v.optString("validation_protocol","").trim();if(protocol.isEmpty())continue;
             try{
-                double[] mean=array1(a.getJSONArray("mean"));
+                JSONArray meanJson=a.optJSONArray("mean");
+                JSONArray invJson=a.optJSONArray("inverse_covariance");
+                if(meanJson==null||invJson==null)continue;
+                double[] mean=array1(meanJson);
                 if(mean.length!=CANONICAL_FEATURE_DIMENSION)continue;
-                double[][] inv=array2(a.getJSONArray("inverse_covariance"),mean.length);
+                double[][] inv=array2(invJson,mean.length);
                 double threshold=a.optDouble("threshold",Double.NaN),coverage=a.optDouble("minimum_coverage",0.75),ridge=a.optDouble("ridge",0);
                 if(!(threshold>0)||!Double.isFinite(threshold))continue;
                 MahalanobisModel model=MahalanobisModel.fromFrozenParameters(mean,inv,ridge,a.optInt("training_count",0));
@@ -170,7 +173,20 @@ public final class ChemCoreStableKnowledgeReader {
     private static List<String> strings(JSONArray a){List<String> out=new ArrayList<>();if(a!=null)for(int i=0;i<a.length();i++){String s=a.optString(i,"").trim();if(!s.isEmpty()&&!out.contains(s))out.add(s);}return out;}
     private static boolean profileCompatible(JSONArray a,String profile){List<String> x=strings(a);return x.isEmpty()||(profile!=null&&x.contains(profile));}
     private static double finiteOr(JSONObject r,String key,double fallback){double v=r.optDouble(key,Double.NaN);return Double.isFinite(v)?v:fallback;}
-    private static double[] array1(JSONArray a){double[] x=new double[a.length()];for(int i=0;i<x.length;i++){x[i]=a.getDouble(i);if(!Double.isFinite(x[i]))throw new IllegalArgumentException("non-finite vector");}return x;}
-    private static double[][] array2(JSONArray a,int n){if(a.length()!=n)throw new IllegalArgumentException("matrix dimension");double[][] x=new double[n][n];for(int i=0;i<n;i++){JSONArray r=a.getJSONArray(i);if(r.length()!=n)throw new IllegalArgumentException("matrix row dimension");for(int j=0;j<n;j++){x[i][j]=r.getDouble(j);if(!Double.isFinite(x[i][j]))throw new IllegalArgumentException("non-finite matrix");}}return x;}
+    private static double[] array1(JSONArray a){
+        if(a==null)throw new IllegalArgumentException("vector required");
+        double[] x=new double[a.length()];
+        for(int i=0;i<x.length;i++){x[i]=a.optDouble(i,Double.NaN);if(!Double.isFinite(x[i]))throw new IllegalArgumentException("non-finite vector");}
+        return x;
+    }
+    private static double[][] array2(JSONArray a,int n){
+        if(a==null||a.length()!=n)throw new IllegalArgumentException("matrix dimension");
+        double[][] x=new double[n][n];
+        for(int i=0;i<n;i++){
+            JSONArray r=a.optJSONArray(i);if(r==null||r.length()!=n)throw new IllegalArgumentException("matrix row dimension");
+            for(int j=0;j<n;j++){x[i][j]=r.optDouble(j,Double.NaN);if(!Double.isFinite(x[i][j]))throw new IllegalArgumentException("non-finite matrix");}
+        }
+        return x;
+    }
     private static String readAll(FileInputStream in)throws Exception{ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] b=new byte[16384];for(int n;(n=in.read(b))>=0;)if(n>0)out.write(b,0,n);return out.toString(StandardCharsets.UTF_8.name());}
 }
