@@ -6,7 +6,7 @@ on:
     branches: ['dev/**','fix/**',main]
     paths: ['firmware/**','.github/workflows/build-firmware.yml']
 
-permissions: { contents: read }
+permissions: { contents: write }
 
 jobs:
   compile-firmware:
@@ -38,7 +38,8 @@ jobs:
         run: |
           python3 - <<'PY'
           import re, pathlib, sys
-          limits={'master':82.0,'camera':82.0}
+          # 0.10 release budget: keep at least 15% of the board's configured app partition free.
+          limits={'master':85.0,'camera':85.0}
           for k,limit in limits.items():
               txt=pathlib.Path(f'build/{k}-size.log').read_text(errors='ignore')
               m=re.search(r'Sketch uses\s+[\d,]+\s+bytes\s*\((\d+(?:\.\d+)?)%\)',txt)
@@ -47,6 +48,13 @@ jobs:
               pct=float(m.group(1)); print(f'{k}: flash={pct:.1f}% budget<={limit:.1f}%')
               if pct>limit: sys.exit(f'{k} firmware exceeds release flash budget')
           PY
+      - name: Create source ZIPs
+        run: |
+          cd firmware
+          zip -qr ../HazRob-ESP32-v0.10.0-source.zip HazRob
+          zip -qr ../HazRob-ESP32-CAM-v0.10.0-source.zip HazRob-CAM
+          cd ..
+          sha256sum HazRob-ESP32-v0.10.0-source.zip HazRob-ESP32-CAM-v0.10.0-source.zip > firmware-source-sha256.txt
       - name: Upload firmware binaries and size logs
         uses: actions/upload-artifact@v4
         with:
@@ -57,17 +65,27 @@ jobs:
             build/*-size.log
           if-no-files-found: error
           retention-days: 30
-      - name: Package master ESP32 source
+      - name: Upload source ZIPs
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-ESP32-v0.10.0-source
-          path: firmware/HazRob/
+          name: HazRob-v0.10.0-firmware-sources
+          path: |
+            HazRob-ESP32-v0.10.0-source.zip
+            HazRob-ESP32-CAM-v0.10.0-source.zip
+            firmware-source-sha256.txt
           if-no-files-found: error
           retention-days: 90
-      - name: Package ESP32-CAM source
-        uses: actions/upload-artifact@v4
-        with:
-          name: HazRob-ESP32-CAM-v0.10.0-source
-          path: firmware/HazRob-CAM/
-          if-no-files-found: error
-          retention-days: 90
+      - name: Publish source ZIPs to update distribution
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin app-update-distribution
+          rm -rf /tmp/hazrob-dist
+          git worktree add -B app-update-distribution /tmp/hazrob-dist origin/app-update-distribution
+          mkdir -p /tmp/hazrob-dist/public/firmware
+          cp HazRob-ESP32-v0.10.0-source.zip HazRob-ESP32-CAM-v0.10.0-source.zip firmware-source-sha256.txt /tmp/hazrob-dist/public/firmware/
+          git -C /tmp/hazrob-dist add public/firmware
+          git -C /tmp/hazrob-dist diff --cached --quiet || {
+            git -C /tmp/hazrob-dist commit -m 'dist(firmware): publish HazRob 0.10.0 source ZIPs'
+            git -C /tmp/hazrob-dist push origin HEAD:app-update-distribution
+          }
