@@ -26,7 +26,9 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p build/master
-          arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --warnings all --output-dir build/master firmware/HazRob 2>&1 | tee build/master-size.log
+          # 0.10 experimental firmware uses the 4 MB board's Huge APP partition.
+          # ESP32 OTA is not used in this release; firmware is flashed locally.
+          arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1:PartitionScheme=huge_app --warnings all --output-dir build/master firmware/HazRob 2>&1 | tee build/master-size.log
       - name: Compile ESP32-CAM
         shell: bash
         run: |
@@ -38,18 +40,22 @@ jobs:
         run: |
           python3 - <<'PY'
           import re, pathlib, sys
-          # 0.10 experimental policy: optimize toward <=70%; never release above 80%.
-          target=70.0
-          hard={'master':80.0,'camera':80.0}
-          for k,limit in hard.items():
+          pct_target=70.0
+          pct_hard={'master':80.0,'camera':80.0}
+          # Larger app partition must not become permission for binary bloat.
+          byte_target={'master':1_000_000,'camera':1_150_000}
+          byte_hard={'master':1_150_000,'camera':1_300_000}
+          for k,limit in pct_hard.items():
               txt=pathlib.Path(f'build/{k}-size.log').read_text(errors='ignore')
-              m=re.search(r'Sketch uses\s+[\d,]+\s+bytes\s*\((\d+(?:\.\d+)?)%\)',txt)
+              m=re.search(r'Sketch uses\s+([\d,]+)\s+bytes\s*\((\d+(?:\.\d+)?)%\)',txt)
               if not m:
-                  print(f'{k}: compiler size percentage not found'); sys.exit(1)
-              pct=float(m.group(1))
-              state='TARGET' if pct<=target else 'HEADROOM-WARNING'
-              print(f'{k}: flash={pct:.1f}% target<={target:.1f}% hard<={limit:.1f}% [{state}]')
-              if pct>limit: sys.exit(f'{k} firmware exceeds 0.10 hard flash ceiling')
+                  print(f'{k}: compiler size line not found'); sys.exit(1)
+              size=int(m.group(1).replace(',','')); pct=float(m.group(2))
+              pstate='TARGET' if pct<=pct_target else 'HEADROOM-WARNING'
+              bstate='TARGET' if size<=byte_target[k] else 'BINARY-WARNING'
+              print(f'{k}: {size} bytes; flash={pct:.1f}% target<={pct_target:.1f}% hard<={limit:.1f}% [{pstate}; {bstate}]')
+              if pct>limit: sys.exit(f'{k} exceeds 0.10 partition headroom ceiling')
+              if size>byte_hard[k]: sys.exit(f'{k} exceeds 0.10 absolute binary ceiling')
           PY
       - name: Create source ZIPs
         run: |
