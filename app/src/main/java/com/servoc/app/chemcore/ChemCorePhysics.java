@@ -12,7 +12,7 @@ public final class ChemCorePhysics {
     /** Ideal-gas density in kg/m^3 from molar mass g/mol, temperature C and pressure kPa. */
     public static double idealGasDensityKgM3(double molarMassGPerMol, double temperatureC, double pressureKPa) {
         double tk=kelvin(temperatureC);
-        if(!(molarMassGPerMol>0)&&!Double.isFinite(molarMassGPerMol))return Double.NaN;
+        if(!(molarMassGPerMol>0)||!Double.isFinite(molarMassGPerMol))return Double.NaN;
         if(!(tk>0)||!(pressureKPa>0)||!Double.isFinite(pressureKPa))return Double.NaN;
         return (pressureKPa*1000.0)*(molarMassGPerMol/1000.0)/(R_J_PER_MOL_K*tk);
     }
