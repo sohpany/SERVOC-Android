@@ -11,6 +11,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.ReleaseAudit;
+import com.servoc.app.chemcore.ChemCoreIdentityCurationRepository;
 import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
 import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
 import com.servoc.app.chemcore.library.ChemCoreLibraryManifest;
@@ -109,6 +110,12 @@ public final class ChemCoreLibraryTab {
                     .append(" (resolved ").append(s.embedded.resolvedCount)
                     .append(" / unresolved ").append(s.embedded.unresolvedCount).append(')');
         }
+        String molecularStatus=host.database().getMeta("chemcore_molecular_seed_status","—");
+        int curated=new ChemCoreIdentityCurationRepository(host.database()).count();
+        text.append("\nLocal molecular import: ").append(molecularStatus);
+        text.append("\nCurated non-QSPR identities: ").append(curated).append(" / 37")
+                .append(curated==37?" • POLICY LOCKED":" • CHECK REQUIRED");
+        text.append("\nQSPR policy: mixtures/materials/isomer groups/categories/unresolved pure compounds are explicitly excluded.");
         statusText.setText(text.toString());
         endpointModeText.setText(manager.usingDeveloperManifestOverride()?"وضع المصدر: Developer override":"وضع المصدر: Build-pinned Stable endpoint");
         boolean active = ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics());
