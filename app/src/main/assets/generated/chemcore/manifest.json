@@ -1,7 +1,7 @@
 {
   "descriptor_source": "https://pubchem.ncbi.nlm.nih.gov/",
   "error_count": 0,
-  "generated_at_utc": "2026-09-09T01:41:08Z",
+  "generated_at_utc": "2026-09-09T02:03:09Z",
   "property_names": [
     "MolecularFormula",
     "MolecularWeight",
@@ -30,7 +30,7 @@
   "record_count": 652,
   "resolved_count": 615,
   "schema": "chemcore-molecular-seed-manifest-v1",
-  "sha256": "4af1d9b84121e8515f586a97977e10ccb2eb4bab890f6ef5af948e14faac8b10",
+  "sha256": "2d317617a743d761782f1a4a7b31bfd3edb1d33cf3b88c454c9404566e3317e0",
   "source_identity_sha256": "7498bd3d8037dd77fb49d3a957d8856ea9f37e48dbc0df3020799e422967dc69",
   "unresolved_count": 37
 }

@@ -32,7 +32,7 @@
     "usage_policy_note": "PUG REST clients should remain at or below five requests per second; bulk data should use an optimized workflow."
   },
   "error_count": 0,
-  "generated_at_utc": "2026-09-09T01:41:08Z",
+  "generated_at_utc": "2026-09-09T02:03:09Z",
   "identity_provenance": {
     "authoritative": true,
     "authority": "NIOSH",

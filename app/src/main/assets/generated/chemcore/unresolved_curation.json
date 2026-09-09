@@ -1,0 +1,386 @@
+{
+  "schema": "chemcore-unresolved-curation-v1",
+  "generated_at_utc": "2026-09-09T02:03:10Z",
+  "source_seed_sha256": "2d317617a743d761782f1a4a7b31bfd3edb1d33cf3b88c454c9404566e3317e0",
+  "record_count": 37,
+  "entity_type_counts": {
+    "ISOMER_GROUP": 5,
+    "MATERIAL": 12,
+    "MIXTURE": 10,
+    "OCCUPATIONAL_CATEGORY": 5,
+    "PURE_COMPOUND": 5
+  },
+  "policy": "Classification prevents ambiguous occupational/material entries from being coerced into single-molecule QSPR. No record in this file is made QSPR-eligible by curation alone.",
+  "records": [
+    {
+      "cas": "10210-68-1",
+      "name_en": "Cobalt carbonyl (as Co)",
+      "entity_type": "PURE_COMPOUND",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "AUTHORITATIVE_STRUCTURE_REQUIRED",
+      "note": "Discrete compound identity appears intended; resolve structure by authoritative name/CAS source before molecular modelling. Exposure basis is expressed as Co.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0147.html"
+    },
+    {
+      "cas": "11107-01-0",
+      "name_en": "Tungsten carbide (cemented)",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Cemented tungsten carbide is a composite/material identity; do not force a single molecular descriptor vector.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0647.html"
+    },
+    {
+      "cas": "12079-65-1",
+      "name_en": "Manganese cyclopentadienyl tricarbonyl (as Mn)",
+      "entity_type": "PURE_COMPOUND",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "AUTHORITATIVE_STRUCTURE_REQUIRED",
+      "note": "Discrete organometallic identity appears intended; authoritative structure resolution required before QSPR. Exposure basis is expressed as Mn.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0380.html"
+    },
+    {
+      "cas": "12108-13-3",
+      "name_en": "Methyl cyclopentadienyl manganese tricarbonyl (as Mn)",
+      "entity_type": "PURE_COMPOUND",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "AUTHORITATIVE_STRUCTURE_REQUIRED",
+      "note": "Discrete organometallic identity appears intended; authoritative structure resolution required before QSPR. Exposure basis is expressed as Mn.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0409.html"
+    },
+    {
+      "cas": "12718-69-3",
+      "name_en": "Tungsten carbide (cemented)",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Cemented tungsten carbide is a composite/material identity; do not force a single molecular descriptor vector.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0647.html"
+    },
+    {
+      "cas": "1304-82-1",
+      "name_en": "Bismuth telluride, undoped",
+      "entity_type": "PURE_COMPOUND",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "AUTHORITATIVE_STRUCTURE_REQUIRED",
+      "note": "Stoichiometric compound identity appears intended, but it is a low-volatility solid and must not be treated as a gas-phase QSPR target without a relevant exposure mechanism.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0056.html"
+    },
+    {
+      "cas": "1317-65-3",
+      "name_en": "1317-65-3 (natural)",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Natural calcium-carbonate-bearing material category; composition/mineral form is not represented by a unique small-molecule record.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0090.html"
+    },
+    {
+      "cas": "1317-65-3",
+      "name_en": "Limestone",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Limestone is a natural material with variable mineral composition; do not collapse it to one molecular identity.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0369.html"
+    },
+    {
+      "cas": "1317-65-3",
+      "name_en": "Marble",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Marble is a natural material/mineral category; do not collapse it to one molecular identity.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0382.html"
+    },
+    {
+      "cas": "1321-74-0",
+      "name_en": "1321-74-0 (mixed isomers)",
+      "entity_type": "ISOMER_GROUP",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "NIOSH identity explicitly denotes mixed isomers; component-resolved records are required for molecular modelling.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0248.html"
+    },
+    {
+      "cas": "1332-21-4",
+      "name_en": "Asbestos",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Asbestos is a mineral-fiber category, not a single volatile molecular analyte.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0041.html"
+    },
+    {
+      "cas": "1332-58-7",
+      "name_en": "Kaolin",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Kaolin is a mineral material category and is not represented by a single volatile molecular structure.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0364.html"
+    },
+    {
+      "cas": "1335-87-1",
+      "name_en": "Hexachloronaphthalene",
+      "entity_type": "ISOMER_GROUP",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Technical hexachloronaphthalene can represent an isomeric composition; component/isomer resolution is required before molecular modelling.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0317.html"
+    },
+    {
+      "cas": "1395-21-7",
+      "name_en": "1395-21-7 (BPN)",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Biological/protein preparation identity; not a small volatile molecule for MOX molecular QSPR.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0572.html"
+    },
+    {
+      "cas": "17702-41-9",
+      "name_en": "Decaborane",
+      "entity_type": "PURE_COMPOUND",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "AUTHORITATIVE_STRUCTURE_REQUIRED",
+      "note": "Discrete compound identity appears intended; resolve authoritative structure record before molecular modelling.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0175.html"
+    },
+    {
+      "cas": "25013-15-4",
+      "name_en": "25013-15-4 (inhibited)",
+      "entity_type": "ISOMER_GROUP",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Industrial inhibited product/isomer composition; resolve actual component identity rather than assigning one molecule.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0663.html"
+    },
+    {
+      "cas": "25321-14-6",
+      "name_en": "Dinitrotoluene",
+      "entity_type": "ISOMER_GROUP",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Generic dinitrotoluene CAS represents an isomeric/technical composition; component-resolved identities are required for molecular modelling.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0235.html"
+    },
+    {
+      "cas": "25376-45-8",
+      "name_en": "Toluenediamine",
+      "entity_type": "ISOMER_GROUP",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Generic toluenediamine CAS represents an isomeric/technical composition; component-resolved identities are required for molecular modelling.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0620.html"
+    },
+    {
+      "cas": "37329-49-0",
+      "name_en": "Tungsten carbide (cemented)",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Cemented tungsten carbide is a composite/material identity; do not force a single molecular descriptor vector.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0647.html"
+    },
+    {
+      "cas": "53469-21-9",
+      "name_en": "Chlorodiphenyl (42% chlorine)",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Technical chlorinated biphenyl mixture defined by chlorine content; not a unique molecule.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0125.html"
+    },
+    {
+      "cas": "61788-32-7",
+      "name_en": "Hydrogenated terphenyls",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Hydrogenated terphenyl commercial/technical mixture; component-resolved composition is required for molecular modelling.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0330.html"
+    },
+    {
+      "cas": "65996-93-2",
+      "name_en": "Coal tar pitch volatiles",
+      "entity_type": "OCCUPATIONAL_CATEGORY",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Occupational exposure category comprising a complex set of volatile/semi-volatile constituents; no single molecular descriptor vector is valid.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0145.html"
+    },
+    {
+      "cas": "65997-15-1",
+      "name_en": "Portland cement",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Portland cement is a multicomponent inorganic material; not a unique molecular analyte.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0521.html"
+    },
+    {
+      "cas": "68476-85-7",
+      "name_en": "L.P.G.",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Liquefied petroleum gas is a composition-dependent hydrocarbon mixture; use component/mixture models, not a single molecule.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0679.html"
+    },
+    {
+      "cas": "68956-68-3",
+      "name_en": "Vegetable oil mist",
+      "entity_type": "OCCUPATIONAL_CATEGORY",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Occupational aerosol/mist category with composition depending on the source oil; not a unique volatile molecule.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0655.html"
+    },
+    {
+      "cas": "8002-05-9",
+      "name_en": "Petroleum distillates (naphtha)",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Petroleum distillate/naphtha is a variable hydrocarbon mixture; component or mixture-specific models are required.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0492.html"
+    },
+    {
+      "cas": "8002-74-2",
+      "name_en": "Paraffin wax fume",
+      "entity_type": "OCCUPATIONAL_CATEGORY",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Fume from a hydrocarbon material mixture; not a unique molecular analyte.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0477.html"
+    },
+    {
+      "cas": "8006-61-9",
+      "name_en": "Gasoline",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Gasoline is a composition-variable multicomponent fuel; retain as mixture and model constituents/mixture fingerprints separately.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0299.html"
+    },
+    {
+      "cas": "8006-64-2",
+      "name_en": "Turpentine",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Turpentine is a natural/technical terpene mixture; composition varies and must not be represented by one molecule.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0648.html"
+    },
+    {
+      "cas": "8008-20-6",
+      "name_en": "Kerosene",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Kerosene is a composition-variable petroleum fraction; mixture-specific modelling is required.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0366.html"
+    },
+    {
+      "cas": "8012-95-1",
+      "name_en": "Oil mist (mineral)",
+      "entity_type": "OCCUPATIONAL_CATEGORY",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Occupational mineral-oil aerosol category; not a unique gas-phase molecular analyte.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0472.html"
+    },
+    {
+      "cas": "8030-30-6",
+      "name_en": "Naphtha (coal tar)",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Coal-tar naphtha is a multicomponent fraction; not a unique molecular analyte.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0438.html"
+    },
+    {
+      "cas": "8032-32-4",
+      "name_en": "VM & P Naphtha",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "VM&P naphtha is a variable petroleum solvent mixture; not a unique molecular analyte.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0664.html"
+    },
+    {
+      "cas": "8052-41-3",
+      "name_en": "Stoddard solvent",
+      "entity_type": "MIXTURE",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Stoddard solvent is a petroleum hydrocarbon mixture; mixture-specific composition/model is required.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0569.html"
+    },
+    {
+      "cas": "8052-42-4",
+      "name_en": "Asphalt fumes",
+      "entity_type": "OCCUPATIONAL_CATEGORY",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Asphalt fume is an occupational emission category from a complex material; no unique molecule represents it.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0042.html"
+    },
+    {
+      "cas": "9004-34-6",
+      "name_en": "Cellulose",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Polymeric material; not a unique volatile small molecule for current MOX molecular QSPR.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0110.html"
+    },
+    {
+      "cas": "9005-25-8",
+      "name_en": "Starch",
+      "entity_type": "MATERIAL",
+      "molecular_qspr_eligible": false,
+      "status": "CURATED_NONRESOLVED_IDENTITY",
+      "resolution_policy": "DO_NOT_FORCE_SINGLE_MOLECULE",
+      "note": "Polymeric/biological material; not a unique volatile small molecule for current MOX molecular QSPR.",
+      "identity_source_url": "https://www.cdc.gov/niosh/npg/npgd0567.html"
+    }
+  ]
+}
