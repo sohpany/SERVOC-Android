@@ -2,24 +2,29 @@ package com.servoc.app.hardware;
 
 import com.servoc.app.chemical.GasEngine;
 
-/** Single source of truth for the field-wired HazRob 0.9.3 sensor/power/drive topology. */
+/** Single source of truth for the field-wired HazRob 0.10 sensor/power/drive topology. */
 public final class HazRobHardwareProfile {
     private HazRobHardwareProfile(){}
 
-    public static final String ID="hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1";
+    public static final String ID="hazrob-0.10-1r8mq-alert-ldr-l298n-6gpio-v1";
     public static final String DRIVE_DRIVER="L298N";
+    public static final int DRIVE_L_EN=16;
     public static final int DRIVE_L_IN1=18;
     public static final int DRIVE_L_IN2=27;
+    public static final int DRIVE_R_EN=17;
     public static final int DRIVE_R_IN1=19;
     public static final int DRIVE_R_IN2=32;
     public static final int MQ_GROUPS=1;
     public static final int RELAY_CHANNELS=1;
     public static final int INSTALLED_RELAY_MASK=0x01;
     public static final int MQ_RELAY_GPIO=25;
+    /** Logic/PWM alert output. A low-impedance speaker requires an external transistor/driver. */
     public static final int ALERT_GPIO=26;
     public static final int LDR_GPIO=34;
     public static final int IR_GPIO=35;
     public static final int SOUND_GPIO=36;
+    public static final int I2C_SDA_GPIO=21;
+    public static final int I2C_SCL_GPIO=22;
 
     /** Fixed HazRob hardware design value: both ADS1115 boards are supplied from the regulated 5 V rail. */
     public static final float ADS_SUPPLY_V=5.0f;
