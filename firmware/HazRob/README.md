@@ -1,12 +1,18 @@
 # HazRob master ESP32 firmware — 0.10.0
 
-Target: **DOIT ESP32 DEVKIT V1** · API v4 · hardware profile `hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1`.
+Target: **DOIT ESP32 DEVKIT V1** · API v4 · hardware profile `hazrob-0.10-1r8mq-l298n6-batt-ultra-ldr-v1`.
 
 ## Design boundary
 
-The master firmware is intentionally compact and deterministic. It performs hardware I/O, acquisition, drive safety, local API and remote transport. **ChemCore molecular intelligence, open-set inference, QSPR/AMCI and scientific-library data remain on Android.**
+The master firmware is intentionally compact and deterministic. It performs hardware I/O, acquisition, drive safety, local API and remote transport. **ChemCore molecular intelligence, open-set inference, QSPR/AMCI, Estimated Energy Model SOC and scientific-library data remain on Android.**
 
-The 0.10 implementation uses compact direct-I2C ADS1115 and BME280/BMP280 drivers and therefore does **not** require the former Adafruit ADS/BME/BMP libraries or ESP32Servo.
+The 0.10 implementation uses compact direct-I2C ADS1115 and BME280/BMP280 drivers and therefore does not require the former Adafruit ADS/BME/BMP libraries or ESP32Servo.
+
+## Arduino / partition setting
+
+0.10 experimental firmware is built for the board's **4 MB flash** with **Huge APP** partitioning. ESP32 firmware OTA is not used in this release; firmware is flashed locally. CI still enforces an absolute binary-size ceiling so the larger partition is not treated as permission for uncontrolled growth.
+
+When compiling manually in Arduino IDE, use the equivalent **Huge APP** partition scheme for DOIT ESP32 DEVKIT V1.
 
 ## Network
 
@@ -16,14 +22,18 @@ The 0.10 implementation uses compact direct-I2C ADS1115 and BME280/BMP280 driver
 - Wi-Fi mode: AP+STA; direct control remains available while WAN is configured.
 - NAPT is enabled only when the STA side has validated Internet connectivity.
 
-## 4WD motion — L298N, no servo propulsion
+## 4WD motion — L298N, six GPIO, no servo propulsion
 
-| Side | GPIO | Motors |
-|---|---|---|
-| Left | 18 / 27 | two motors in parallel |
-| Right | 19 / 32 | two motors in parallel |
+| Function | GPIO |
+|---|---:|
+| ENA / left speed PWM | **16** |
+| IN1 | **18** |
+| IN2 | **27** |
+| ENB / right speed PWM | **17** |
+| IN3 | **19** |
+| IN4 | **32** |
 
-ENA/ENB remain enabled on the L298N; PWM is applied on the direction inputs. Firmware retains ramping, a 450 ms drive lease, STOP/E-STOP, 900 ms link-loss detection, a 3 s recovery hold and bounded retrace. If final physical polarity differs, use the side inversion flag rather than remapping the API.
+Two left motors are wired in parallel to OUT1/OUT2 and two right motors in parallel to OUT3/OUT4. **Remove the ENA and ENB enable jumpers** when those pins are driven from GPIO16/GPIO17. Direction is controlled only by IN1..IN4; PWM speed is applied on ENA/ENB. Firmware retains ramping, a 450 ms drive lease, STOP/E-STOP, 900 ms link-loss detection, a 3 s recovery hold and bounded retrace.
 
 ## MQ / ADS topology
 
@@ -40,12 +50,36 @@ The firmware currently carries `RL=10` and `R0=10` engineering/default values. T
 
 ## Other I/O
 
-- GPIO26: alert logic/PWM output; low-impedance speaker requires an external driver.
-- GPIO36: MAX4466 electrical RMS/P2P channel, not calibrated dB SPL.
-- GPIO35: IR digital warning, active LOW.
-- GPIO34: LDR/LM393 digital threshold, not quantitative lux.
-- GPIO21/22: I2C SDA/SCL.
-- environment sensor: BME280 (`0x60`) or BMP280 (`0x56/0x57/0x58`) auto-detected at `0x76/0x77` by the compact direct-I2C driver.
+| Function | GPIO | 0.10 status |
+|---|---:|---|
+| Speaker/alert signal | 26 | reserved; 8Ω speaker not installed; do not connect it directly |
+| MAX4466 | 36 | electrical RMS/P2P only, not calibrated dB SPL |
+| IR fall-edge warning | 35 | active LOW |
+| LDR/LM393 DO | 34 | threshold state only; **not lux** |
+| Battery divider ADC | 33 | ADC1; initial divider reference 47k/10k |
+| Ultrasonic TRIG | 23 | front obstacle ranging |
+| Ultrasonic ECHO | 39 | input-only; reduce a 5V echo to <=3.3V |
+| Internal temperature | 14 | **reserved only**, no sensor/driver assumed |
+| I2C SDA/SCL | 21 / 22 | ADS1 + ADS2 + chamber BME/BMP |
+
+The chamber environment sensor is BME280 (`0x60`) or BMP280 (`0x56/0x57/0x58`) auto-detected at `0x76/0x77` by the compact direct-I2C driver.
+
+### Light measurement
+
+The installed LDR/LM393 module has only DO/GND/VCC and therefore cannot produce quantitative illuminance. Firmware exposes threshold state, `quantitative_lux=false`, and `lux=null`.
+
+For future quantitative physical measurement, the preferred option is a **BH1750** on the same I2C bus (`0x23` or `0x5C`), requiring no extra GPIO. That future measurement is **illuminance in lux**. HazRob must not label it as luminous flux in lumens.
+
+## Battery / EEM basis
+
+ESP32 supplies compact basis telemetry only:
+
+- measured pack-voltage estimate from GPIO33;
+- uptime;
+- cumulative equivalent full-power drive time (`drive_eq_ms`);
+- cumulative MQ-power time (`mq_on_ms`).
+
+Android computes Estimated Energy Model SOC from those fields plus configured load assumptions for base electronics, fan, four LEDs, camera, MQ heaters and motor activity. It is explicitly an estimate, not coulomb counting.
 
 ## API v4
 
@@ -59,7 +93,12 @@ MQTT 3.1.1 over TLS uses provisioned credentials/CA outside source control. Comm
 
 ## Capacity policy
 
-GitHub Actions compiles the exact source and records actual Flash/RAM use. Release CI rejects a master or camera image above the configured Flash budget. The metric is **compiled binary size**; source comments or shorter variable names are not counted as capacity savings.
+CI reports both percentage of the configured app partition and the absolute compiled binary size. 0.10 policy is:
+
+- partition target `<=70%`, hard ceiling `<=80%`;
+- master binary target `<=1,000,000 bytes`, hard ceiling `<=1,150,000 bytes`.
+
+The absolute byte gate remains active even with Huge APP partitioning.
 
 ## Safety / scientific boundary
 
