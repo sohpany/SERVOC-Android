@@ -9,8 +9,11 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.BuildConfig;
+import com.servoc.app.ReleaseAudit;
 import com.servoc.app.chemical.GasEngine;
 import com.servoc.app.chemical.ResearchCurveRegistry;
+import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
+import com.servoc.app.chemcore.library.ChemCoreLibraryStore;
 import com.servoc.app.communication.RemoteConnection;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.measurement.SensorHealthEngine;
@@ -26,16 +29,17 @@ import java.util.Locale;
 public final class StatusTab {
     private final HazRobHost host;private final ScrollView scroll;
     private final TextView master,network,hardware,sensors,science,camera;
-    private final Button appUpdate;
+    private final Button updateButton;
     private final AppUpdateManager appUpdater;
+    private final ChemCoreLibraryManager libraryUpdater;
     private volatile JSONObject cameraSnapshot;private volatile long cameraProbeAt=0;
     private volatile boolean updateBusy=false;
 
     public StatusTab(Context c,HazRobHost host){
-        this.host=host;appUpdater=new AppUpdateManager(c);scroll=new ScrollView(c);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,10));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
+        this.host=host;appUpdater=new AppUpdateManager(c);libraryUpdater=new ChemCoreLibraryManager(c);scroll=new ScrollView(c);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,10));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
         root.addView(UiKit.title(c,"الحالة"),UiKit.full(c));
-        appUpdate=UiKit.button(c,initialUpdateLabel());appUpdate.setOnClickListener(v->runAppUpdate());root.addView(appUpdate,UiKit.full(c));
-        TextView updateNote=UiKit.small(c,"تحديث التطبيق متاح لجميع المستخدمين. إدارة مكتبة ChemCore العلمية وتطويرها تبقى داخل تبويب المطور فقط.");updateNote.setTextColor(0xFFB0BEC5);root.addView(updateNote,UiKit.full(c));
+        updateButton=UiKit.button(c,initialUpdateLabel());updateButton.setOnClickListener(v->runUnifiedUpdate());root.addView(updateButton,UiKit.full(c));
+        TextView updateNote=UiKit.small(c,"زر التحديث متاح لجميع المستخدمين ويبحث عن تحديثات التطبيق ومكتبة ChemCore المستقرة. إدارة المكتبة وتطويرها ومصدر التحديث والرجوع للإصدارات السابقة تبقى داخل تبويب المطور فقط.");updateNote.setTextColor(0xFFB0BEC5);root.addView(updateNote,UiKit.full(c));
         master=card(c,root);network=card(c,root);hardware=card(c,root);sensors=card(c,root);science=card(c,root);camera=card(c,root);
         science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native");
     }
@@ -43,43 +47,76 @@ public final class StatusTab {
     private static TextView card(Context c,LinearLayout root){TextView t=UiKit.text(c,"—");t.setTextSize(14);t.setBackgroundColor(0xFF151A20);root.addView(t,UiKit.full(c));return t;}
     private boolean remoteMode(){return "remote".equalsIgnoreCase(host.preferences().getString("connection_mode","direct"));}
 
-    private String initialUpdateLabel(){String completed=appUpdater.recentCompletionLabel();return completed.isEmpty()?"تحديث التطبيق • v"+BuildConfig.VERSION_NAME:completed;}
-
-    private void runAppUpdate(){
-        if(updateBusy)return;
-        JSONObject d=host.latestDiagnostics(),m=d==null?null:d.optJSONObject("measurement");String state=m==null?"idle":m.optString("state","idle").toLowerCase(Locale.US);
-        if("warmup".equals(state)||"measuring".equals(state)){
-            appUpdate.setText("أوقف القياس قبل تحديث التطبيق");
-            scroll.postDelayed(()->{if(!updateBusy)appUpdate.setText(initialUpdateLabel());},3000);
-            return;
-        }
-        updateBusy=true;appUpdate.setEnabled(false);appUpdate.setText("جار البحث عن تحديث...");
-        host.io().execute(()->appUpdater.updateNow(s->scroll.post(()->renderUpdateState(s))));
+    private String initialUpdateLabel(){
+        String completed=appUpdater.recentCompletionLabel();
+        if(!completed.isEmpty())return completed;
+        ChemCoreLibraryManager.Status lib=libraryUpdater.status();
+        return "تحديث • App "+BuildConfig.VERSION_NAME+" • ChemCore "+(lib.version.isEmpty()?"—":lib.version);
     }
 
-    private void renderUpdateState(AppUpdateManager.State s){
-        if(s==null)return;appUpdate.setText(s.message);
+    private void runUnifiedUpdate(){
+        if(updateBusy)return;
+        if(ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics())){
+            updateButton.setText("أوقف القياس/التحليل قبل التحديث");
+            scroll.postDelayed(()->{if(!updateBusy)updateButton.setText(initialUpdateLabel());},3000);
+            return;
+        }
+        updateBusy=true;updateButton.setEnabled(false);updateButton.setText("جار البحث عن تحديث...");
+        host.io().execute(this::performUnifiedUpdate);
+    }
+
+    private void performUnifiedUpdate(){
+        boolean libraryUpdated=false;String libraryVersion="";String libraryIssue="";
+        String manifestUrl=libraryUpdater.manifestUrl();
+        if(manifestUrl!=null&&!manifestUrl.trim().isEmpty()){
+            try{
+                scroll.post(()->updateButton.setText("جار فحص مكتبة ChemCore..."));
+                ChemCoreLibraryManager.CheckSummary checked=libraryUpdater.check(ReleaseAudit.VERSION);
+                if(checked.updateAvailable){
+                    scroll.post(()->updateButton.setText("جار تحديث مكتبة ChemCore..."));
+                    ChemCoreLibraryStore.InstallResult r=libraryUpdater.install(checked,ReleaseAudit.VERSION,
+                            ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics()));
+                    if(r.installed){libraryUpdated=true;libraryVersion=r.version;}else libraryIssue=r.reason;
+                }
+            }catch(Exception e){libraryIssue=safe(e);}
+        }
+        final boolean libUpdated=libraryUpdated;final String libVersion=libraryVersion;final String libIssue=libraryIssue;
+        appUpdater.updateNow(s->scroll.post(()->renderUnifiedUpdateState(s,libUpdated,libVersion,libIssue)));
+    }
+
+    private void renderUnifiedUpdateState(AppUpdateManager.State s,boolean libraryUpdated,String libraryVersion,String libraryIssue){
+        if(s==null)return;
+        String message=s.message;
+        if(s.phase==AppUpdateManager.Phase.UP_TO_DATE){
+            if(libraryUpdated)message="تم التحديث • ChemCore "+libraryVersion;
+            else if(!libraryIssue.isEmpty())message="لا يوجد تحديث للتطبيق • تعذر فحص المكتبة";
+            else message="لا يوجد تحديث جديد";
+        }else if(s.phase==AppUpdateManager.Phase.ERROR){
+            if(libraryUpdated)message="تم تحديث ChemCore • تعذر فحص/تحديث التطبيق";
+            else if(!libraryIssue.isEmpty())message="تعذر التحديث";
+        }
+        updateButton.setText(message);
         switch(s.phase){
             case CHECKING:
             case UPDATE_AVAILABLE:
             case DOWNLOADING:
             case READY_TO_INSTALL:
-                appUpdate.setEnabled(false);break;
+                updateButton.setEnabled(false);break;
             case INSTALLER_OPENED:
-                updateBusy=false;appUpdate.setEnabled(true);break;
             case INSTALL_PERMISSION_REQUIRED:
             case UP_TO_DATE:
             case COMPLETED:
             case ERROR:
             default:
-                updateBusy=false;appUpdate.setEnabled(true);break;
+                updateBusy=false;updateButton.setEnabled(true);break;
         }
     }
 
     public void refresh(){
-        if(!updateBusy){String completed=appUpdater.recentCompletionLabel();if(!completed.isEmpty())appUpdate.setText(completed);}
+        if(!updateBusy){String completed=appUpdater.recentCompletionLabel();if(!completed.isEmpty())updateButton.setText(completed);}
         int warm=Math.max(0,host.preferences().getInt("warm",60)),analysis=Math.max(0,host.preferences().getInt("measure",30));
-        science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native\nTiming   Warm "+warm+" s   •   Analysis "+analysis+" s   •   Tracking CONTINUOUS");
+        ChemCoreLibraryManager.Status lib=libraryUpdater.status();
+        science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native\nChemCore Library   "+(lib.version.isEmpty()?"—":lib.version)+"   •   "+lib.sourceLabel+"\nTiming   Warm "+warm+" s   •   Analysis "+analysis+" s   •   Tracking CONTINUOUS");
         JSONObject d=host.latestDiagnostics();
         if(d==null){master.setText("HazRob App   v"+BuildConfig.VERSION_NAME+" ("+BuildConfig.VERSION_CODE+")\nMaster ESP32   ● OFFLINE");master.setTextColor(0xFFFF7043);renderNetwork(null);hardware.setText("ADS / ENV / MQ Power / LDR / Alert   —");sensors.setText("MQ   —");renderCamera();return;}
         master.setText("HazRob App   v"+BuildConfig.VERSION_NAME+" ("+BuildConfig.VERSION_CODE+")\nMaster ESP32   ● ONLINE\nFirmware   "+d.optString("firmware","HazRob")+"\nAPI   "+d.optInt("api_version",0)+"\nProfile   "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"\nHeap   "+d.optLong("heap",0)+" B");master.setTextColor(0xFF81C784);
@@ -109,5 +146,6 @@ public final class StatusTab {
         }
         if(cam!=null)camera.setText("ESP32-CAM   "+(cam.optBoolean("camera_ok",cam.optBoolean("ok",true))?"● ONLINE":"● ERROR")+"\nFW   "+cam.optString("fw","—")+"\nFPS   "+String.format(Locale.US,"%.1f",cam.optDouble("fps",0))+"\nRSSI   "+cam.optInt("rssi",0)+" dBm");else camera.setText("ESP32-CAM   ○ OFFLINE");
     }
+    private static String safe(Exception e){String s=e==null?"unknown":e.getMessage();return s==null||s.trim().isEmpty()?e.getClass().getSimpleName():s;}
     private static String ok(boolean b){return b?"● OK":"○ —";}private static String on(boolean b){return b?"● ON":"○ OFF";}
 }
