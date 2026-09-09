@@ -58,6 +58,27 @@ jobs:
 
           osha_manifest = json.loads(Path('app/src/main/assets/generated/exposure/osha_z1/manifest.json').read_text(encoding='utf-8'))
           assert 'ACGIH TLV' in osha_manifest.get('excluded_columns', []), osha_manifest
+
+          # ChemCore molecular knowledge is deliberately validated under a different semantic
+          # contract: PubChem descriptors are reference knowledge, not proof of MQ detectability.
+          chem_payload = Path('app/src/main/assets/generated/chemcore/molecular_descriptors.json')
+          chem_manifest = Path('app/src/main/assets/generated/chemcore/manifest.json')
+          if chem_payload.exists() or chem_manifest.exists():
+              assert chem_payload.exists() and chem_manifest.exists(), 'ChemCore payload/manifest must be pinned together'
+              payload = json.loads(chem_payload.read_text(encoding='utf-8'))
+              manifest = json.loads(chem_manifest.read_text(encoding='utf-8'))
+              assert payload.get('schema') == 'chemcore-molecular-seed-v1', payload.get('schema')
+              assert payload.get('record_count') == 652, payload.get('record_count')
+              assert manifest.get('record_count') == 652, manifest.get('record_count')
+              assert payload.get('error_count') == 0, payload.get('error_count')
+              assert payload.get('resolved_count', 0) + payload.get('unresolved_count', 0) == 652
+              interpretation = payload.get('interpretation', '')
+              assert 'do not imply MQ detectability' in interpretation, interpretation
+              actual = hashlib.sha256(chem_payload.read_bytes()).hexdigest()
+              assert actual == manifest.get('sha256'), (actual, manifest.get('sha256'))
+              print(f"ChemCore molecular reference: 652 identities; resolved={payload.get('resolved_count')}; unresolved={payload.get('unresolved_count')}; SHA-256 {actual}")
+          else:
+              print('ChemCore molecular seed not yet pinned; application remains valid with molecular intelligence unavailable.')
           PY
 
       - name: Restore HazRob prototype signing key
@@ -91,6 +112,13 @@ jobs:
           test "$ACTUAL" = "$EXPECTED"
           sha256sum "$APK" | tee HazRob-v0.9.3-rc2-sha256.txt
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK" > HazRob-v0.9.3-rc2-signing.txt
+      - name: Collect optional ChemCore manifest
+        run: |
+          if [ -f app/src/main/assets/generated/chemcore/manifest.json ]; then
+            cp app/src/main/assets/generated/chemcore/manifest.json HazRob-chemcore-manifest.json
+          else
+            printf '%s\n' '{"status":"molecular_seed_not_pinned"}' > HazRob-chemcore-manifest.json
+          fi
       - name: Upload HazRob v0.9.3-rc2 artifact
         uses: actions/upload-artifact@v4
         with:
@@ -99,6 +127,7 @@ jobs:
             app/build/outputs/apk/release/app-release.apk
             HazRob-v0.9.3-rc2-sha256.txt
             HazRob-v0.9.3-rc2-signing.txt
+            HazRob-chemcore-manifest.json
             app/src/main/assets/generated/niosh/manifest.json
             app/src/main/assets/generated/exposure/manifest.json
             app/src/main/assets/generated/exposure/osha_z1/manifest.json
