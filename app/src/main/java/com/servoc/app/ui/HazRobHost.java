@@ -1,10 +1,15 @@
 package com.servoc.app.ui;
 
 import android.content.SharedPreferences;
+
+import com.servoc.app.chemcore.ChemCoreRuntimeCoordinator;
+import com.servoc.app.chemcore.ChemCoreSessionController;
 import com.servoc.app.communication.RobotApi;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.measurement.SensorHealthEngine;
+
 import org.json.JSONObject;
+
 import java.util.concurrent.ExecutorService;
 
 /** Contract shared by independent HazRob UI tabs. */
@@ -33,6 +38,16 @@ public interface HazRobHost {
     String cleanAirBaselineTimestamp();
     /** Exact measurement-session identity completed by TelemetryRecorder. */
     String lastMeasurementSessionId();
+
+    /** Canonical controlled ChemCore runtime state for UI/audit display. */
+    ChemCoreRuntimeCoordinator.Snapshot chemCoreSnapshot();
+    /** Starts a focused ChemCore analysis only when stationary, powered and warmed. */
+    boolean beginChemCoreAnalysis();
+    /** Advances one evidence-backed ChemCore phase; no phase is inferred silently. */
+    void advanceChemCore(ChemCoreSessionController.Event event);
+    /** Fails closed and cancels the active firmware measurement cycle. */
+    void abortChemCoreAnalysis();
+
     void setTrackingTarget(int chemicalId,String name);
     int trackingTargetId();
     String trackingTargetName();
