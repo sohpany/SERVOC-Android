@@ -44,7 +44,7 @@ public final class RobotApi {
 
     /** These endpoints intentionally remain local because they bootstrap or reset the robot WAN connection. */
     public JSONObject remoteStatus()throws Exception{return getJson("/remote/status",1800);}
-    public JSONObject remoteScan()throws Exception{return getJson("/remote/scan",15000);}
+    public JSONObject remoteScan()throws Exception{return getJson("/remote/scan",2800);}
     public JSONObject remoteProvision(String ssid,String password)throws Exception{return new JSONObject(postForm("/remote/provision","ssid="+enc(ssid)+"&password="+enc(password),3000));}
     public JSONObject remoteClear()throws Exception{return new JSONObject(postForm("/remote/clear","confirm=1",1500));}
 
@@ -57,7 +57,6 @@ public final class RobotApi {
     public void startMeasurement()throws Exception{RemoteConnection r=remote();if(r!=null){r.startMeasurement();return;}getText("/measure?cmd=start",800);}
     public void cancelMeasurement()throws Exception{RemoteConnection r=remote();if(r!=null){r.cancelMeasurement();return;}getText("/measure?cmd=cancel",800);}
 
-    /** Authoritative HazRob 0.9 MQ power API: false/0=OFF, true/1=all eight MQ ON. */
     public void mqPower(boolean on)throws Exception{relayMask(on?1:0);}
     public void relay(int state)throws Exception{relayMask(state);}
     public void relayMask(int mask)throws Exception{
@@ -66,7 +65,6 @@ public final class RobotApi {
         getText("/relay?mask="+mask,800);
     }
 
-    /** Operational local audible alert. 0=clear, 1=elevated response, 2=high response. */
     public void setAlertLevel(int severity)throws Exception{setAlertLevel(severity,3000);}
     public void setAlertLevel(int severity,int ttlMs)throws Exception{
         if(severity<0||severity>2)throw new IllegalArgumentException("Alert severity must be 0..2");
