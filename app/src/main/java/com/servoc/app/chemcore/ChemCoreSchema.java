@@ -6,7 +6,7 @@ import android.database.sqlite.SQLiteDatabase;
 public final class ChemCoreSchema {
     private ChemCoreSchema() {}
 
-    public static final int SCHEMA_VERSION = 2;
+    public static final int SCHEMA_VERSION = 3;
 
     public static void ensure(SQLiteDatabase db) {
         if (db == null) throw new IllegalArgumentException("database required");
@@ -148,6 +148,24 @@ public final class ChemCoreSchema {
                 "sha256 TEXT NOT NULL," +
                 "active INTEGER NOT NULL DEFAULT 0)");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_chemcore_models_active ON chemcore_model_artifacts(model_type,active,id)");
+
+        db.execSQL("CREATE TABLE IF NOT EXISTS chemcore_feature_references(" +
+                "id INTEGER PRIMARY KEY AUTOINCREMENT," +
+                "chemical_uid INTEGER NOT NULL," +
+                "kind TEXT NOT NULL," +
+                "version TEXT NOT NULL," +
+                "created_ts TEXT NOT NULL," +
+                "feature_schema TEXT NOT NULL," +
+                "sampling_profile_id TEXT," +
+                "source_experiment_ids TEXT NOT NULL," +
+                "source_session_ids TEXT NOT NULL," +
+                "exposure_count INTEGER NOT NULL," +
+                "payload TEXT NOT NULL," +
+                "sha256 TEXT NOT NULL," +
+                "active INTEGER NOT NULL DEFAULT 1," +
+                "FOREIGN KEY(chemical_uid) REFERENCES chemicals(uid) ON DELETE CASCADE," +
+                "FOREIGN KEY(sampling_profile_id) REFERENCES chemcore_sampling_profiles(profile_id))");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_chemcore_feature_ref_target ON chemcore_feature_references(chemical_uid,kind,active,id)");
 
         db.execSQL("CREATE TABLE IF NOT EXISTS chemcore_decisions(" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT," +
