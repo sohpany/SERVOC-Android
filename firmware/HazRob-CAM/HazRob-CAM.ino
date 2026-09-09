@@ -6,7 +6,7 @@
 #include "RemoteVideo.h"
 
 constexpr char WIFI_SSID[]="HazRob";
-constexpr char FW[]="HazRob-CAM 0.9.3-rc2";
+constexpr char FW[]="HazRob-CAM 0.10.0-rc1";
 constexpr uint8_t FLASH_PIN=4;
 constexpr size_t JPG_CAP=160*1024;
 constexpr uint8_t JPG_QUALITY=35; // software frame2jpg quality, 1..100
