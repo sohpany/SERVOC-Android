@@ -1,2 +1,2 @@
-d07cbf30c16fea33d9f98d5415dcb1c82aea3be115b30d590595dd7e3441c62c  HazRob-ESP32-v0.10.0-source.zip
-8b00dbb91c08a691b194c778c4a3d16dd8ef3af04fa8acb575a8e0642ef7d928  HazRob-ESP32-CAM-v0.10.0-source.zip
+4f612b835a95fe33c6b0d8d4dddc682baaab72aae765723d5b9403e28b793dae  HazRob-ESP32-v0.10.0-source.zip
+5134cba28eeb660326e833df489fed3c0a7251cdd95922c4349d4280cbfa9a02  HazRob-ESP32-CAM-v0.10.0-source.zip
