@@ -21,6 +21,9 @@ public final class HazRobHardwareProfile {
     public static final int IR_GPIO=35;
     public static final int SOUND_GPIO=36;
 
+    /** Fixed HazRob hardware design value: both ADS1115 boards are supplied from the regulated 5 V rail. */
+    public static final float ADS_SUPPLY_V=5.0f;
+
     public static final class Channel {
         public final int sensorId;
         public final String key;
