@@ -15,21 +15,41 @@ uint8_t* frameBuf=nullptr;
 volatile bool running=false,connected=false;
 volatile uint32_t sentFrames=0,connectErrors=0,sendErrors=0,lastFrameBytes=0,retryDelayMs=RemoteVideoCfg::RETRY_MIN_MS;
 uint32_t nextConnectAt=0;
+String publishToken=RemoteVideoCfg::PUBLISH_TOKEN;
+bool credentialReady=false;
 constexpr char WS_GUID[]="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
+String compact(const String&s){String o;o.reserve(s.length());for(char c:s)if(c!=' '&&c!='\t'&&c!='\r'&&c!='\n')o+=c;return o;}
+int keyPos(const String&j,const char*k){String x="\""+String(k)+"\":";return j.indexOf(x);}
+String jsonString(const String&j,const char*k){int p=keyPos(j,k);if(p<0)return"";p=j.indexOf('"',p+strlen(k)+3);if(p<0)return"";String o;for(++p;p<(int)j.length()&&j[p]!='"';p++){if(j[p]=='\\'&&p+1<(int)j.length())p++;o+=j[p];}return o;}
 String b64(const uint8_t* data,size_t len){size_t outLen=0;size_t cap=((len+2)/3)*4+4;char* out=(char*)malloc(cap);if(!out)return"";if(mbedtls_base64_encode((unsigned char*)out,cap,&outLen,data,len)!=0){free(out);return"";}String s;for(size_t i=0;i<outLen;i++)s+=(char)out[i];free(out);return s;}
 String expectedAccept(const String& key){String in=key+WS_GUID;uint8_t digest[20];mbedtls_sha1_context c;mbedtls_sha1_init(&c);mbedtls_sha1_starts(&c);mbedtls_sha1_update(&c,(const unsigned char*)in.c_str(),in.length());mbedtls_sha1_finish(&c,digest);mbedtls_sha1_free(&c);return b64(digest,sizeof(digest));}
+
+bool bootstrapPublishToken(bool force=false){
+  if(!force&&credentialReady&&publishToken.length()>=8)return true;
+  if(WiFi.status()!=WL_CONNECTED||!RemoteVideoCfg::configured())return false;
+  WiFiClientSecure c;c.setCACert(RemoteVideoCfg::ROOT_CA);c.setTimeout(4);
+  if(!c.connect(RemoteVideoCfg::HOST,RemoteVideoCfg::PORT))return publishToken.length()>=8;
+  c.print("GET "+String(RemoteVideoCfg::BOOTSTRAP_PATH)+" HTTP/1.1\r\nHost: "+RemoteVideoCfg::HOST+"\r\nAuthorization: Bearer "+RemoteVideoCfg::BOOTSTRAP_TOKEN+"\r\nAccept: application/json\r\nConnection: close\r\n\r\n");
+  uint32_t until=millis()+4000;String status=c.readStringUntil('\n');bool ok=status.indexOf(" 200 ")>=0;
+  while((int32_t)(until-millis())>0&&c.connected()){String h=c.readStringUntil('\n');if(h=="\r"||h.length()<=1)break;}
+  String body;body.reserve(512);while((int32_t)(until-millis())>0&&(c.connected()||c.available())){while(c.available()&&body.length()<2048)body+=(char)c.read();if(body.length()>=2048)break;delay(1);}c.stop();
+  if(!ok)return publishToken.length()>=8;
+  String robot=jsonString(body,"robot"),token=compact(jsonString(body,"video_publish_token"));
+  if(robot!=RemoteVideoCfg::ROBOT_ID||token.length()<8)return publishToken.length()>=8;
+  publishToken=token;credentialReady=true;return true;
+}
 
 bool readLine(String& line,uint32_t timeoutMs){line="";uint32_t until=millis()+timeoutMs;while((int32_t)(until-millis())>0&&ws.connected()){while(ws.available()){char c=(char)ws.read();if(c=='\n'){line.trim();return true;}if(c!='\r')line+=c;if(line.length()>2048)return false;}delay(1);}return false;}
 
 bool handshake(){
-  if(!RemoteVideoCfg::configured()||WiFi.status()!=WL_CONNECTED)return false;
+  if(!RemoteVideoCfg::configured()||WiFi.status()!=WL_CONNECTED||!bootstrapPublishToken(false))return false;
   ws.stop();ws.setCACert(RemoteVideoCfg::ROOT_CA);ws.setTimeout(5);
   if(!ws.connect(RemoteVideoCfg::HOST,RemoteVideoCfg::PORT)){connectErrors++;return false;}
   uint8_t nonce[16];esp_fill_random(nonce,sizeof(nonce));String key=b64(nonce,sizeof(nonce));if(key.isEmpty()){ws.stop();connectErrors++;return false;}
   String path=String(RemoteVideoCfg::BASE_PATH)+"/publish/"+RemoteVideoCfg::ROBOT_ID;
-  String req="GET "+path+" HTTP/1.1\r\nHost: "+String(RemoteVideoCfg::HOST)+"\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: "+key+"\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: hazrob-jpeg-v1\r\nAuthorization: Bearer "+String(RemoteVideoCfg::PUBLISH_TOKEN)+"\r\n\r\n";
-  ws.print(req);ws.flush();String line;if(!readLine(line,5000)||line.indexOf(" 101 ")<0){ws.stop();connectErrors++;return false;}String accept="";bool upgrade=false;
+  String req="GET "+path+" HTTP/1.1\r\nHost: "+String(RemoteVideoCfg::HOST)+"\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: "+key+"\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Protocol: hazrob-jpeg-v1\r\nAuthorization: Bearer "+publishToken+"\r\n\r\n";
+  ws.print(req);ws.flush();String line;if(!readLine(line,5000)){ws.stop();connectErrors++;return false;}if(line.indexOf(" 401 ")>=0){credentialReady=false;publishToken="";}if(line.indexOf(" 101 ")<0){ws.stop();connectErrors++;return false;}String accept="";bool upgrade=false;
   while(readLine(line,2500)){if(line.isEmpty())break;int p=line.indexOf(':');if(p<=0)continue;String k=line.substring(0,p),v=line.substring(p+1);k.trim();v.trim();k.toLowerCase();if(k=="sec-websocket-accept")accept=v;else if(k=="upgrade"){v.toLowerCase();upgrade=v=="websocket";}}
   if(!upgrade||accept!=expectedAccept(key)){ws.stop();connectErrors++;return false;}connected=true;return true;
 }
@@ -69,4 +89,4 @@ void remoteTask(void*){
 void remoteVideoBegin(RemoteCaptureFn capture){captureFn=capture;if(!RemoteVideoCfg::configured()||taskHandle)return;if(!frameBuf)frameBuf=(uint8_t*)ps_malloc(RemoteVideoCfg::MAX_JPEG);if(!frameBuf)return;running=true;resetRetry();xTaskCreatePinnedToCore(remoteTask,"remote-video",8192,nullptr,1,&taskHandle,0);}
 void remoteVideoStop(){running=false;ws.stop();connected=false;}
 bool remoteVideoConnected(){return connected&&ws.connected();}
-String remoteVideoJson(){String j="{\"configured\":"+String(RemoteVideoCfg::configured()?"true":"false")+",\"connected\":"+String(remoteVideoConnected()?"true":"false")+",\"frames\":"+String(sentFrames)+",\"last_jpeg_bytes\":"+String(lastFrameBytes)+",\"connect_errors\":"+String(connectErrors)+",\"send_errors\":"+String(sendErrors)+",\"retry_backoff_ms\":"+String(retryDelayMs)+"}";return j;}
+String remoteVideoJson(){String j="{\"configured\":"+String(RemoteVideoCfg::configured()?"true":"false")+",\"credential_ready\":"+String(credentialReady||publishToken.length()>=8?"true":"false")+",\"connected\":"+String(remoteVideoConnected()?"true":"false")+",\"frames\":"+String(sentFrames)+",\"last_jpeg_bytes\":"+String(lastFrameBytes)+",\"connect_errors\":"+String(connectErrors)+",\"send_errors\":"+String(sendErrors)+",\"retry_backoff_ms\":"+String(retryDelayMs)+"}";return j;}
