@@ -7,9 +7,9 @@ on:
         description: Semantic ChemCore library version, e.g. 1.0.0
         required: true
       payload_path:
-        description: Repository path to approved JSON/SQLite payload
+        description: Approved JSON/SQLite payload path, or AUTO for canonical repository snapshot
         required: true
-        default: app/src/main/assets/generated/chemcore/molecular_descriptors.json
+        default: AUTO
       payload_format:
         description: json or sqlite
         required: true
@@ -21,9 +21,9 @@ on:
       source_count:
         description: Number of source/provenance records
         required: true
-        default: '0'
+        default: '2'
       model_count:
-        description: Number of model artifacts
+        description: Number of approved model artifacts
         required: true
         default: '0'
       calibration_count:
@@ -32,12 +32,12 @@ on:
         default: '0'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   publish-stable-bundle:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout exact source revision
         uses: actions/checkout@v4
@@ -48,6 +48,25 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Build canonical Stable snapshot when requested
+        env:
+          REQUESTED_PAYLOAD: ${{ inputs.payload_path }}
+          REQUESTED_FORMAT: ${{ inputs.payload_format }}
+        run: |
+          if [ "$REQUESTED_PAYLOAD" = "AUTO" ]; then
+            if [ "$REQUESTED_FORMAT" != "json" ]; then
+              echo "AUTO payload currently produces canonical JSON only."
+              exit 1
+            fi
+            OUT="$RUNNER_TEMP/chemcore-stable-snapshot.json"
+            python3 tools/build_chemcore_stable_snapshot.py \
+              --source-commit "$GITHUB_SHA" \
+              --out "$OUT"
+            echo "CHEMCORE_PAYLOAD=$OUT" >> "$GITHUB_ENV"
+          else
+            echo "CHEMCORE_PAYLOAD=$REQUESTED_PAYLOAD" >> "$GITHUB_ENV"
+          fi
 
       - name: Require publication signing secret
         env:
@@ -61,21 +80,33 @@ jobs:
           printf '%s\n' "$PRIVATE_KEY_PEM" > "$RUNNER_TEMP/chemcore-publication-private.pem"
           openssl pkey -in "$RUNNER_TEMP/chemcore-publication-private.pem" -check -noout
 
+      - name: Require APK verification key and match it to signing secret
+        run: |
+          PUBLIC=app/src/main/assets/chemcore/publication_key.pem
+          if [ ! -f "$PUBLIC" ] || grep -q 'NOT_PROVISIONED' "$PUBLIC"; then
+            echo "A real ChemCore publication public key must be committed to $PUBLIC before Stable publication."
+            exit 1
+          fi
+          openssl pkey -pubin -in "$PUBLIC" -pubout -out "$RUNNER_TEMP/embedded-public-normalized.pem"
+          openssl pkey -in "$RUNNER_TEMP/chemcore-publication-private.pem" -pubout -out "$RUNNER_TEMP/secret-public-normalized.pem"
+          cmp "$RUNNER_TEMP/embedded-public-normalized.pem" "$RUNNER_TEMP/secret-public-normalized.pem" || {
+            echo "Embedded ChemCore public key does not match the CI Stable signing key."
+            exit 1
+          }
+
       - name: Validate requested payload
         env:
-          PAYLOAD: ${{ inputs.payload_path }}
           FORMAT: ${{ inputs.payload_format }}
         run: |
-          test -f "$PAYLOAD"
+          test -f "$CHEMCORE_PAYLOAD"
           case "$FORMAT" in
-            json) python3 -m json.tool "$PAYLOAD" >/dev/null ;;
-            sqlite) sqlite3 "$PAYLOAD" 'PRAGMA quick_check;' | grep -qx ok ;;
+            json) python3 -m json.tool "$CHEMCORE_PAYLOAD" >/dev/null ;;
+            sqlite) sqlite3 "$CHEMCORE_PAYLOAD" 'PRAGMA quick_check;' | grep -qx ok ;;
             *) echo "Unsupported payload_format: $FORMAT"; exit 1 ;;
           esac
 
       - name: Build signed immutable publication bundle
         env:
-          PAYLOAD: ${{ inputs.payload_path }}
           FORMAT: ${{ inputs.payload_format }}
           LIB_VERSION: ${{ inputs.library_version }}
           CHEMICAL_COUNT: ${{ inputs.chemical_count }}
@@ -84,7 +115,7 @@ jobs:
           CALIBRATION_COUNT: ${{ inputs.calibration_count }}
         run: |
           python3 tools/publish_chemcore_library.py \
-            --payload "$PAYLOAD" \
+            --payload "$CHEMCORE_PAYLOAD" \
             --out-dir "$RUNNER_TEMP/chemcore-stable" \
             --library-version "$LIB_VERSION" \
             --source-commit "$GITHUB_SHA" \
@@ -99,12 +130,11 @@ jobs:
             --calibration-count "$CALIBRATION_COUNT" \
             --private-key "$RUNNER_TEMP/chemcore-publication-private.pem"
 
-      - name: Verify publication signature with derived public key
+      - name: Verify publication signature with APK public key
         run: |
-          openssl pkey -in "$RUNNER_TEMP/chemcore-publication-private.pem" -pubout -out "$RUNNER_TEMP/chemcore-publication-public.pem"
           python3 - <<'PY'
-          import base64, json, pathlib, subprocess, tempfile
-          root = pathlib.Path(__import__('os').environ['RUNNER_TEMP']) / 'chemcore-stable'
+          import base64, json, pathlib, subprocess, tempfile, os
+          root = pathlib.Path(os.environ['RUNNER_TEMP']) / 'chemcore-stable'
           m = json.loads((root/'manifest.json').read_text())
           rows = [
               ('library_version',m['library_version']),('schema_version',str(m['schema_version'])),
@@ -120,8 +150,35 @@ jobs:
           canonical='chemcore-manifest-v1\n'+''.join(f'{k}={v}\n' for k,v in rows)
           with tempfile.TemporaryDirectory() as td:
               td=pathlib.Path(td); (td/'m.txt').write_text(canonical); (td/'sig.bin').write_bytes(base64.b64decode(m['signature']))
-              subprocess.run(['openssl','dgst','-sha256','-verify',str(pathlib.Path(__import__('os').environ['RUNNER_TEMP'])/'chemcore-publication-public.pem'),'-signature',str(td/'sig.bin'),str(td/'m.txt')],check=True)
+              subprocess.run(['openssl','dgst','-sha256','-verify','app/src/main/assets/chemcore/publication_key.pem','-signature',str(td/'sig.bin'),str(td/'m.txt')],check=True)
           PY
+
+      - name: Publish immutable Stable snapshot to user distribution endpoint
+        if: github.ref == 'refs/heads/dev/hazrob-0.10-chemcore-foundation'
+        env:
+          LIB_VERSION: ${{ inputs.library_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin app-update-distribution
+          rm -rf /tmp/hazrob-update-dist
+          git worktree add -B app-update-distribution /tmp/hazrob-update-dist origin/app-update-distribution
+          rm -rf /tmp/hazrob-update-dist/public/chemcore
+          mkdir -p /tmp/hazrob-update-dist/public/chemcore
+          cp "$RUNNER_TEMP/chemcore-stable/manifest.json" /tmp/hazrob-update-dist/public/chemcore/manifest.json
+          cp "$RUNNER_TEMP/chemcore-stable/publication_audit.json" /tmp/hazrob-update-dist/public/chemcore/publication_audit.json
+          MANIFEST_PAYLOAD=$(python3 -c 'import json;print(json.load(open("'"$RUNNER_TEMP"'/chemcore-stable/manifest.json"))["payload_file"])')
+          cp "$RUNNER_TEMP/chemcore-stable/$MANIFEST_PAYLOAD" "/tmp/hazrob-update-dist/public/chemcore/$MANIFEST_PAYLOAD"
+          cat > /tmp/hazrob-update-dist/public/chemcore/index.html <<EOF
+          <!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>HazRob ChemCore Stable</title></head><body><h1>HazRob ChemCore Stable Library</h1><p>Current immutable Stable snapshot: ${LIB_VERSION}.</p><p>Install through HazRob Status → Update. Research/candidate records are not distributed here.</p></body></html>
+          EOF
+          git -C /tmp/hazrob-update-dist add -A public/chemcore
+          if git -C /tmp/hazrob-update-dist diff --cached --quiet; then
+            echo "ChemCore Stable distribution is already current."
+          else
+            git -C /tmp/hazrob-update-dist commit -m "dist(chemcore): publish Stable ${LIB_VERSION}"
+            git -C /tmp/hazrob-update-dist push origin HEAD:app-update-distribution
+          fi
 
       - name: Upload signed stable bundle
         uses: actions/upload-artifact@v4
