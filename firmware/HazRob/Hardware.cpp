@@ -3,31 +3,31 @@
 #include <Preferences.h>
 #include <Wire.h>
 #include <WiFi.h>
-#include <math.h>
 
 Settings settings;
 namespace{
 Preferences nv;
+float af(float v){return v<0?-v:v;}int ri(float v){return (int)(v>=0?v+.5f:v-.5f);}bool ff(float v){return v==v&&v>-1e30f&&v<1e30f;}
 
 /* drive */
 float tarL=0,tarR=0,curL=0,curR=0;uint32_t cmdAt=0,driveAt=0;bool fs=false,retracing=false;
 float lim(float v){float m=constrain(settings.speed,20,100);return constrain(v,-m,m);}
-void motorWrite(uint8_t en,uint8_t a,uint8_t b,float v,bool inv){int c=constrain((int)roundf(v),-100,100);if(inv)c=-c;int d=map(abs(c),0,100,0,255);if(c>0){digitalWrite(a,HIGH);digitalWrite(b,LOW);}else if(c<0){digitalWrite(a,LOW);digitalWrite(b,HIGH);}else{digitalWrite(a,LOW);digitalWrite(b,LOW);d=0;}analogWrite(en,d);}
+void motorWrite(uint8_t en,uint8_t a,uint8_t b,float v,bool inv){int c=constrain(ri(v),-100,100);if(inv)c=-c;int d=map(abs(c),0,100,0,255);if(c>0){digitalWrite(a,HIGH);digitalWrite(b,LOW);}else if(c<0){digitalWrite(a,LOW);digitalWrite(b,HIGH);}else{digitalWrite(a,LOW);digitalWrite(b,LOW);d=0;}analogWrite(en,d);}
 void driveWrite(){motorWrite(Cfg::DRIVE_L_EN,Cfg::DRIVE_L_IN1,Cfg::DRIVE_L_IN2,curL,Cfg::DRIVE_L_INVERT);motorWrite(Cfg::DRIVE_R_EN,Cfg::DRIVE_R_IN1,Cfg::DRIVE_R_IN2,curR,Cfg::DRIVE_R_INVERT);}
-float ramp(float c,float t,float dt){if(fabsf(t-c)<.1f)return t;bool rev=(c>0&&t<0)||(c<0&&t>0);float rate=rev?Cfg::REVERSE:(fabsf(t)<fabsf(c)?Cfg::DECEL:Cfg::ACCEL),d=rate*dt;if(rev)return c>0?max(0.0f,c-d):min(0.0f,c+d);return c<t?min(t,c+d):max(t,c-d);}
+float ramp(float c,float t,float dt){if(af(t-c)<.1f)return t;bool rev=(c>0&&t<0)||(c<0&&t>0);float rate=rev?Cfg::REVERSE:(af(t)<af(c)?Cfg::DECEL:Cfg::ACCEL),d=rate*dt;if(rev)return c>0?max(0.0f,c-d):min(0.0f,c+d);return c<t?min(t,c+d):max(t,c-d);}
 constexpr uint16_t HIST_STEP=250,HIST_N=Cfg::RETRACE_MS/HIST_STEP;struct Hist{int8_t l,r;};Hist hist[HIST_N];
 uint16_t histHead=0,histCount=0,retrIdx=0,retrRemain=0;uint32_t histAt=0,retrAt=0;
 void clearHistory(){histHead=histCount=retrIdx=retrRemain=0;}
-void historyUpdate(uint32_t n){if(retracing||fs||n-histAt<HIST_STEP)return;histAt=n;hist[histHead]={(int8_t)constrain((int)roundf(curL),-100,100),(int8_t)constrain((int)roundf(curR),-100,100)};histHead=(histHead+1)%HIST_N;if(histCount<HIST_N)histCount++;}
+void historyUpdate(uint32_t n){if(retracing||fs||n-histAt<HIST_STEP)return;histAt=n;hist[histHead]={(int8_t)constrain(ri(curL),-100,100),(int8_t)constrain(ri(curR),-100,100)};histHead=(histHead+1)%HIST_N;if(histCount<HIST_N)histCount++;}
 void zeroMotionPreserveHistory(){tarL=tarR=curL=curR=0;driveWrite();}
 void beginRetrace(uint32_t n){zeroMotionPreserveHistory();fs=true;retracing=false;if(!histCount)return;uint16_t i=(histHead+HIST_N-1)%HIST_N,k=histCount;while(k&&!hist[i].l&&!hist[i].r){i=(i+HIST_N-1)%HIST_N;k--;}if(!k)return;retrIdx=i;retrRemain=k;retrAt=n;retracing=true;}
 void retraceUpdate(uint32_t n){if(!retracing||n-retrAt<HIST_STEP)return;retrAt=n;if(!retrRemain){tarL=tarR=curL=curR=0;driveWrite();retracing=false;return;}Hist h=hist[retrIdx];tarL=constrain(-(int)h.l,-Cfg::RETRACE_MAX_SPEED,Cfg::RETRACE_MAX_SPEED);tarR=constrain(-(int)h.r,-Cfg::RETRACE_MAX_SPEED,Cfg::RETRACE_MAX_SPEED);retrIdx=(retrIdx+HIST_N-1)%HIST_N;retrRemain--;}
-void driveUpdate(){uint32_t n=millis();if(!retracing&&!fs&&n-cmdAt>Cfg::DRIVE_LEASE_MS&&(fabsf(tarL)>.1f||fabsf(tarR)>.1f))tarL=tarR=0;retraceUpdate(n);historyUpdate(n);if(n-driveAt<10)return;float dt=min(n-driveAt,50UL)/1000.0f;driveAt=n;curL=ramp(curL,tarL,dt);curR=ramp(curR,tarR,dt);driveWrite();}
+void driveUpdate(){uint32_t n=millis();if(!retracing&&!fs&&n-cmdAt>Cfg::DRIVE_LEASE_MS&&(af(tarL)>.1f||af(tarR)>.1f))tarL=tarR=0;retraceUpdate(n);historyUpdate(n);if(n-driveAt<10)return;float dt=min(n-driveAt,50UL)/1000.0f;driveAt=n;curL=ramp(curL,tarL,dt);curR=ramp(curR,tarR,dt);driveWrite();}
 void motionStopInternal(){tarL=tarR=curL=curR=0;retracing=fs=false;clearHistory();driveWrite();}
 
-/* energy basis: Android computes EEM percentage */
+/* energy basis */
 uint32_t energyAt=0,driveEqMs=0,mqOnTotalMs=0;
-void energyUpdate(){uint32_t n=millis();if(!energyAt){energyAt=n;return;}uint32_t dt=n-energyAt;if(dt<100)return;energyAt=n;dt=min(dt,1000UL);uint16_t load=(uint16_t)constrain((int)(fabsf(curL)+fabsf(curR)),0,200);driveEqMs+=(uint32_t)(((uint64_t)dt*load)/200U);if(digitalRead(Cfg::RELAY_MQ)==Cfg::RELAY_ON)mqOnTotalMs+=dt;}
+void energyUpdate(){uint32_t n=millis();if(!energyAt){energyAt=n;return;}uint32_t dt=n-energyAt;if(dt<100)return;energyAt=n;dt=min(dt,1000UL);uint16_t load=(uint16_t)constrain((int)(af(curL)+af(curR)),0,200);driveEqMs+=(uint32_t)(((uint64_t)dt*load)/200U);if(digitalRead(Cfg::RELAY_MQ)==Cfg::RELAY_ON)mqOnTotalMs+=dt;}
 
 /* MQ power */
 bool mqPowerOn=false;uint32_t mqPowerAt=0;
@@ -42,7 +42,7 @@ bool rd(uint8_t a,uint8_t r,uint8_t*b,uint8_t n){Wire.beginTransmission(a);Wire.
 uint8_t rd8(uint8_t a,uint8_t r){uint8_t v=0;rd(a,r,&v,1);return v;}
 uint16_t u16(const uint8_t*p){return (uint16_t)p[0]|((uint16_t)p[1]<<8);}int16_t s16(const uint8_t*p){return (int16_t)u16(p);}
 
-/* ADS1115: direct single-shot, ±6.144 V, 860 SPS */
+/* ADS1115 */
 bool ads1ok=false,ads2ok=false;uint32_t adsHealthAt=0;
 struct Reading{uint16_t raw=0;float adc=NAN,ao=NAN,rs=NAN,ratio=NAN;bool ok=false;uint32_t sampleUs=0,scanCycle=0,channelOffsetUs=0;};
 Reading mq[Cfg::MQ_N];uint32_t mqAt=0,mqScanCycle=0,mqCycleStartUs=0;uint8_t mqIndex=0;
@@ -50,10 +50,10 @@ bool adsOK(uint8_t n){return n?ads2ok:ads1ok;}
 bool adsBegin(uint8_t n){bool ok=probe(n?Cfg::ADS2_ADDR:Cfg::ADS1_ADDR);if(n)ads2ok=ok;else ads1ok=ok;return ok;}
 int16_t adsRead(uint8_t a,uint8_t ch){uint16_t cfg=0x8000|((uint16_t)(4+ch)<<12)|0x0100|0x00E0|0x0003;if(!wr16(a,1,cfg))return INT16_MIN;delayMicroseconds(1300);uint8_t b[2];if(!rd(a,0,b,2))return INT16_MIN;return (int16_t)(((uint16_t)b[0]<<8)|b[1]);}
 void adsHealthUpdate(){uint32_t n=millis();if(n-adsHealthAt<Cfg::ADS_REPROBE_MS)return;adsHealthAt=n;bool p1=probe(Cfg::ADS1_ADDR),p2=probe(Cfg::ADS2_ADDR);if(!p1)ads1ok=false;else if(!ads1ok)adsBegin(0);if(!p2)ads2ok=false;else if(!ads2ok)adsBegin(1);}
-void readMQ(uint8_t i){const auto&c=Cfg::mq[i];Reading&r=mq[i];if(!mqPowerOn||!adsOK(c.ads)){r=Reading();return;}int32_t sum=0;uint8_t got=0,a=c.ads?Cfg::ADS2_ADDR:Cfg::ADS1_ADDR;for(uint8_t n=0;n<Cfg::ADC_SAMPLES;n++){int16_t x=adsRead(a,c.ch);if(x==INT16_MIN)continue;sum+=x;got++;}if(!got){r=Reading();if(c.ads)ads2ok=false;else ads1ok=false;return;}uint32_t sampled=micros();int32_t av=sum/got;if(av<0)av=0;r.raw=(uint16_t)av;r.adc=r.ao=av*(Cfg::ADS_FULL_SCALE_V/32768.0f);r.sampleUs=sampled;r.scanCycle=mqScanCycle;r.channelOffsetUs=sampled-mqCycleStartUs;if(r.ao<=.01f||r.ao>=Cfg::MQ_VCC){r.ok=false;return;}r.rs=Cfg::RL*(Cfg::MQ_VCC-r.ao)/r.ao;r.ratio=r.rs/c.r0;r.ok=isfinite(r.rs)&&r.rs>0;}
+void readMQ(uint8_t i){const auto&c=Cfg::mq[i];Reading&r=mq[i];if(!mqPowerOn||!adsOK(c.ads)){r=Reading();return;}int32_t sum=0;uint8_t got=0,a=c.ads?Cfg::ADS2_ADDR:Cfg::ADS1_ADDR;for(uint8_t n=0;n<Cfg::ADC_SAMPLES;n++){int16_t x=adsRead(a,c.ch);if(x==INT16_MIN)continue;sum+=x;got++;}if(!got){r=Reading();if(c.ads)ads2ok=false;else ads1ok=false;return;}uint32_t sampled=micros();int32_t av=sum/got;if(av<0)av=0;r.raw=(uint16_t)av;r.adc=r.ao=av*(Cfg::ADS_FULL_SCALE_V/32768.0f);r.sampleUs=sampled;r.scanCycle=mqScanCycle;r.channelOffsetUs=sampled-mqCycleStartUs;if(r.ao<=.01f||r.ao>=Cfg::MQ_VCC){r.ok=false;return;}r.rs=Cfg::RL*(Cfg::MQ_VCC-r.ao)/r.ao;r.ratio=r.rs/c.r0;r.ok=ff(r.rs)&&r.rs>0;}
 void mqUpdate(){uint32_t n=millis();uint16_t slot=Cfg::MQ_PERIOD/Cfg::MQ_N;if(slot<2)slot=2;if(n-mqAt<slot)return;mqAt=n;if(!mqIndex){if(++mqScanCycle==0)mqScanCycle=1;mqCycleStartUs=micros();}readMQ(mqIndex);if(++mqIndex>=Cfg::MQ_N)mqIndex=0;}
 
-/* compact BME280/BMP280: chamber environment */
+/* BME280/BMP280 chamber environment */
 struct EnvCal{uint16_t T1,P1;int16_t T2,T3,P2,P3,P4,P5,P6,P7,P8,P9,H2,H4,H5;uint8_t H1,H3;int8_t H6;};EnvCal ec{};
 uint8_t envType=0,envAddr=0,envId=0;float temp=NAN,hum=NAN,press=NAN;uint32_t envAt=0;int32_t tFine=0;
 bool envCal(){uint8_t b[24];if(!rd(envAddr,0x88,b,24))return false;ec.T1=u16(b);ec.T2=s16(b+2);ec.T3=s16(b+4);ec.P1=u16(b+6);ec.P2=s16(b+8);ec.P3=s16(b+10);ec.P4=s16(b+12);ec.P5=s16(b+14);ec.P6=s16(b+16);ec.P7=s16(b+18);ec.P8=s16(b+20);ec.P9=s16(b+22);if(envType==1){ec.H1=rd8(envAddr,0xA1);uint8_t h[7];if(!rd(envAddr,0xE1,h,7))return false;ec.H2=s16(h);ec.H3=h[2];int16_t h4=(h[3]<<4)|(h[4]&15),h5=(h[5]<<4)|(h[4]>>4);if(h4&0x800)h4|=0xF000;if(h5&0x800)h5|=0xF000;ec.H4=h4;ec.H5=h5;ec.H6=(int8_t)h[6];}return true;}
@@ -62,8 +62,9 @@ void envBegin(){const uint8_t aa[]={0x76,0x77};for(uint8_t a:aa){if(!probe(a))co
 void envUpdate(){if(!envType||millis()-envAt<Cfg::ENV_PERIOD)return;envAt=millis();envRead();}
 
 /* sound / LDR / IR */
+uint16_t isqrt(uint32_t x){uint32_t op=x,res=0,one=1UL<<30;while(one>op)one>>=2;while(one){if(op>=res+one){op-=res+one;res=(res>>1)+one;}else res>>=1;one>>=2;}return (uint16_t)res;}
 float soundRms=NAN,soundP2P=NAN;uint32_t soundAt=0;
-void soundUpdate(){uint32_t n=millis();if(n-soundAt<Cfg::SOUND_PERIOD)return;soundAt=n;float mean=0,m2=0;uint16_t lo=4095,hi=0;for(uint16_t k=1;k<=Cfg::SOUND_SAMPLES;k++){uint16_t x=analogRead(Cfg::SOUND_PIN);lo=min(lo,x);hi=max(hi,x);float d=x-mean;mean+=d/k;m2+=d*(x-mean);}constexpr float V=3.3f/4095.0f;soundRms=sqrtf(m2/Cfg::SOUND_SAMPLES)*V;soundP2P=(hi-lo)*V;}
+void soundUpdate(){uint32_t n=millis();if(n-soundAt<Cfg::SOUND_PERIOD)return;soundAt=n;uint32_t sum=0,sq=0;uint16_t lo=4095,hi=0;for(uint16_t k=0;k<Cfg::SOUND_SAMPLES;k++){uint16_t x=analogRead(Cfg::SOUND_PIN);sum+=x;sq+=(uint32_t)x*x;lo=min(lo,x);hi=max(hi,x);}uint32_t mean=sum/Cfg::SOUND_SAMPLES,var=sq/Cfg::SOUND_SAMPLES;var=var>mean*mean?var-mean*mean:0;constexpr float V=3.3f/4095.0f;soundRms=isqrt(var)*V;soundP2P=(hi-lo)*V;}
 bool irWarning=false;uint8_t irLevel=HIGH;uint32_t irAt=0;bool ultraWarning=false;
 void hazardAlert(){Alerts::setIr(irWarning||ultraWarning);}
 void irUpdate(){uint32_t n=millis();if(n-irAt<Cfg::IR_PERIOD)return;irAt=n;irLevel=digitalRead(Cfg::IR_PIN);irWarning=irLevel==Cfg::IR_ACTIVE;hazardAlert();}
@@ -73,11 +74,11 @@ uint8_t ldrLevel=HIGH;uint32_t ldrAt=0;void ldrUpdate(){uint32_t n=millis();if(n
 uint16_t batteryRaw=0;float batteryV=NAN;uint32_t batteryAt=0;
 void batteryUpdate(){uint32_t n=millis();if(n-batteryAt<Cfg::BATTERY_PERIOD)return;batteryAt=n;uint32_t s=0;for(uint8_t i=0;i<8;i++)s+=analogRead(Cfg::BATTERY_PIN);batteryRaw=(uint16_t)(s/8);batteryV=batteryRaw*(3.3f/4095.0f)*Cfg::BAT_DIV;}
 
-/* front ultrasonic, non-blocking echo state machine */
+/* ultrasonic */
 float ultraCm=NAN;uint8_t ultraState=0;uint32_t ultraAt=0,ultraPulseAt=0,ultraRiseUs=0;
-void ultraUpdate(){uint32_t now=millis(),us=micros();if(!ultraState){if(now-ultraAt<Cfg::ULTRA_PERIOD)return;ultraAt=now;digitalWrite(Cfg::ULTRA_TRIG_PIN,LOW);delayMicroseconds(2);digitalWrite(Cfg::ULTRA_TRIG_PIN,HIGH);delayMicroseconds(10);digitalWrite(Cfg::ULTRA_TRIG_PIN,LOW);ultraPulseAt=micros();ultraState=1;return;}if(ultraState==1){if(digitalRead(Cfg::ULTRA_ECHO_PIN)){ultraRiseUs=us;ultraState=2;return;}if(us-ultraPulseAt>Cfg::ULTRA_TIMEOUT_US){ultraCm=NAN;ultraWarning=false;ultraState=0;hazardAlert();}}else{if(!digitalRead(Cfg::ULTRA_ECHO_PIN)){uint32_t d=us-ultraRiseUs;ultraCm=d*0.01715f;ultraWarning=isfinite(ultraCm)&&ultraCm>1&&ultraCm<Cfg::ULTRA_WARN_CM;ultraState=0;hazardAlert();return;}if(us-ultraRiseUs>Cfg::ULTRA_TIMEOUT_US){ultraCm=NAN;ultraWarning=false;ultraState=0;hazardAlert();}}}
+void ultraUpdate(){uint32_t now=millis(),us=micros();if(!ultraState){if(now-ultraAt<Cfg::ULTRA_PERIOD)return;ultraAt=now;digitalWrite(Cfg::ULTRA_TRIG_PIN,LOW);delayMicroseconds(2);digitalWrite(Cfg::ULTRA_TRIG_PIN,HIGH);delayMicroseconds(10);digitalWrite(Cfg::ULTRA_TRIG_PIN,LOW);ultraPulseAt=micros();ultraState=1;return;}if(ultraState==1){if(digitalRead(Cfg::ULTRA_ECHO_PIN)){ultraRiseUs=us;ultraState=2;return;}if(us-ultraPulseAt>Cfg::ULTRA_TIMEOUT_US){ultraCm=NAN;ultraWarning=false;ultraState=0;hazardAlert();}}else{if(!digitalRead(Cfg::ULTRA_ECHO_PIN)){uint32_t d=us-ultraRiseUs;ultraCm=d*0.01715f;ultraWarning=ff(ultraCm)&&ultraCm>1&&ultraCm<Cfg::ULTRA_WARN_CM;ultraState=0;hazardAlert();return;}if(us-ultraRiseUs>Cfg::ULTRA_TIMEOUT_US){ultraCm=NAN;ultraWarning=false;ultraState=0;hazardAlert();}}}
 
-/* compact DS18B20 one-wire internal temperature, no external library */
+/* DS18B20 internal temperature, no library */
 float internalTemp=NAN;bool tempPending=false;uint32_t internalTempAt=0;
 bool owReset(){pinMode(Cfg::INTERNAL_TEMP_PIN,OUTPUT);digitalWrite(Cfg::INTERNAL_TEMP_PIN,LOW);delayMicroseconds(480);pinMode(Cfg::INTERNAL_TEMP_PIN,INPUT_PULLUP);delayMicroseconds(70);bool ok=!digitalRead(Cfg::INTERNAL_TEMP_PIN);delayMicroseconds(410);return ok;}
 void owBit(bool b){pinMode(Cfg::INTERNAL_TEMP_PIN,OUTPUT);digitalWrite(Cfg::INTERNAL_TEMP_PIN,LOW);if(b){delayMicroseconds(6);pinMode(Cfg::INTERNAL_TEMP_PIN,INPUT_PULLUP);delayMicroseconds(64);}else{delayMicroseconds(60);pinMode(Cfg::INTERNAL_TEMP_PIN,INPUT_PULLUP);delayMicroseconds(10);}}
@@ -89,10 +90,10 @@ void internalTempUpdate(){uint32_t n=millis();if(tempPending){if(n-internalTempA
 
 /* measurement */
 enum Stage:uint8_t{IDLE,WARM,MEASURE,READY,ERROR};Stage stage=IDLE;bool measurePower=false;uint32_t stageAt=0,sampleAt=0;
-uint32_t rawSum[Cfg::MQ_N]={};float adcSum[Cfg::MQ_N]={},aoSum[Cfg::MQ_N]={},rsSum[Cfg::MQ_N]={},logSum[Cfg::MQ_N]={};uint16_t cnt[Cfg::MQ_N]={},rcnt[Cfg::MQ_N]={};
-void clearSums(){memset(rawSum,0,sizeof(rawSum));memset(adcSum,0,sizeof(adcSum));memset(aoSum,0,sizeof(aoSum));memset(rsSum,0,sizeof(rsSum));memset(logSum,0,sizeof(logSum));memset(cnt,0,sizeof(cnt));memset(rcnt,0,sizeof(rcnt));}
+uint32_t rawSum[Cfg::MQ_N]={};float adcSum[Cfg::MQ_N]={},aoSum[Cfg::MQ_N]={},rsSum[Cfg::MQ_N]={};uint16_t cnt[Cfg::MQ_N]={};
+void clearSums(){memset(rawSum,0,sizeof(rawSum));memset(adcSum,0,sizeof(adcSum));memset(aoSum,0,sizeof(aoSum));memset(rsSum,0,sizeof(rsSum));memset(cnt,0,sizeof(cnt));}
 void resetMeasurement(){clearSums();measurePower=false;stageAt=sampleAt=0;stage=IDLE;}
-void collect(){if(!measurePower)return;for(uint8_t i=0;i<Cfg::MQ_N;i++){if(!mq[i].ok)continue;rawSum[i]+=mq[i].raw;adcSum[i]+=mq[i].adc;aoSum[i]+=mq[i].ao;rsSum[i]+=mq[i].rs;cnt[i]++;if(mq[i].ratio>0&&isfinite(mq[i].ratio)){logSum[i]+=logf(mq[i].ratio);rcnt[i]++;}}}
+void collect(){if(!measurePower)return;for(uint8_t i=0;i<Cfg::MQ_N;i++){if(!mq[i].ok)continue;rawSum[i]+=mq[i].raw;adcSum[i]+=mq[i].adc;aoSum[i]+=mq[i].ao;rsSum[i]+=mq[i].rs;cnt[i]++;}}
 void finishMeasure(){bool ok=false;for(uint8_t i=0;i<Cfg::MQ_N;i++)if(cnt[i]){ok=true;break;}stage=ok?READY:ERROR;}
 void measureUpdate(){if(stage!=MEASURE)return;if(mqPowerOn!=measurePower){resetMeasurement();return;}uint32_t n=millis();if(n-sampleAt>=Cfg::SAMPLE_PERIOD){sampleAt=n;collect();}if(n-stageAt>=(uint32_t)settings.measure*1000UL)finishMeasure();}
 
@@ -103,12 +104,12 @@ void beginLinkHold(uint32_t n){if(linkHold||retracing)return;zeroMotionPreserveH
 void linkWatchUpdate(){if(!linkArmed)return;uint32_t n=millis();if(retracing)return;if(!linkHold){if(n-linkAt>Cfg::LINK_DETECT_MS)beginLinkHold(n);return;}if(n-linkAt<=Cfg::LINK_DETECT_MS){recoverLink(n);return;}if(n-holdAt<Cfg::LINK_HOLD_MS)return;linkHold=false;resetMeasurement();relayRaw(false);beginRetrace(n);}
 
 /* JSON */
-String num(float v,uint8_t d=2){return isfinite(v)?String(v,(unsigned)d):"null";}const char* bj(bool v){return v?"true":"false";}
+String num(float v,uint8_t d=2){return ff(v)?String(v,(unsigned)d):"null";}const char* bj(bool v){return v?"true":"false";}
 void loadSettings(){nv.begin(Cfg::NVS,false);settings.cam=nv.getString("camIP",Cfg::CAM);settings.speed=constrain(nv.getInt("speed",100),20,100);uint32_t w=nv.getUInt("warmup",Cfg::OPERATIONAL_WARMUP_SEC),m=nv.getUInt("measure",Cfg::ANALYSIS_WINDOW_SEC);settings.warm=(uint16_t)min(w,3600UL);settings.measure=(uint16_t)constrain(m,5UL,600UL);}
 String envJson(){return "{\"ok\":"+String(bj(envType))+",\"t\":"+num(temp,2)+",\"h\":"+num(hum,2)+",\"p\":"+num(press,1)+"}";}
 String acquisitionJson(){return "{\"model\":\"ADS1115\",\"rate_sps\":"+String(Cfg::ADS_RATE_SPS)+",\"gain\":\"GAIN_TWOTHIRDS\",\"full_scale_v\":"+num(Cfg::ADS_FULL_SCALE_V,3)+",\"supply_v\":"+num(Cfg::ADS_SUPPLY_V,3)+",\"conversions_per_channel\":"+String(Cfg::ADC_SAMPLES)+",\"scan_period_ms\":"+String(Cfg::MQ_PERIOD)+",\"channels\":"+String(Cfg::MQ_N)+",\"sequential\":true}";}
-String mqJson(bool avg){bool powered=avg?measurePower:mqPowerOn;String j="{";uint32_t nowUs=micros();for(uint8_t i=0;i<Cfg::MQ_N;i++){if(i)j+=",";const auto&c=Cfg::mq[i];j+="\""+String(c.name)+"\":{";if(avg){if(!cnt[i])j+="\"ok\":false";else{float n=cnt[i];j+="\"ok\":true,\"raw\":"+num(rawSum[i]/n,1)+",\"adc\":"+num(adcSum[i]/n,3)+",\"ao\":"+num(aoSum[i]/n,3)+",\"rs\":"+num(rsSum[i]/n,3)+",\"ratio\":"+(rcnt[i]?num(expf(logSum[i]/rcnt[i]),3):"null");}}else{j+="\"ok\":"+String(bj(mq[i].ok))+",\"raw\":"+String(mq[i].raw)+",\"adc\":"+num(mq[i].adc,3)+",\"ao\":"+num(mq[i].ao,3)+",\"rs\":"+num(mq[i].rs,3)+",\"ratio\":"+num(mq[i].ratio,3);if(mq[i].sampleUs)j+=",\"sample_us\":"+String(mq[i].sampleUs)+",\"scan_cycle\":"+String(mq[i].scanCycle)+",\"channel_offset_us\":"+String(mq[i].channelOffsetUs)+",\"age_us\":"+String(nowUs-mq[i].sampleUs);}j+=",\"powered\":"+String(bj(powered))+",\"relay\":1,\"row\":1,\"ads\":"+String(c.ads)+",\"ch\":"+String(c.ch)+",\"r0\":"+num(c.r0,3)+",\"r0_calibrated\":false,\"r0_source\":\"firmware_default\"}";}return j+"}";}
-String driveJson(){return "{\"driver\":\"L298N\",\"left\":"+String((int)roundf(curL))+",\"right\":"+String((int)roundf(curR))+",\"failsafe\":"+String(bj(fs))+",\"retrace\":"+String(bj(retracing))+",\"hold\":"+String(bj(linkHold))+",\"history\":"+String(histCount)+",\"pins\":{\"l_en\":"+String(Cfg::DRIVE_L_EN)+",\"l_in1\":"+String(Cfg::DRIVE_L_IN1)+",\"l_in2\":"+String(Cfg::DRIVE_L_IN2)+",\"r_en\":"+String(Cfg::DRIVE_R_EN)+",\"r_in1\":"+String(Cfg::DRIVE_R_IN1)+",\"r_in2\":"+String(Cfg::DRIVE_R_IN2)+"}}";}
+String mqJson(bool avg){bool powered=avg?measurePower:mqPowerOn;String j="{";uint32_t nowUs=micros();for(uint8_t i=0;i<Cfg::MQ_N;i++){if(i)j+=",";const auto&c=Cfg::mq[i];j+="\""+String(c.name)+"\":{";if(avg){if(!cnt[i])j+="\"ok\":false";else{float n=cnt[i],rs=rsSum[i]/n;j+="\"ok\":true,\"raw\":"+num(rawSum[i]/n,1)+",\"adc\":"+num(adcSum[i]/n,3)+",\"ao\":"+num(aoSum[i]/n,3)+",\"rs\":"+num(rs,3)+",\"ratio\":"+num(rs/c.r0,3);}}else{j+="\"ok\":"+String(bj(mq[i].ok))+",\"raw\":"+String(mq[i].raw)+",\"adc\":"+num(mq[i].adc,3)+",\"ao\":"+num(mq[i].ao,3)+",\"rs\":"+num(mq[i].rs,3)+",\"ratio\":"+num(mq[i].ratio,3);if(mq[i].sampleUs)j+=",\"sample_us\":"+String(mq[i].sampleUs)+",\"scan_cycle\":"+String(mq[i].scanCycle)+",\"channel_offset_us\":"+String(mq[i].channelOffsetUs)+",\"age_us\":"+String(nowUs-mq[i].sampleUs);}j+=",\"powered\":"+String(bj(powered))+",\"relay\":1,\"row\":1,\"ads\":"+String(c.ads)+",\"ch\":"+String(c.ch)+",\"r0\":"+num(c.r0,3)+",\"r0_calibrated\":false,\"r0_source\":\"firmware_default\"}";}return j+"}";}
+String driveJson(){return "{\"driver\":\"L298N\",\"left\":"+String(ri(curL))+",\"right\":"+String(ri(curR))+",\"failsafe\":"+String(bj(fs))+",\"retrace\":"+String(bj(retracing))+",\"hold\":"+String(bj(linkHold))+",\"history\":"+String(histCount)+",\"pins\":{\"l_en\":"+String(Cfg::DRIVE_L_EN)+",\"l_in1\":"+String(Cfg::DRIVE_L_IN1)+",\"l_in2\":"+String(Cfg::DRIVE_L_IN2)+",\"r_en\":"+String(Cfg::DRIVE_R_EN)+",\"r_in1\":"+String(Cfg::DRIVE_R_IN1)+",\"r_in2\":"+String(Cfg::DRIVE_R_IN2)+"}}";}
 String healthJson(){return "{\"battery\":{\"v\":"+num(batteryV,2)+",\"raw\":"+String(batteryRaw)+",\"estimated\":true},\"internal_temp\":{\"c\":"+num(internalTemp,2)+",\"gpio\":"+String(Cfg::INTERNAL_TEMP_PIN)+"},\"proximity\":{\"cm\":"+num(ultraCm,1)+",\"warning\":"+String(bj(ultraWarning))+",\"trig\":"+String(Cfg::ULTRA_TRIG_PIN)+",\"echo\":"+String(Cfg::ULTRA_ECHO_PIN)+"},\"energy_basis\":{\"uptime_ms\":"+String(millis())+",\"drive_eq_ms\":"+String(driveEqMs)+",\"mq_on_ms\":"+String(mqOnTotalMs)+"}}";}
 const char* linkState(){return retracing?"retrace":linkHold?"hold":linkLost?"lost":"ok";}uint32_t holdRemaining(){if(!linkHold)return 0;uint32_t e=millis()-holdAt;return e>=Cfg::LINK_HOLD_MS?0:Cfg::LINK_HOLD_MS-e;}
 }
