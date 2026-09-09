@@ -33,6 +33,8 @@ public final class ChemCoreResultEnvelope {
     public final Long chemicalUid;
     public final String chemicalLabel;
     public final double ppm,predictionLow,predictionHigh,oodScore,topPosterior,normalizedEntropy;
+    /** Semantic aliases retained for UI/research code: OOD is represented as a distance/score and top posterior as posterior. */
+    public final double oodDistance,posterior;
     public final String samplingProfileId,featureSchema,modelVersion,note;
     /** Exact scientific library provenance used for this result. Empty means legacy/embedded provenance not yet bound. */
     public final String libraryVersion,librarySha256,librarySourceCommit;
@@ -56,6 +58,7 @@ public final class ChemCoreResultEnvelope {
         this.evidenceTier=evidenceTier==null?ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY:evidenceTier;
         this.chemicalUid=chemicalUid;this.chemicalLabel=chemicalLabel==null?"":chemicalLabel;this.ppm=ppm;
         this.predictionLow=predictionLow;this.predictionHigh=predictionHigh;this.oodScore=oodScore;this.topPosterior=topPosterior;
+        this.oodDistance=oodScore;this.posterior=topPosterior;
         this.normalizedEntropy=normalizedEntropy;this.samplingProfileId=samplingProfileId==null?"":samplingProfileId;
         this.featureSchema=featureSchema==null?ChemCoreFeaturePipeline.SCHEMA_VERSION:featureSchema;
         this.modelVersion=modelVersion==null?"":modelVersion;this.note=note==null?"":note;
