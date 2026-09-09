@@ -26,9 +26,10 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p build/master
-          # 0.10 experimental firmware uses the 4 MB board's Huge APP partition.
-          # ESP32 OTA is not used in this release; firmware is flashed locally.
-          arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1:PartitionScheme=huge_app --warnings all --output-dir build/master firmware/HazRob 2>&1 | tee build/master-size.log
+          # DOIT ESP32 DEVKIT V1 uses the generic ESP32-WROOM target electrically.
+          # The official DOIT menu does not expose PartitionScheme in current core,
+          # therefore the release build uses ESP32 Dev Module + Huge APP (4 MB, no OTA).
+          arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all --output-dir build/master firmware/HazRob 2>&1 | tee build/master-size.log
       - name: Compile ESP32-CAM
         shell: bash
         run: |
