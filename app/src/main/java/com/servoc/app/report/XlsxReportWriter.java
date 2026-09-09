@@ -31,7 +31,7 @@ import java.util.zip.ZipOutputStream;
 /** Creates a complete XLSX in memory and binds every scientific result to the exact recorded session. */
 final class XlsxReportWriter {
     private XlsxReportWriter(){}
-    private static final String FOOTER="HazRob "+ReleaseAudit.VERSION+" • تصميم المستشار/ شهاب الصهباني.";
+    private static final String FOOTER="HazRob "+ReleaseAudit.VERSION+" • إعداد المشروع/ "+ReleaseAudit.PROJECT_PREPARERS+".";
 
     static void write(OutputStream destination,ExperimentQueries.Record r,ChemicalRepository chemicals)throws Exception{
         JSONObject snapshot=json(r.payload),analytics=json(r.analytics);
