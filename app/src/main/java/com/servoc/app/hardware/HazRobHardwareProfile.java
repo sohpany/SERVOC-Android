@@ -6,7 +6,7 @@ import com.servoc.app.chemical.GasEngine;
 public final class HazRobHardwareProfile {
     private HazRobHardwareProfile(){}
 
-    public static final String ID="hazrob-0.10-1r8mq-alert-ldr-l298n-6gpio-v1";
+    public static final String ID="hazrob-0.10-1r8mq-l298n6-batt-ultra-ldr-v1";
     public static final String DRIVE_DRIVER="L298N";
     public static final int DRIVE_L_EN=16;
     public static final int DRIVE_L_IN1=18;
@@ -14,17 +14,30 @@ public final class HazRobHardwareProfile {
     public static final int DRIVE_R_EN=17;
     public static final int DRIVE_R_IN1=19;
     public static final int DRIVE_R_IN2=32;
+
     public static final int MQ_GROUPS=1;
     public static final int RELAY_CHANNELS=1;
     public static final int INSTALLED_RELAY_MASK=0x01;
     public static final int MQ_RELAY_GPIO=25;
-    /** Logic/PWM alert output. A low-impedance speaker requires an external transistor/driver. */
+
+    /** Reserved alert signal. The measured ~8 ohm speaker is not installed and must not be driven directly. */
     public static final int ALERT_GPIO=26;
+    public static final boolean SPEAKER_INSTALLED=false;
     public static final int LDR_GPIO=34;
+    public static final boolean LDR_QUANTITATIVE_LUX=false;
     public static final int IR_GPIO=35;
     public static final int SOUND_GPIO=36;
+    public static final int BATTERY_ADC_GPIO=33;
+    public static final int ULTRASONIC_TRIG_GPIO=23;
+    public static final int ULTRASONIC_ECHO_GPIO=39;
+    /** Reserved only. No temperature-sensor model/driver is assumed until hardware is purchased. */
+    public static final int INTERNAL_TEMP_RESERVED_GPIO=14;
+    public static final boolean INTERNAL_TEMP_INSTALLED=false;
+
     public static final int I2C_SDA_GPIO=21;
     public static final int I2C_SCL_GPIO=22;
+    /** Future BH1750-style quantitative illuminance may share I2C; no lux sensor is installed in 0.10. */
+    public static final boolean LUX_SENSOR_INSTALLED=false;
 
     /** Fixed HazRob hardware design value: both ADS1115 boards are supplied from the regulated 5 V rail. */
     public static final float ADS_SUPPLY_V=5.0f;
