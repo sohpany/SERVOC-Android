@@ -25,7 +25,7 @@ import java.util.Locale;
 /** HazRob analytical report facade. All new reports bind charts and ChemCore provenance to the exact measurement session. */
 public final class ReportExporter {
     private ReportExporter(){}
-    private static final String FOOTER="HazRob "+ReleaseAudit.VERSION+" • تصميم المستشار/ شهاب الصهباني.";
+    private static final String FOOTER="HazRob "+ReleaseAudit.VERSION+" • إعداد المشروع/ "+ReleaseAudit.PROJECT_PREPARERS+".";
 
     public static void writePdf(OutputStream out,ExperimentQueries.Record r)throws Exception{writePdf(out,r,null);}
     public static void writePdf(OutputStream out,List<ExperimentQueries.Record> rows)throws Exception{if(rows==null||rows.isEmpty())throw new IllegalArgumentException("no experiment");writePdf(out,rows.get(0),null);}
