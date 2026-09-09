@@ -1,6 +1,6 @@
 # HazRob master ESP32 firmware — 0.10.0
 
-Target: **DOIT ESP32 DEVKIT V1** · API v4 · hardware profile `hazrob-0.10-1r8mq-l298n6-batt-ultra-ldr-v1`.
+Hardware target: **DOIT ESP32 DEVKIT V1 / ESP32-WROOM-compatible board** · API v4 · hardware profile `hazrob-0.10-1r8mq-l298n6-batt-ultra-ldr-v1`.
 
 ## Design boundary
 
@@ -12,7 +12,7 @@ The 0.10 implementation uses compact direct-I2C ADS1115 and BME280/BMP280 driver
 
 0.10 experimental firmware is built for the board's **4 MB flash** with **Huge APP** partitioning. ESP32 firmware OTA is not used in this release; firmware is flashed locally. CI still enforces an absolute binary-size ceiling so the larger partition is not treated as permission for uncontrolled growth.
 
-When compiling manually in Arduino IDE, use the equivalent **Huge APP** partition scheme for DOIT ESP32 DEVKIT V1.
+**Manual Arduino IDE build for this release:** select **ESP32 Dev Module** as the board and select **Huge APP (3MB No OTA / 1MB SPIFFS, or the equivalent Huge APP entry provided by the installed ESP32 core)**. The physical board may still be a DOIT ESP32 DEVKIT V1; the generic ESP32 Dev Module menu is used because current Arduino-ESP32 DOIT definitions do not expose the required Huge APP partition option. If you compile with the default DOIT partition, Arduino will report roughly 84% even though the same binary is about one-third of the intended Huge APP partition.
 
 ## Network
 
@@ -89,7 +89,7 @@ Local HTTP endpoints remain: `/drive`, `/stop`, `/motion/stop`, `/estop`, `/sens
 
 ## Remote path
 
-MQTT 3.1.1 over TLS uses provisioned credentials/CA outside source control. Commands carry session/sequence/nonce/TTL and application ACK semantics. A retained Last Will publishes an unavailable state after an unexpected disconnect. The master also provides Internet routing to ESP32-CAM when WAN is ready.
+MQTT 3.1.1 over TLS obtains the active prototype MQTT username/password at runtime from the Render bootstrap service over HTTPS. Whitespace is stripped from the returned password before MQTT authentication. The trusted root CA is embedded in `RemoteCloudConfig.h`. `RemoteCloudSecrets.h` is therefore **not required for the normal 0.10 field build**; it exists only as an optional controlled fallback. Commands carry session/sequence/nonce/TTL and application ACK semantics. A retained Last Will publishes an unavailable state after an unexpected disconnect. The master also provides Internet routing to ESP32-CAM when WAN is ready.
 
 ## Capacity policy
 
