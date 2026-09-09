@@ -23,6 +23,7 @@ import com.servoc.app.communication.RemoteServiceProfile;
 import com.servoc.app.communication.RemoteSessionManager;
 import com.servoc.app.communication.RemoteWifiCredentialStore;
 import com.servoc.app.communication.RobotApi;
+import com.servoc.app.communication.WifiRoute;
 import com.servoc.app.ui.UiKit;
 
 import org.json.JSONObject;
@@ -80,16 +81,22 @@ public final class ConnectionGate {
         busy("فحص الاتصال المباشر...",1);
         io.execute(()->{
             try{
+                // Critical ordering: pin local HTTP to the phone's Wi-Fi network BEFORE
+                // probing 192.168.4.1. Otherwise Android may route the admission probe
+                // through cellular/default Internet and reject a healthy HazRob SoftAP.
+                WifiRoute.bindConnectedWifi(a);
                 JSONObject d=local.diagnosticsRaw();int api=d.optInt("api",d.optInt("api_version",0));if(api<3)throw new IllegalStateException("API");
                 new RemoteSessionManager(a,prefs).close();
                 prefs.edit().putString("connection_mode","direct").apply();
                 ui.post(()->listener.onReady(Mode.DIRECT));
-            }catch(Exception e){ui.post(()->{status.setText("تعذر الوصول إلى HazRob عبر Wi-Fi");status.setTextColor(0xFFD84315);showBack();});}
+            }catch(Exception e){ui.post(()->{status.setText("تعذر الوصول إلى HazRob عبر Wi-Fi. تأكد من اتصال الهاتف بشبكة HazRob ثم أعد المحاولة.");status.setTextColor(0xFFD84315);showBack();});}
         });
     }
 
     /** Remote mode uses the same operator command set as Direct mode; no guest token is requested. */
     private void openRemote(){
+        // Remote traffic must return to Android's normal default route (Internet/cellular).
+        WifiRoute.unbind(a);
         prefs.edit().putString("remote_operator_role","operator").apply();
         connectRemote(new RemoteSessionManager(a,prefs));
     }
@@ -127,10 +134,13 @@ public final class ConnectionGate {
         busy("إرسال إعدادات الشبكة إلى الروبوت...",1);
         io.execute(()->{
             try{
+                // Provisioning also targets the local master at 192.168.4.1.
+                WifiRoute.bindConnectedWifi(a);
                 local.remoteProvision(ssid,password);
                 RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(a,prefs);if(remember)store.save(ssid,password);else store.clear();
                 prefs.edit().putBoolean("remote_wan_provisioned",true).apply();
                 ui.post(()->{status.setText("تم إرسال الإعدادات. الروبوت ينتقل الآن إلى الشبكة الخارجية؛ أعد الهاتف إلى شبكة الإنترنت المعتادة أو البيانات الخلوية.");status.setTextColor(0xFF245A7A);});
+                WifiRoute.unbind(a);
                 pollRobotRemote();
             }catch(Exception e){ui.post(()->{status.setText("تعذر إرسال الإعدادات. اتصل مؤقتًا بشبكة HazRob المحلية ثم حاول مرة أخرى.");status.setTextColor(0xFFD84315);showBack();});}
         });
