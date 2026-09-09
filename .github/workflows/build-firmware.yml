@@ -38,15 +38,15 @@ jobs:
         run: |
           python3 - <<'PY'
           import re, pathlib, sys
-          # 0.10 release budget: keep at least 15% of the board's configured app partition free.
-          limits={'master':85.0,'camera':85.0}
+          # Experimental 0.10 target requested for both firmwares: <=70% of configured app partition.
+          limits={'master':70.0,'camera':70.0}
           for k,limit in limits.items():
               txt=pathlib.Path(f'build/{k}-size.log').read_text(errors='ignore')
               m=re.search(r'Sketch uses\s+[\d,]+\s+bytes\s*\((\d+(?:\.\d+)?)%\)',txt)
               if not m:
                   print(f'{k}: compiler size percentage not found'); sys.exit(1)
-              pct=float(m.group(1)); print(f'{k}: flash={pct:.1f}% budget<={limit:.1f}%')
-              if pct>limit: sys.exit(f'{k} firmware exceeds release flash budget')
+              pct=float(m.group(1)); print(f'{k}: flash={pct:.1f}% target<={limit:.1f}%')
+              if pct>limit: sys.exit(f'{k} firmware exceeds experimental flash target')
           PY
       - name: Create source ZIPs
         run: |
