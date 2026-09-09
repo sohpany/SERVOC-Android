@@ -10,7 +10,7 @@ Design goals:
 - conservative retry/backoff and request pacing (PubChem asks clients to stay <=5 req/s);
 - explicit unresolved records instead of silently dropping compounds;
 - deterministic output ordering and SHA-256 manifest;
-- current PubChem property names (SMILES and ConnectivitySMILES, not deprecated aliases);
+- current PubChem property names (SMILES, ConnectivitySMILES and Charge);
 - no claim that a PubChem descriptor implies MQ detectability.
 
 Typical use from repository root:
@@ -43,7 +43,8 @@ PUBCHEM_BASE = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
 PUBCHEM_SOURCE = "https://pubchem.ncbi.nlm.nih.gov/"
 UA = "HazRob-ChemCore-molecular-seed/0.10 (+scientific research; provenance-preserving)"
 
-# Names follow the current PubChem PUG REST specification.
+# Names follow the current PubChem PUG REST specification. PubChem calls net/formal
+# molecular charge "Charge"; "FormalCharge" is not a valid PUG REST property tag.
 PROPERTIES = [
     "MolecularFormula",
     "MolecularWeight",
@@ -62,7 +63,7 @@ PROPERTIES = [
     "ExactMass",
     "MonoisotopicMass",
     "HeavyAtomCount",
-    "FormalCharge",
+    "Charge",
     "CovalentUnitCount",
     "DefinedAtomStereoCount",
     "UndefinedAtomStereoCount",
@@ -73,7 +74,7 @@ PROPERTIES = [
 NUMERIC_KEYS = {
     "MolecularWeight", "XLogP", "TPSA", "Complexity", "HBondDonorCount",
     "HBondAcceptorCount", "RotatableBondCount", "ExactMass", "MonoisotopicMass",
-    "HeavyAtomCount", "FormalCharge", "CovalentUnitCount", "DefinedAtomStereoCount",
+    "HeavyAtomCount", "Charge", "CovalentUnitCount", "DefinedAtomStereoCount",
     "UndefinedAtomStereoCount", "DefinedBondStereoCount", "UndefinedBondStereoCount",
 }
 
