@@ -72,7 +72,13 @@ public final class RobotProtocolV4 {
     private static JSONObject ldr(JSONObject diag,JSONObject i){JSONObject x=new JSONObject();try{boolean installed=i!=null&&i.optBoolean("installed",i.has("active")||i.has("level"));x.put("installed",installed);x.put("active",installed&&i.optBoolean("active",diag.optBoolean("ldr",false)));x.put("level",installed&&i.has("level")?i.optInt("level",-1):JSONObject.NULL);x.put("gpio",installed&&i.has("gpio")?i.optInt("gpio",34):34);x.put("quantitative_lux",false);}catch(Exception ignored){}return x;}
     private static JSONObject alert(JSONObject a){JSONObject x=new JSONObject();try{if(a==null)a=new JSONObject();x.put("active",a.optBoolean("active",false));x.put("level",a.optInt("level",0));x.put("name",a.optString("name","none"));x.put("gpio",a.optInt("gpio",26));x.put("gas",Math.max(0,Math.min(2,a.optInt("gas",0))));x.put("ir",a.optBoolean("ir",false));x.put("link",a.optBoolean("link",false));}catch(Exception ignored){}return x;}
 
-    private static JSONObject adc(JSONObject diag,JSONObject data){JSONObject x=new JSONObject();try{JSONObject a=first(data==null?null:data.optJSONObject("adc"),diag==null?null:diag.optJSONObject("adc"));boolean a1=a!=null?a.optBoolean("ads1",false):diag.optBoolean("ads1",false);boolean a2=a!=null?a.optBoolean("ads2",false):diag.optBoolean("ads2",false);x.put("ads1",a1);x.put("ads2",a2);x.put("ads1_address","0x48");x.put("ads2_address","0x49");}catch(Exception ignored){}return x;}
+    private static JSONObject adc(JSONObject diag,JSONObject data){
+        JSONObject x=new JSONObject();try{
+            JSONObject a=first(data==null?null:data.optJSONObject("adc"),diag==null?null:diag.optJSONObject("adc"));boolean a1=a!=null?a.optBoolean("ads1",false):diag.optBoolean("ads1",false);boolean a2=a!=null?a.optBoolean("ads2",false):diag.optBoolean("ads2",false);x.put("ads1",a1);x.put("ads2",a2);x.put("ads1_address","0x48");x.put("ads2_address","0x49");
+            JSONObject provenance=a==null?null:a.optJSONObject("acquisition");if(provenance==null){JSONObject da=diag==null?null:diag.optJSONObject("adc");provenance=da==null?null:da.optJSONObject("acquisition");}
+            if(provenance!=null)x.put("acquisition",new JSONObject(provenance.toString()));
+        }catch(Exception ignored){}return x;
+    }
 
     private static JSONObject link(JSONObject diag){JSONObject x=new JSONObject();try{JSONObject l=diag==null?null:diag.optJSONObject("link");x.put("armed",l!=null?l.optBoolean("armed",false):diag.optBoolean("linkArmed",false));x.put("lost",l!=null?l.optBoolean("lost",false):diag.optBoolean("linkLost",false));x.put("heartbeat_age_ms",l!=null?l.optLong("heartbeat_age_ms",0):diag.optLong("heartbeatAgeMs",0));}catch(Exception ignored){}return x;}
 
@@ -92,6 +98,7 @@ public final class RobotProtocolV4 {
             JSONObject r=source.optJSONObject(hw.key);if(r==null)continue;JSONObject x=new JSONObject();try{
                 boolean ok=r.optBoolean("ok",r.optBoolean("valid",false));x.put("ok",ok);x.put("valid",ok);x.put("status",ok?(averaged?"AVERAGED":"OK"):"INACTIVE");
                 copy(r,x,"raw");copy(r,x,"adc");copy(r,x,"ao");copy(r,x,"rs");copy(r,x,"ratio");copy(r,x,"r0");
+                if(!averaged){copyLong(r,x,"sample_us");copyLong(r,x,"scan_cycle");copyLong(r,x,"channel_offset_us");copyLong(r,x,"age_us");}
                 x.put("relay",1);x.put("row",1);x.put("powered",r.optBoolean("powered",false));x.put("ads",r.has("ads")?r.optInt("ads",hw.adsIndex):hw.adsIndex);x.put("ads_address",String.format(Locale.US,"0x%02X",hw.adsAddress));x.put("ch",r.has("ch")?r.optInt("ch",hw.adcChannel):hw.adcChannel);
                 x.put("firmware_r0_calibrated",r.optBoolean("r0_calibrated",false));x.put("manual_calibration_confirmed",true);x.put("calibration_status","CALIBRATED_MANUAL");ManualR0Calibration.apply(hw.key,x);x.put("r0_loaded",x.optBoolean("r0_calibrated",false));out.put(hw.key,x);
             }catch(Exception ignored){}
@@ -102,4 +109,5 @@ public final class RobotProtocolV4 {
     private static Object finiteAny(JSONObject o,String a,String b){if(o==null)return JSONObject.NULL;if(o.has(a)&&!o.isNull(a))return finite(o,a);return finite(o,b);}
     private static Object finite(JSONObject o,String key){if(o==null||o.isNull(key))return JSONObject.NULL;double v=o.optDouble(key,Double.NaN);return Double.isFinite(v)?v:JSONObject.NULL;}
     private static void copy(JSONObject from,JSONObject to,String key)throws Exception{if(from.has(key)&&!from.isNull(key)){double v=from.optDouble(key,Double.NaN);if(Double.isFinite(v))to.put(key,v);}}
+    private static void copyLong(JSONObject from,JSONObject to,String key)throws Exception{if(from.has(key)&&!from.isNull(key))to.put(key,from.optLong(key));}
 }
