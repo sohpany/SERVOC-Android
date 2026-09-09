@@ -4,6 +4,7 @@ package com.servoc.app;
 public final class ReleaseAudit {
     private ReleaseAudit(){}
     public static final String VERSION="0.10.0";
+    public static final String PROJECT_PREPARERS="شهاب الصهباني، مجدي ذيبان";
     public static final int DATABASE_SCHEMA=8;
     public static final String ESP32_API="HazRob API v4 / firmware 0.10.0 / L298N 4WD GPIO18-27-19-32 / single MQ relay / fixed ADS1115 5V supply / exact session lineage / unified direct+remote transport";
 
