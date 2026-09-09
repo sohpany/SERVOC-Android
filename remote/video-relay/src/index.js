@@ -4,9 +4,10 @@ import { timingSafeEqual } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 
 const PORT = Number(process.env.PORT || 3000);
-const SERVICE_VERSION = "0.9.3-rc2";
+const SERVICE_VERSION = "0.10.0-rc1";
 const PROTOCOL = 2;
-const MAX_JPEG = 1024 * 1024;
+// ESP32-CAM publisher is capped at 160 KiB. Keep bounded headroom without accepting 1 MiB frames.
+const MAX_JPEG = 256 * 1024;
 const MAX_VIEWER_BUFFER = 512 * 1024;
 const PING_MS = 30000;
 const rooms = new Map();
@@ -17,8 +18,9 @@ function safeEq(a,b){const aa=Buffer.from(String(a||"")),bb=Buffer.from(String(b
 function present(v){return typeof v==="string"&&v.length>=8;}
 function distinct(a,b){return present(a)&&present(b)&&!safeEq(a,b);}
 function reject(socket,status,text){const body=Buffer.from(text,"utf8");const reason=status===400?"Bad Request":status===401?"Unauthorized":status===404?"Not Found":"Service Unavailable";try{socket.write(`HTTP/1.1 ${status} ${reason}\r\nConnection: close\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: ${body.length}\r\n\r\n`);socket.write(body);}finally{socket.destroy();}}
-function roomFor(robotId){let room=rooms.get(robotId);if(!room){room={publisher:null,viewers:new Set(),frames:0,lastFrameBytes:0,lastFrameAt:0};rooms.set(robotId,room);}return room;}
+function roomFor(robotId){let room=rooms.get(robotId);if(!room){room={publisher:null,publisherConnectedAt:0,viewers:new Set(),frames:0,lastFrameBytes:0,lastFrameAt:0};rooms.set(robotId,room);}return room;}
 function cleanRoom(robotId,room){if(!room.publisher&&room.viewers.size===0)rooms.delete(robotId);}
+function aggregate(){let publishers=0,viewers=0;for(const room of rooms.values()){if(room.publisher?.readyState===WebSocket.OPEN)publishers++;for(const v of room.viewers)if(v.readyState===WebSocket.OPEN)viewers++;}return {rooms:rooms.size,publishers,viewers};}
 
 function mqttUtf(value){const b=Buffer.from(String(value),"utf8");const h=Buffer.alloc(2);h.writeUInt16BE(b.length);return Buffer.concat([h,b]);}
 function mqttRemainingLength(n){const out=[];do{let d=n%128;n=Math.floor(n/128);if(n>0)d|=0x80;out.push(d);}while(n>0);return Buffer.from(out);}
@@ -73,7 +75,7 @@ const server=http.createServer((req,res)=>{
     const videoAuthConfigured=present(publish)&&present(view)&&distinct(publish,view);
     const bootstrapConfigured=present(bootstrap)&&present(mqttPass)&&present(view)&&distinct(mqttPass,view);
     res.writeHead(200,{"Content-Type":"application/json; charset=utf-8"});
-    res.end(JSON.stringify({ok:true,service:"hazrob-video-relay",version:SERVICE_VERSION,protocol:PROTOCOL,platform:"render",videoAuthConfigured,bootstrapConfigured}));
+    res.end(JSON.stringify({ok:true,service:"hazrob-video-relay",version:SERVICE_VERSION,protocol:PROTOCOL,platform:"render",videoAuthConfigured,bootstrapConfigured,...aggregate()}));
     return;
   }
 
@@ -112,8 +114,9 @@ const server=http.createServer((req,res)=>{
     const room=rooms.get(robotId);
     const publisherOnline=Boolean(room&&room.publisher&&room.publisher.readyState===WebSocket.OPEN);
     const viewers=room?[...room.viewers].filter(v=>v.readyState===WebSocket.OPEN).length:0;
+    const lastFrameAt=room?.lastFrameAt||0;
     res.writeHead(200,{"Content-Type":"application/json; charset=utf-8"});
-    res.end(JSON.stringify({ok:true,service:"hazrob-video-relay",version:SERVICE_VERSION,protocol:PROTOCOL,robot_id:robotId,publisher_online:publisherOnline,viewers,frames:room?.frames||0,last_frame_bytes:room?.lastFrameBytes||0,last_frame_at:room?.lastFrameAt||0}));
+    res.end(JSON.stringify({ok:true,service:"hazrob-video-relay",version:SERVICE_VERSION,protocol:PROTOCOL,robot_id:robotId,publisher_online:publisherOnline,publisher_connected_at:room?.publisherConnectedAt||0,viewers,frames:room?.frames||0,last_frame_bytes:room?.lastFrameBytes||0,last_frame_at:lastFrameAt,last_frame_age_ms:lastFrameAt?Math.max(0,Date.now()-lastFrameAt):null}));
     return;
   }
 
@@ -147,7 +150,7 @@ wss.on("connection",ws=>{
   if(role==="publisher"){
     const old=room.publisher;
     if(old&&old!==ws){try{old.close(4001,"publisher replaced");}catch{}}
-    room.publisher=ws;
+    room.publisher=ws;room.publisherConnectedAt=Date.now();
   }else room.viewers.add(ws);
   ws.on("message",(data,isBinary)=>{
     if(role!=="publisher"||!isBinary)return;
@@ -157,7 +160,7 @@ wss.on("connection",ws=>{
     for(const viewer of room.viewers){if(viewer.readyState!==WebSocket.OPEN||viewer.bufferedAmount>MAX_VIEWER_BUFFER)continue;try{viewer.send(frame,{binary:true,compress:false});}catch{}}
   });
   ws.on("close",()=>{
-    if(role==="publisher"){if(room.publisher===ws)room.publisher=null;}else room.viewers.delete(ws);
+    if(role==="publisher"){if(room.publisher===ws){room.publisher=null;room.publisherConnectedAt=0;}}else room.viewers.delete(ws);
     cleanRoom(robotId,room);
   });
 });
