@@ -1,7 +1,5 @@
 package com.servoc.app.chemcore;
 
-import java.util.Arrays;
-
 /** Empirical open-set gate for a trained chemical/family feature domain. */
 public final class ChemCoreOpenSetGate {
     public static final class Result {
@@ -25,9 +23,11 @@ public final class ChemCoreOpenSetGate {
     public final double minimumCoverage;
 
     private ChemCoreOpenSetGate(MahalanobisModel model, double threshold, double minimumCoverage) {
+        if (model == null) throw new IllegalArgumentException("model required");
+        if (!Double.isFinite(threshold) || threshold <= 0) throw new IllegalArgumentException("positive finite threshold required");
         this.model = model;
         this.threshold = threshold;
-        this.minimumCoverage = minimumCoverage;
+        this.minimumCoverage = clampCoverage(minimumCoverage);
     }
 
     public static ChemCoreOpenSetGate fit(double[][] training, double ridgeFraction,
@@ -37,8 +37,18 @@ public final class ChemCoreOpenSetGate {
         double base = MahalanobisModel.empiricalQuantile(model.trainingDistances(training), empiricalQuantile);
         if (!Double.isFinite(base) || base <= 0) base = Math.sqrt(Math.max(1, model.mean.length));
         double expansion = Double.isFinite(thresholdExpansion) && thresholdExpansion >= 1.0 ? thresholdExpansion : 1.25;
-        double coverage = Double.isFinite(minimumCoverage) ? Math.max(0, Math.min(1, minimumCoverage)) : 0.75;
-        return new ChemCoreOpenSetGate(model, base * expansion, coverage);
+        return new ChemCoreOpenSetGate(model, base * expansion, minimumCoverage);
+    }
+
+    /**
+     * Builds a gate from a threshold selected on independent known/unknown validation sessions.
+     * The caller must retain the calibration metrics/model card; this factory does not itself
+     * assert that the threshold is scientifically validated.
+     */
+    public static ChemCoreOpenSetGate fromValidatedThreshold(MahalanobisModel model,
+                                                              double threshold,
+                                                              double minimumCoverage) {
+        return new ChemCoreOpenSetGate(model, threshold, minimumCoverage);
     }
 
     public Result evaluate(double[] featureVector) {
@@ -52,7 +62,8 @@ public final class ChemCoreOpenSetGate {
         double d = model.distance(featureVector);
         if (!Double.isFinite(d)) return new Result(false, d, threshold, coverage, "invalid distance");
         boolean ok = d <= threshold;
-        return new Result(ok, d, threshold, coverage, ok ? "inside trained feature domain" : "outside trained feature domain");
+        return new Result(ok, d, threshold, coverage,
+                ok ? "inside trained feature domain" : "outside trained feature domain");
     }
 
     public static double entropy(double[] probabilities) {
@@ -71,7 +82,13 @@ public final class ChemCoreOpenSetGate {
     public static double normalizedEntropy(double[] probabilities) {
         double h = entropy(probabilities);
         int positive = 0;
-        if (probabilities != null) for (double p : probabilities) if (Double.isFinite(p) && p > 0) positive++;
-        return Double.isFinite(h) && positive > 1 ? h / Math.log(positive) : (positive == 1 ? 0 : Double.NaN);
+        if (probabilities != null)
+            for (double p : probabilities) if (Double.isFinite(p) && p > 0) positive++;
+        return Double.isFinite(h) && positive > 1 ? h / Math.log(positive)
+                : (positive == 1 ? 0 : Double.NaN);
+    }
+
+    private static double clampCoverage(double value) {
+        return Double.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0.75;
     }
 }
