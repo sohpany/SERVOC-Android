@@ -27,6 +27,7 @@ public final class RobotProtocolV4 {
             JSONObject drive=new JSONObject();drive.put("left",commandedLeft);drive.put("right",commandedRight);drive.put("failsafe",failsafe);drive.put("retrace",retrace);if(dd!=null&&dd.has("history"))drive.put("history",dd.optInt("history",0));out.put("drive",drive);out.put("retrace",retrace);
 
             out.put("env",environment(diag,data.optJSONObject("env")));
+            out.put("device",device(diag,data));
             out.put("relay",relay(diag,data));
             out.put("sound",sound(first(data.optJSONObject("sound"),diag.optJSONObject("sound"))));
             out.put("ir",ir(diag,first(data.optJSONObject("ir"),diag.optJSONObject("ir"))));
@@ -52,6 +53,18 @@ public final class RobotProtocolV4 {
             x.put("address",addr>0?String.format(Locale.US,"0x%02X",addr):JSONObject.NULL);x.put("chip_id",chip>0?String.format(Locale.US,"0x%02X",chip):JSONObject.NULL);
             x.put("temperature",finiteAny(e,"t","temperature"));x.put("humidity",finiteAny(e,"h","humidity"));x.put("pressure",finiteAny(e,"p","pressure"));x.put("humidity_available",type!=2&&!e.isNull(e.has("h")?"h":"humidity"));
         }catch(Exception ignored){}return x;
+    }
+
+    /** Device-health telemetry is intentionally separate from the ChemCore chamber environment. */
+    private static JSONObject device(JSONObject diag,JSONObject data){
+        JSONObject out=new JSONObject();try{
+            JSONObject d=first(data==null?null:data.optJSONObject("device"),diag==null?null:diag.optJSONObject("device"));if(d==null)d=new JSONObject();
+            JSONObject b=d.optJSONObject("battery"),p=d.optJSONObject("proximity"),t=d.optJSONObject("internal_temp"),e=d.optJSONObject("energy_basis");
+            JSONObject battery=new JSONObject();if(b==null)b=new JSONObject();battery.put("voltage_v",finiteAny(b,"v","voltage_v"));battery.put("raw",b.has("raw")?b.optLong("raw",0):JSONObject.NULL);battery.put("estimated",b.optBoolean("estimated",true));out.put("battery",battery);
+            JSONObject proximity=new JSONObject();if(p==null)p=new JSONObject();proximity.put("distance_cm",finiteAny(p,"cm","distance_cm"));proximity.put("warning",p.optBoolean("warning",false));proximity.put("trig_gpio",p.has("trig")?p.optInt("trig",23):23);proximity.put("echo_gpio",p.has("echo")?p.optInt("echo",39):39);out.put("proximity",proximity);
+            JSONObject internal=new JSONObject();if(t==null)t=new JSONObject();internal.put("installed",t.optBoolean("installed",false));internal.put("temperature_c",finiteAny(t,"c","temperature_c"));internal.put("gpio",t.has("gpio")?t.optInt("gpio",14):14);out.put("internal_temp",internal);
+            JSONObject energy=new JSONObject();if(e==null)e=new JSONObject();energy.put("uptime_ms",Math.max(0,e.optLong("uptime_ms",0)));energy.put("drive_eq_ms",Math.max(0,e.optLong("drive_eq_ms",0)));energy.put("mq_on_ms",Math.max(0,e.optLong("mq_on_ms",0)));out.put("energy_basis",energy);
+        }catch(Exception ignored){}return out;
     }
 
     private static JSONObject relay(JSONObject diag,JSONObject data){
@@ -100,7 +113,14 @@ public final class RobotProtocolV4 {
                 copy(r,x,"raw");copy(r,x,"adc");copy(r,x,"ao");copy(r,x,"rs");copy(r,x,"ratio");copy(r,x,"r0");
                 if(!averaged){copyLong(r,x,"sample_us");copyLong(r,x,"scan_cycle");copyLong(r,x,"channel_offset_us");copyLong(r,x,"age_us");}
                 x.put("relay",1);x.put("row",1);x.put("powered",r.optBoolean("powered",false));x.put("ads",r.has("ads")?r.optInt("ads",hw.adsIndex):hw.adsIndex);x.put("ads_address",String.format(Locale.US,"0x%02X",hw.adsAddress));x.put("ch",r.has("ch")?r.optInt("ch",hw.adcChannel):hw.adcChannel);
-                x.put("firmware_r0_calibrated",r.optBoolean("r0_calibrated",false));x.put("manual_calibration_confirmed",true);x.put("calibration_status","CALIBRATED_MANUAL");ManualR0Calibration.apply(hw.key,x);x.put("r0_loaded",x.optBoolean("r0_calibrated",false));out.put(hw.key,x);
+                boolean firmwareCalibrated=r.optBoolean("r0_calibrated",false);String firmwareSource=r.optString("r0_source",firmwareCalibrated?"firmware_calibrated":"firmware_placeholder_or_unknown");
+                x.put("firmware_r0_calibrated",firmwareCalibrated);x.put("manual_calibration_confirmed",false);x.put("calibration_status",firmwareCalibrated?"CALIBRATED_FIRMWARE":"UNCALIBRATED");
+                ManualR0Calibration.apply(hw.key,x);
+                boolean manual="manual_device_r0".equals(x.optString("r0_source",""))&&x.optBoolean("r0_calibrated",false);
+                if(manual){x.put("manual_calibration_confirmed",true);x.put("calibration_status","CALIBRATED_MANUAL");}
+                else if(firmwareCalibrated){x.put("r0_calibrated",true);x.put("r0_source",firmwareSource);x.put("manual_calibration_confirmed",false);x.put("calibration_status","CALIBRATED_FIRMWARE");}
+                else{x.put("r0_calibrated",false);x.put("manual_calibration_confirmed",false);x.put("calibration_status","UNCALIBRATED");}
+                x.put("r0_loaded",x.optBoolean("r0_calibrated",false));out.put(hw.key,x);
             }catch(Exception ignored){}
         }
         return out;
