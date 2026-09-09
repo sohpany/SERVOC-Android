@@ -24,7 +24,7 @@ jobs:
       - name: Checkout research branch
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -67,7 +67,7 @@ jobs:
           print('  SHA-256    =', actual)
           PY
 
-      - name: Commit pinned generated dataset
+      - name: Commit pinned generated dataset safely
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -75,10 +75,29 @@ jobs:
                   app/src/main/assets/generated/chemcore/manifest.json
           if git diff --cached --quiet; then
             echo "Molecular seed already pinned; no changes."
-          else
-            git commit -m "data(chemcore): pin PubChem molecular descriptor seed"
-            git push origin HEAD:dev/hazrob-0.10-chemcore-foundation
+            exit 0
           fi
+
+          git commit -m "data(chemcore): pin PubChem molecular descriptor seed"
+
+          # The research branch can advance while the PubChem build is running. Rebase only
+          # the generated-data commit onto the current branch head; never force-push.
+          for attempt in 1 2 3; do
+            git fetch origin dev/hazrob-0.10-chemcore-foundation
+            if git rebase origin/dev/hazrob-0.10-chemcore-foundation; then
+              if git push origin HEAD:dev/hazrob-0.10-chemcore-foundation; then
+                exit 0
+              fi
+            else
+              git rebase --abort || true
+              echo "Rebase conflict while pinning generated data; refusing to overwrite branch."
+              exit 1
+            fi
+            echo "Push raced with another commit; retrying ($attempt/3)."
+            sleep $((attempt * 2))
+          done
+          echo "Unable to pin molecular seed after three safe retries."
+          exit 1
 
       - name: Upload molecular seed audit artifact
         if: always()
