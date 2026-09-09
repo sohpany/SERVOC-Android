@@ -3,58 +3,59 @@ name: Build HazRob Firmware
 on:
   workflow_dispatch:
   push:
-    branches:
-      - 'dev/**'
-      - 'fix/**'
-      - main
-    paths:
-      - 'firmware/**'
-      - '.github/workflows/build-firmware.yml'
+    branches: ['dev/**','fix/**',main]
+    paths: ['firmware/**','.github/workflows/build-firmware.yml']
 
-permissions:
-  contents: read
+permissions: { contents: read }
 
 jobs:
   compile-firmware:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Arduino CLI
-        uses: arduino/setup-arduino-cli@v2
-
-      - name: Install ESP32 core
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-arduino-cli@v2
+      - name: Install ESP32 core and libraries
         run: |
           arduino-cli config init
           arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32
-
-      - name: Install master firmware libraries
-        run: |
           arduino-cli lib update-index
-          arduino-cli lib install "Adafruit ADS1X15"
-          arduino-cli lib install "Adafruit BME280 Library"
-          arduino-cli lib install "Adafruit BMP280 Library"
-
-      - name: Compile HazRob master ESP32
+          arduino-cli lib install "Adafruit ADS1X15" "Adafruit BME280 Library" "Adafruit BMP280 Library"
+      - name: Compile master ESP32
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p build/master
-          arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --warnings all --output-dir build/master firmware/HazRob
-
-      - name: Compile HazRob ESP32-CAM
+          arduino-cli compile --fqbn esp32:esp32:esp32doit-devkit-v1 --warnings all --output-dir build/master firmware/HazRob 2>&1 | tee build/master-size.log
+      - name: Compile ESP32-CAM
+        shell: bash
         run: |
+          set -o pipefail
           mkdir -p build/camera
-          arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all --output-dir build/camera firmware/HazRob-CAM
-
-      - name: Upload firmware binaries
+          arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all --output-dir build/camera firmware/HazRob-CAM 2>&1 | tee build/camera-size.log
+      - name: Enforce firmware flash headroom
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import re, pathlib, sys
+          limits={'master':82.0,'camera':82.0}
+          for k,limit in limits.items():
+              txt=pathlib.Path(f'build/{k}-size.log').read_text(errors='ignore')
+              m=re.search(r'Sketch uses\s+[\d,]+\s+bytes\s*\((\d+(?:\.\d+)?)%\)',txt)
+              if not m:
+                  print(f'{k}: compiler size percentage not found'); sys.exit(1)
+              pct=float(m.group(1)); print(f'{k}: flash={pct:.1f}% budget<={limit:.1f}%')
+              if pct>limit: sys.exit(f'{k} firmware exceeds release flash budget')
+          PY
+      - name: Upload firmware binaries and size logs
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-v0.10.0-rc1-firmware
+          name: HazRob-v0.10.0-firmware
           path: |
             build/master/*.bin
             build/camera/*.bin
+            build/*-size.log
           if-no-files-found: error
           retention-days: 30
