@@ -1,10 +1,11 @@
 #pragma once
 
-// Copy this file to RemoteCloudSecrets.h before field flashing.
-// RemoteCloudSecrets.h is ignored by Git and must never be committed.
-#define HAZROB_MQTT_PASSWORD "PASTE_HIVEMQ_hazrob_robot_PASSWORD_HERE"
-#define HAZROB_MQTT_ROOT_CA R"PEM(
------BEGIN CERTIFICATE-----
-PASTE_TRUSTED_ROOT_CA_FOR_HIVEMQ_HOST_HERE
------END CERTIFICATE-----
-)PEM"
+// HazRob 0.10 normally obtains MQTT credentials at runtime from the Render bootstrap service.
+// DO NOT copy this file to RemoteCloudSecrets.h for the normal 0.10 field build.
+// This template is kept only as an optional offline/build-time fallback for controlled diagnostics.
+// Never place a real password in this example file and never commit RemoteCloudSecrets.h.
+#define HAZROB_MQTT_USERNAME "hazrob_robot"
+#define HAZROB_MQTT_PASSWORD ""
+
+// The current trusted root CA is already embedded in RemoteCloudConfig.h.
+// Leave this undefined unless intentionally testing a different trusted CA.
