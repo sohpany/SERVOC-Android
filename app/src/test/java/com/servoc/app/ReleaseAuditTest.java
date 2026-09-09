@@ -4,8 +4,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ReleaseAuditTest {
-    @Test public void v093Rc2KeepsCriticalCameraAndEvidenceContracts(){
-        assertEquals("0.9.3-rc2",ReleaseAudit.VERSION);
+    @Test public void v010KeepsCriticalCameraEvidenceAndSafetyContracts(){
+        assertEquals("0.10.0-rc1",ReleaseAudit.VERSION);
         assertEquals(8,ReleaseAudit.DATABASE_SCHEMA);
         assertTrue(ReleaseAudit.VIDEO_RECORDING);
         assertTrue(ReleaseAudit.DIRECT_ESP_CAM_MJPEG);
@@ -21,7 +21,7 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.THREE_SECOND_LINK_RECOVERY_HOLD);
     }
 
-    @Test public void v093Rc2UsesL298nAndSingleMqPowerRelay(){
+    @Test public void v010RetainsL298nAndSingleMqPowerRelay(){
         assertTrue(ReleaseAudit.L298N_4WD_DRIVE);
         assertFalse(ReleaseAudit.SERVO_DRIVE);
         assertFalse(ReleaseAudit.PRECALIBRATED_MQ);
@@ -39,7 +39,11 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.REMOTE_WSS_VIDEO);
     }
 
-    @Test public void v093AddsLocalAlertsAndLdrWithoutAudioStreaming(){
+    @Test public void v010AddsChemCoreAndEndUserUpdateContracts(){
+        assertTrue(ReleaseAudit.CHEMCORE_FOUNDATION);
+        assertTrue(ReleaseAudit.CHEMCORE_CONTROLLED_RUNTIME);
+        assertTrue(ReleaseAudit.CHEMCORE_DYNAMIC_LIBRARY);
+        assertTrue(ReleaseAudit.END_USER_APP_UPDATER);
         assertTrue(ReleaseAudit.LDR_DIGITAL_THRESHOLD);
         assertTrue(ReleaseAudit.LOCAL_ALERT_OUTPUT);
         assertTrue(ReleaseAudit.GAS_RESPONSE_AUDIBLE_ALERT);
