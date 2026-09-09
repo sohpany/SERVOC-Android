@@ -9,7 +9,14 @@ String dec(const String&s){String o;o.reserve(s.length());for(size_t i=0;i<s.len
 String esc(const String&s){String o;o.reserve(s.length()+4);for(char c:s){if(c=='\\'||c=='\"')o+='\\';if((uint8_t)c>=0x20)o+=c;}return o;}
 String arg(const String&q,const String&b,const char*k){String key=String(k)+"=";auto scan=[&](const String&s)->String{int p=0;while(p<(int)s.length()){int e=s.indexOf('&',p);if(e<0)e=s.length();if(s.substring(p,p+key.length())==key)return dec(s.substring(p+key.length(),e));p=e+1;}return "";};String v=scan(q);return v.length()?v:scan(b);}
 void send(WiFiClient&c,int code,const char*type,const String&body){const char*msg=code==200?"OK":code==400?"Bad Request":code==404?"Not Found":"Conflict";c.print("HTTP/1.1 ");c.print(code);c.print(' ');c.print(msg);c.print("\r\nContent-Type: ");c.print(type);c.print("\r\nContent-Length: ");c.print(body.length());c.print("\r\nConnection: close\r\nCache-Control: no-store\r\n\r\n");c.print(body);}
-String scanJson(){int n=WiFi.scanNetworks(false,true,false,250);String j="{\"networks\":[";for(int i=0;i<n;i++){if(i)j+=',';j+="{\"ssid\":\""+esc(WiFi.SSID(i))+"\",\"rssi\":"+String(WiFi.RSSI(i))+",\"secure\":"+(WiFi.encryptionType(i)==WIFI_AUTH_OPEN?"false":"true")+",\"channel\":"+String(WiFi.channel(i))+"}";}WiFi.scanDelete();return j+"]}";}
+String scanJson(){
+  constexpr uint32_t SCAN_LIMIT_MS=2000;uint32_t started=millis();WiFi.scanDelete();
+  int n=WiFi.scanNetworks(true,true,false,120);while(n==WIFI_SCAN_RUNNING&&millis()-started<SCAN_LIMIT_MS){delay(20);n=WiFi.scanComplete();}
+  bool timed=n==WIFI_SCAN_RUNNING;if(timed||n<0)n=0;uint32_t elapsed=min(millis()-started,SCAN_LIMIT_MS);
+  String j="{\"duration_ms\":"+String(elapsed)+",\"timed_out\":"+(timed?"true":"false")+",\"networks\":[";
+  for(int i=0;i<n;i++){if(i)j+=',';j+="{\"ssid\":\""+esc(WiFi.SSID(i))+"\",\"rssi\":"+String(WiFi.RSSI(i))+",\"secure\":"+(WiFi.encryptionType(i)==WIFI_AUTH_OPEN?"false":"true")+",\"channel\":"+String(WiFi.channel(i))+"}";}
+  WiFi.scanDelete();return j+"]}";
+}
 void startAP(){WiFi.persistent(false);WiFi.mode(WIFI_AP_STA);WiFi.setSleep(false);IPAddress ip(192,168,4,1),mask(255,255,255,0),dhcp(192,168,4,100);WiFi.softAPConfig(ip,ip,mask,dhcp);WiFi.softAP(Cfg::SSID);naptEnabled=false;}
 void gatewayUpdate(){bool w=remoteInternetReady();if(w!=naptEnabled&&WiFi.AP.enableNAPT(w))naptEnabled=w;}
 void wifiWatch(){if(millis()-wifiAt<5000)return;wifiAt=millis();if(!(WiFi.getMode()&WIFI_AP)||WiFi.softAPIP()!=IPAddress(192,168,4,1)){if(naptEnabled)WiFi.AP.enableNAPT(false);WiFi.softAPdisconnect(true);startAP();}}
