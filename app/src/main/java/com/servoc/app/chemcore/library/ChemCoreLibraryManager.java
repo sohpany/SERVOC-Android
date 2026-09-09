@@ -3,6 +3,8 @@ package com.servoc.app.chemcore.library;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.servoc.app.BuildConfig;
+
 import org.json.JSONObject;
 
 import java.io.File;
@@ -11,6 +13,7 @@ import java.security.PublicKey;
 
 /** High-level controller for discovery, verification, installation and rollback of ChemCore knowledge snapshots. */
 public final class ChemCoreLibraryManager {
+    /** Developer-only override. Normal users use BuildConfig.CHEMCORE_LIBRARY_MANIFEST_URL. */
     public static final String PREF_MANIFEST_URL = "chemcore_library_manifest_url";
 
     public static final class Status {
@@ -75,9 +78,24 @@ public final class ChemCoreLibraryManager {
                 ChemCorePublicationKeyProvider.isProvisioned(context));
     }
 
-    public String manifestUrl() { return prefs.getString(PREF_MANIFEST_URL, ""); }
+    /** Effective Stable manifest URL: developer override when present, otherwise the build-pinned public endpoint. */
+    public String manifestUrl() {
+        String override = manifestUrlOverride();
+        return override.isEmpty() ? BuildConfig.CHEMCORE_LIBRARY_MANIFEST_URL : override;
+    }
 
-    /** Developer configuration only. Stable operation should eventually use a build-pinned URL. */
+    /** Returns only the developer override, not the build-pinned default. */
+    public String manifestUrlOverride() {
+        String value = prefs.getString(PREF_MANIFEST_URL, "");
+        return value == null ? "" : value.trim();
+    }
+
+    public boolean usingDeveloperManifestOverride() { return !manifestUrlOverride().isEmpty(); }
+
+    /**
+     * Developer configuration only. Passing an empty value clears the override and restores the
+     * build-pinned Stable endpoint used by normal users.
+     */
     public void setManifestUrl(String raw) {
         String value = raw == null ? "" : raw.trim();
         if (!value.isEmpty()) {
@@ -126,6 +144,8 @@ public final class ChemCoreLibraryManager {
             downloaded.delete();
         }
     }
+
+    public File activePayload() { return store.activePayload(); }
 
     public ChemCoreLibraryStore.InstallResult rollback(boolean measurementActive) {
         return store.rollbackToPrevious(measurementActive);
