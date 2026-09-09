@@ -6,10 +6,10 @@
   "package_name": "com.servoc.app",
   "min_sdk": 26,
   "apk_url": "https://hazrob-app-updates.onrender.com/HazRob-latest.apk",
-  "sha256": "485d12ce7cd6cd3da37a087349694eca0c882d3e1c64598e257985d871e1c032",
-  "size_bytes": 2180291,
+  "sha256": "4a2d486f07779c431aa9cc762c500d213fbaaa05e2fe93f60054b5b0241b31bc",
+  "size_bytes": 2180215,
   "signing_cert_sha256": "d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0",
-  "published_at_utc": "2026-09-09T03:37:18Z",
-  "source_commit": "20e4fb2c932c30f75608964491d73c9968234ed0",
+  "published_at_utc": "2026-09-09T03:49:20Z",
+  "source_commit": "eb84530c644d4ec7812303c5691a4c7ace6b2a16",
   "notes": "HazRob 0.10.0-rc1: ChemCore controlled-analysis and application update foundation."
 }
