@@ -30,9 +30,9 @@ Endpoints: `/`, `/status`, `/stream`, `/flash`, `/led`, `/control`.
 
 `RemoteVideo.cpp` publishes binary JPEG frames through WSS to the Render relay.
 
-For the normal HazRob 0.10 field build, **do not create `RemoteVideoSecrets.h` and do not paste a token or certificate into Arduino IDE**. The camera obtains `video_publish_token` at runtime from the authenticated Render bootstrap endpoint, removes whitespace, then opens the WSS publisher connection. The trusted public root CA is embedded in `RemoteVideoConfig.h`.
+For the normal HazRob 0.10 field build, **do not create `RemoteVideoSecrets.h` and do not paste a token or certificate into Arduino IDE**. The camera obtains its publisher credential at runtime from the authenticated Render bootstrap endpoint and removes spaces, tabs and line breaks before authentication. It prefers a dedicated `video_publish_token` when the relay provides one; the current conference prototype falls back to the same normalized bootstrap MQTT credential, which Render is configured to accept as the camera publisher credential. The viewer token remains separate.
 
-`RemoteVideoSecrets.example.h` is retained only as an optional controlled fallback for diagnostics and contains no live secret.
+The trusted public root CA is embedded in `RemoteVideoConfig.h`. `RemoteVideoSecrets.example.h` is retained only as an optional controlled fallback for diagnostics and contains no live secret.
 
 If Render rejects a WSS publisher token with HTTP 401, the camera invalidates its cached runtime credential and obtains a fresh one on the next reconnect attempt. Connection recovery uses bounded exponential backoff from 2 to 30 seconds rather than an aggressive fixed reconnect loop.
 
