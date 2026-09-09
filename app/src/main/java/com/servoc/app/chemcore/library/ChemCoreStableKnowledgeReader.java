@@ -4,6 +4,7 @@ import com.servoc.app.chemcore.ChemCoreDecision;
 import com.servoc.app.chemcore.ChemCoreFeaturePipeline;
 import com.servoc.app.chemcore.ChemCoreOpenSetGate;
 import com.servoc.app.chemcore.ChemCoreResponseModel;
+import com.servoc.app.chemcore.ChemCoreSessionFeatureAdapter;
 import com.servoc.app.chemcore.InverseMolecularSolver;
 import com.servoc.app.chemcore.MahalanobisModel;
 import com.servoc.app.chemcore.SamplingProfile;
@@ -27,10 +28,12 @@ import java.util.Map;
  * Stable knowledge can update without an APK, but it cannot bypass evidence gates. In particular:
  * - a response-prior record is M1/M2 unless explicit device-validation metadata supports M4;
  * - an open-set model is ignored unless it declares independent known/unknown validation;
- * - sampling-profile compatibility is enforced at prediction/evaluation time.
+ * - sampling-profile compatibility is enforced at prediction/evaluation time;
+ * - frozen open-set model dimensionality must exactly match the canonical live feature vector.
  */
 public final class ChemCoreStableKnowledgeReader {
     public static final String SNAPSHOT_SCHEMA="chemcore-stable-snapshot-v1";
+    public static final int CANONICAL_FEATURE_DIMENSION=ChemCoreSessionFeatureAdapter.SENSOR_ORDER.length*ChemCoreFeaturePipeline.FEATURES_PER_SENSOR;
     private ChemCoreStableKnowledgeReader(){}
 
     public static final class Snapshot {
@@ -102,7 +105,9 @@ public final class ChemCoreStableKnowledgeReader {
             if(!"INDEPENDENT_KNOWN_UNKNOWN".equalsIgnoreCase(v.optString("threshold_source","")))continue;
             String protocol=v.optString("validation_protocol","").trim();if(protocol.isEmpty())continue;
             try{
-                double[] mean=array1(a.getJSONArray("mean"));double[][] inv=array2(a.getJSONArray("inverse_covariance"),mean.length);
+                double[] mean=array1(a.getJSONArray("mean"));
+                if(mean.length!=CANONICAL_FEATURE_DIMENSION)continue;
+                double[][] inv=array2(a.getJSONArray("inverse_covariance"),mean.length);
                 double threshold=a.optDouble("threshold",Double.NaN),coverage=a.optDouble("minimum_coverage",0.75),ridge=a.optDouble("ridge",0);
                 if(!(threshold>0)||!Double.isFinite(threshold))continue;
                 MahalanobisModel model=MahalanobisModel.fromFrozenParameters(mean,inv,ridge,a.optInt("training_count",0));
