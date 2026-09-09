@@ -1,12 +1,13 @@
 package com.servoc.app.chemcore;
 
+import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
 /** Idempotent ChemCore schema bootstrap kept separate from legacy DB migrations. */
 public final class ChemCoreSchema {
     private ChemCoreSchema() {}
 
-    public static final int SCHEMA_VERSION = 3;
+    public static final int SCHEMA_VERSION = 4;
 
     public static void ensure(SQLiteDatabase db) {
         if (db == null) throw new IllegalArgumentException("database required");
@@ -29,11 +30,16 @@ public final class ChemCoreSchema {
                 "fan_height_m REAL," +
                 "fan_voltage_v REAL," +
                 "fan_current_a REAL," +
+                "internal_displacement_m3 REAL NOT NULL DEFAULT 0," +
                 "flow_status TEXT NOT NULL," +
                 "flow_m3_s REAL," +
                 "flow_uncertainty_m3_s REAL," +
                 "notes TEXT," +
                 "active INTEGER NOT NULL DEFAULT 0)");
+        // Foundation builds before schema v4 created this table without displacement.
+        // Add it idempotently so chamber-v2 retains its 23 cm3 sensor-cap correction after DB round trips.
+        ensureColumn(db, "chemcore_sampling_profiles", "internal_displacement_m3",
+                "REAL NOT NULL DEFAULT 0");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_chemcore_sampling_active ON chemcore_sampling_profiles(active,created_ts)");
 
         db.execSQL("CREATE TABLE IF NOT EXISTS chemcore_session_context(" +
@@ -182,5 +188,20 @@ public final class ChemCoreSchema {
                 "FOREIGN KEY(session_id) REFERENCES measurement_sessions(session_id) ON DELETE CASCADE," +
                 "FOREIGN KEY(chemical_uid) REFERENCES chemicals(uid))");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_chemcore_decision_session ON chemcore_decisions(session_id,t_ms)");
+    }
+
+    private static void ensureColumn(SQLiteDatabase db, String table, String column, String definition) {
+        if (hasColumn(db, table, column)) return;
+        db.execSQL("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+    }
+
+    private static boolean hasColumn(SQLiteDatabase db, String table, String column) {
+        try (Cursor c = db.rawQuery("PRAGMA table_info(" + table + ")", null)) {
+            int name = c.getColumnIndex("name");
+            while (c.moveToNext()) {
+                if (name >= 0 && column.equalsIgnoreCase(c.getString(name))) return true;
+            }
+        }
+        return false;
     }
 }
