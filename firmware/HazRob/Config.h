@@ -4,11 +4,13 @@
 namespace Cfg{
 constexpr char FW[]="HazRob 0.10.0";
 constexpr uint8_t API=4;
-constexpr char HW_PROFILE[]="hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1"; // physical wiring revision is unchanged
+constexpr char HW_PROFILE[]="hazrob-0.10-1r8mq-alert-ldr-l298n-6gpio-v1";
 constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 
-// L298N 4WD: two motors per side in parallel; ENA/ENB enabled, PWM on direction inputs.
-constexpr uint8_t DRIVE_L_IN1=18,DRIVE_L_IN2=27,DRIVE_R_IN1=19,DRIVE_R_IN2=32;
+// L298N 4WD differential drive: two motors per side in parallel.
+// ENA/ENB are dedicated PWM speed pins; IN1..IN4 are direction only.
+constexpr uint8_t DRIVE_L_EN=16,DRIVE_L_IN1=18,DRIVE_L_IN2=27;
+constexpr uint8_t DRIVE_R_EN=17,DRIVE_R_IN1=19,DRIVE_R_IN2=32;
 constexpr bool DRIVE_L_INVERT=false,DRIVE_R_INVERT=false;
 constexpr uint32_t DRIVE_LEASE_MS=450,LINK_DETECT_MS=900,LINK_HOLD_MS=3000,RETRACE_MS=60000,ADS_REPROBE_MS=3000;
 constexpr uint32_t FAILSAFE=DRIVE_LEASE_MS,LINK_LOSS_MS=LINK_DETECT_MS;
@@ -17,6 +19,8 @@ constexpr int RETRACE_MAX_SPEED=40;
 
 constexpr uint8_t SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49;
 constexpr uint8_t RELAY_MQ=25,RELAY_ON=LOW,RELAY_OFF=HIGH;
+// GPIO26 is the alert/speaker control signal. Drive a small speaker through a transistor/driver,
+// or use a compatible active buzzer; do not connect a low-impedance speaker directly to GPIO26.
 constexpr uint8_t ALERT_PIN=26,SOUND_PIN=36,IR_PIN=35,LDR_PIN=34,AUX1=33,AUX3=39,AUX2=LDR_PIN;
 constexpr uint8_t IR_ACTIVE=LOW;
 
