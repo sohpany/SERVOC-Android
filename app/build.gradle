@@ -8,8 +8,9 @@ android {
         applicationId 'com.servoc.app'
         minSdk 26
         targetSdk 36
-        versionCode 18
-        versionName '0.9.3-rc2'
+        versionCode 19
+        versionName '0.10.0-rc1'
+        buildConfigField 'String', 'APP_UPDATE_MANIFEST_URL', '"https://hazrob-app-updates.onrender.com/app-update.json"'
     }
 
     signingConfigs {
@@ -33,6 +34,7 @@ android {
 }
 
 dependencies {
+    implementation 'androidx.core:core:1.15.0'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.json:json:20240303'
 }
