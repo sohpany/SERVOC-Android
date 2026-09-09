@@ -1,0 +1,17 @@
+Verifies
+Verified using v1 scheme (JAR signing): false
+Verified using v2 scheme (APK Signature Scheme v2): true
+Verified using v3 scheme (APK Signature Scheme v3): false
+Verified using v3.1 scheme (APK Signature Scheme v3.1): false
+Verified using v4 scheme (APK Signature Scheme v4): false
+Verified for SourceStamp: false
+Number of signers: 1
+Signer #1 certificate DN: CN=HazRob Prototype, OU=Development, O=HazRob, L=Prototype, ST=Prototype, C=US
+Signer #1 certificate SHA-256 digest: d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0
+Signer #1 certificate SHA-1 digest: 941ebe1d5fc8dac77454c6d73dfc5f5f9abf00cd
+Signer #1 certificate MD5 digest: a8c3e6f86ffa64774f5e571600c61a52
+Signer #1 key algorithm: RSA
+Signer #1 key size (bits): 3072
+Signer #1 public key SHA-256 digest: c175bfedf5bbc637b00e8dca2277dc94eb26ed37055cc8a9ab0d897ae6e130e9
+Signer #1 public key SHA-1 digest: 96e35d718ead3dba1763708be77a72ed039874fc
+Signer #1 public key MD5 digest: fbc81c30f6956b9fabcb4b18f6e0b4c6
