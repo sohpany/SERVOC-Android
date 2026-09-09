@@ -13,8 +13,8 @@ RemoteCaptureFn captureFn=nullptr;
 TaskHandle_t taskHandle=nullptr;
 uint8_t* frameBuf=nullptr;
 volatile bool running=false,connected=false;
-volatile uint32_t sentFrames=0,connectErrors=0,sendErrors=0,lastFrameBytes=0;
-uint32_t lastConnectAt=0;
+volatile uint32_t sentFrames=0,connectErrors=0,sendErrors=0,lastFrameBytes=0,retryDelayMs=RemoteVideoCfg::RETRY_MIN_MS;
+uint32_t nextConnectAt=0;
 constexpr char WS_GUID[]="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
 String b64(const uint8_t* data,size_t len){size_t outLen=0;size_t cap=((len+2)/3)*4+4;char* out=(char*)malloc(cap);if(!out)return"";if(mbedtls_base64_encode((unsigned char*)out,cap,&outLen,data,len)!=0){free(out);return"";}String s;for(size_t i=0;i<outLen;i++)s+=(char)out[i];free(out);return s;}
@@ -34,6 +34,9 @@ bool handshake(){
   if(!upgrade||accept!=expectedAccept(key)){ws.stop();connectErrors++;return false;}connected=true;return true;
 }
 
+void scheduleRetry(){uint32_t now=millis(),wait=retryDelayMs;nextConnectAt=now+wait;uint64_t doubled=(uint64_t)retryDelayMs*2ULL;retryDelayMs=(uint32_t)min((uint64_t)RemoteVideoCfg::RETRY_MAX_MS,doubled);}
+void resetRetry(){retryDelayMs=RemoteVideoCfg::RETRY_MIN_MS;nextConnectAt=0;}
+
 void writeLength(size_t len){if(len<=125)ws.write((uint8_t)(0x80|len));else if(len<=65535){ws.write((uint8_t)(0x80|126));ws.write((uint8_t)(len>>8));ws.write((uint8_t)len);}else{ws.write((uint8_t)(0x80|127));for(int i=7;i>=0;i--)ws.write((uint8_t)(((uint64_t)len>>(8*i))&0xFF));}}
 
 bool sendMaskedFrame(uint8_t opcode,const uint8_t* data,size_t len){
@@ -49,18 +52,21 @@ void remoteTask(void*){
   uint32_t nextFrame=0;
   while(running){
     if(!RemoteVideoCfg::configured()||WiFi.status()!=WL_CONNECTED){if(ws.connected())ws.stop();connected=false;vTaskDelay(pdMS_TO_TICKS(500));continue;}
-    if(!ws.connected()||!connected){connected=false;uint32_t now=millis();if(now-lastConnectAt<RemoteVideoCfg::RETRY_MS){vTaskDelay(pdMS_TO_TICKS(100));continue;}lastConnectAt=now;if(!handshake()){vTaskDelay(pdMS_TO_TICKS(250));continue;}nextFrame=millis();}
-    while(ws.available()){if(!readServerFrame()){ws.stop();connected=false;break;}}
-    if(!connected){continue;}
+    if(!ws.connected()||!connected){
+      connected=false;uint32_t now=millis();if(nextConnectAt&&(int32_t)(now-nextConnectAt)<0){vTaskDelay(pdMS_TO_TICKS(100));continue;}
+      if(!handshake()){scheduleRetry();vTaskDelay(pdMS_TO_TICKS(100));continue;}resetRetry();nextFrame=millis();
+    }
+    while(ws.available()){if(!readServerFrame()){ws.stop();connected=false;scheduleRetry();break;}}
+    if(!connected)continue;
     uint32_t now=millis();if((int32_t)(now-nextFrame)<0){vTaskDelay(pdMS_TO_TICKS(5));continue;}nextFrame=now+RemoteVideoCfg::FRAME_INTERVAL_MS;
     size_t len=0;if(!captureFn||!captureFn(frameBuf,RemoteVideoCfg::MAX_JPEG,len)||!len){vTaskDelay(pdMS_TO_TICKS(10));continue;}
-    lastFrameBytes=(uint32_t)len;if(!sendMaskedFrame(2,frameBuf,len)){sendErrors++;ws.stop();connected=false;continue;}sentFrames++;
+    lastFrameBytes=(uint32_t)len;if(!sendMaskedFrame(2,frameBuf,len)){sendErrors++;ws.stop();connected=false;scheduleRetry();continue;}sentFrames++;
   }
-  ws.stop();connected=false;vTaskDelete(nullptr);
+  ws.stop();connected=false;taskHandle=nullptr;vTaskDelete(nullptr);
 }
 }
 
-void remoteVideoBegin(RemoteCaptureFn capture){captureFn=capture;if(!RemoteVideoCfg::configured()||taskHandle)return;frameBuf=(uint8_t*)ps_malloc(RemoteVideoCfg::MAX_JPEG);if(!frameBuf)return;running=true;xTaskCreatePinnedToCore(remoteTask,"remote-video",8192,nullptr,1,&taskHandle,0);}
-void remoteVideoStop(){running=false;ws.stop();connected=false;taskHandle=nullptr;}
+void remoteVideoBegin(RemoteCaptureFn capture){captureFn=capture;if(!RemoteVideoCfg::configured()||taskHandle)return;if(!frameBuf)frameBuf=(uint8_t*)ps_malloc(RemoteVideoCfg::MAX_JPEG);if(!frameBuf)return;running=true;resetRetry();xTaskCreatePinnedToCore(remoteTask,"remote-video",8192,nullptr,1,&taskHandle,0);}
+void remoteVideoStop(){running=false;ws.stop();connected=false;}
 bool remoteVideoConnected(){return connected&&ws.connected();}
-String remoteVideoJson(){String j="{\"configured\":"+String(RemoteVideoCfg::configured()?"true":"false")+",\"connected\":"+String(remoteVideoConnected()?"true":"false")+",\"frames\":"+String(sentFrames)+",\"last_jpeg_bytes\":"+String(lastFrameBytes)+",\"connect_errors\":"+String(connectErrors)+",\"send_errors\":"+String(sendErrors)+"}";return j;}
+String remoteVideoJson(){String j="{\"configured\":"+String(RemoteVideoCfg::configured()?"true":"false")+",\"connected\":"+String(remoteVideoConnected()?"true":"false")+",\"frames\":"+String(sentFrames)+",\"last_jpeg_bytes\":"+String(lastFrameBytes)+",\"connect_errors\":"+String(connectErrors)+",\"send_errors\":"+String(sendErrors)+",\"retry_backoff_ms\":"+String(retryDelayMs)+"}";return j;}
