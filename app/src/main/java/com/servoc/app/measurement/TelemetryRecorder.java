@@ -23,10 +23,10 @@ public final class TelemetryRecorder {
         if(sessionId!=null&&("ready".equals(state)||"error".equals(state)||"idle".equals(state)))finish(snapshot,state);
     }
 
-    public synchronized String activeSessionId(){return sessionId;}
+    public synchronized String activeSessionId(){return sessionId==null?"":sessionId;}
     public synchronized String lastCompletedSessionId(){return lastCompletedSessionId==null?"":lastCompletedSessionId;}
 
-    private void start(boolean developer,long now){sessionId=(developer?"DEV":"FIELD")+"-"+System.currentTimeMillis();startedElapsed=lastSampleElapsed=now;ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("started_ts",isoNow());v.put("kind",developer?"developer_mq_cycle":"field_mq_cycle");v.put("operator_role",developer?"DEVELOPER":"USER");db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);}
+    private void start(boolean developer,long now){sessionId=(developer?"DEV":"FIELD")+"-"+System.currentTimeMillis();startedElapsed=lastSampleElapsed=now;ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("started_ts",isoNow());v.put("kind",developer?"developer_mq_cycle":"field_mq_cycle");v.put("operator_role",developer?"DEVELOPER":"USER");db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);MeasurementSessionRegistry.started(sessionId);}
 
     private void sample(JSONObject snapshot,int left,int right,long now){
         ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("t_ms",Math.max(0,now-startedElapsed));
@@ -55,7 +55,7 @@ public final class TelemetryRecorder {
         }catch(Exception ignored){}
         db.getWritableDatabase().update("measurement_sessions",v,"session_id=?",new String[]{completed});
         lastCompletedSessionId=completed;db.putMeta("last_measurement_session_id",completed);db.putMeta("last_measurement_session_terminal_state",state);
-        sessionId=null;startedElapsed=lastSampleElapsed=0;
+        MeasurementSessionRegistry.completed(completed);sessionId=null;startedElapsed=lastSampleElapsed=0;
     }
 
     private static String isoNow(){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
