@@ -1,8 +1,11 @@
 package com.servoc.app.chemical;
 
 import android.content.Context;
+
+import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
+
 import java.io.InputStream;
 
 /** Loads versioned offline NIOSH scientific seeds bundled into a HazRob build. */
@@ -23,6 +26,12 @@ public final class ChemicalSeedBootstrap {
 
         // Import exposure data only after the identity table has been populated so CAS matching is deterministic.
         ExposureSeedBootstrap.ensureNioshIdlh(context,db);
+
+        // Molecular intelligence is optional and independently provenance-tagged. The importer is hash-idempotent,
+        // so startup remains cheap after the bundled PubChem seed has been installed once.
+        ChemCoreMolecularSeedImporter.Result molecular=ChemCoreMolecularSeedImporter.importIfPresent(context,db);
+        db.putMeta("chemcore_molecular_seed_status",
+                molecular.available?("available:"+molecular.records+":"+molecular.matched):molecular.message);
         return result;
     }
 }
