@@ -18,7 +18,6 @@ import android.widget.TextView;
 
 import com.servoc.app.R;
 import com.servoc.app.ReleaseAudit;
-import com.servoc.app.camera.RemoteVideoReadiness;
 import com.servoc.app.communication.RemoteReadiness;
 import com.servoc.app.communication.RemoteServiceProfile;
 import com.servoc.app.communication.RemoteSessionManager;
@@ -32,7 +31,8 @@ import java.util.concurrent.ExecutorService;
 
 /**
  * HazRob transport selector. Direct and Remote are two transports for the same robot API.
- * No operator authorization code is required for Remote mode.
+ * Remote control readiness is deliberately independent from remote video readiness: a slow,
+ * sleeping or temporarily unavailable ESP32-CAM must never prevent MQTT control/telemetry entry.
  */
 public final class ConnectionGate {
     public enum Mode{DIRECT,REMOTE}
@@ -58,7 +58,7 @@ public final class ConnectionGate {
         LinearLayout.LayoutParams imageParams=new LinearLayout.LayoutParams(-1,0,1f);imageParams.setMargins(0,0,0,UiKit.dp(a,12));root.addView(robot,imageParams);
 
         content=UiKit.vbox(a);root.addView(content,new LinearLayout.LayoutParams(-1,-2));
-        progress=new ProgressBar(a,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(11);progress.setVisibility(View.GONE);root.addView(progress,new LinearLayout.LayoutParams(-1,UiKit.dp(a,10)));
+        progress=new ProgressBar(a,null,android.R.attr.progressBarStyleHorizontal);progress.setMax(10);progress.setVisibility(View.GONE);root.addView(progress,new LinearLayout.LayoutParams(-1,UiKit.dp(a,10)));
         status=UiKit.small(a,"");status.setGravity(Gravity.CENTER);status.setTextColor(0xFF245A7A);status.setBackgroundColor(Color.TRANSPARENT);root.addView(status,UiKit.full(a));
 
         TextView footer=UiKit.small(a,"HazRob "+ReleaseAudit.VERSION+" • إعداد المشروع/ "+ReleaseAudit.PROJECT_PREPARERS);footer.setGravity(Gravity.CENTER);footer.setTextColor(0xFF616161);footer.setBackgroundColor(Color.TRANSPARENT);LinearLayout.LayoutParams fp=UiKit.full(a);fp.topMargin=UiKit.dp(a,10);root.addView(footer,fp);
@@ -88,7 +88,7 @@ public final class ConnectionGate {
         });
     }
 
-    /** Remote mode uses the same operator command set as Direct mode; no HZR2/guest token is requested. */
+    /** Remote mode uses the same operator command set as Direct mode; no guest token is requested. */
     private void openRemote(){
         prefs.edit().putString("remote_operator_role","operator").apply();
         connectRemote(new RemoteSessionManager(a,prefs));
@@ -147,25 +147,22 @@ public final class ConnectionGate {
     }
 
     private void render(RemoteReadiness r){
-        progress.setVisibility(View.VISIBLE);progress.setProgress(r.completedCoreStages());StringBuilder s=new StringBuilder();
-        stage(s,"إعداد الشبكة",r.configured);stage(s,"Wi-Fi",r.wifi);stage(s,"IP",r.ip);stage(s,"DNS",r.dns);stage(s,"الإنترنت/الوقت",r.internet&&r.time);stage(s,"TLS",r.tls);stage(s,"MQTT",r.mqtt);stage(s,"قناة الأوامر",r.commandAck);stage(s,"Telemetry",r.telemetry);stage(s,"الفيديو البعيد",r.camera);
-        status.setText(s.toString().trim());status.setTextColor(r.ready&&r.camera?0xFF2E7D32:0xFF245A7A);
+        progress.setVisibility(View.VISIBLE);progress.setProgress(Math.min(progress.getMax(),r.completedCoreStages()));StringBuilder s=new StringBuilder();
+        stage(s,"إعداد الشبكة",r.configured);stage(s,"Wi-Fi",r.wifi);stage(s,"IP",r.ip);stage(s,"DNS",r.dns);stage(s,"الإنترنت/الوقت",r.internet&&r.time);stage(s,"TLS",r.tls);stage(s,"MQTT",r.mqtt);stage(s,"قناة الأوامر",r.commandAck);stage(s,"Telemetry",r.telemetry);stage(s,"الفيديو البعيد (غير حاجب للتحكم)",r.camera);
+        status.setText(s.toString().trim());status.setTextColor(r.ready?0xFF2E7D32:0xFF245A7A);
     }
 
     private static void stage(StringBuilder s,String name,boolean ok){if(s.length()>0)s.append('\n');s.append(ok?"✓ ":"○ ").append(name);}
 
+    /**
+     * Control/telemetry readiness is the admission criterion for Remote mode.
+     * Video is a parallel optional transport and is allowed to become ready after entry.
+     */
     private void finishRemote(RemoteReadiness control){
-        busy("فحص الفيديو البعيد...",10);
-        io.execute(()->{
-            RemoteVideoReadiness.Result v=RemoteVideoReadiness.probe(a,prefs);
-            RemoteReadiness full=new RemoteReadiness(control.configured,control.wifi,control.ip,control.dns,control.time,control.internet,control.tls,control.mqtt,control.commandAck,control.telemetry,v.ready,control.ready&&v.ready,v.detail);
-            ui.post(()->{
-                render(full);
-                if(!full.ready){status.append("\n"+v.detail);status.setTextColor(0xFFEF6C00);showBack();return;}
-                prefs.edit().putString("connection_mode","remote").apply();
-                status.postDelayed(()->listener.onReady(Mode.REMOTE),350);
-            });
-        });
+        prefs.edit().putString("connection_mode","remote").apply();
+        status.append("\nتم اتصال التحكم والقياسات. سيظهر الفيديو البعيد عند جاهزية ESP32-CAM.");
+        status.setTextColor(0xFF2E7D32);
+        status.postDelayed(()->listener.onReady(Mode.REMOTE),250);
     }
 
     private void busy(String text,int stage){content.removeAllViews();progress.setVisibility(View.VISIBLE);progress.setProgress(stage);status.setText(text);status.setTextColor(0xFF245A7A);}
