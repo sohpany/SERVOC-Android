@@ -27,7 +27,7 @@ public final class MolecularDescriptorContract {
             "HBondAcceptorCount",
             "RotatableBondCount",
             "HeavyAtomCount",
-            "FormalCharge",
+            "Charge",
             "Complexity"
     };
 
