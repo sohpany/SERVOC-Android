@@ -20,6 +20,12 @@ public final class MolecularDescriptorMatrixBuilder {
     private MolecularDescriptorMatrixBuilder() {}
 
     public static final String SCHEMA = "chemcore-descriptor-matrix/1";
+    public static final String QSPR_INELIGIBLE_IDENTITY = "QSPR_INELIGIBLE_IDENTITY";
+
+    private static final class Identity {
+        final long uid;final String cas,nameEn;
+        Identity(long uid,String cas,String nameEn){this.uid=uid;this.cas=cas==null?"":cas;this.nameEn=nameEn==null?"":nameEn;}
+    }
 
     public static final class Exclusion {
         public final long chemicalUid;
@@ -79,12 +85,21 @@ public final class MolecularDescriptorMatrixBuilder {
         String[] descriptors=normalize(requestedDescriptors);
         if(descriptors.length==0)throw new IllegalArgumentException("at least one descriptor required");
         MolecularIntelligenceRepository repo=new MolecularIntelligenceRepository(db);
-        List<Long> ids=new ArrayList<>();
-        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT uid FROM chemicals ORDER BY uid",null)){
-            while(c.moveToNext())ids.add(c.getLong(0));
+        ChemCoreIdentityCurationRepository curation=new ChemCoreIdentityCurationRepository(db);
+        List<Identity> identities=new ArrayList<>();
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT uid,cas,name_en FROM chemicals ORDER BY uid",null)){
+            while(c.moveToNext())identities.add(new Identity(c.getLong(0),c.getString(1),c.getString(2)));
         }
         List<Long> completeIds=new ArrayList<>();List<double[]> rows=new ArrayList<>();List<Exclusion> exclusions=new ArrayList<>();
-        for(long uid:ids){
+        for(Identity identity:identities){
+            long uid=identity.uid;
+            // Curated mixtures, materials, isomer groups, occupational categories, and unresolved
+            // pure compounds are excluded explicitly even if future/manual properties are present.
+            // This prevents a non-single-molecule identity from leaking into a molecule-QSPR matrix.
+            if(!curation.molecularQsprEligible(identity.cas,identity.nameEn)){
+                exclusions.add(new Exclusion(uid,Collections.singletonList(QSPR_INELIGIBLE_IDENTITY)));
+                continue;
+            }
             double[] row=new double[descriptors.length];List<String> missing=new ArrayList<>();
             for(int j=0;j<descriptors.length;j++){
                 Double v=repo.latestNumeric(uid,descriptors[j]);
@@ -97,7 +112,7 @@ public final class MolecularDescriptorMatrixBuilder {
         double[][] raw=rows.toArray(new double[0][]);Standardizer std=fitStandardizer(descriptors,raw);
         double[][] standardized=new double[raw.length][];for(int i=0;i<raw.length;i++)standardized[i]=std.transform(raw[i]);
         long[] uids=new long[completeIds.size()];for(int i=0;i<uids.length;i++)uids[i]=completeIds.get(i);
-        return new Matrix(MolecularDescriptorContract.VERSION,descriptors,uids,raw,standardized,std,exclusions,ids.size());
+        return new Matrix(MolecularDescriptorContract.VERSION,descriptors,uids,raw,standardized,std,exclusions,identities.size());
     }
 
     public static Standardizer fitStandardizer(String[] descriptorNames,double[][] rows){
