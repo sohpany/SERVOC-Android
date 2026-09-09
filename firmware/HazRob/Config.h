@@ -2,8 +2,9 @@
 #include <Arduino.h>
 
 namespace Cfg{
-constexpr char FW[]="HazRob 0.9.3-rc2";
+constexpr char FW[]="HazRob 0.10.0-rc1";
 constexpr uint8_t API=4;
+// Physical wiring profile remains the validated 0.9.3 L298N/1-relay/8-MQ hardware contract.
 constexpr char HW_PROFILE[]="hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1";
 
 constexpr char SSID[]="HazRob";
@@ -49,6 +50,12 @@ constexpr MQ mq[]={
 };
 constexpr uint8_t MQ_N=sizeof(mq)/sizeof(mq[0]);
 
+// ADS1115 acquisition contract. The converter is powered from the fixed 5 V HazRob rail.
+// GAIN_TWOTHIRDS in Hardware.cpp corresponds to ±6.144 V full-scale; readings are averaged
+// over four conversions per channel. ADS_RATE_SPS is documentation/provenance for the
+// RATE_ADS1115_860SPS configuration used in Hardware.cpp.
+constexpr uint16_t ADS_RATE_SPS=860;
+constexpr float ADS_FULL_SCALE_V=6.144f,ADS_SUPPLY_V=5.0f;
 constexpr float MQ_VCC=5.0f,RL=10.0f;
 constexpr uint16_t MQ_PERIOD=100,SAMPLE_PERIOD=200;
 constexpr uint8_t ADC_SAMPLES=4;
