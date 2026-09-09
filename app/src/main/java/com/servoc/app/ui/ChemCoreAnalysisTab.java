@@ -1,0 +1,171 @@
+package com.servoc.app.ui;
+
+import android.content.Context;
+import android.os.SystemClock;
+import android.view.View;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
+import android.widget.TextView;
+
+import com.servoc.app.chemcore.ChemCoreDecision;
+import com.servoc.app.chemcore.ChemCoreDecisionRepository;
+import com.servoc.app.chemcore.ChemCoreFeaturePipeline;
+import com.servoc.app.chemcore.ChemCoreInferenceEngine;
+import com.servoc.app.chemcore.ChemCoreLiveStabilityMonitor;
+import com.servoc.app.chemcore.ChemCoreResultEnvelope;
+import com.servoc.app.chemcore.ChemCoreRuntimeCoordinator;
+import com.servoc.app.chemcore.ChemCoreSessionController;
+import com.servoc.app.chemcore.ChemCoreSessionFeatureAdapter;
+import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
+import com.servoc.app.measurement.MeasurementSessionRegistry;
+
+import org.json.JSONObject;
+
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
+
+/**
+ * Developer/research control surface for a reproducible ChemCore baseline -> exposure -> analysis -> recovery cycle.
+ * It never promotes a screening candidate to validated identity without an open-set/model validation layer.
+ */
+public final class ChemCoreAnalysisTab {
+    private static final long MIN_EXPOSURE_MS=30_000L;
+    private static final long EXTENSION_MS=15_000L;
+    private static final long MAX_EXPOSURE_MS=120_000L;
+
+    private final HazRobHost host;
+    private final ScrollView scroll;
+    private final ChemCoreRuntimeCoordinator runtime;
+    private final ChemCoreLiveStabilityMonitor stability=new ChemCoreLiveStabilityMonitor();
+    private final ChemCoreLibraryManager libraries;
+    private final TextView phase,status,signal,resultText;
+    private final Button start,action,abort;
+
+    private boolean pendingPowerStart=false,active=false,awaitingSample=false,sampleConfirmed=false,awaitingRecoveryRemoval=false,recoveryConfirmed=false,pendingPrimaryFinalize=false;
+    private long conditionStartedMs=0,exposureStartedMs=0,nextExposureCheckMs=0;
+    private String attachedSessionId="";
+    private ChemCoreResultEnvelope lastResult;
+
+    public ChemCoreAnalysisTab(Context c,HazRobHost host){
+        this.host=host;this.runtime=new ChemCoreRuntimeCoordinator(host.database());this.libraries=new ChemCoreLibraryManager(c);
+        scroll=new ScrollView(c);scroll.setFillViewport(true);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
+        root.addView(UiKit.title(c,"ChemCore • التحليل الكيميائي المضبوط"),UiKit.full(c));
+        root.addView(UiKit.small(c,"بروتوكول بحثي يمنع الحركة أثناء التحليل، يتحقق من استقرار المصفوفة، يسجل baseline والتعرض في جلسة مستقلة عن averaging القديم، ولا يقبل هوية كمية بلا دليل M4."),UiKit.full(c));
+
+        LinearLayout profile=UiKit.card(c);profile.addView(UiKit.title(c,"Sampling Profile"),UiKit.full(c));
+        profile.addView(UiKit.small(c,"Chamber v2 • 0.517 L effective • Qest 1.10±0.40 L/s • v≈0.31 m/s • FLOW_ESTIMATED"),UiKit.full(c));root.addView(profile,UiKit.full(c));
+
+        LinearLayout run=UiKit.card(c);phase=UiKit.title(c,"IDLE");run.addView(phase,UiKit.full(c));status=UiKit.small(c,"جاهز لبدء جلسة مضبوطة.");status.setBackgroundColor(0xFF151A20);run.addView(status,UiKit.full(c));signal=UiKit.small(c,"Stability: —");signal.setBackgroundColor(0xFF151A20);run.addView(signal,UiKit.full(c));
+        LinearLayout buttons=UiKit.hbox(c);start=UiKit.button(c,"بدء ChemCore");start.setOnClickListener(v->startProtocol());buttons.addView(start,UiKit.weight(1));action=UiKit.button(c,"—");action.setEnabled(false);action.setOnClickListener(v->primaryAction());buttons.addView(action,UiKit.weight(1));abort=UiKit.button(c,"إلغاء آمن");abort.setEnabled(false);abort.setOnClickListener(v->abortProtocol("operator_abort"));buttons.addView(abort,UiKit.weight(.8f));run.addView(buttons,UiKit.full(c));root.addView(run,UiKit.full(c));
+
+        LinearLayout r=UiKit.card(c);r.addView(UiKit.title(c,"النتيجة العلمية"),UiKit.full(c));resultText=UiKit.text(c,"لا توجد نتيجة بعد.");resultText.setTextIsSelectable(true);resultText.setBackgroundColor(0xFF11171D);r.addView(resultText,UiKit.full(c));root.addView(r,UiKit.full(c));
+        render();
+    }
+
+    public View view(){return scroll;}
+
+    public void refresh(){
+        JSONObject d=host.latestDiagnostics();long now=SystemClock.elapsedRealtime();
+        if(pendingPowerStart&&mqPowered(d)){pendingPowerStart=false;beginAfterPowerConfirmed(now);}
+        if(!active){render();return;}
+
+        ChemCoreRuntimeCoordinator.Snapshot motion=runtime.observeMotion(host.driveLeft(),host.driveRight());
+        if(motion.state==ChemCoreSessionController.State.ERROR){MeasurementSessionRegistry.requestChemCoreStop("motion_interlock");active=false;status.setText("تم إيقاف التحليل: اكتشفت حركة للروبوت.");render();return;}
+
+        ChemCoreSessionController.State st=motion.state;
+        if(st==ChemCoreSessionController.State.CONDITION){
+            stability.accept(d,now);ChemCoreLiveStabilityMonitor.Assessment a=stability.assess();signal.setText("Condition • "+a.summary());
+            long required=Math.max(30,host.preferences().getInt("warm",60))*1000L;
+            if(now-conditionStartedMs>=required&&a.stable){
+                runtime.advance(ChemCoreSessionController.Event.CONDITION_READY,true,"{\"gate\":\"conditioning_time_plus_stability\"}");
+                if(!MeasurementSessionRegistry.requestChemCoreCapture(true)){runtime.abort("{\"reason\":\"telemetry_session_busy\"}");active=false;status.setText("تعذر بدء التسجيل: توجد جلسة Telemetry أخرى نشطة.");}
+                else{stability.reset();status.setText("تم اجتياز conditioning. جارٍ فتح جلسة baseline محلية مستقلة...");}
+            }
+        }else if(st==ChemCoreSessionController.State.BASELINE){
+            attachLiveSession();
+            if(!attachedSessionId.isEmpty()){
+                stability.accept(d,now);ChemCoreLiveStabilityMonitor.Assessment a=stability.assess();signal.setText("Baseline • "+a.summary());
+                if(a.stable){runtime.advance(ChemCoreSessionController.Event.BASELINE_STABLE,true,"{\"gate\":\"multichannel_baseline_stable\"}");awaitingSample=true;sampleConfirmed=false;stability.reset();status.setText("Baseline صالح. أدخل العينة في مسار السحب ثم أكد بدء التعرض.");}
+            }
+        }else if(st==ChemCoreSessionController.State.EXPOSURE){
+            if(sampleConfirmed){
+                stability.accept(d,now);ChemCoreLiveStabilityMonitor.Assessment a=stability.assess();signal.setText("Exposure • "+a.summary());long elapsed=now-exposureStartedMs;
+                if(now>=nextExposureCheckMs&&elapsed>=MIN_EXPOSURE_MS){
+                    runtime.advance(ChemCoreSessionController.Event.EXPOSURE_WINDOW_READY,true,"{\"elapsed_ms\":"+elapsed+"}");
+                    if(a.stable){runtime.advance(ChemCoreSessionController.Event.RESPONSE_STABLE,true,"{\"gate\":\"multichannel_response_stable\"}");pendingPrimaryFinalize=true;MeasurementSessionRegistry.requestChemCoreStop("chemcore_primary_capture_complete");status.setText("الاستجابة مستقرة. جارٍ تثبيت السلسلة الزمنية واستخراج الخصائص.");}
+                    else if(elapsed<MAX_EXPOSURE_MS){runtime.advance(ChemCoreSessionController.Event.EXTEND_EXPOSURE,true,"{\"reason\":\"response_unstable\"}");nextExposureCheckMs=now+EXTENSION_MS;status.setText("الاستجابة غير مستقرة؛ AMCI يمدد التعرض تلقائياً.");}
+                    else{runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"stability_not_reached_at_max_exposure\"}");pendingPrimaryFinalize=true;MeasurementSessionRegistry.requestChemCoreStop("chemcore_insufficient_stability");status.setText("بلغ التعرض الحد البحثي دون استقرار كافٍ؛ النتيجة ستسجل كدليل غير كافٍ.");}
+                }
+            }
+        }else if(st==ChemCoreSessionController.State.FEATURE_EXTRACTION||pendingPrimaryFinalize){
+            tryFinalizePrimary();
+        }else if(st==ChemCoreSessionController.State.RECOVERY&&recoveryConfirmed){
+            stability.accept(d,now);ChemCoreLiveStabilityMonitor.Assessment a=stability.assess();signal.setText("Recovery • "+a.summary());if(a.stable){runtime.advance(ChemCoreSessionController.Event.RECOVERY_COMPLETE,true,"{\"gate\":\"recovery_stable\"}");active=false;status.setText("اكتملت جلسة ChemCore وحُفظت provenance.");}
+        }
+        render();
+    }
+
+    private void startProtocol(){
+        if(active||pendingPowerStart)return;if(!MeasurementSessionRegistry.activeSessionId().isEmpty()||MeasurementSessionRegistry.chemCoreCaptureRequested()){status.setText("لا يمكن البدء: توجد جلسة تسجيل نشطة.");return;}
+        if(host.driveLeft()!=0||host.driveRight()!=0){host.setDriveCommand(0,0);status.setText("تم إرسال أمر توقف. أعد البدء بعد ثبوت السرعة صفر.");return;}
+        JSONObject d=host.latestDiagnostics();if(!mqPowered(d)){pendingPowerStart=true;status.setText("جارٍ تشغيل مصفوفة MQ الثمانية ثم التحقق من الريلاي...");host.io().execute(()->{try{host.robotApi().mqPower(true);host.refreshAllTabs();}catch(Exception e){pendingPowerStart=false;host.showToast("تعذر تشغيل MQ: "+e.getMessage());}});render();return;}
+        beginAfterPowerConfirmed(SystemClock.elapsedRealtime());
+    }
+
+    private void beginAfterPowerConfirmed(long now){
+        ChemCoreRuntimeCoordinator.Snapshot s=runtime.begin(host.driveLeft()==0&&host.driveRight()==0,true);if(s.state==ChemCoreSessionController.State.ERROR){status.setText("رفض البدء: "+s.reason);return;}
+        active=true;conditionStartedMs=now;attachedSessionId="";awaitingSample=false;sampleConfirmed=false;awaitingRecoveryRemoval=false;recoveryConfirmed=false;pendingPrimaryFinalize=false;lastResult=null;stability.reset();
+        status.setText("CONDITION: انتظر الحد الأدنى للتسخين واستقرار 6/8 قنوات. لا تدخل العينة بعد.");render();
+    }
+
+    private void primaryAction(){
+        ChemCoreSessionController.State st=runtime.snapshot().state;
+        if(st==ChemCoreSessionController.State.EXPOSURE&&awaitingSample&&!sampleConfirmed){awaitingSample=false;sampleConfirmed=true;exposureStartedMs=SystemClock.elapsedRealtime();nextExposureCheckMs=exposureStartedMs+MIN_EXPOSURE_MS;stability.reset();status.setText("بدأ التعرض الموقّت. أبقِ العينة والظروف ثابتة.");}
+        else if(st==ChemCoreSessionController.State.RECOVERY&&awaitingRecoveryRemoval&&!recoveryConfirmed){awaitingRecoveryRemoval=false;recoveryConfirmed=true;stability.reset();status.setText("بدأت مراقبة التعافي. أبقِ مدخل الحجرة على هواء مرجعي/نظيف قدر الإمكان.");}
+        render();
+    }
+
+    private void attachLiveSession(){String id=MeasurementSessionRegistry.activeSessionId();if(id.isEmpty()||id.equals(attachedSessionId))return;if(runtime.attachMeasurementSession(id)){attachedSessionId=id;status.setText("Baseline recording active: "+id);}}
+
+    private void tryFinalizePrimary(){
+        if(!pendingPrimaryFinalize||attachedSessionId.isEmpty())return;if(!MeasurementSessionRegistry.activeSessionId().isEmpty())return;if(!attachedSessionId.equals(MeasurementSessionRegistry.lastCompletedSessionId()))return;
+        pendingPrimaryFinalize=false;
+        try{
+            ChemCoreSessionFeatureAdapter.Extraction x=ChemCoreSessionFeatureAdapter.extract(host.database(),attachedSessionId);
+            if(runtime.snapshot().state==ChemCoreSessionController.State.REPORT){lastResult=new ChemCoreResultEnvelope(attachedSessionId,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,runtime.profile().profileId,ChemCoreFeaturePipeline.SCHEMA_VERSION,"","response stability gate failed",java.util.Collections.emptyList());}
+            else if(!x.usable()){
+                runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"feature_extraction_unusable\"}");
+                lastResult=new ChemCoreResultEnvelope(attachedSessionId,ChemCoreDecision.Outcome.INVALID_MEASUREMENT,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,runtime.profile().profileId,ChemCoreFeaturePipeline.SCHEMA_VERSION,"","canonical feature extraction unusable",java.util.Collections.emptyList());
+            }else{
+                runtime.advance(ChemCoreSessionController.Event.FEATURES_READY,true,"{\"feature_sha256\":\""+x.featurePayloadSha256+"\"}");
+                Map<String,Double> ratios=steadyRatios(x.features);ChemCoreInferenceEngine.Context ctx=new ChemCoreInferenceEngine.Context(attachedSessionId,runtime.profile().profileId,"legacy-manufacturer-priors",x.meanTemperatureC,x.meanRh,null);
+                lastResult=ChemCoreInferenceEngine.analyzeLegacyManufacturerPriors(ratios,runtime.profile(),ctx);
+                runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"validated_open_set_model_not_bound\"}");
+            }
+            ChemCoreLibraryManager.Status lib=libraries.status();lastResult=lastResult.withLibraryProvenance(lib.version,lib.sha256,lib.sourceCommit);
+            new ChemCoreDecisionRepository(host.database()).save(Math.max(0,Math.round(x.durationSeconds*1000.0)),lastResult);runtime.finish(lastResult);
+            if(runtime.snapshot().state==ChemCoreSessionController.State.REPORT)runtime.advance(ChemCoreSessionController.Event.REPORT_SAVED,true,"{\"saved\":true}");
+            awaitingRecoveryRemoval=true;recoveryConfirmed=false;stability.reset();renderResult(x,lastResult);status.setText("التحليل الحالي Screening/QA ما لم توجد هوية Open-Set معتمدة. أزل العينة ثم ابدأ مراقبة التعافي.");
+        }catch(Exception e){runtime.fail("{\"reason\":\"feature_or_inference_failure\"}");lastResult=null;active=false;status.setText("فشل التحليل: "+e.getMessage());}
+    }
+
+    private void renderResult(ChemCoreSessionFeatureAdapter.Extraction x,ChemCoreResultEnvelope r){
+        StringBuilder s=new StringBuilder();s.append("Outcome: ").append(r.outcome).append("\nEvidence: ").append(r.evidenceTier).append('\n');
+        if(r.chemicalUid!=null)s.append("Top candidate: ").append(r.chemicalLabel).append(" [UID ").append(r.chemicalUid).append("]\n");
+        s.append("Samples: ").append(x.persistedSamples).append(" • duration: ").append(String.format(Locale.US,"%.1fs",x.durationSeconds)).append('\n');
+        s.append("Feature schema: ").append(x.features.schemaVersion).append(" • SHA: ").append(shortId(x.featurePayloadSha256)).append('\n');
+        s.append("Library: ").append(r.libraryVersion).append(" • ").append(shortId(r.librarySha256)).append('\n');
+        s.append("Note: ").append(r.note);resultText.setText(s.toString());
+    }
+
+    private static Map<String,Double> steadyRatios(ChemCoreFeaturePipeline.Result f){Map<String,Double> out=new LinkedHashMap<>();if(f==null)return out;for(int i=0;i<ChemCoreSessionFeatureAdapter.SENSOR_ORDER.length;i++){double y=f.feature(i,2);if(Double.isFinite(y))out.put(ChemCoreSessionFeatureAdapter.SENSOR_ORDER[i],Math.pow(10.0,y));}return out;}
+
+    private void abortProtocol(String reason){if(MeasurementSessionRegistry.chemCoreCaptureRequested())MeasurementSessionRegistry.requestChemCoreStop(reason);if(active)runtime.abort("{\"reason\":\""+reason+"\"}");active=false;pendingPowerStart=false;awaitingSample=false;sampleConfirmed=false;awaitingRecoveryRemoval=false;recoveryConfirmed=false;status.setText("تم إلغاء الجلسة بأمان.");render();}
+
+    private void render(){ChemCoreRuntimeCoordinator.Snapshot s=runtime.snapshot();phase.setText(s.state.name()+" • "+s.samplingProfileId);boolean idle=!active&&!pendingPowerStart;start.setEnabled(idle);abort.setEnabled(active||pendingPowerStart);action.setEnabled(false);action.setText("—");if(active&&s.state==ChemCoreSessionController.State.EXPOSURE&&awaitingSample&&!sampleConfirmed){action.setText("تم إدخال العينة • ابدأ التعرض");action.setEnabled(true);}else if(active&&s.state==ChemCoreSessionController.State.RECOVERY&&awaitingRecoveryRemoval&&!recoveryConfirmed){action.setText("تمت إزالة العينة • ابدأ التعافي");action.setEnabled(true);}}
+
+    private static boolean mqPowered(JSONObject d){if(d==null)return false;JSONObject r=d.optJSONObject("relay");if(r==null)return false;return (r.optInt("mask",r.optBoolean("on",false)?1:0)&1)!=0;}
+    private static String shortId(String s){if(s==null||s.isEmpty())return"—";return s.length()<=14?s:s.substring(0,14)+"…";}
+}
