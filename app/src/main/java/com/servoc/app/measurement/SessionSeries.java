@@ -5,12 +5,17 @@ import com.servoc.app.data.ExperimentsDb;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-/** Builds a portable session payload from the telemetry_samples table for reporting/re-analysis. */
+/** Builds a portable session payload from telemetry_samples for reporting and deterministic re-analysis. */
 public final class SessionSeries {
     private SessionSeries(){}
 
     public static JSONObject attachLatest(ExperimentsDb db,JSONObject snapshot){
-        JSONObject out=cloneJson(snapshot);if(db==null)return out;String session=latestSession(db);if(session==null||session.isEmpty())return out;
+        if(db==null)return cloneJson(snapshot);String session=latestSession(db);return attachSession(db,snapshot,session);
+    }
+
+    /** Attaches one exact persisted measurement session; preferred by ChemCore to prevent latest-row races. */
+    public static JSONObject attachSession(ExperimentsDb db,JSONObject snapshot,String sessionId){
+        JSONObject out=cloneJson(snapshot);if(db==null||sessionId==null||sessionId.trim().isEmpty())return out;String session=sessionId.trim();
         try{
             JSONObject meta=new JSONObject();meta.put("session_id",session);JSONArray samples=new JSONArray();
             try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload,motion_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms",new String[]{session})){
@@ -21,6 +26,11 @@ public final class SessionSeries {
             meta.put("sample_count",samples.length());meta.put("samples",samples);out.put("_session",meta);
         }catch(Exception ignored){}
         return out;
+    }
+
+    public static int sampleCount(ExperimentsDb db,String sessionId){
+        if(db==null||sessionId==null||sessionId.trim().isEmpty())return 0;
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT COUNT(*) FROM telemetry_samples WHERE session_id=?",new String[]{sessionId.trim()})){return c.moveToFirst()?c.getInt(0):0;}catch(Exception e){return 0;}
     }
 
     private static String latestSession(ExperimentsDb db){
