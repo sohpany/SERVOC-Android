@@ -77,13 +77,16 @@ public final class ChemCoreAnalysisTab {
 
         ChemCoreRuntimeCoordinator.Snapshot motion=runtime.observeMotion(host.driveLeft(),host.driveRight());
         if(motion.state==ChemCoreSessionController.State.ERROR){MeasurementSessionRegistry.requestChemCoreStop("motion_interlock");active=false;status.setText("تم إيقاف التحليل: اكتشفت حركة للروبوت.");render();return;}
+        if(!mqPowered(d)){MeasurementSessionRegistry.requestChemCoreStop("mq_power_lost");runtime.fail("{\"reason\":\"mq_power_lost_or_telemetry_missing\"}");active=false;status.setText("تم إيقاف التحليل: طاقة مصفوفة MQ أو إثباتها التليمترى غير متاح.");render();return;}
 
         ChemCoreSessionController.State st=motion.state;
         if(st==ChemCoreSessionController.State.CONDITION){
-            stability.accept(d,now);ChemCoreLiveStabilityMonitor.Assessment a=stability.assess();signal.setText("Condition • "+a.summary());
+            stability.accept(d,now);ChemCoreLiveStabilityMonitor.Assessment a=stability.assess();
             long required=Math.max(30,host.preferences().getInt("warm",60))*1000L;
-            if(now-conditionStartedMs>=required&&a.stable){
-                runtime.advance(ChemCoreSessionController.Event.CONDITION_READY,true,"{\"gate\":\"conditioning_time_plus_stability\"}");
+            long localElapsed=Math.max(0,now-conditionStartedMs),firmwarePowerElapsed=relayPowerMs(d),conditioned=Math.max(localElapsed,firmwarePowerElapsed);
+            signal.setText("Condition • "+a.summary()+" • heater "+Math.min(required,conditioned)/1000+"/"+required/1000+" s");
+            if(conditioned>=required&&a.stable){
+                runtime.advance(ChemCoreSessionController.Event.CONDITION_READY,true,"{\"gate\":\"relay_power_time_plus_stability\",\"relay_power_ms\":"+firmwarePowerElapsed+",\"local_elapsed_ms\":"+localElapsed+"}");
                 if(!MeasurementSessionRegistry.requestChemCoreCapture(true)){runtime.abort("{\"reason\":\"telemetry_session_busy\"}");active=false;status.setText("تعذر بدء التسجيل: توجد جلسة Telemetry أخرى نشطة.");}
                 else{stability.reset();status.setText("تم اجتياز conditioning. جارٍ فتح جلسة baseline محلية مستقلة...");}
             }
@@ -121,7 +124,7 @@ public final class ChemCoreAnalysisTab {
     private void beginAfterPowerConfirmed(long now){
         ChemCoreRuntimeCoordinator.Snapshot s=runtime.begin(host.driveLeft()==0&&host.driveRight()==0,true);if(s.state==ChemCoreSessionController.State.ERROR){status.setText("رفض البدء: "+s.reason);return;}
         active=true;conditionStartedMs=now;attachedSessionId="";awaitingSample=false;sampleConfirmed=false;awaitingRecoveryRemoval=false;recoveryConfirmed=false;pendingPrimaryFinalize=false;lastResult=null;stability.reset();
-        status.setText("CONDITION: انتظر الحد الأدنى للتسخين واستقرار 6/8 قنوات. لا تدخل العينة بعد.");render();
+        status.setText("CONDITION: انتظر زمن التسخين المثبت من relay.power_ms واستقرار 6/8 قنوات. لا تدخل العينة بعد.");render();
     }
 
     private void primaryAction(){
@@ -195,5 +198,6 @@ public final class ChemCoreAnalysisTab {
     private void render(){ChemCoreRuntimeCoordinator.Snapshot s=runtime.snapshot();phase.setText(s.state.name()+" • "+s.samplingProfileId);boolean idle=!active&&!pendingPowerStart;start.setEnabled(idle);abort.setEnabled(active||pendingPowerStart);action.setEnabled(false);action.setText("—");if(active&&s.state==ChemCoreSessionController.State.EXPOSURE&&awaitingSample&&!sampleConfirmed){action.setText("تم إدخال العينة • ابدأ التعرض");action.setEnabled(true);}else if(active&&s.state==ChemCoreSessionController.State.RECOVERY&&awaitingRecoveryRemoval&&!recoveryConfirmed){action.setText("تمت إزالة العينة • ابدأ التعافي");action.setEnabled(true);}}
 
     private static boolean mqPowered(JSONObject d){if(d==null)return false;JSONObject r=d.optJSONObject("relay");if(r==null)return false;return (r.optInt("mask",r.optBoolean("on",false)?1:0)&1)!=0;}
+    private static long relayPowerMs(JSONObject d){if(d==null)return 0;JSONObject r=d.optJSONObject("relay");return r==null?0:Math.max(0,r.optLong("power_ms",0));}
     private static String shortId(String s){if(s==null||s.isEmpty())return"—";return s.length()<=14?s:s.substring(0,14)+"…";}
 }
