@@ -27,7 +27,7 @@ void motionStopInternal(){tarL=tarR=curL=curR=0;retracing=fs=false;clearHistory(
 
 /* energy basis: Android computes EEM percentage */
 uint32_t energyAt=0,driveEqMs=0,mqOnTotalMs=0;
-void energyUpdate(){uint32_t n=millis();if(!energyAt){energyAt=n;return;}uint32_t dt=n-energyAt;if(dt<100)return;energyAt=n;dt=min(dt,1000UL);uint16_t load=(uint16_t)constrain((int)(fabsf(curL)+fabsf(curR)),0,200);driveEqMs+=(uint32_t)(((uint64_t)dt*load)/200U);if(mqPowerOn)mqOnTotalMs+=dt;}
+void energyUpdate(){uint32_t n=millis();if(!energyAt){energyAt=n;return;}uint32_t dt=n-energyAt;if(dt<100)return;energyAt=n;dt=min(dt,1000UL);uint16_t load=(uint16_t)constrain((int)(fabsf(curL)+fabsf(curR)),0,200);driveEqMs+=(uint32_t)(((uint64_t)dt*load)/200U);if(digitalRead(Cfg::RELAY_MQ)==Cfg::RELAY_ON)mqOnTotalMs+=dt;}
 
 /* MQ power */
 bool mqPowerOn=false;uint32_t mqPowerAt=0;
