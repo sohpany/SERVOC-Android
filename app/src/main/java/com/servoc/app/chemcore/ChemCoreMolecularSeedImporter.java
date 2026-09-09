@@ -95,7 +95,7 @@ public final class ChemCoreMolecularSeedImporter {
 
                     String[] numeric={"MolecularWeight","XLogP","TPSA","Complexity","HBondDonorCount",
                             "HBondAcceptorCount","RotatableBondCount","ExactMass","MonoisotopicMass",
-                            "HeavyAtomCount","FormalCharge","CovalentUnitCount","DefinedAtomStereoCount",
+                            "HeavyAtomCount","Charge","CovalentUnitCount","DefinedAtomStereoCount",
                             "UndefinedAtomStereoCount","DefinedBondStereoCount","UndefinedBondStereoCount"};
                     for(String key:numeric){
                         JSONObject q=p.optJSONObject(key);if(q==null)continue;
