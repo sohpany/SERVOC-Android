@@ -2,45 +2,22 @@
 #include <Arduino.h>
 
 namespace Cfg{
-constexpr char FW[]="HazRob 0.10.0-rc1";
+constexpr char FW[]="HazRob 0.10.0";
 constexpr uint8_t API=4;
-// Physical wiring profile remains the validated 0.9.3 L298N/1-relay/8-MQ hardware contract.
-constexpr char HW_PROFILE[]="hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1";
+constexpr char HW_PROFILE[]="hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1"; // physical wiring revision is unchanged
+constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 
-constexpr char SSID[]="HazRob";
-constexpr char NVS[]="servoc";
-constexpr char CAM[]="192.168.4.2";
-
-// L298N 4WD differential drive.
-// ENA/ENB remain enabled on the L298N module; speed PWM is applied directly
-// to the direction inputs so only four ESP32 GPIO outputs are required.
-// Two motors on each side are wired in parallel to the corresponding bridge.
-constexpr uint8_t DRIVE_L_IN1=18,DRIVE_L_IN2=27;
-constexpr uint8_t DRIVE_R_IN1=19,DRIVE_R_IN2=32;
-// If one side runs opposite to the intended command after final wiring,
-// change only the corresponding inversion flag instead of remapping the API.
+// L298N 4WD: two motors per side in parallel; ENA/ENB enabled, PWM on direction inputs.
+constexpr uint8_t DRIVE_L_IN1=18,DRIVE_L_IN2=27,DRIVE_R_IN1=19,DRIVE_R_IN2=32;
 constexpr bool DRIVE_L_INVERT=false,DRIVE_R_INVERT=false;
-
-// Motion/link safety: stale drive command stops motion quickly. If the whole link
-// is absent, hold stopped for 3 s to permit recovery; only then power MQ off and retrace.
-constexpr uint32_t DRIVE_LEASE_MS=450,LINK_DETECT_MS=900,LINK_HOLD_MS=3000;
-constexpr uint32_t RETRACE_MS=60000,ADS_REPROBE_MS=3000;
-// Compatibility aliases used by older modules.
+constexpr uint32_t DRIVE_LEASE_MS=450,LINK_DETECT_MS=900,LINK_HOLD_MS=3000,RETRACE_MS=60000,ADS_REPROBE_MS=3000;
 constexpr uint32_t FAILSAFE=DRIVE_LEASE_MS,LINK_LOSS_MS=LINK_DETECT_MS;
 constexpr float ACCEL=500.0f,DECEL=800.0f,REVERSE=1000.0f;
 constexpr int RETRACE_MAX_SPEED=40;
 
 constexpr uint8_t SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49;
-
-// One active-LOW relay powers all eight MQ heaters/sensors.
 constexpr uint8_t RELAY_MQ=25,RELAY_ON=LOW,RELAY_OFF=HIGH;
-
-// GPIO26 drives only the alert signal. A dynamic low-impedance speaker must use
-// an external transistor/driver stage; do not connect a 4/8-ohm speaker directly.
-// Alert patterns are non-blocking at the application state-machine level.
-constexpr uint8_t ALERT_PIN=26;
-constexpr uint8_t SOUND_PIN=36,IR_PIN=35,LDR_PIN=34,AUX1=33,AUX3=39;
-constexpr uint8_t AUX2=LDR_PIN; // compatibility alias for the previous profile.
+constexpr uint8_t ALERT_PIN=26,SOUND_PIN=36,IR_PIN=35,LDR_PIN=34,AUX1=33,AUX3=39,AUX2=LDR_PIN;
 constexpr uint8_t IR_ACTIVE=LOW;
 
 struct MQ{const char* name;uint8_t ads,ch;float r0;};
@@ -50,23 +27,13 @@ constexpr MQ mq[]={
 };
 constexpr uint8_t MQ_N=sizeof(mq)/sizeof(mq[0]);
 
-// ADS1115 acquisition contract. The converter is powered from the fixed 5 V HazRob rail.
-// GAIN_TWOTHIRDS in Hardware.cpp corresponds to ±6.144 V full-scale; readings are averaged
-// over four conversions per channel. ADS_RATE_SPS is documentation/provenance for the
-// RATE_ADS1115_860SPS configuration used in Hardware.cpp.
+// ADS1115 is fixed at 5 V; PGA ±6.144 V, 860 SPS, four conversions/channel.
 constexpr uint16_t ADS_RATE_SPS=860;
-constexpr float ADS_FULL_SCALE_V=6.144f,ADS_SUPPLY_V=5.0f;
-constexpr float MQ_VCC=5.0f,RL=10.0f;
-constexpr uint16_t MQ_PERIOD=100,SAMPLE_PERIOD=200;
+constexpr float ADS_FULL_SCALE_V=6.144f,ADS_SUPPLY_V=5.0f,MQ_VCC=5.0f,RL=10.0f;
+constexpr uint16_t MQ_PERIOD=100,SAMPLE_PERIOD=200,OPERATIONAL_WARMUP_SEC=60,ANALYSIS_WINDOW_SEC=30;
 constexpr uint8_t ADC_SAMPLES=4;
-constexpr uint16_t OPERATIONAL_WARMUP_SEC=60,ANALYSIS_WINDOW_SEC=30;
 constexpr bool TRACKING_CONTINUOUS=true;
-
 constexpr uint16_t SOUND_PERIOD=100,SOUND_SAMPLES=128,ENV_PERIOD=1000,IR_PERIOD=50,LDR_PERIOD=100;
 }
 
-struct Settings{
-  String cam;
-  int speed=100;
-  uint16_t warm=Cfg::OPERATIONAL_WARMUP_SEC,measure=Cfg::ANALYSIS_WINDOW_SEC;
-};
+struct Settings{String cam;int speed=100;uint16_t warm=Cfg::OPERATIONAL_WARMUP_SEC,measure=Cfg::ANALYSIS_WINDOW_SEC;};
