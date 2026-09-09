@@ -6,6 +6,7 @@ import static org.junit.Assert.*;
 public class ReleaseAuditTest {
     @Test public void v010KeepsCriticalCameraEvidenceAndSafetyContracts(){
         assertEquals("0.10.0",ReleaseAudit.VERSION);
+        assertEquals("شهاب الصهباني، مجدي ذيبان",ReleaseAudit.PROJECT_PREPARERS);
         assertEquals(8,ReleaseAudit.DATABASE_SCHEMA);
         assertTrue(ReleaseAudit.VIDEO_RECORDING);
         assertTrue(ReleaseAudit.DIRECT_ESP_CAM_MJPEG);
