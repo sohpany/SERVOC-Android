@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
-/** Canvas charts used by HazRob 0.9 PDF/XLSX reports. Every plotted point comes from recorded session data. */
+/** Canvas charts used by HazRob analytical PDF/XLSX reports. Every plotted point comes from recorded session data. */
 public final class AnalyticalCharts {
     private AnalyticalCharts(){}
     private static final int[] PALETTE={0xFF1565C0,0xFFC62828,0xFF2E7D32,0xFF6A1B9A,0xFFEF6C00,0xFF00838F,0xFFAD1457,0xFF455A64};
@@ -67,8 +67,16 @@ public final class AnalyticalCharts {
         List<Line> lines=new ArrayList<>();if(valid(rms)>=2)lines.add(new Line("RMS",arr(xx),arr(rms),0xFF1565C0));if(valid(pp)>=2)lines.add(new Line("Peak-Peak",arr(xx),arr(pp),0xFFEF6C00));lineChart(c,box,"Sound vs time","time (s)","V",lines);
     }
 
+    /** Supports both legacy agreement results and ChemCore posterior candidates. */
     public static void candidates(Canvas c,RectF box,JSONObject analytics){
-        JSONArray a=analytics==null?null:analytics.optJSONArray("results");if(a==null){empty(c,box,"Chemical candidates","No analytical results");return;}
+        if(analytics==null){empty(c,box,"Chemical candidates","No analytical results");return;}
+        JSONArray cc=analytics.optJSONArray("candidates");
+        if(cc!=null){
+            List<JSONObject> rows=new ArrayList<>();for(int i=0;i<cc.length();i++){JSONObject x=cc.optJSONObject(i);if(x!=null&&Double.isFinite(x.optDouble("posterior",Double.NaN)))rows.add(x);}rows.sort(Comparator.comparingDouble((JSONObject x)->x.optDouble("posterior",0)).reversed());if(rows.size()>8)rows=rows.subList(0,8);
+            String[] names=new String[rows.size()];double[] values=new double[rows.size()];for(int i=0;i<rows.size();i++){JSONObject x=rows.get(i);names[i]=shortName(x.optString("label","#"+x.optLong("chemical_uid",-1)),18);values[i]=Math.max(0,Math.min(1,x.optDouble("posterior",Double.NaN)));}
+            barChart(c,box,"ChemCore candidate posterior","posterior",names,values);return;
+        }
+        JSONArray a=analytics.optJSONArray("results");if(a==null){empty(c,box,"Chemical candidates","No analytical results");return;}
         List<JSONObject> rows=new ArrayList<>();for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x!=null&&x.optBoolean("evidence_present",true))rows.add(x);}rows.sort(Comparator.comparingDouble((JSONObject x)->x.optDouble("agreement",0)).reversed());if(rows.size()>8)rows=rows.subList(0,8);
         String[] names=new String[rows.size()];double[] values=new double[rows.size()];for(int i=0;i<rows.size();i++){JSONObject x=rows.get(i);String name=x.optString("name_ar",x.optString("name",x.optString("name_en","#"+x.optInt("chemical_id",-1))));names[i]=shortName(name,18);values[i]=x.optDouble("agreement",Double.NaN)/100.0;}
         barChart(c,box,"Chemical candidate agreement","agreement",names,values);
