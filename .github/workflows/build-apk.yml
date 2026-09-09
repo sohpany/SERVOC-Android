@@ -85,6 +85,21 @@ jobs:
               print('ChemCore molecular seed not yet pinned; application remains valid with molecular intelligence unavailable.')
           PY
 
+      - name: Validate canonical ChemCore Stable snapshot packaging
+        run: |
+          OUT="$RUNNER_TEMP/chemcore-stable-snapshot-ci.json"
+          python3 tools/build_chemcore_stable_snapshot.py --source-commit "$GITHUB_SHA" --out "$OUT"
+          python3 - <<PY
+          import json
+          q=json.load(open("$OUT",encoding="utf-8"))
+          assert q["schema"]=="chemcore-stable-snapshot-v1"
+          assert q["content_counts"]["chemical_identities"]==652
+          assert q["content_counts"]["molecularly_resolved"]==615
+          assert q["content_counts"]["identity_curation_records"]==37
+          assert q["policy"]["m4_requires_device_specific_validation"] is True
+          print("Canonical ChemCore Stable snapshot packaging validated.")
+          PY
+
       - name: Restore HazRob prototype signing key
         run: |
           base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
@@ -182,6 +197,10 @@ jobs:
           cp HazRob-app-update.json /tmp/hazrob-update-dist/public/app-update.json
           cp HazRob-app-sha256.txt /tmp/hazrob-update-dist/public/HazRob-latest-sha256.txt
           cp HazRob-app-signing.txt /tmp/hazrob-update-dist/public/HazRob-latest-signing.txt
+          # Preserve independently published ChemCore Stable files; the APK release must never erase them.
+          git show origin/app-update-distribution:public/chemcore/manifest.json >/dev/null 2>&1 && {
+            git archive --format=tar origin/app-update-distribution public/chemcore | tar -x -C /tmp/hazrob-update-dist || true
+          }
           cat > /tmp/hazrob-update-dist/public/index.html <<EOF
           <!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>HazRob Updates</title></head><body><h1>HazRob application updates</h1><p>Latest signed build: ${VERSION_NAME} (${VERSION_CODE}).</p><p>Use the in-app Status → Update button for verified installation.</p></body></html>
           EOF
