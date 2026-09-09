@@ -13,22 +13,26 @@ import com.servoc.app.chemcore.ChemCoreDecisionRepository;
 import com.servoc.app.chemcore.ChemCoreFeaturePipeline;
 import com.servoc.app.chemcore.ChemCoreInferenceEngine;
 import com.servoc.app.chemcore.ChemCoreLiveStabilityMonitor;
+import com.servoc.app.chemcore.ChemCoreOpenSetGate;
 import com.servoc.app.chemcore.ChemCoreResultEnvelope;
 import com.servoc.app.chemcore.ChemCoreRuntimeCoordinator;
 import com.servoc.app.chemcore.ChemCoreSessionController;
 import com.servoc.app.chemcore.ChemCoreSessionFeatureAdapter;
+import com.servoc.app.chemcore.InverseMolecularSolver;
 import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
+import com.servoc.app.chemcore.library.ChemCoreStableKnowledgeReader;
 import com.servoc.app.measurement.MeasurementSessionRegistry;
 
 import org.json.JSONObject;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
 /**
  * Developer/research control surface for a reproducible ChemCore baseline -> exposure -> analysis -> recovery cycle.
- * It never promotes a screening candidate to validated identity without an open-set/model validation layer.
+ * It never promotes a screening candidate to validated identity without a published validated open-set artifact.
  */
 public final class ChemCoreAnalysisTab {
     private static final long MIN_EXPOSURE_MS=30_000L;
@@ -134,28 +138,52 @@ public final class ChemCoreAnalysisTab {
         pendingPrimaryFinalize=false;
         try{
             ChemCoreSessionFeatureAdapter.Extraction x=ChemCoreSessionFeatureAdapter.extract(host.database(),attachedSessionId);
-            if(runtime.snapshot().state==ChemCoreSessionController.State.REPORT){lastResult=new ChemCoreResultEnvelope(attachedSessionId,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,runtime.profile().profileId,ChemCoreFeaturePipeline.SCHEMA_VERSION,"","response stability gate failed",java.util.Collections.emptyList());}
-            else if(!x.usable()){
+            if(runtime.snapshot().state==ChemCoreSessionController.State.REPORT){
+                lastResult=new ChemCoreResultEnvelope(attachedSessionId,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,runtime.profile().profileId,ChemCoreFeaturePipeline.SCHEMA_VERSION,"","response stability gate failed",java.util.Collections.emptyList());
+            }else if(!x.usable()){
                 runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"feature_extraction_unusable\"}");
                 lastResult=new ChemCoreResultEnvelope(attachedSessionId,ChemCoreDecision.Outcome.INVALID_MEASUREMENT,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,runtime.profile().profileId,ChemCoreFeaturePipeline.SCHEMA_VERSION,"","canonical feature extraction unusable",java.util.Collections.emptyList());
             }else{
                 runtime.advance(ChemCoreSessionController.Event.FEATURES_READY,true,"{\"feature_sha256\":\""+x.featurePayloadSha256+"\"}");
-                Map<String,Double> ratios=steadyRatios(x.features);ChemCoreInferenceEngine.Context ctx=new ChemCoreInferenceEngine.Context(attachedSessionId,runtime.profile().profileId,"legacy-manufacturer-priors",x.meanTemperatureC,x.meanRh,null);
-                lastResult=ChemCoreInferenceEngine.analyzeLegacyManufacturerPriors(ratios,runtime.profile(),ctx);
-                runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"validated_open_set_model_not_bound\"}");
+                Map<String,Double> ratios=steadyRatios(x.features);
+                ChemCoreLibraryManager.Status libStatus=libraries.status();
+                List<InverseMolecularSolver.Candidate> stableCandidates=ChemCoreStableKnowledgeReader.candidates(libraries.activePayload(),runtime.profile());
+                ChemCoreStableKnowledgeReader.OpenSetArtifact openArtifact=stableCandidates.isEmpty()?null:ChemCoreStableKnowledgeReader.openSetArtifact(libraries.activePayload(),runtime.profile().profileId);
+                ChemCoreOpenSetGate.Result openResult=openArtifact==null?null:openArtifact.gate.evaluate(x.features.vector);
+                String modelVersion=stableCandidates.isEmpty()?"legacy-manufacturer-priors":"chemcore-stable:"+libStatus.version;
+                if(openArtifact!=null)modelVersion+="+"+openArtifact.modelVersion;
+                ChemCoreInferenceEngine.Context ctx=new ChemCoreInferenceEngine.Context(attachedSessionId,runtime.profile().profileId,modelVersion,x.meanTemperatureC,x.meanRh,openResult);
+                lastResult=stableCandidates.isEmpty()?ChemCoreInferenceEngine.analyzeLegacyManufacturerPriors(ratios,runtime.profile(),ctx):ChemCoreInferenceEngine.analyze(ratios,stableCandidates,runtime.profile(),ctx);
+                advanceEvidenceState(lastResult,openArtifact,openResult);
             }
             ChemCoreLibraryManager.Status lib=libraries.status();lastResult=lastResult.withLibraryProvenance(lib.version,lib.sha256,lib.sourceCommit);
             new ChemCoreDecisionRepository(host.database()).save(Math.max(0,Math.round(x.durationSeconds*1000.0)),lastResult);runtime.finish(lastResult);
             if(runtime.snapshot().state==ChemCoreSessionController.State.REPORT)runtime.advance(ChemCoreSessionController.Event.REPORT_SAVED,true,"{\"saved\":true}");
-            awaitingRecoveryRemoval=true;recoveryConfirmed=false;stability.reset();renderResult(x,lastResult);status.setText("التحليل الحالي Screening/QA ما لم توجد هوية Open-Set معتمدة. أزل العينة ثم ابدأ مراقبة التعافي.");
+            awaitingRecoveryRemoval=true;recoveryConfirmed=false;stability.reset();renderResult(x,lastResult);
+            status.setText(lastResult.outcome==ChemCoreDecision.Outcome.UNKNOWN?"رفض Open-Set الهوية؛ أزل العينة وابدأ التعافي.":"تم حفظ النتيجة وفق مستوى الدليل. أزل العينة ثم ابدأ مراقبة التعافي.");
         }catch(Exception e){runtime.fail("{\"reason\":\"feature_or_inference_failure\"}");lastResult=null;active=false;status.setText("فشل التحليل: "+e.getMessage());}
+    }
+
+    private void advanceEvidenceState(ChemCoreResultEnvelope result,ChemCoreStableKnowledgeReader.OpenSetArtifact artifact,ChemCoreOpenSetGate.Result openResult){
+        if(result==null){runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"missing_result\"}");return;}
+        if(artifact==null||openResult==null){runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"validated_open_set_model_not_bound\"}");return;}
+        if(result.outcome==ChemCoreDecision.Outcome.INVALID_MEASUREMENT||result.outcome==ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE){runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"inference_evidence_insufficient\"}");return;}
+        runtime.advance(ChemCoreSessionController.Event.IDENTITY_READY,true,"{\"identity_model\":\"stable\"}");
+        if(!openResult.accepted||result.outcome==ChemCoreDecision.Outcome.UNKNOWN){runtime.advance(ChemCoreSessionController.Event.OPEN_SET_REJECTED,true,"{\"distance\":"+openResult.distance+",\"threshold\":"+openResult.threshold+"}");return;}
+        runtime.advance(ChemCoreSessionController.Event.OPEN_SET_ACCEPTED,true,"{\"distance\":"+openResult.distance+",\"threshold\":"+openResult.threshold+"}");
+        runtime.advance(ChemCoreSessionController.Event.QUANTIFICATION_READY,true,"{\"quantitative_outcome\":\""+result.outcome.name()+"\"}");
+        if(result.outcome==ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE)runtime.advance(ChemCoreSessionController.Event.MIXTURE_SUSPECTED,true,"{\"guard\":\"residual\"}");
+        else runtime.advance(ChemCoreSessionController.Event.CONSISTENCY_ACCEPTED,true,"{\"guard\":\"passed_or_nonquantitative\"}");
     }
 
     private void renderResult(ChemCoreSessionFeatureAdapter.Extraction x,ChemCoreResultEnvelope r){
         StringBuilder s=new StringBuilder();s.append("Outcome: ").append(r.outcome).append("\nEvidence: ").append(r.evidenceTier).append('\n');
         if(r.chemicalUid!=null)s.append("Top candidate: ").append(r.chemicalLabel).append(" [UID ").append(r.chemicalUid).append("]\n");
+        if(Double.isFinite(r.oodDistance))s.append("OOD distance: ").append(String.format(Locale.US,"%.3f",r.oodDistance)).append('\n');
+        if(Double.isFinite(r.posterior))s.append("Posterior: ").append(String.format(Locale.US,"%.3f",r.posterior)).append(" • entropy: ").append(Double.isFinite(r.normalizedEntropy)?String.format(Locale.US,"%.3f",r.normalizedEntropy):"—").append('\n');
         s.append("Samples: ").append(x.persistedSamples).append(" • duration: ").append(String.format(Locale.US,"%.1fs",x.durationSeconds)).append('\n');
         s.append("Feature schema: ").append(x.features.schemaVersion).append(" • SHA: ").append(shortId(x.featurePayloadSha256)).append('\n');
+        s.append("Model: ").append(r.modelVersion==null||r.modelVersion.isEmpty()?"—":r.modelVersion).append('\n');
         s.append("Library: ").append(r.libraryVersion).append(" • ").append(shortId(r.librarySha256)).append('\n');
         s.append("Note: ").append(r.note);resultText.setText(s.toString());
     }
