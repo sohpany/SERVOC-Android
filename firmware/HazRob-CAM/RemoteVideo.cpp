@@ -36,6 +36,7 @@ bool bootstrapPublishToken(bool force=false){
   String body;body.reserve(512);while((int32_t)(until-millis())>0&&(c.connected()||c.available())){while(c.available()&&body.length()<2048)body+=(char)c.read();if(body.length()>=2048)break;delay(1);}c.stop();
   if(!ok)return publishToken.length()>=8;
   String robot=jsonString(body,"robot"),token=compact(jsonString(body,"video_publish_token"));
+  if(token.length()<8)token=compact(jsonString(body,"mqtt_password"));
   if(robot!=RemoteVideoCfg::ROBOT_ID||token.length()<8)return publishToken.length()>=8;
   publishToken=token;credentialReady=true;return true;
 }
