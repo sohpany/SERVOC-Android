@@ -191,16 +191,13 @@ jobs:
           git fetch origin app-update-distribution
           rm -rf /tmp/hazrob-update-dist
           git worktree add -B app-update-distribution /tmp/hazrob-update-dist origin/app-update-distribution
-          rm -rf /tmp/hazrob-update-dist/public
+          # Update only application-owned files. Never erase independently published
+          # firmware or ChemCore directories from the shared distribution branch.
           mkdir -p /tmp/hazrob-update-dist/public
           cp app/build/outputs/apk/release/app-release.apk /tmp/hazrob-update-dist/public/HazRob-latest.apk
           cp HazRob-app-update.json /tmp/hazrob-update-dist/public/app-update.json
           cp HazRob-app-sha256.txt /tmp/hazrob-update-dist/public/HazRob-latest-sha256.txt
           cp HazRob-app-signing.txt /tmp/hazrob-update-dist/public/HazRob-latest-signing.txt
-          # Preserve independently published ChemCore Stable files; the APK release must never erase them.
-          git show origin/app-update-distribution:public/chemcore/manifest.json >/dev/null 2>&1 && {
-            git archive --format=tar origin/app-update-distribution public/chemcore | tar -x -C /tmp/hazrob-update-dist || true
-          }
           cat > /tmp/hazrob-update-dist/public/index.html <<EOF
           <!doctype html><html><head><meta charset="utf-8"><meta name="robots" content="noindex,nofollow"><title>HazRob Updates</title></head><body><h1>HazRob application updates</h1><p>Latest signed build: ${VERSION_NAME} (${VERSION_CODE}).</p><p>Use the in-app Status → Update button for verified installation.</p></body></html>
           EOF
