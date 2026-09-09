@@ -2,6 +2,7 @@ package com.servoc.app.chemical;
 
 import android.content.Context;
 
+import com.servoc.app.chemcore.ChemCoreIdentityCurationRepository;
 import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
@@ -32,6 +33,12 @@ public final class ChemicalSeedBootstrap {
         ChemCoreMolecularSeedImporter.Result molecular=ChemCoreMolecularSeedImporter.importBestAvailable(context,db);
         db.putMeta("chemcore_molecular_seed_status",
                 molecular.available?("available:"+molecular.records+":"+molecular.matched+":"+molecular.origin):molecular.message);
+
+        // Keep the exact 37 non-single-molecule/unresolved identities in a separate negative-eligibility layer.
+        // This import can only deny molecular-QSPR eligibility; it cannot promote any record to a molecular model.
+        ChemCoreIdentityCurationRepository.ImportResult curation=ChemCoreIdentityCurationRepository.importIfPresent(context,db);
+        db.putMeta("chemcore_identity_curation_status",
+                curation.available?("available:"+curation.records+":"+curation.sha256):curation.message);
         return result;
     }
 }
