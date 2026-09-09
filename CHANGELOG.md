@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.10.0 — 2026-09-09
+- Promoted HazRob to the first major **ChemCore / AMCI** release: Android `0.10.0` (versionCode 20), master ESP32 `HazRob 0.10.0` / API v4 and ESP32-CAM `HazRob-CAM 0.10.0`.
+- Preserved the validated physical wiring revision `hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1`; release version and hardware revision are intentionally independent.
+- Locked propulsion to **L298N differential 4WD** on GPIO18/27 (left) and GPIO19/32 (right); servo drive remains disabled.
+- Preserved one active-LOW GPIO25 relay powering all eight MQ modules and dual ADS1115 acquisition at 0x48/0x49.
+- Fixed ADS1115 supply provenance at the known 5 V HazRob rail; retained 860 SPS, GAIN_TWOTHIRDS and four-conversion per-channel averaging.
+- Added scan-cycle/channel timing provenance for the sequential eight-channel ADC acquisition path.
+- Added the canonical `chemcore-features/1` pipeline: 17 features/channel × 8 MQ channels = 136 features.
+- Added controlled ChemCore session state, live stability gating, stationary-analysis interlock, exact session lineage and conservative result states including UNKNOWN/INSUFFICIENT_EVIDENCE/POSSIBLE_MIXTURE_OR_INTERFERENCE.
+- Added molecular/physical intelligence, descriptor contracts, physical feasibility gates, QSPR-MOX research infrastructure, hierarchical candidate reduction, inverse full-array solver, open-set/Mahalanobis infrastructure, uncertainty/entropy and AMCI adaptive measurement decisions.
+- Embedded 652 occupational/chemical identities; 615 are molecularly resolved and 37 are explicitly curated as unresolved/material/mixture/category records rather than forced into false molecular identities.
+- Added independent, signed, versioned ChemCore Stable library updates with staging, SHA-256, RSA signature verification, compatibility checks, atomic activation and rollback.
+- Added unified end-user Update action in Status; developer mode retains research-library management, source override and rollback controls.
+- Added exact ChemCore provenance to PDF/XLSX reporting: session, outcome/evidence, model, feature schema, sampling profile and library version/hash/source commit.
+- Standardized chamber profile `hazrob-chemcore-chamber-v2` for the 90×40×150 mm pull-through chamber and documented the engineering flow prior without mislabeling it as measured calibration.
+- Hardened MQTT remote state with retained Last Will while preserving session/sequence/nonce/TTL/application-ACK command semantics.
+- Hardened ESP32-CAM remote WSS reconnect behavior and Render JPEG relay bounds/freshness diagnostics.
+- Reworked ESP32-CAM source for a smaller, focused firmware surface; ChemCore/molecular inference remains Android-side.
+- Added firmware CI Flash-headroom enforcement and retained fail-closed Android/scientific dataset regression gates.
+- Expanded the ChemCore research bibliography with recent 2024–2026 peer-reviewed work on descriptor-driven sensing, transient preprocessing, mixtures, drift, open-set recognition, uncertainty/selective classification and calibration transfer.
+
 ## 0.9.0 — 2026-09-04
 - Unified HazRob MQ power around hardware profile `hazrob-0.9-1r8mq-v1`.
 - Replaced the previous multi-bank relay model with one active-LOW relay on GPIO25 powering all eight installed MQ modules simultaneously.
