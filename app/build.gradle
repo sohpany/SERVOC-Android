@@ -4,6 +4,10 @@ android {
     namespace 'com.servoc.app'
     compileSdk 36
 
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId 'com.servoc.app'
         minSdk 26
