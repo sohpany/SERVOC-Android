@@ -1,0 +1,92 @@
+name: Build ChemCore Molecular Seed
+
+on:
+  push:
+    branches:
+      - dev/hazrob-0.10-chemcore-foundation
+    paths:
+      - tools/build_chemcore_molecular_seed.py
+      - .github/workflows/chemcore-molecular-seed.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chemcore-molecular-seed-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-molecular-seed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout research branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build provenance-rich PubChem seed
+        run: |
+          python3 tools/build_chemcore_molecular_seed.py \
+            --retries 5 \
+            --backoff 1.0 \
+            --delay 0.25
+
+      - name: Validate generated seed and manifest
+        run: |
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+
+          data_path = Path('app/src/main/assets/generated/chemcore/molecular_descriptors.json')
+          manifest_path = Path('app/src/main/assets/generated/chemcore/manifest.json')
+          data = json.loads(data_path.read_text(encoding='utf-8'))
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+
+          assert data['record_count'] == 652, data['record_count']
+          assert manifest['record_count'] == 652, manifest['record_count']
+          assert data['error_count'] == 0, data['error_count']
+          assert data['resolved_count'] + data['unresolved_count'] == 652
+          actual = hashlib.sha256(data_path.read_bytes()).hexdigest()
+          assert actual == manifest['sha256'], (actual, manifest['sha256'])
+
+          records = data['records']
+          assert len(records) == 652
+          assert all(r.get('status') in {'RESOLVED','UNRESOLVED'} for r in records)
+          assert data['interpretation'].startswith('Molecular/structural knowledge only')
+          print('ChemCore molecular seed validated:')
+          print('  total      =', data['record_count'])
+          print('  resolved   =', data['resolved_count'])
+          print('  unresolved =', data['unresolved_count'])
+          print('  SHA-256    =', actual)
+          PY
+
+      - name: Commit pinned generated dataset
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/src/main/assets/generated/chemcore/molecular_descriptors.json \
+                  app/src/main/assets/generated/chemcore/manifest.json
+          if git diff --cached --quiet; then
+            echo "Molecular seed already pinned; no changes."
+          else
+            git commit -m "data(chemcore): pin PubChem molecular descriptor seed"
+            git push origin HEAD:dev/hazrob-0.10-chemcore-foundation
+          fi
+
+      - name: Upload molecular seed audit artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chemcore-molecular-seed
+          if-no-files-found: warn
+          retention-days: 30
+          path: |
+            app/src/main/assets/generated/chemcore/molecular_descriptors.json
+            app/src/main/assets/generated/chemcore/manifest.json
