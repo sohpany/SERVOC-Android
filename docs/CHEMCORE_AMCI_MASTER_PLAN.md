@@ -41,6 +41,12 @@ The first ChemCore line deliberately keeps the existing analytical hardware:
 
 No new chemical sensor is required for the first ChemCore research line.
 
+### 2.1 Fixed ADS1115 supply assumption
+
+For the current HazRob hardware profile, both ADS1115 modules are supplied from the regulated **5.0 V rail**. This is a fixed design parameter, not a variable to be re-verified before each experiment. The Android hardware profile exposes this as `ADS_SUPPLY_V = 5.0f`.
+
+A one-time ADC transfer-characterization check using known voltages may still be performed for publication-grade metrology, but it is **not** a recurring operational requirement and it is **not** a prerequisite for ordinary ChemCore software operation.
+
 ---
 
 ## 3. Standard controlled sampling chamber v2
@@ -293,10 +299,10 @@ Mandatory controls:
 - split training/validation/test by independent experiment/session/day;
 - use leave-compound-out / held-out-family tests for QSPR generalization where applicable;
 - maintain manufacturer/literature/QSPR/device-calibrated evidence as separate tiers;
-- characterize ADC gain/offset with known voltages;
-- measure actual RL per MQ before quantitative publication;
-- validate ADS supply/reference domain;
-- characterize fan-on/off, motors-on/off and chamber blank effects;
+- treat ADS1115 supply as a fixed **5.0 V hardware-design value** for this profile; do not require recurring VDD verification;
+- optional one-time publication-grade ADC gain/offset characterization may use known voltages, but it is not an operational blocker;
+- measure actual RL per MQ before M4 quantitative publication;
+- characterize fan-on/off, motors-on/off and chamber blank effects before M4 validation;
 - track R0, baseline, noise, sensor age and calibration age;
 - treat MQ7/MQ9 quantitative claims as invalid until heater protocol is appropriately implemented/validated.
 
@@ -389,16 +395,25 @@ Remaining:
 - report integration of library version/hash.
 
 ### WP12 — Bench/device metrology
-**Status: BLOCKED ON PHYSICAL MEASUREMENTS**
+**Status: BLOCKED ONLY ON GENUINE PHYSICAL / M4 VALIDATION ITEMS**
 
-Pending: ADC reference-voltage validation, actual RL/R0, ADS VDD verification, fan/motor/blank interference tests, heater protocol validation and selected reference-gas work.
+Pending for M4-grade quantitative validation:
+
+- actual RL values for the installed MQ modules;
+- device-specific R0/calibration records for analytes promoted to M4;
+- fan/motor/chamber blank interference characterization;
+- MQ7/MQ9 heater-protocol implementation/validation if they are to contribute quantitatively;
+- selected reference-gas/reference-instrument validation;
+- optional one-time ADC gain/offset characterization for publication-grade uncertainty analysis.
+
+**Not pending:** ADS1115 VDD determination. The current hardware profile fixes ADS1115 supply at **5.0 V**.
 
 Estimated Chamber v2 airflow is no longer a blocker for software/model development but remains `FLOW_ESTIMATED` until measured.
 
 ### WP13 — Research Freeze v1.0
 **Status: PLANNED**
 
-Requires CI-green live ChemCore integration, pinned molecular/reference library, evaluated QSPR/solver/open-set behavior, physical metrology, selected M4 validation, blind independent validation, frozen commits/models/library/BOM/geometry and paper-ready limitations.
+Requires CI-green live ChemCore integration, pinned molecular/reference library, evaluated QSPR/solver/open-set behavior, selected physical/M4 validation, blind independent validation, frozen commits/models/library/BOM/geometry and paper-ready limitations.
 
 ---
 
@@ -440,6 +455,12 @@ Completed at this checkpoint:
 - tests added for semantic versions, unsigned-research policy, stable signature requirement and payload tamper rejection.
 
 **Next software execution focus:** complete WP11A remote updater/publication pipeline in parallel with WP3 live ChemCore integration and WP5 molecular dataset completion.
+
+### 2026-09-09 — Checkpoint C4: fixed ADS supply assumption
+
+- ADS1115 supply is now a fixed hardware-profile constant: `ADS_SUPPLY_V = 5.0f`;
+- recurring ADS VDD verification was removed from the development requirements;
+- optional ADC transfer characterization was retained only as a one-time publication-grade metrology exercise, not as an operational blocker.
 
 ---
 
