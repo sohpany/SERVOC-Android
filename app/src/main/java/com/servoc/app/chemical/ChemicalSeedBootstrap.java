@@ -8,7 +8,7 @@ import com.servoc.app.exposure.ExposureSeedBootstrap;
 
 import java.io.InputStream;
 
-/** Loads versioned offline NIOSH scientific seeds bundled into a HazRob build. */
+/** Loads versioned offline NIOSH scientific seeds and the best available ChemCore molecular snapshot. */
 public final class ChemicalSeedBootstrap {
     private ChemicalSeedBootstrap(){}
 
@@ -27,11 +27,11 @@ public final class ChemicalSeedBootstrap {
         // Import exposure data only after the identity table has been populated so CAS matching is deterministic.
         ExposureSeedBootstrap.ensureNioshIdlh(context,db);
 
-        // Molecular intelligence is optional and independently provenance-tagged. The importer is hash-idempotent,
-        // so startup remains cheap after the bundled PubChem seed has been installed once.
-        ChemCoreMolecularSeedImporter.Result molecular=ChemCoreMolecularSeedImporter.importIfPresent(context,db);
+        // Molecular intelligence prefers an activated, verified Stable snapshot and falls back to the APK seed.
+        // The importer is hash-idempotent, so startup remains cheap after the same content is installed once.
+        ChemCoreMolecularSeedImporter.Result molecular=ChemCoreMolecularSeedImporter.importBestAvailable(context,db);
         db.putMeta("chemcore_molecular_seed_status",
-                molecular.available?("available:"+molecular.records+":"+molecular.matched):molecular.message);
+                molecular.available?("available:"+molecular.records+":"+molecular.matched+":"+molecular.origin):molecular.message);
         return result;
     }
 }
