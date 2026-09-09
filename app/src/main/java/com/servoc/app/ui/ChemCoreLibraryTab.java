@@ -11,6 +11,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.ReleaseAudit;
+import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
 import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
 import com.servoc.app.chemcore.library.ChemCoreLibraryManifest;
 import com.servoc.app.chemcore.library.ChemCoreLibraryStore;
@@ -22,13 +23,13 @@ public final class ChemCoreLibraryTab {
     private final ChemCoreLibraryManager manager;
     private final ScrollView scroll;
     private final Handler main = new Handler(Looper.getMainLooper());
-    private final TextView statusText, remoteText, operationText;
+    private final TextView statusText, remoteText, operationText, endpointModeText;
     private final EditText endpoint;
     private final Button installButton, rollbackButton;
     private volatile ChemCoreLibraryManager.CheckSummary lastCheck;
 
     public ChemCoreLibraryTab(Context context, HazRobHost host) {
-        this.context = context;
+        this.context = context.getApplicationContext();
         this.host = host;
         this.manager = new ChemCoreLibraryManager(context);
         this.scroll = new ScrollView(context);
@@ -50,15 +51,19 @@ public final class ChemCoreLibraryTab {
 
         LinearLayout update = UiKit.card(context);
         update.addView(UiKit.title(context, "التحديث عبر الإنترنت"), UiKit.full(context));
+        endpointModeText=UiKit.small(context,"");update.addView(endpointModeText,UiKit.full(context));
         endpoint = UiKit.input(context, manager.manifestUrl());
         endpoint.setHint("https://.../manifest.json");
-        update.addView(UiKit.small(context, "مصدر Stable Manifest — HTTPS فقط ولا يسمح ببيانات اعتماد داخل الرابط."), UiKit.full(context));
+        update.addView(UiKit.small(context, "مصدر Stable Manifest — HTTPS فقط ولا يسمح ببيانات اعتماد داخل الرابط. المستخدم العادي يستخدم المصدر المثبت في الإصدار؛ هذا الحقل للمطور لاختبار مصدر بديل فقط."), UiKit.full(context));
         update.addView(endpoint, UiKit.full(context));
 
         LinearLayout endpointButtons = UiKit.hbox(context);
-        Button save = UiKit.button(context, "حفظ المصدر");
+        Button save = UiKit.button(context, "حفظ مصدر اختباري");
         save.setOnClickListener(v -> saveEndpoint());
         endpointButtons.addView(save, UiKit.weight(1));
+        Button reset = UiKit.button(context, "استعادة المصدر الافتراضي");
+        reset.setOnClickListener(v -> resetEndpoint());
+        endpointButtons.addView(reset, UiKit.weight(1));
         Button check = UiKit.button(context, "فحص التحديث");
         check.setOnClickListener(v -> checkUpdate());
         endpointButtons.addView(check, UiKit.weight(1));
@@ -105,6 +110,7 @@ public final class ChemCoreLibraryTab {
                     .append(" / unresolved ").append(s.embedded.unresolvedCount).append(')');
         }
         statusText.setText(text.toString());
+        endpointModeText.setText(manager.usingDeveloperManifestOverride()?"وضع المصدر: Developer override":"وضع المصدر: Build-pinned Stable endpoint");
         boolean active = ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics());
         installButton.setEnabled(lastCheck != null && lastCheck.updateAvailable && !active);
         rollbackButton.setEnabled(!active);
@@ -113,13 +119,20 @@ public final class ChemCoreLibraryTab {
     private void saveEndpoint() {
         try {
             manager.setManifestUrl(endpoint.getText().toString());
+            endpoint.setText(manager.manifestUrl());
             lastCheck = null;
             installButton.setEnabled(false);
-            operationText.setText("تم حفظ مصدر التحديث.");
+            operationText.setText("تم حفظ مصدر الاختبار للمطور.");
             host.showToast("تم حفظ مصدر مكتبة ChemCore");
+            refresh();
         } catch (Exception e) {
             operationText.setText("رفض المصدر: " + safe(e));
         }
+    }
+
+    private void resetEndpoint(){
+        manager.setManifestUrl("");endpoint.setText(manager.manifestUrl());lastCheck=null;installButton.setEnabled(false);
+        operationText.setText("تمت استعادة مصدر Stable المثبت في إصدار التطبيق.");refresh();
     }
 
     private void checkUpdate() {
@@ -169,8 +182,11 @@ public final class ChemCoreLibraryTab {
             try {
                 ChemCoreLibraryStore.InstallResult r = manager.install(checked, ReleaseAudit.VERSION,
                         ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics()));
+                ChemCoreMolecularSeedImporter.Result applied=r.installed?ChemCoreMolecularSeedImporter.importVerifiedPayload(manager.activePayload(),host.database()):null;
                 main.post(() -> {
-                    operationText.setText(r.installed ? "تم تثبيت ChemCore Library " + r.version : "لم يتم التثبيت: " + r.reason);
+                    if(r.installed&&applied!=null&&!applied.available)
+                        operationText.setText("تم تثبيت "+r.version+"؛ لا تحتوي الحزمة طبقة جزيئية قابلة للتطبيق: "+applied.message);
+                    else operationText.setText(r.installed ? "تم تثبيت ChemCore Library " + r.version : "لم يتم التثبيت: " + r.reason);
                     if (r.installed) {
                         lastCheck = null;
                         host.showToast("تم تحديث مكتبة ChemCore إلى " + r.version);
@@ -189,6 +205,7 @@ public final class ChemCoreLibraryTab {
     private void rollback() {
         boolean active = ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics());
         ChemCoreLibraryStore.InstallResult r = manager.rollback(active);
+        if(r.installed)ChemCoreMolecularSeedImporter.importBestAvailable(context,host.database());
         operationText.setText(r.installed ? "تم الرجوع إلى " + r.version : "تعذر الرجوع: " + r.reason);
         if (r.installed) host.showToast("تم استرجاع مكتبة ChemCore السابقة");
         lastCheck = null;
