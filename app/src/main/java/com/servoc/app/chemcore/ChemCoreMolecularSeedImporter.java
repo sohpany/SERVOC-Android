@@ -5,137 +5,206 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
+import com.servoc.app.chemcore.library.ChemCoreLibraryStore;
 import com.servoc.app.data.ExperimentsDb;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Locale;
 
 /**
- * Imports the optional generated PubChem molecular seed into ChemCore provenance tables.
- * Absence of the asset is not fatal; the application remains operational with its legacy
- * chemical/exposure knowledge and reports molecular intelligence as unavailable.
+ * Imports PubChem molecular knowledge into ChemCore provenance tables.
+ *
+ * Source precedence is deliberate:
+ *  1) currently activated, cryptographically verified ChemCore Stable payload when it contains a
+ *     supported molecular seed;
+ *  2) immutable molecular seed bundled in the APK.
+ *
+ * Absence of molecular knowledge is never fatal. Unsupported remote payloads do not erase the
+ * embedded fallback and do not silently mutate device-local experiments/telemetry.
  */
 public final class ChemCoreMolecularSeedImporter {
     private ChemCoreMolecularSeedImporter() {}
 
     public static final String ASSET = "generated/chemcore/molecular_descriptors.json";
     public static final String EXPECTED_SCHEMA = "chemcore-molecular-seed-v1";
+    public static final String STABLE_SNAPSHOT_SCHEMA = "chemcore-stable-snapshot-v1";
     private static final String META_SHA = "chemcore_molecular_seed_sha256";
     private static final String META_SUMMARY = "chemcore_molecular_seed_summary";
+    private static final String META_ORIGIN = "chemcore_molecular_seed_origin";
     private static final String SOURCE_ID = "PUBCHEM";
 
     public static final class Result {
         public final boolean available;
         public final int records, resolved, matched, structures, properties;
         public final String message;
+        public final String origin;
         Result(boolean available,int records,int resolved,int matched,int structures,int properties,String message){
+            this(available,records,resolved,matched,structures,properties,message,"");
+        }
+        Result(boolean available,int records,int resolved,int matched,int structures,int properties,String message,String origin){
             this.available=available;this.records=records;this.resolved=resolved;this.matched=matched;
-            this.structures=structures;this.properties=properties;this.message=message;
+            this.structures=structures;this.properties=properties;this.message=message;this.origin=origin==null?"":origin;
         }
     }
 
-    public static Result importIfPresent(Context context, ExperimentsDb db) {
-        if(context==null||db==null)return new Result(false,0,0,0,0,0,"context/database required");
-        try(InputStream in=context.getAssets().open(ASSET)){
-            String raw=read(in);
-            String payloadSha=sha256(raw);
-            JSONObject root=new JSONObject(raw);
-            if(!EXPECTED_SCHEMA.equals(root.optString("schema")))
-                return new Result(false,0,0,0,0,0,"unsupported molecular seed schema");
-
-            JSONArray rows=root.optJSONArray("records");
-            int recordCount=rows==null?0:rows.length();
-            int declaredResolved=root.optInt("resolved_count",0);
-
-            String installed=db.getMeta(META_SHA,"");
-            if(payloadSha.equalsIgnoreCase(installed)){
-                JSONObject s=parse(db.getMeta(META_SUMMARY,"{}"));
-                return new Result(true,recordCount,declaredResolved,
-                        s.optInt("matched",0),s.optInt("structures",0),s.optInt("properties",0),
-                        "ChemCore molecular seed already imported");
-            }
-
-            ensurePubChemSource(db);
-            MolecularIntelligenceRepository repo=new MolecularIntelligenceRepository(db);
-            if(rows==null)return new Result(true,0,0,0,0,0,"empty molecular seed");
-
-            SQLiteDatabase w=db.getWritableDatabase();
-            w.beginTransaction();
-            int resolved=0,matched=0,structures=0,properties=0;
-            try{
-                // Replace only previously generated PubChem evidence. Other sources and manually curated
-                // properties are retained. This keeps a refreshed seed reproducible without row duplication.
-                w.delete("chemcore_properties","source_id=?",new String[]{SOURCE_ID});
-                w.delete("chemcore_descriptor_sets","source_id=? AND descriptor_version=?",
-                        new String[]{SOURCE_ID,"pubchem-basic/2"});
-                w.delete("chemcore_structures","source_id=?",new String[]{SOURCE_ID});
-
-                for(int i=0;i<rows.length();i++){
-                    JSONObject r=rows.optJSONObject(i);
-                    if(r==null||!"RESOLVED".equals(r.optString("status")))continue;
-                    resolved++;
-                    String cas=r.optString("cas","").trim();
-                    if(cas.isEmpty())continue;
-                    long uid=chemicalUidByCas(db,cas);
-                    if(uid<=0)continue;
-                    matched++;
-                    JSONObject p=r.optJSONObject("pubchem");
-                    if(p==null)continue;
-
-                    String connectivity=text(p,"ConnectivitySMILES"),smiles=text(p,"SMILES"),
-                            inchi=text(p,"InChI"),inchikey=text(p,"InChIKey");
-                    if(nonempty(connectivity)||nonempty(smiles)||nonempty(inchi)||nonempty(inchikey))
-                        if(repo.saveStructure(uid,connectivity,smiles,inchi,inchikey,null,SOURCE_ID))structures++;
-
-                    String[] numeric={"MolecularWeight","XLogP","TPSA","Complexity","HBondDonorCount",
-                            "HBondAcceptorCount","RotatableBondCount","ExactMass","MonoisotopicMass",
-                            "HeavyAtomCount","Charge","CovalentUnitCount","DefinedAtomStereoCount",
-                            "UndefinedAtomStereoCount","DefinedBondStereoCount","UndefinedBondStereoCount"};
-                    for(String key:numeric){
-                        JSONObject q=p.optJSONObject(key);if(q==null)continue;
-                        double v=q.optDouble("value",Double.NaN);if(!Double.isFinite(v))continue;
-                        String unit=q.optString("unit","");
-                        String method=q.optString("method","PubChem PUG REST property endpoint");
-                        if(repo.saveProperty(new MolecularProperty(uid,key,v,null,unit,Double.NaN,Double.NaN,
-                                method,SOURCE_ID,Double.NaN,"A_SOURCE"))>0)properties++;
+    /** Preferred entry point for startup and after a verified Stable Library activation. */
+    public static Result importBestAvailable(Context context, ExperimentsDb db) {
+        if(context==null||db==null)return new Result(false,0,0,0,0,0,"context/database required","");
+        try {
+            File active = new ChemCoreLibraryStore(context).activePayload();
+            if(active!=null&&active.isFile()){
+                try(FileInputStream in=new FileInputStream(active)){
+                    String raw=read(in);
+                    JSONObject outer=new JSONObject(raw);
+                    JSONObject seed=extractSupportedSeed(outer);
+                    if(seed!=null){
+                        Result r=importRoot(seed,db,"stable:"+active.getName());
+                        if(r.available)return r;
+                    }else{
+                        db.putMeta("chemcore_remote_molecular_seed_note","active Stable payload has no supported molecular seed schema");
                     }
-
-                    String[] textProperties={"MolecularFormula","IUPACName","Title","SMILES","ConnectivitySMILES"};
-                    for(String key:textProperties){
-                        String value=text(p,key);
-                        if(nonempty(value)&&repo.saveProperty(new MolecularProperty(uid,key,Double.NaN,value,"",
-                                Double.NaN,Double.NaN,"PubChem PUG REST property endpoint",SOURCE_ID,
-                                Double.NaN,"A_SOURCE"))>0)properties++;
-                    }
-
-                    String payload=p.toString();
-                    repo.saveDescriptorSet(uid,"pubchem-basic/2","PubChem PUG REST property endpoint",
-                            SOURCE_ID,payload,sha256(payload),true);
+                }catch(Exception e){
+                    db.putMeta("chemcore_remote_molecular_seed_last_error",e.getClass().getSimpleName()+": "+String.valueOf(e.getMessage()));
                 }
-
-                JSONObject summary=new JSONObject();
-                summary.put("records",rows.length());summary.put("resolved",resolved);summary.put("matched",matched);
-                summary.put("structures",structures);summary.put("properties",properties);
-                db.putMeta(META_SHA,payloadSha);
-                db.putMeta(META_SUMMARY,summary.toString());
-                w.setTransactionSuccessful();
-            } finally {
-                w.endTransaction();
             }
-            return new Result(true,rows.length(),resolved,matched,structures,properties,
-                    "ChemCore molecular seed imported");
+        }catch(Exception e){
+            db.putMeta("chemcore_remote_molecular_seed_last_error",e.getClass().getSimpleName()+": "+String.valueOf(e.getMessage()));
+        }
+        return importIfPresent(context,db);
+    }
+
+    /** Backward-compatible embedded APK fallback import. */
+    public static Result importIfPresent(Context context, ExperimentsDb db) {
+        if(context==null||db==null)return new Result(false,0,0,0,0,0,"context/database required","");
+        try(InputStream in=context.getAssets().open(ASSET)){
+            return importRoot(new JSONObject(read(in)),db,"apk:"+ASSET);
         }catch(java.io.FileNotFoundException e){
-            return new Result(false,0,0,0,0,0,"molecular seed asset not installed");
+            return new Result(false,0,0,0,0,0,"molecular seed asset not installed","apk");
         }catch(Exception e){
             db.putMeta("chemcore_molecular_seed_last_error",e.getClass().getSimpleName()+": "+String.valueOf(e.getMessage()));
-            return new Result(false,0,0,0,0,0,"molecular seed import failed: "+e.getClass().getSimpleName());
+            return new Result(false,0,0,0,0,0,"molecular seed import failed: "+e.getClass().getSimpleName(),"apk");
         }
+    }
+
+    /** Allows the update path to apply a newly installed verified payload immediately. */
+    public static Result importVerifiedPayload(File payload, ExperimentsDb db) {
+        if(payload==null||!payload.isFile()||db==null)return new Result(false,0,0,0,0,0,"verified payload/database required","");
+        try(FileInputStream in=new FileInputStream(payload)){
+            JSONObject outer=new JSONObject(read(in));
+            JSONObject seed=extractSupportedSeed(outer);
+            if(seed==null)return new Result(false,0,0,0,0,0,"verified payload contains no supported molecular seed",payload.getName());
+            return importRoot(seed,db,"stable:"+payload.getName());
+        }catch(Exception e){
+            return new Result(false,0,0,0,0,0,"verified molecular payload import failed: "+e.getClass().getSimpleName(),payload.getName());
+        }
+    }
+
+    private static JSONObject extractSupportedSeed(JSONObject outer){
+        if(outer==null)return null;
+        String schema=outer.optString("schema","");
+        if(EXPECTED_SCHEMA.equals(schema))return outer;
+        if(STABLE_SNAPSHOT_SCHEMA.equals(schema)){
+            JSONObject knowledge=outer.optJSONObject("knowledge");
+            JSONObject seed=knowledge==null?outer.optJSONObject("molecular_seed"):knowledge.optJSONObject("molecular_seed");
+            return seed!=null&&EXPECTED_SCHEMA.equals(seed.optString("schema",""))?seed:null;
+        }
+        return null;
+    }
+
+    private static Result importRoot(JSONObject root, ExperimentsDb db, String origin) throws Exception {
+        if(root==null||!EXPECTED_SCHEMA.equals(root.optString("schema")))
+            return new Result(false,0,0,0,0,0,"unsupported molecular seed schema",origin);
+
+        String normalized=root.toString();
+        String payloadSha=sha256(normalized);
+        JSONArray rows=root.optJSONArray("records");
+        int recordCount=rows==null?0:rows.length();
+        int declaredResolved=root.optInt("resolved_count",0);
+
+        String installed=db.getMeta(META_SHA,"");
+        if(payloadSha.equalsIgnoreCase(installed)){
+            JSONObject s=parse(db.getMeta(META_SUMMARY,"{}"));
+            db.putMeta(META_ORIGIN,origin);
+            return new Result(true,recordCount,declaredResolved,
+                    s.optInt("matched",0),s.optInt("structures",0),s.optInt("properties",0),
+                    "ChemCore molecular seed already imported",origin);
+        }
+
+        ensurePubChemSource(db);
+        MolecularIntelligenceRepository repo=new MolecularIntelligenceRepository(db);
+        if(rows==null)return new Result(true,0,0,0,0,0,"empty molecular seed",origin);
+
+        SQLiteDatabase w=db.getWritableDatabase();
+        w.beginTransaction();
+        int resolved=0,matched=0,structures=0,properties=0;
+        try{
+            // Replace only generated PubChem evidence. Other sources and manually curated properties remain.
+            w.delete("chemcore_properties","source_id=?",new String[]{SOURCE_ID});
+            w.delete("chemcore_descriptor_sets","source_id=? AND descriptor_version=?",
+                    new String[]{SOURCE_ID,"pubchem-basic/2"});
+            w.delete("chemcore_structures","source_id=?",new String[]{SOURCE_ID});
+
+            for(int i=0;i<rows.length();i++){
+                JSONObject r=rows.optJSONObject(i);
+                if(r==null||!"RESOLVED".equals(r.optString("status")))continue;
+                resolved++;
+                String cas=r.optString("cas","").trim();
+                if(cas.isEmpty())continue;
+                long uid=chemicalUidByCas(db,cas);
+                if(uid<=0)continue;
+                matched++;
+                JSONObject p=r.optJSONObject("pubchem");
+                if(p==null)continue;
+
+                String connectivity=text(p,"ConnectivitySMILES"),smiles=text(p,"SMILES"),
+                        inchi=text(p,"InChI"),inchikey=text(p,"InChIKey");
+                if(nonempty(connectivity)||nonempty(smiles)||nonempty(inchi)||nonempty(inchikey))
+                    if(repo.saveStructure(uid,connectivity,smiles,inchi,inchikey,null,SOURCE_ID))structures++;
+
+                String[] numeric={"MolecularWeight","XLogP","TPSA","Complexity","HBondDonorCount",
+                        "HBondAcceptorCount","RotatableBondCount","ExactMass","MonoisotopicMass",
+                        "HeavyAtomCount","Charge","CovalentUnitCount","DefinedAtomStereoCount",
+                        "UndefinedAtomStereoCount","DefinedBondStereoCount","UndefinedBondStereoCount"};
+                for(String key:numeric){
+                    JSONObject q=p.optJSONObject(key);if(q==null)continue;
+                    double v=q.optDouble("value",Double.NaN);if(!Double.isFinite(v))continue;
+                    String unit=q.optString("unit","");
+                    String method=q.optString("method","PubChem PUG REST property endpoint");
+                    if(repo.saveProperty(new MolecularProperty(uid,key,v,null,unit,Double.NaN,Double.NaN,
+                            method,SOURCE_ID,Double.NaN,"A_SOURCE"))>0)properties++;
+                }
+
+                String[] textProperties={"MolecularFormula","IUPACName","Title","SMILES","ConnectivitySMILES"};
+                for(String key:textProperties){
+                    String value=text(p,key);
+                    if(nonempty(value)&&repo.saveProperty(new MolecularProperty(uid,key,Double.NaN,value,"",
+                            Double.NaN,Double.NaN,"PubChem PUG REST property endpoint",SOURCE_ID,
+                            Double.NaN,"A_SOURCE"))>0)properties++;
+                }
+
+                String payload=p.toString();
+                repo.saveDescriptorSet(uid,"pubchem-basic/2","PubChem PUG REST property endpoint",
+                        SOURCE_ID,payload,sha256(payload),true);
+            }
+
+            JSONObject summary=new JSONObject();
+            summary.put("records",rows.length());summary.put("resolved",resolved);summary.put("matched",matched);
+            summary.put("structures",structures);summary.put("properties",properties);summary.put("origin",origin);
+            db.putMeta(META_SHA,payloadSha);
+            db.putMeta(META_SUMMARY,summary.toString());
+            db.putMeta(META_ORIGIN,origin);
+            w.setTransactionSuccessful();
+        } finally { w.endTransaction(); }
+        return new Result(true,rows.length(),resolved,matched,structures,properties,
+                "ChemCore molecular seed imported",origin);
     }
 
     private static void ensurePubChemSource(ExperimentsDb db){
@@ -153,7 +222,7 @@ public final class ChemCoreMolecularSeedImporter {
     }
     private static String text(JSONObject p,String key){JSONObject q=p.optJSONObject(key);return q==null?null:q.optString("value",null);}
     private static boolean nonempty(String s){return s!=null&&!s.trim().isEmpty();}
-    private static String read(InputStream in)throws Exception{ByteArrayOutputStream b=new ByteArrayOutputStream();byte[] x=new byte[8192];for(int n;(n=in.read(x))>=0;)b.write(x,0,n);return b.toString(StandardCharsets.UTF_8.name());}
+    private static String read(InputStream in)throws Exception{ByteArrayOutputStream b=new ByteArrayOutputStream();byte[] x=new byte[8192];for(int n;(n=in.read(x))>=0;)if(n>0)b.write(x,0,n);return b.toString(StandardCharsets.UTF_8.name());}
     private static String sha256(String s)throws Exception{byte[] h=MessageDigest.getInstance("SHA-256").digest(s.getBytes(StandardCharsets.UTF_8));StringBuilder x=new StringBuilder();for(byte b:h)x.append(String.format(Locale.US,"%02x",b&255));return x.toString();}
     private static JSONObject parse(String s){try{return new JSONObject(s==null?"{}":s);}catch(Exception e){return new JSONObject();}}
 }
