@@ -52,6 +52,26 @@ public final class MahalanobisModel {
         return new MahalanobisModel(mean, invert(cov), ridge, clean.size());
     }
 
+    /**
+     * Restores a frozen, independently validated model artifact without refitting on the device.
+     * The caller must verify artifact integrity/provenance before using this factory.
+     */
+    public static MahalanobisModel fromFrozenParameters(double[] mean,double[][] inverseCovariance,
+                                                         double ridge,int trainingCount){
+        if(mean==null||mean.length==0)throw new IllegalArgumentException("mean required");
+        if(inverseCovariance==null||inverseCovariance.length!=mean.length)throw new IllegalArgumentException("inverse covariance dimension mismatch");
+        double[] mu=Arrays.copyOf(mean,mean.length);double[][] inv=new double[mean.length][mean.length];
+        for(int i=0;i<mean.length;i++){
+            if(!Double.isFinite(mu[i]))throw new IllegalArgumentException("non-finite mean");
+            if(inverseCovariance[i]==null||inverseCovariance[i].length!=mean.length)throw new IllegalArgumentException("inverse covariance must be square");
+            for(int j=0;j<mean.length;j++){
+                double v=inverseCovariance[i][j];if(!Double.isFinite(v))throw new IllegalArgumentException("non-finite inverse covariance");inv[i][j]=v;
+            }
+        }
+        double r=Double.isFinite(ridge)&&ridge>=0?ridge:0;
+        return new MahalanobisModel(mu,inv,r,Math.max(0,trainingCount));
+    }
+
     /** Returns squared Mahalanobis distance; finite dimensions are used as a principal subspace. */
     public double distanceSquared(double[] x) {
         if (x == null || x.length != mean.length) return Double.NaN;
