@@ -19,7 +19,7 @@ public class RobotProtocolV4AlertTest {
     }
 
     @Test public void profilePinContractMatchesFirmware010(){
-        assertEquals("hazrob-0.10-1r8mq-l298n6-batt-ultra-ldr-v1",HazRobHardwareProfile.ID);
+        assertEquals("hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1",HazRobHardwareProfile.ID);
         assertEquals("L298N",HazRobHardwareProfile.DRIVE_DRIVER);
         assertEquals(16,HazRobHardwareProfile.DRIVE_L_EN);
         assertEquals(18,HazRobHardwareProfile.DRIVE_L_IN1);
