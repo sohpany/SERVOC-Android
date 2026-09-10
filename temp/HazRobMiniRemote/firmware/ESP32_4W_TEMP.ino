@@ -3,18 +3,16 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 
-// ===== TEMP NETWORK =====
-const char* AP_SSID = "4W-TEMP";        // open local Wi-Fi
-const char* UPLINK_SSID = "CHANGE_ME";  // your router / phone hotspot
-const char* UPLINK_PASS = "CHANGE_ME";  // only the uplink Wi-Fi password
+const char* AP_SSID = "4W-TEMP";
+const char* UPLINK_SSID = "SHEHAB-LAPTOP";
+const char* UPLINK_PASS = "11661166";
 const char* RELAY_HOST = "https://hazrob-mini-remote.onrender.com";
 const char* CHANNEL = "0Jo6HgI-45pkxeEeiA3fs1rb";
 
-// ===== L298N : two motors per side in parallel =====
-const int ENA = 16;  // left PWM
+const int ENA = 16;
 const int IN1 = 18;
 const int IN2 = 27;
-const int ENB = 17;  // right PWM
+const int ENB = 17;
 const int IN3 = 19;
 const int IN4 = 32;
 
@@ -50,7 +48,7 @@ void handleDrive(){
 }
 
 void handleStatus(){
-  String j = "{\"ok\":true,\"l\":"+String(leftCmd)+",\"r\":"+String(rightCmd)+",\"sta\":"+(WiFi.status()==WL_CONNECTED?"true":"false")+"}";
+  String j = "{\"ok\":true,\"l\":"+String(leftCmd)+",\"r\":"+String(rightCmd)+",\"internet\":"+(WiFi.status()==WL_CONNECTED?"true":"false")+"}";
   server.send(200,"application/json",j);
 }
 
@@ -66,8 +64,7 @@ int jsonInt(const String& s,const char* key){
 void pollRemote(){
   if(WiFi.status()!=WL_CONNECTED) return;
   uint32_t now=millis(); if(now-lastRemotePoll<120) return; lastRemotePoll=now;
-
-  WiFiClientSecure tls; tls.setInsecure(); // TEMP ONLY
+  WiFiClientSecure tls; tls.setInsecure();
   HTTPClient http;
   String url = String(RELAY_HOST)+"/cmd/"+CHANNEL;
   if(!http.begin(tls,url)) return;
@@ -78,8 +75,6 @@ void pollRemote(){
     leftCmd=clamp100(jsonInt(body,"l"));
     rightCmd=clamp100(jsonInt(body,"r"));
     applyDrive();
-  } else {
-    stopDrive();
   }
   http.end();
 }
@@ -94,9 +89,8 @@ void setup(){
   WiFi.setSleep(false);
   IPAddress ap(192,168,4,1), mask(255,255,255,0), firstDhcp(192,168,4,100);
   WiFi.softAPConfig(ap,ap,mask,firstDhcp);
-  WiFi.softAP(AP_SSID); // open AP
-
-  if(String(UPLINK_SSID)!="CHANGE_ME") WiFi.begin(UPLINK_SSID,UPLINK_PASS);
+  WiFi.softAP(AP_SSID);
+  WiFi.begin(UPLINK_SSID,UPLINK_PASS);
 
   server.on("/",[](){server.send(200,"text/plain","ESP32-4W-TEMP");});
   server.on("/drive",handleDrive);
