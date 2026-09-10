@@ -12,7 +12,7 @@ WiFiClientSecure ws;
 RemoteCaptureFn captureFn=nullptr;
 TaskHandle_t taskHandle=nullptr;
 uint8_t* frameBuf=nullptr;
-volatile bool running=false,connected=false;
+volatile bool running=false,connected=false,localActive=false;
 volatile uint32_t sentFrames=0,connectErrors=0,sendErrors=0,lastFrameBytes=0,retryDelayMs=RemoteVideoCfg::RETRY_MIN_MS;
 uint32_t nextConnectAt=0;
 String publishToken=RemoteVideoCfg::PUBLISH_TOKEN;
@@ -78,6 +78,9 @@ void remoteTask(void*){
     }
     while(ws.available()){if(!readServerFrame()){ws.stop();connected=false;scheduleRetry();break;}}
     if(!connected)continue;
+    // Local MJPEG is latency-critical. Keep the WSS session alive, but do not contend for the
+    // camera mutex or JPEG encoder while a direct viewer is connected.
+    if(localActive){vTaskDelay(pdMS_TO_TICKS(20));continue;}
     uint32_t now=millis();if((int32_t)(now-nextFrame)<0){vTaskDelay(pdMS_TO_TICKS(5));continue;}nextFrame=now+RemoteVideoCfg::FRAME_INTERVAL_MS;
     size_t len=0;if(!captureFn||!captureFn(frameBuf,RemoteVideoCfg::MAX_JPEG,len)||!len){vTaskDelay(pdMS_TO_TICKS(10));continue;}
     lastFrameBytes=(uint32_t)len;if(!sendMaskedFrame(2,frameBuf,len)){sendErrors++;ws.stop();connected=false;scheduleRetry();continue;}sentFrames++;
@@ -88,5 +91,6 @@ void remoteTask(void*){
 
 void remoteVideoBegin(RemoteCaptureFn capture){captureFn=capture;if(!RemoteVideoCfg::configured()||taskHandle)return;if(!frameBuf)frameBuf=(uint8_t*)ps_malloc(RemoteVideoCfg::MAX_JPEG);if(!frameBuf)return;running=true;resetRetry();xTaskCreatePinnedToCore(remoteTask,"remote-video",8192,nullptr,1,&taskHandle,0);}
 void remoteVideoStop(){running=false;ws.stop();connected=false;}
+void remoteVideoSetLocalActive(bool active){localActive=active;}
 bool remoteVideoConnected(){return connected&&ws.connected();}
-String remoteVideoJson(){String j="{\"configured\":"+String(RemoteVideoCfg::configured()?"true":"false")+",\"credential_ready\":"+String(credentialReady||publishToken.length()>=8?"true":"false")+",\"connected\":"+String(remoteVideoConnected()?"true":"false")+",\"frames\":"+String(sentFrames)+",\"last_jpeg_bytes\":"+String(lastFrameBytes)+",\"connect_errors\":"+String(connectErrors)+",\"send_errors\":"+String(sendErrors)+",\"retry_backoff_ms\":"+String(retryDelayMs)+"}";return j;}
+String remoteVideoJson(){String j="{\"configured\":"+String(RemoteVideoCfg::configured()?"true":"false")+",\"credential_ready\":"+String(credentialReady||publishToken.length()>=8?"true":"false")+",\"connected\":"+String(remoteVideoConnected()?"true":"false")+",\"paused_local\":"+String(localActive?"true":"false")+",\"frames\":"+String(sentFrames)+",\"last_jpeg_bytes\":"+String(lastFrameBytes)+",\"connect_errors\":"+String(connectErrors)+",\"send_errors\":"+String(sendErrors)+",\"retry_backoff_ms\":"+String(retryDelayMs)+"}";return j;}
