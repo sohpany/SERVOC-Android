@@ -2,3 +2,5 @@ pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal()
 dependencyResolutionManagement { repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS); repositories { google(); mavenCentral() } }
 rootProject.name = "SERVOC"
 include ':app'
+include ':miniapp'
+project(':miniapp').projectDir = file('temp/HazRobMiniRemote/android')
