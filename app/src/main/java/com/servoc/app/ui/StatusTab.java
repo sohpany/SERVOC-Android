@@ -147,8 +147,8 @@ public final class StatusTab {
             network.setText("الوضع   DIRECT / Wi-Fi\nLocal   "+(d==null?"○ OFFLINE":"● CONNECTED")+"\nHeartbeat   "+(link!=null&&link.optBoolean("lost",false)?"LOST":link!=null&&link.optBoolean("armed",false)?"ACTIVE":"LOCAL"));
             return;
         }
-        RemoteConnection r=RemoteConnection.active();JSONObject st=r==null?null:r.status();boolean mqtt=r!=null&&r.isConnected(),internet=st!=null&&st.optBoolean("internet",false),napt=st!=null&&st.optBoolean("napt",false),telemetry=d!=null;
-        network.setText("الوضع   REMOTE / Internet\nMQTT/TLS   "+ok(mqtt)+"\nTelemetry   "+ok(telemetry)+"\nWAN   "+ok(internet)+"   NAPT   "+ok(napt));
+        RemoteConnection r=RemoteConnection.active();JSONObject st=r==null?null:r.status();boolean mqtt=r!=null&&r.isConnected(),internet=st!=null&&st.optBoolean("internet",false),telemetry=d!=null;
+        network.setText("الوضع   REMOTE / Internet\nMQTT/TLS   "+ok(mqtt)+"\nTelemetry   "+ok(telemetry)+"\nWAN   "+ok(internet));
     }
 
     private void renderCamera(){
