@@ -1,19 +1,19 @@
-# HazRob 0.10.0
+# HazRob 0.10.1
 
 HazRob is a low-cost mobile robotic platform for remote hazardous-environment reconnaissance, multi-gas **screening**, controlled chemical analysis, environmental sensing, video inspection, evidence capture and research-grade traceability.
 
-**Release:** Android `0.10.0` · Master ESP32 `HazRob 0.10.0` / API v4 · ESP32-CAM `HazRob-CAM 0.10.0`  
-**Physical hardware profile:** `hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1` (unchanged wiring revision)  
+**Release:** Android `0.10.1` · Master ESP32 `HazRob 0.10.1` / API v4 · ESP32-CAM `HazRob-CAM 0.10.1`  
+**Physical hardware profile:** `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`  
 **Analytical platform:** ChemCore / AMCI  
 **Application ID:** `com.servoc.app`
 
-> HazRob 0.10.0 is a research prototype. The current MQ/ESP32 architecture is **not Ex-certified or intrinsically safe** and must not be represented as suitable for classified explosive atmospheres. Generic/manufacturer MQ response curves are not device calibration certificates. Quantitative occupational interpretation requires analyte-specific validated calibration and the applicable measurement domain.
+> HazRob 0.10.1 is a research prototype. The current MQ/ESP32 architecture is **not Ex-certified or intrinsically safe** and must not be represented as suitable for classified explosive atmospheres. Generic/manufacturer MQ response curves are not device calibration certificates. Quantitative occupational interpretation requires analyte-specific validated calibration and the applicable measurement domain.
 
-## What changed in 0.10.0
+## What changed in 0.10.1
 
-0.10 is the first major **ChemCore** release. It adds a controlled analytical runtime, one canonical 8-sensor feature pipeline, molecular/physical knowledge, response-prior and inverse-solver infrastructure, open-set/UNKNOWN handling, uncertainty-aware AMCI decisions, mixture/interference guards, versioned model provenance, signed dynamic scientific-library updates, and exact session-level reporting.
+0.10.1 is the controlled integration release for the ChemCore-generation HazRob platform. It keeps the analytical foundation introduced in 0.10 while unifying the Android application, main ESP32, ESP32-CAM, canonical GPIO allocation, Direct transport, Remote MQTT/WSS transport, Render/HiveMQ contracts, scientific datasets, build workflows and release artifacts under one version-controlled baseline.
 
-The software now separates:
+The software separates:
 
 `Robot + acquisition firmware → controlled measurement → ChemCore features → evidence/model inference → OOD/UNKNOWN gate → gated quantification → AMCI/re-measurement → report`
 
@@ -21,14 +21,19 @@ The scientific library is versioned independently from the APK so approved exper
 
 ## Hardware source of truth
 
+The authoritative human-readable pin map is [`docs/0.10.1/GPIO_AUTHORITY.md`](docs/0.10.1/GPIO_AUTHORITY.md). Firmware source remains the executable authority. Any active documentation that disagrees with those sources is a release defect.
+
 ### 4WD motion — no servo drive
 
 The current robot uses an **L298N differential 4WD chassis**, not servo propulsion:
 
-- left side: GPIO18 / GPIO27;
-- right side: GPIO19 / GPIO32;
-- two motors per side are wired in parallel to the corresponding bridge;
-- ENA/ENB remain enabled and speed PWM is applied on the direction inputs;
+- left speed enable: ENA = GPIO16 (PWM);
+- left direction: IN1 = GPIO18, IN2 = GPIO27;
+- right speed enable: ENB = GPIO17 (PWM);
+- right direction: IN3 = GPIO19, IN4 = GPIO32;
+- two motors per side are wired in parallel to the corresponding bridge outputs;
+- **ENA and ENB jumpers are removed** when GPIO16/GPIO17 control the enable inputs;
+- speed PWM is applied to ENA/ENB, while IN1..IN4 are direction-only control lines;
 - drive lease, ramping, STOP/E-STOP, link-loss hold and retrace remain firmware safety functions.
 
 `SERVO_DRIVE=false` is locked by the Android release audit.
@@ -48,18 +53,23 @@ ADS1115 acquisition is independent of the common power relay:
 | ADS1 | `0x48` | MQ2=A0, MQ4=A1, MQ5=A2, MQ8=A3 |
 | ADS2 | `0x49` | MQ3=A0, MQ7=A1, MQ9=A2, MQ135=A3 |
 
-Both ADS1115 boards are **fixed at the regulated 5 V HazRob rail**. Firmware uses `GAIN_TWOTHIRDS` (±6.144 V PGA full-scale), `860 SPS`, and four conversions averaged per channel. The eight channels are scanned sequentially, and 0.10 records scan-cycle/channel timing provenance so downstream analysis does not falsely assume physical simultaneity.
+Both ADS1115 boards are **fixed at the regulated 5 V HazRob rail**. Firmware uses a ±6.144 V PGA full-scale, `860 SPS`, and four conversions averaged per channel. The eight channels are scanned sequentially, and the acquisition path records scan-cycle/channel timing provenance so downstream analysis does not falsely assume physical simultaneity.
 
 `R0=10.0` and `RL=10.0` defaults are placeholders/engineering assumptions until the actual sensor modules are characterized. They must not authorize M4 quantitative output.
 
-### Other channels
+### Other master-ESP32 channels
 
-- alert output: GPIO26;
-- MAX4466 electrical sound channel: GPIO36;
+- alert output: GPIO26 (reserved; alert hardware not installed in 0.10.1);
+- MAX4466 electrical sound channel: GPIO36 / ADC1;
 - IR digital warning: GPIO35;
 - LDR/LM393 digital threshold: GPIO34;
-- I2C SDA/SCL: GPIO21/GPIO22;
-- BME280/BMP280 auto-detection: `0x76/0x77`.
+- battery divider ADC: GPIO33 / ADC1;
+- ultrasonic TRIG/ECHO: GPIO23 / GPIO39;
+- I2C SDA/SCL: GPIO21/GPIO22 at 400 kHz;
+- BME280/BMP280 auto-detection: `0x76/0x77`;
+- GPIO14: reserved for a future internal-temperature device only.
+
+GPIO34/35/36/39 are used only as inputs, as required by the ESP32 hardware. ESP32 GPIO is a 3.3 V logic domain: 5 V ECHO or 5 V I2C pull-ups must not be presented directly to GPIO.
 
 ## Standard ChemCore sampling chamber
 
@@ -126,18 +136,21 @@ Developer mode retains source override, research workflow and rollback controls.
 - master ESP32: `192.168.4.1`;
 - ESP32-CAM: `192.168.4.2`;
 - master HTTP API v4 provides drive, STOP/E-STOP, telemetry, MQ power, measurement and configuration endpoints;
-- local video is MJPEG from ESP32-CAM.
+- local video is MJPEG from ESP32-CAM (`:81` stream, HTTP/status on port 80);
+- Android binds Direct traffic to the HazRob `192.168.4.0/24` Wi-Fi path rather than relying on the default cellular route.
 
 ### Remote mode
 
+- the operator is not asked for a HazRob remote password;
+- passwordless operator UX does **not** mean anonymous transport: service credentials are provisioned automatically and role-scoped;
 - robot control/telemetry: MQTT 3.1.1 over TLS through the configured HiveMQ endpoint;
 - command envelopes use session/sequence/nonce/TTL and application ACK semantics;
 - retained MQTT Last Will marks an unexpectedly disconnected robot unavailable;
 - remote video: binary JPEG over WSS through the Render relay;
 - ESP32-CAM uses bounded reconnect backoff to avoid reconnect storms;
-- Render relay validates frame bounds and tracks publisher/viewer freshness.
+- Render relay validates role-scoped bootstrap credentials, frame bounds and publisher/viewer freshness.
 
-Remote-service credentials are provisioned outside source control.
+Secrets are not committed to source control. Required deployment variable names and contracts are version-controlled; live values remain in their deployment environments.
 
 ## Measurement lifecycle
 
@@ -172,9 +185,13 @@ Camera firmware: `firmware/HazRob-CAM/`
 
 The firmware is modular but deliberately compact. ChemCore, molecular databases and heavy inference remain on Android rather than the ESP32. GitHub Actions compiles both targets and enforces a release flash-headroom budget; comments/source formatting are not treated as Flash savings—the compiled binary is the metric that matters.
 
-## Build and release
+## Build and release control
 
-GitHub Actions validates pinned scientific datasets, executes Android regression tests, builds/signs the release APK, verifies the signing certificate and publishes the application-update manifest. A separate firmware workflow compiles both ESP32 targets and records Flash usage. ChemCore Stable publication has an independent signed fail-closed workflow.
+Authoritative integration branch: `dev/hazrob-0.10.1`. Public application/firmware publication remains gated during integration and is enabled only from the explicit `release/hazrob-0.10.1-ready` release branch after the audit gates pass.
+
+GitHub Actions validates pinned scientific datasets, executes Android regression tests, builds/signs the release APK, verifies the signing certificate and creates the application-update manifest. A separate firmware workflow compiles both ESP32 targets and records Flash usage. ChemCore Stable publication has an independent signed fail-closed workflow.
+
+Controlled changes are recorded in [`docs/0.10.1/CONTROLLED_CHANGE_LOG.md`](docs/0.10.1/CONTROLLED_CHANGE_LOG.md).
 
 ## Research references
 
@@ -182,4 +199,4 @@ The canonical standards/manufacturer/software-provenance bibliography is [`REFER
 
 ## Current scientific limitations
 
-The 0.10.0 software integration can be released independently of unfinished physical validation. Still required before strong M4 quantitative claims are: actual module `RL` characterization, device-specific `R0`, MQ7/MQ9 heater-cycle validation, reference-gas/analyte-specific calibration, interference/mixture validation, drift validation and independent/blind validation. ADS1115 supply is already a fixed **5 V design value**; it is not an unresolved requirement.
+The 0.10.1 software integration can be released independently of unfinished physical validation. Still required before strong M4 quantitative claims are: actual module `RL` characterization, device-specific `R0`, MQ7/MQ9 heater-cycle validation, reference-gas/analyte-specific calibration, interference/mixture validation, drift validation and independent/blind validation. ADS1115 supply is already a fixed **5 V design value**; it is not an unresolved requirement.
