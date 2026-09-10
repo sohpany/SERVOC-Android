@@ -100,7 +100,7 @@ public final class ChemCoreLibraryManifest {
     public List<String> validate() {
         List<String> e = new ArrayList<>();
         try { ChemCoreLibraryVersion.parse(libraryVersion); } catch (Exception x) { e.add("invalid library_version"); }
-        if (schemaVersion <= 0) e.add("schema_version must be positive");
+        if (schemaVersion != MANIFEST_SCHEMA) e.add("unsupported schema_version: " + schemaVersion);
         if (createdUtc.isEmpty()) e.add("created_utc required");
         if (sourceCommitSha.length() < 7) e.add("source_commit_sha required");
         if (payloadFile.isEmpty() || payloadFile.contains("..") || payloadFile.startsWith("/") || payloadFile.contains("\\")) e.add("unsafe payload_file");
@@ -112,7 +112,11 @@ public final class ChemCoreLibraryManifest {
         else try { ChemCoreLibraryVersion.parse(minAppVersion); } catch (Exception x) { e.add("invalid min_app_version"); }
         if (!maxAppVersion.isEmpty()) try { ChemCoreLibraryVersion.parse(maxAppVersion); } catch (Exception x) { e.add("invalid max_app_version"); }
         if (featureSchemaVersion.isEmpty()) e.add("feature_schema_version required");
-        if (channel == Channel.STABLE && (signatureAlgorithm.isEmpty() || signatureBase64.isEmpty())) e.add("stable manifest requires publication signature");
+        if (channel == Channel.STABLE) {
+            if (!"json".equalsIgnoreCase(payloadFormat)) e.add("stable payload_format must be json");
+            if (!"SHA256withRSA".equalsIgnoreCase(signatureAlgorithm)) e.add("stable manifest requires SHA256withRSA");
+            if (signatureBase64.isEmpty()) e.add("stable manifest requires publication signature");
+        }
         return e;
     }
 
