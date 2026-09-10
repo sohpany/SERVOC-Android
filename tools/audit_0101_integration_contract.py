@@ -122,9 +122,9 @@ def main() -> int:
         require(master_cfg, needle, "master GPIO contract")
 
     for needle in [
-        "GPIO16 = ENA", "GPIO17 = ENB", "GPIO18 = IN1", "GPIO27 = IN2",
-        "GPIO19 = IN3", "GPIO32 = IN4", "GPIO25", "GPIO36", "GPIO35",
-        "GPIO34", "GPIO33", "GPIO23", "GPIO39", "GPIO21", "GPIO22",
+        "ENA=GPIO16", "ENB=GPIO17", "IN1=18", "IN2=27", "IN3=19", "IN4=32",
+        "GPIO25", "GPIO36", "GPIO35", "GPIO34", "GPIO33", "GPIO23", "GPIO39",
+        "GPIO21", "GPIO22",
     ]:
         require(gpio_doc, needle, "GPIO authority document")
     require(gpio_doc, "Remove the ENA jumper", "GPIO authority ENA rule")
