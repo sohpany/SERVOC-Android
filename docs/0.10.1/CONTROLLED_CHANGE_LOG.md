@@ -143,6 +143,18 @@ Secrets and credentials themselves are not to be committed to source control. On
 - Impact: final APK/Firmware artifact verification on the current head is blocked until a runner actually executes the workflows.
 - Status: **OPEN / infrastructure execution blocker**.
 
+### HR-0101-014 — Render production baseline alignment
+- Components: Render `hazrob-video-relay`, remote bootstrap, ESP32-CAM WSS publishing, Android WSS viewing, HiveMQ startup diagnostics.
+- Live finding:
+  - production service `srv-dad3p8gn74is73d52aj0` is still bound to `dev/hazrob-0.9`;
+  - current live deploy uses source commit `873bbaa23756b45c77c1eff66963048147c5bab5` and runs relay version `0.10.0`;
+  - current live Bootstrap is not the role-scoped 0.10.1 contract and cannot satisfy the new ESP32-CAM publish-token bootstrap path;
+  - existing Render startup logs prove both application and robot HiveMQ credentials were accepted over TLS with MQTT `CONNACK=0` at the current deployment time.
+- Required 0.10.1 deployment configuration is documented in `docs/0.10.1/RENDER_DEPLOYMENT_CONTRACT.md`, including service/root/build/start settings and environment-variable names without secret values.
+- Safety rule: do not redeploy while Render still targets the retired branch; do not copy new source into `dev/hazrob-0.9` as a workaround.
+- Tooling limitation: the currently exposed Render connector has no operation to change the branch of an existing service. Triggering a deploy would therefore redeploy the wrong branch and is intentionally not performed.
+- Status: **OPEN RELEASE BLOCKER / branch alignment + 0.10.1 live deployment required**.
+
 ## Mandatory audit blocks before release approval
 
 1. Repository-wide version sweep and active-artifact identity.
