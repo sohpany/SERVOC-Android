@@ -265,6 +265,57 @@ Secrets and credentials themselves are not to be committed to source control. On
 - Production limitation: these verification services do not replace the canonical production relay and intentionally do not copy production secrets. HR-0101-014 remains open.
 - Status: **VERIFICATION PASS / PRODUCTION REMOTE E2E STILL PENDING**.
 
+### HR-0101-026 — Remove unsupported NAPT status indicator
+- Components: Android `StatusTab`.
+- Reason: the Remote status UI displayed a NAPT field that is not an authoritative operator-readiness signal in the controlled 0.10.1 transport contract.
+- Change: Remote status retains MQTT/TLS, telemetry and WAN indicators and removes the unsupported NAPT indicator.
+- Compatibility impact: status presentation only; no MQTT topic, command, GPIO, drive or fail-safe behavior changed.
+- Commit: `d915ee2fee48ef4c3fea2ba793018adb0a8177d7`.
+- Verification: covered by the exact-head Android build/test under HR-0101-028.
+- Status: **COMPLETE / BUILD PASS**.
+
+### HR-0101-027 — Centralize Android Remote endpoints
+- Components: Android `RemoteServiceProfile`, `RemoteSessionManager`.
+- Reason: remove duplicated service/bootstrap URL literals that could drift independently.
+- Change:
+  - service version `0.10.1`, protocol `2`, robot ID and Render host remain centralized in `RemoteServiceProfile`;
+  - bootstrap, WSS viewer, health and status endpoints are derived from the canonical host/robot identity;
+  - `RemoteSessionManager` consumes the canonical bootstrap endpoint and shared version/protocol constants.
+- Relevant commits: `47a04bd21b839440377ab316352dacf63d7f366f`, `131c567a883cc8a499525d08dedfc4fdc4c3d3fa`.
+- Compatibility impact: configuration-source consolidation; no intended change to MQTT commands, retry policy, GPIO or drive behavior.
+- Verification: exact-head Android tests/build PASS under HR-0101-028; exact-head relay contract PASS under HR-0101-029.
+- Status: **SOURCE/BUILD PASS**.
+
+### HR-0101-028 — Align Android hardware-profile identity and lock pin contract
+- Components: `HazRobHardwareProfile`, protocol/planner assertions, dedicated hardware-profile test.
+- Reason: the Android hardware-profile identity still carried `0.10` while the controlled release baseline is `0.10.1`, and two legacy assertions retained the old identity.
+- Correction:
+  - profile ID is `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`;
+  - no physical pin assignment changed;
+  - tests lock the L298N contract GPIO16=ENA, GPIO18=IN1, GPIO27=IN2, GPIO17=ENB, GPIO19=IN3, GPIO32=IN4 and the installed MQ relay GPIO25.
+- Relevant commits: `d883c819d2989e0b198f7efdf242a8894b85bd11`, `46d21edcaeb3f7b55ed22a64b8eeb8d0fcc09e6a`, `c322a3019ae34d5a7dadf65677a019b4a362e32c`, `4d0ccb68fbea661106f86111e231c7538e93c5e5`.
+- Exact verification on `4d0ccb68fbea661106f86111e231c7538e93c5e5`:
+  - cross-component integration contract PASS;
+  - Android unit tests 146/146 PASS;
+  - Android `assembleRelease` PASS;
+  - APK signer continuity PASS, signer SHA-256 `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`;
+  - APK SHA-256 `57c4b75f68d1524ee0fe577deb8a8dd50bf8b2c2d1c59e67eb41bd9cc656a714`;
+  - main ESP32 compile PASS: 1,085,845 bytes program (34%), 50,660 bytes global RAM (15%);
+  - ESP32-CAM compile PASS: 1,139,941 bytes program (36%), 67,888 bytes global RAM (20%).
+- Status: **SOURCE/BUILD PASS / PHYSICAL FIELD WIRING CONFIRMATION PENDING**.
+
+### HR-0101-029 — Exact-head relay re-verification and production branch blocker confirmation
+- Components: Render relay source/runtime/contract verification and production Render configuration.
+- Exact verification on `4d0ccb68fbea661106f86111e231c7538e93c5e5`:
+  - verification service `hazrob-video-relay-0101-verify`, deploy `dep-dahehmm743jc73cl325g`, checked out the exact SHA, built successfully and ran `hazrob-video-relay@0.10.1` with `HazRob video relay 0.10.1 listening on 10000`;
+  - dependency audit during that build reported zero npm vulnerabilities;
+  - contract service `hazrob-relay-contract-0101`, deploy `dep-dahehou743jc73cl39r0`, executed `npm run check` and `npm test` and reported `HazRob 0.10.1 relay contract: PASS`.
+- Production comparison:
+  - canonical production service `srv-dad3p8gn74is73d52aj0` remains bound to `dev/hazrob-0.9` and currently runs lineage commit `873bbaa23756b45c77c1eff66963048147c5bab5` / relay `0.10.0`;
+  - prior production diagnostics showed both stored application and robot HiveMQ credentials accepted over TLS/MQTT with `CONNACK=0`; this proves credential CONNECT acceptance only, not topic ACLs or command/ACK E2E.
+- Tooling constraint: the available Render connector does not expose a branch-update operation for an existing service and does not expose existing secret values for safe migration. The production branch must therefore be aligned through Render configuration rather than by mutating the retired Git branch or duplicating secrets blindly.
+- Status: **SOURCE/VERIFY PASS / HR-0101-014 PRODUCTION BLOCKER OPEN / FIELD E2E PENDING**.
+
 ## Mandatory audit blocks before release approval
 
 1. Repository-wide version sweep and active-artifact identity.
