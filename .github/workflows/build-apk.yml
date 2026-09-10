@@ -169,7 +169,7 @@ jobs:
             "signing_cert_sha256": "d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0",
             "published_at_utc": "${PUBLISHED}",
             "source_commit": "${GITHUB_SHA}",
-            "notes": "HazRob ${VERSION_NAME}: ChemCore controlled-analysis and application update foundation."
+            "notes": "HazRob ${VERSION_NAME}: controlled integrated research release."
           }
           Path('HazRob-app-update.json').write_text(json.dumps(q, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
           PY
@@ -184,7 +184,7 @@ jobs:
           fi
 
       - name: Publish verified APK to public distribution branch
-        if: github.ref == 'refs/heads/dev/hazrob-0.10-chemcore-foundation'
+        if: github.ref == 'refs/heads/release/hazrob-0.10.1-ready'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
