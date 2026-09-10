@@ -2,7 +2,7 @@ package com.servoc.app.communication;
 
 import android.content.SharedPreferences;
 
-/** Public HazRob 0.9 service coordinates. Secrets are stored separately in Android Keystore. */
+/** Public HazRob 0.10.1 service coordinates. Secrets are stored separately from this profile. */
 public final class RemoteServiceProfile {
     public static final String ROBOT_ID="hazrob-001";
     public static final String MQTT_HOST="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud";
