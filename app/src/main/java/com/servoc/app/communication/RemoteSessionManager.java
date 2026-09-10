@@ -20,6 +20,10 @@ public final class RemoteSessionManager {
     private static final int BOOTSTRAP_PROTOCOL=RemoteServiceProfile.PROTOCOL;
     private static final String CONTRACT_PREF="remote_bootstrap_contract";
     private static final String CONTRACT_ID="hazrob-0.10.1-protocol-2";
+    // Render Free can cold-start well after the TCP connection is accepted. Bootstrap runs on
+    // the background I/O executor, so a long read window does not block the Android UI thread.
+    private static final int BOOTSTRAP_CONNECT_TIMEOUT_MS=15000;
+    private static final int BOOTSTRAP_READ_TIMEOUT_MS=70000;
     private final Context context;private final SharedPreferences prefs;
     public RemoteSessionManager(Context context,SharedPreferences prefs){this.context=context.getApplicationContext();this.prefs=prefs;RemoteServiceProfile.ensureDefaults(prefs);}
 
@@ -35,7 +39,7 @@ public final class RemoteSessionManager {
     private void bootstrap(boolean force)throws Exception{
         if(!force&&serviceProfileConfigured())return;
         HttpURLConnection c=(HttpURLConnection)new URL(RemoteServiceProfile.BOOTSTRAP_HTTPS).openConnection();
-        c.setConnectTimeout(3500);c.setReadTimeout(3500);c.setUseCaches(false);c.setRequestMethod("GET");
+        c.setConnectTimeout(BOOTSTRAP_CONNECT_TIMEOUT_MS);c.setReadTimeout(BOOTSTRAP_READ_TIMEOUT_MS);c.setUseCaches(false);c.setRequestMethod("GET");
         c.setRequestProperty("Authorization","Bearer "+BOOTSTRAP_TOKEN);c.setRequestProperty("X-HazRob-Client",BOOTSTRAP_CLIENT);c.setRequestProperty("Accept","application/json");
         try{
             int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();String body=read(in,8192);
