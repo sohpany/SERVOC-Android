@@ -5,7 +5,7 @@ const PORT = Number(process.env.PORT || 10000);
 const CHANNEL = '0Jo6HgI-45pkxeEeiA3fs1rb';
 const MAX_JPEG = 180 * 1024;
 
-let drive = { l: 0, r: 0, at: 0 };
+let drive = { l: 0, r: 0, seq: 0 };
 let lastFrame = null;
 let cameraAt = 0;
 let robotAt = 0;
@@ -39,7 +39,8 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://localhost');
   const p = u.pathname;
 
-  if (p === '/health') return json(res, 200, { ok: true, service: 'HazRobMiniRemote', version: 2 });
+  if (p === '/health') return json(res, 200, { ok: true, service: 'HazRobMiniRemote', version: 3 });
+
   if (p === '/status/' + CHANNEL) {
     const now = Date.now();
     return json(res, 200, {
@@ -48,18 +49,23 @@ const server = http.createServer((req, res) => {
       camera_online: now - cameraAt < 3000,
       drive_l: drive.l,
       drive_r: drive.r,
+      drive_seq: drive.seq,
       has_frame: !!lastFrame
     });
   }
 
   if (p === '/drive/' + CHANNEL) {
-    drive = { l: clamp(u.searchParams.get('l')), r: clamp(u.searchParams.get('r')), at: Date.now() };
-    return json(res, 200, { ok: true, l: drive.l, r: drive.r });
+    drive = {
+      l: clamp(u.searchParams.get('l')),
+      r: clamp(u.searchParams.get('r')),
+      seq: drive.seq + 1
+    };
+    return json(res, 200, { ok: true, l: drive.l, r: drive.r, seq: drive.seq });
   }
 
   if (p === '/cmd/' + CHANNEL) {
     robotAt = Date.now();
-    return json(res, 200, { l: drive.l, r: drive.r });
+    return json(res, 200, { l: drive.l, r: drive.r, seq: drive.seq });
   }
 
   if (p === '/frame/' + CHANNEL && req.method === 'POST') {
