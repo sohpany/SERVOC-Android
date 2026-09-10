@@ -92,6 +92,7 @@ jobs:
           retention-days: 90
 
       - name: Publish source ZIPs to update distribution
+        if: github.ref == 'refs/heads/release/hazrob-0.10.1-ready'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
