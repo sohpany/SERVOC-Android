@@ -33,6 +33,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Validate HazRob 0.10.1 cross-component contract
+        run: python3 tools/audit_0101_integration_contract.py
+
       - name: Validate pinned scientific datasets
         run: |
           python3 - <<'PY'
