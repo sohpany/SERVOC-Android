@@ -17,8 +17,8 @@ public final class RemoteSessionManager {
     private static final String BOOTSTRAP_URL="https://hazrob-video-relay.onrender.com/hazrob/bootstrap";
     private static final String BOOTSTRAP_TOKEN="hazrob-prototype-bootstrap-v1";
     private static final String BOOTSTRAP_CLIENT="android";
-    private static final String BOOTSTRAP_SERVICE_VERSION="0.10.1";
-    private static final int BOOTSTRAP_PROTOCOL=2;
+    private static final String BOOTSTRAP_SERVICE_VERSION=RemoteServiceProfile.SERVICE_VERSION;
+    private static final int BOOTSTRAP_PROTOCOL=RemoteServiceProfile.PROTOCOL;
     private static final String CONTRACT_PREF="remote_bootstrap_contract";
     private static final String CONTRACT_ID="hazrob-0.10.1-protocol-2";
     private final Context context;private final SharedPreferences prefs;
