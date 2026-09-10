@@ -30,14 +30,13 @@ bool bootstrapPublishToken(bool force=false){
   if(WiFi.status()!=WL_CONNECTED||!RemoteVideoCfg::configured())return false;
   WiFiClientSecure c;c.setCACert(RemoteVideoCfg::ROOT_CA);c.setTimeout(4);
   if(!c.connect(RemoteVideoCfg::HOST,RemoteVideoCfg::PORT))return publishToken.length()>=8;
-  c.print("GET "+String(RemoteVideoCfg::BOOTSTRAP_PATH)+" HTTP/1.1\r\nHost: "+RemoteVideoCfg::HOST+"\r\nAuthorization: Bearer "+RemoteVideoCfg::BOOTSTRAP_TOKEN+"\r\nAccept: application/json\r\nConnection: close\r\n\r\n");
+  c.print("GET "+String(RemoteVideoCfg::BOOTSTRAP_PATH)+" HTTP/1.1\r\nHost: "+RemoteVideoCfg::HOST+"\r\nAuthorization: Bearer "+RemoteVideoCfg::BOOTSTRAP_TOKEN+"\r\nX-HazRob-Client: esp32-cam\r\nAccept: application/json\r\nConnection: close\r\n\r\n");
   uint32_t until=millis()+4000;String status=c.readStringUntil('\n');bool ok=status.indexOf(" 200 ")>=0;
   while((int32_t)(until-millis())>0&&c.connected()){String h=c.readStringUntil('\n');if(h=="\r"||h.length()<=1)break;}
   String body;body.reserve(512);while((int32_t)(until-millis())>0&&(c.connected()||c.available())){while(c.available()&&body.length()<2048)body+=(char)c.read();if(body.length()>=2048)break;delay(1);}c.stop();
   if(!ok)return publishToken.length()>=8;
-  String robot=jsonString(body,"robot"),token=compact(jsonString(body,"video_publish_token"));
-  if(token.length()<8)token=compact(jsonString(body,"mqtt_password"));
-  if(robot!=RemoteVideoCfg::ROBOT_ID||token.length()<8)return publishToken.length()>=8;
+  String role=jsonString(body,"client"),robot=jsonString(body,"robot"),token=compact(jsonString(body,"video_publish_token"));
+  if((!role.isEmpty()&&role!="esp32-cam"&&role!="legacy")||robot!=RemoteVideoCfg::ROBOT_ID||token.length()<8)return publishToken.length()>=8;
   publishToken=token;credentialReady=true;return true;
 }
 
