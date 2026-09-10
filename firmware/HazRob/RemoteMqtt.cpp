@@ -20,11 +20,11 @@ bool bootstrapCredentials(bool force=false){
   if(!force&&credsReady&&cloudUser.length()&&cloudPass.length())return true;
   WiFiClientSecure c;c.setCACert(RemoteCfg::ROOT_CA);c.setTimeout(4);
   if(!c.connect(RemoteCfg::BOOTSTRAP_HOST,RemoteCfg::BOOTSTRAP_PORT))return cloudUser.length()&&cloudPass.length();
-  c.print("GET "+String(RemoteCfg::BOOTSTRAP_PATH)+" HTTP/1.1\r\nHost: "+RemoteCfg::BOOTSTRAP_HOST+"\r\nAuthorization: Bearer "+RemoteCfg::BOOTSTRAP_TOKEN+"\r\nAccept: application/json\r\nConnection: close\r\n\r\n");
+  c.print("GET "+String(RemoteCfg::BOOTSTRAP_PATH)+" HTTP/1.1\r\nHost: "+RemoteCfg::BOOTSTRAP_HOST+"\r\nAuthorization: Bearer "+RemoteCfg::BOOTSTRAP_TOKEN+"\r\nX-HazRob-Client: esp32\r\nAccept: application/json\r\nConnection: close\r\n\r\n");
   uint32_t until=millis()+4000;String status=c.readStringUntil('\n');bool ok=status.indexOf(" 200 ")>=0;while((int32_t)(until-millis())>0&&c.connected()){String h=c.readStringUntil('\n');if(h=="\r"||h.length()<=1)break;}
   String body;body.reserve(512);while((int32_t)(until-millis())>0&&(c.connected()||c.available())){while(c.available()&&body.length()<2048)body+=(char)c.read();if(body.length()>=2048)break;delay(1);}c.stop();
-  if(!ok)return cloudUser.length()&&cloudPass.length();String robot=js(body,"robot"),u=js(body,"mqtt_user"),p=compact(js(body,"mqtt_password"));
-  if(robot!=RemoteCfg::ROBOT_ID||u.isEmpty()||p.length()<8)return cloudUser.length()&&cloudPass.length();cloudUser=u;cloudPass=p;credsReady=true;return true;
+  if(!ok)return cloudUser.length()&&cloudPass.length();String role=js(body,"client"),robot=js(body,"robot"),u=js(body,"mqtt_user"),p=compact(js(body,"mqtt_password"));
+  if((!role.isEmpty()&&role!="esp32"&&role!="legacy")||robot!=RemoteCfg::ROBOT_ID||u.isEmpty()||p.length()<8)return cloudUser.length()&&cloudPass.length();cloudUser=u;cloudPass=p;credsReady=true;return true;
 }
 
 bool mqttConnectPacket(){uint8_t body[1024];size_t p=0;auto put=[&](uint8_t v){if(p<sizeof(body))body[p++]=v;};auto utf=[&](const char*s){size_t n=strlen(s);if(p+2+n>sizeof(body))return false;put(n>>8);put(n);memcpy(body+p,s,n);p+=n;return true;};if(!utf("MQTT"))return false;put(4);put(0xE6);put(RemoteCfg::KEEPALIVE_SEC>>8);put(RemoteCfg::KEEPALIVE_SEC);String clientId="hazrob-"+String(RemoteCfg::ROBOT_ID),willTopic="hazrob/"+String(RemoteCfg::ROBOT_ID)+"/status";if(!utf(clientId.c_str())||!utf(willTopic.c_str())||!utf("{\"mqtt\":false,\"tls\":false,\"remote_ready\":false,\"reason\":\"lwt\"}")||!utf(cloudUser.c_str())||!utf(cloudPass.c_str()))return false;tls.write((uint8_t)0x10);writeRemaining(p);tls.write(body,p);tls.flush();lastIo=millis();uint32_t u=millis()+4000;while((int32_t)(u-millis())>0&&!tls.available())delay(5);if(!tls.available())return false;int h=tls.read();size_t len=0;if(h!=0x20||!readRemaining(len)||len!=2)return false;int f=tls.read(),code=tls.read();return f>=0&&code==0;}
