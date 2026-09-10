@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-/** HazRob 0.10 cloud profile. MQTT credentials are resolved at runtime from the prototype bootstrap service. */
+/** HazRob 0.10.1 cloud profile. MQTT credentials are resolved at runtime from the prototype bootstrap service. */
 #if __has_include("RemoteCloudSecrets.h")
 #include "RemoteCloudSecrets.h"
 #endif
