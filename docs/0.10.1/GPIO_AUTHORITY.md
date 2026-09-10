@@ -1,7 +1,7 @@
 # HazRob 0.10.1 — Canonical GPIO Authority
 
 Status: **AUTHORITATIVE FOR 0.10.1 INTEGRATION**  
-Change control: `HR-0101-010`  
+Change control: `HR-0101-010`; explicit relay notation clarification: `HR-0101-019`  
 Primary code sources: `firmware/HazRob/Config.h`, `firmware/HazRob/Hardware.cpp`, `firmware/HazRob/Alerts.cpp`, `firmware/HazRob-CAM/HazRob-CAM.ino`.
 
 This document is the only human-readable GPIO authority for HazRob 0.10.1. If another active document disagrees with this table, the disagreement is a release defect and must be corrected before release. Historical documents may retain historical mappings only when clearly marked historical.
@@ -29,6 +29,8 @@ Hardware profile: `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`
 | 23 | Digital output | `ULTRA_TRIG_PIN` | Front ultrasonic TRIG | 3.3 V trigger output. |
 | 39 | **Input only** | `ULTRA_ECHO_PIN` | Front ultrasonic ECHO | Typical 5 V ECHO must be reduced/level-shifted to <=3.3 V before this GPIO. |
 | 14 | Reserved | `INTERNAL_TEMP_RESERVED_PIN` | No installed sensor in 0.10.1 | Reserved only. Do not assume a sensor, bus, or driver until hardware is formally selected. |
+
+Explicit relay authority: `RELAY_MQ=GPIO25`.
 
 ### L298N 4WD topology
 
