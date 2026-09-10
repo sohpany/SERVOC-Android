@@ -10,6 +10,7 @@ import android.widget.TextView;
 
 import com.servoc.app.BuildConfig;
 import com.servoc.app.ReleaseAudit;
+import com.servoc.app.camera.RemoteVideoReadiness;
 import com.servoc.app.chemical.GasEngine;
 import com.servoc.app.chemical.ResearchCurveRegistry;
 import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
@@ -34,7 +35,7 @@ public final class StatusTab {
     private final Button updateButton;
     private final AppUpdateManager appUpdater;
     private final ChemCoreLibraryManager libraryUpdater;
-    private volatile JSONObject cameraSnapshot;private volatile long cameraProbeAt=0;
+    private volatile JSONObject cameraSnapshot;private volatile RemoteVideoReadiness.Result remoteCameraSnapshot;private volatile long cameraProbeAt=0;
     private volatile boolean updateBusy=false;
 
     public StatusTab(Context c,HazRobHost host){
@@ -122,13 +123,22 @@ public final class StatusTab {
         ChemCoreLibraryManager.Status lib=libraryUpdater.status();
         science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native\nChemCore Library   "+(lib.version.isEmpty()?"—":lib.version)+"   •   "+lib.sourceLabel+"\nTiming   Warm "+warm+" s   •   Analysis "+analysis+" s   •   Tracking CONTINUOUS");
         JSONObject d=host.latestDiagnostics();
-        if(d==null){master.setText("HazRob App   v"+BuildConfig.VERSION_NAME+" ("+BuildConfig.VERSION_CODE+")\nMaster ESP32   ● OFFLINE");master.setTextColor(0xFFFF7043);renderNetwork(null);hardware.setText("ADS / ENV / MQ Power / LDR / Alert   —");sensors.setText("MQ   —");renderCamera();return;}
+        if(d==null){master.setText("HazRob App   v"+BuildConfig.VERSION_NAME+" ("+BuildConfig.VERSION_CODE+")\nMaster ESP32   ● OFFLINE");master.setTextColor(0xFFFF7043);renderNetwork(null);hardware.setText("ADS / ENV / MQ Power / LDR / Alert   —");sensors.setText("MQ   —");renderCamera();scheduleCameraProbe();return;}
         master.setText("HazRob App   v"+BuildConfig.VERSION_NAME+" ("+BuildConfig.VERSION_CODE+")\nMaster ESP32   ● ONLINE\nFirmware   "+d.optString("firmware","HazRob")+"\nAPI   "+d.optInt("api_version",0)+"\nProfile   "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"\nHeap   "+d.optLong("heap",0)+" B");master.setTextColor(0xFF81C784);
         renderNetwork(d);
         JSONObject adc=d.optJSONObject("adc"),relay=d.optJSONObject("relay"),env=d.optJSONObject("env"),ldr=d.optJSONObject("ldr"),alert=d.optJSONObject("alert");boolean mqOn=relay!=null&&(relay.optBoolean("on",false)||relay.optInt("mask",0)!=0);boolean ldrOk=ldr!=null&&ldr.optBoolean("installed",false);int alertLevel=alert==null?0:alert.optInt("level",0),alertGpio=alert==null?26:alert.optInt("gpio",26);String alertName=alert==null?"—":alert.optString("name","none");
         hardware.setText("ADS1 0x48   "+ok(adc!=null&&adc.optBoolean("ads1",false))+"\nADS2 0x49   "+ok(adc!=null&&adc.optBoolean("ads2",false))+"\nADS VDD   "+String.format(Locale.US,"%.1f V (fixed design)",HazRobHardwareProfile.ADS_SUPPLY_V)+"\nMQ POWER GPIO25   "+on(mqOn)+"   •   8 sensors\nENV   "+ok(env!=null&&env.optBoolean("ok",false))+"\nLDR GPIO34   "+ok(ldrOk)+(ldrOk?"   •   LEVEL "+ldr.optInt("level",-1):"")+"\nALERT GPIO"+alertGpio+"   "+(alert==null?"○ —":alertLevel>0?"● "+alertName.toUpperCase(Locale.US):"● READY"));
         JSONObject mq=d.optJSONObject("mq");StringBuilder s=new StringBuilder();for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){if(s.length()>0)s.append('\n');SensorHealthEngine.Snapshot h=host.sensorHealth(hw.key);JSONObject r=mq==null?null:mq.optJSONObject(hw.key);boolean valid=r!=null&&r.optBoolean("valid",r.optBoolean("ok",false));boolean calibrated=r!=null&&r.optBoolean("manual_calibration_confirmed",r.optBoolean("r0_calibrated",false));s.append(hw.key.toUpperCase(Locale.US)).append("   ADS").append(hw.ads).append(" A").append(hw.adcChannel).append("   ").append(valid?"● SIGNAL   ":"○ —   ").append(SensorHealthEngine.stateAr(h.state)).append(calibrated?"   •   CAL ●":"   •   CAL —");}sensors.setText(s.toString());
-        renderCamera();long now=SystemClock.elapsedRealtime();if(now-cameraProbeAt>5000){cameraProbeAt=now;if(remoteMode()){cameraSnapshot=host.robotApi().remoteCameraStatus();scroll.post(this::renderCamera);}else host.io().execute(()->{JSONObject q=null;try{q=host.cameraDiagnostics();}catch(Exception ignored){}cameraSnapshot=q;scroll.post(this::renderCamera);});}
+        renderCamera();scheduleCameraProbe();
+    }
+
+    private void scheduleCameraProbe(){
+        long now=SystemClock.elapsedRealtime();if(now-cameraProbeAt<=5000)return;cameraProbeAt=now;
+        if(remoteMode()){
+            host.io().execute(()->{RemoteVideoReadiness.Result q=RemoteVideoReadiness.probeStatus(host.preferences());remoteCameraSnapshot=q;scroll.post(this::renderCamera);});
+        }else{
+            host.io().execute(()->{JSONObject q=null;try{q=host.cameraDiagnostics();}catch(Exception ignored){}cameraSnapshot=q;scroll.post(this::renderCamera);});
+        }
     }
 
     private void renderNetwork(JSONObject d){
@@ -142,13 +152,13 @@ public final class StatusTab {
     }
 
     private void renderCamera(){
-        JSONObject cam=cameraSnapshot;
         if(remoteMode()){
-            if(cam!=null){camera.setText("ESP32-CAM / REMOTE   "+(cam.optBoolean("online",cam.optBoolean("ok",false))?"● ONLINE":"○ —")+"\nWSS   "+(host.preferences().getString("remote_video_url","").isEmpty()?"NOT CONFIGURED":"CONFIGURED"));}
-            else camera.setText("ESP32-CAM / REMOTE\nWSS   "+(host.preferences().getString("remote_video_url","").isEmpty()?"○ NOT CONFIGURED":"● CONFIGURED")+"\nCamera status   —");
+            RemoteVideoReadiness.Result cam=remoteCameraSnapshot;boolean configured=!host.preferences().getString("remote_video_url","").isEmpty();
+            if(cam!=null){camera.setText("ESP32-CAM / REMOTE   "+(cam.publisher?"● ONLINE":"○ —")+"\nRender service   "+ok(cam.service)+"\nPublisher   "+ok(cam.publisher)+"\nWSS viewer   "+(configured?"● CONFIGURED":"○ NOT CONFIGURED")+"\n"+cam.detail);}
+            else camera.setText("ESP32-CAM / REMOTE\nRender status   —\nWSS viewer   "+(configured?"● CONFIGURED":"○ NOT CONFIGURED"));
             return;
         }
-        if(cam!=null)camera.setText("ESP32-CAM   "+(cam.optBoolean("camera_ok",cam.optBoolean("ok",true))?"● ONLINE":"● ERROR")+"\nFW   "+cam.optString("fw","—")+"\nFPS   "+String.format(Locale.US,"%.1f",cam.optDouble("fps",0))+"\nRSSI   "+cam.optInt("rssi",0)+" dBm");else camera.setText("ESP32-CAM   ○ OFFLINE");
+        JSONObject cam=cameraSnapshot;if(cam!=null)camera.setText("ESP32-CAM   "+(cam.optBoolean("camera_ok",cam.optBoolean("ok",true))?"● ONLINE":"● ERROR")+"\nFW   "+cam.optString("fw","—")+"\nFPS   "+String.format(Locale.US,"%.1f",cam.optDouble("fps",0))+"\nRSSI   "+cam.optInt("rssi",0)+" dBm");else camera.setText("ESP32-CAM   ○ OFFLINE");
     }
     private static String safe(Exception e){String s=e==null?"unknown":e.getMessage();return s==null||s.trim().isEmpty()?e.getClass().getSimpleName():s;}
     private static String ok(boolean b){return b?"● OK":"○ —";}private static String on(boolean b){return b?"● ON":"○ OFF";}
