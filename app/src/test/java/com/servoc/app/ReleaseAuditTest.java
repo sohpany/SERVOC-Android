@@ -4,8 +4,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ReleaseAuditTest {
-    @Test public void v010KeepsCriticalCameraEvidenceAndSafetyContracts(){
-        assertEquals("0.10.0",ReleaseAudit.VERSION);
+    @Test public void v0101KeepsCriticalCameraEvidenceAndSafetyContracts(){
+        assertEquals("0.10.1",ReleaseAudit.VERSION);
         assertEquals("شهاب الصهباني، مجدي ذيبان",ReleaseAudit.PROJECT_PREPARERS);
         assertEquals(8,ReleaseAudit.DATABASE_SCHEMA);
         assertTrue(ReleaseAudit.VIDEO_RECORDING);
@@ -22,7 +22,7 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.THREE_SECOND_LINK_RECOVERY_HOLD);
     }
 
-    @Test public void v010RetainsL298nAndSingleMqPowerRelay(){
+    @Test public void v0101RetainsL298nAndSingleMqPowerRelay(){
         assertTrue(ReleaseAudit.L298N_4WD_DRIVE);
         assertFalse(ReleaseAudit.SERVO_DRIVE);
         assertFalse(ReleaseAudit.PRECALIBRATED_MQ);
@@ -39,10 +39,12 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.REMOTE_CONNECTIVITY);
         assertTrue(ReleaseAudit.REMOTE_MQTT_TLS);
         assertTrue(ReleaseAudit.REMOTE_WSS_VIDEO);
+        assertTrue(ReleaseAudit.REMOTE_PASSWORDLESS_OPERATOR_UI);
+        assertTrue(ReleaseAudit.REMOTE_ROLE_SCOPED_BOOTSTRAP);
         assertTrue(ReleaseAudit.MQTT_RETAINED_LAST_WILL);
     }
 
-    @Test public void v010AddsChemCoreAndEndUserUpdateContracts(){
+    @Test public void v0101KeepsChemCoreAndEndUserUpdateContracts(){
         assertTrue(ReleaseAudit.CHEMCORE_FOUNDATION);
         assertTrue(ReleaseAudit.CHEMCORE_CONTROLLED_RUNTIME);
         assertTrue(ReleaseAudit.CHEMCORE_DYNAMIC_LIBRARY);
