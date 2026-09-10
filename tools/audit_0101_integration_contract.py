@@ -63,6 +63,9 @@ def main() -> int:
     remote_conn = text("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
     remote_session = text("app/src/main/java/com/servoc/app/communication/RemoteSessionManager.java")
     service_profile = text("app/src/main/java/com/servoc/app/communication/RemoteServiceProfile.java")
+    control_tab = text("app/src/main/java/com/servoc/app/ui/ControlTab.java")
+    status_tab = text("app/src/main/java/com/servoc/app/ui/StatusTab.java")
+    video_readiness = text("app/src/main/java/com/servoc/app/camera/RemoteVideoReadiness.java")
 
     master_cfg = text("firmware/HazRob/Config.h")
     master = text("firmware/HazRob/HazRob.ino")
@@ -159,7 +162,7 @@ def main() -> int:
     android_remote = robot_api + "\n" + remote_conn
     emitted = set(re.findall(r'command\("([a-z0-9_]+)"', android_remote))
     expected = {
-        "probe", "drive", "motion_stop", "estop", "sensor_off", "heartbeat",
+        "probe", "drive", "motion_stop", "estop", "estop_reset", "sensor_off", "heartbeat",
         "heartbeat_disarm", "relay", "measure_start", "measure_cancel", "alert",
         "alert_test", "camera_flash", "config_get", "config_set",
     }
@@ -171,6 +174,15 @@ def main() -> int:
     if missing_fw:
         raise AssertionError(f"ESP32 RemoteMqtt lacks Android-issued commands: {sorted(missing_fw)}")
 
+    # E-stop is a latched cross-layer contract, including explicit reset and UI inhibition.
+    require(master, 'path=="/estop/reset"', "Direct E-stop reset endpoint")
+    require(mqtt, 't=="estop_reset"', "Remote E-stop reset handler")
+    require(remote_conn, 'command("estop_reset"', "Android Remote E-stop reset command")
+    require(robot_api, 'public void emergencyReset()', "Android Direct/Remote E-stop reset API")
+    require(control_tab, 'setOnLongClickListener', "E-stop intentional reset gesture")
+    require(control_tab, 'if(estopLatched){host.setDriveCommand(0,0);return;}', "E-stop joystick inhibition")
+    require(control_tab, 'host.robotApi().emergencyReset()', "E-stop UI reset path")
+
     # Local and Remote configuration must share one validation/persistence implementation.
     require(hardware_h, "struct SettingsPatch", "shared settings patch")
     require(hardware_h, "applySettings", "shared settings application")
@@ -181,7 +193,7 @@ def main() -> int:
 
     # 5) Direct HTTP API core parity.
     direct_required = {
-        "/drive", "/motion/stop", "/stop", "/estop", "/sensor/off", "/heartbeat",
+        "/drive", "/motion/stop", "/stop", "/estop", "/estop/reset", "/sensor/off", "/heartbeat",
         "/diag", "/data", "/cfg", "/remote/status", "/remote/scan",
         "/remote/provision", "/remote/clear", "/relay", "/measure", "/alert",
     }
@@ -210,6 +222,13 @@ def main() -> int:
     require(relay, 'video_publish_token:c.publish', "camera publish-token response")
     require(relay, 'mqtt_user:c.robotUser,mqtt_password:c.robotPass', "robot MQTT response")
     require(relay, 'mqtt_user:c.appUser,mqtt_password:c.appPass', "operator MQTT response")
+
+    # Render publisher status is the remote-camera status authority; WSS first-frame remains the full video diagnostic.
+    require(service_profile, 'VIDEO_STATUS_HTTPS=', "Render camera status coordinate")
+    require(video_readiness, 'public static Result probeStatus(SharedPreferences prefs)', "lightweight Render camera status probe")
+    require(video_readiness, 'RemoteServiceProfile.VIDEO_STATUS_HTTPS', "Render camera status endpoint use")
+    require(status_tab, 'RemoteVideoReadiness.probeStatus(host.preferences())', "StatusTab Render camera authority")
+    forbid(status_tab, 'remoteCameraStatus()', "StatusTab obsolete MQTT camera status")
 
     # 7) Scientific workflow authority: active generators target 0.10.1, while public Stable
     # publication remains release-gated and cannot accept arbitrary payload/count declarations.
