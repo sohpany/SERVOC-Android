@@ -17,11 +17,16 @@ public final class RemoteSessionManager {
     private static final String BOOTSTRAP_URL="https://hazrob-video-relay.onrender.com/hazrob/bootstrap";
     private static final String BOOTSTRAP_TOKEN="hazrob-prototype-bootstrap-v1";
     private static final String BOOTSTRAP_CLIENT="android";
+    private static final String BOOTSTRAP_SERVICE_VERSION="0.10.1";
+    private static final int BOOTSTRAP_PROTOCOL=2;
+    private static final String CONTRACT_PREF="remote_bootstrap_contract";
+    private static final String CONTRACT_ID="hazrob-0.10.1-protocol-2";
     private final Context context;private final SharedPreferences prefs;
     public RemoteSessionManager(Context context,SharedPreferences prefs){this.context=context.getApplicationContext();this.prefs=prefs;RemoteServiceProfile.ensureDefaults(prefs);}
 
     public boolean serviceProfileConfigured(){
         RemoteServiceProfile.ensureDefaults(prefs);
+        if(!CONTRACT_ID.equals(prefs.getString(CONTRACT_PREF,"")))return false;
         if(prefs.getString("remote_broker_host","").trim().isEmpty()||prefs.getString("remote_robot_id","").trim().isEmpty())return false;
         RemoteCredentialStore.Credentials mqtt=new RemoteCredentialStore(context,prefs).load();String video=new RemoteVideoCredentialStore(prefs).load();
         return mqtt.present()&&!video.trim().isEmpty();
@@ -37,10 +42,13 @@ public final class RemoteSessionManager {
             int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();String body=read(in,8192);
             if(code!=200)throw new IOException("bootstrap HTTP "+code);
             JSONObject j=new JSONObject(body);if(!j.optBoolean("ok",false))throw new IOException("bootstrap rejected");
-            String role=j.optString("client","").trim();if(!role.isEmpty()&&!BOOTSTRAP_CLIENT.equals(role)&&!"legacy".equals(role))throw new IOException("bootstrap role mismatch");
+            String version=j.optString("version","").trim();int protocol=j.optInt("protocol",-1);
+            if(!BOOTSTRAP_SERVICE_VERSION.equals(version)||protocol!=BOOTSTRAP_PROTOCOL)throw new IOException("bootstrap contract mismatch");
+            String role=j.optString("client","").trim();if(!role.isEmpty()&&!BOOTSTRAP_CLIENT.equals(role))throw new IOException("bootstrap role mismatch");
             String robot=j.optString("robot","").trim(),user=j.optString("mqtt_user","").trim(),pass=compact(j.optString("mqtt_password","")),view=compact(j.optString("video_view_token",""));
             if(!RemoteServiceProfile.ROBOT_ID.equals(robot)||user.isEmpty()||pass.length()<8||view.length()<8)throw new IOException("bootstrap incomplete");
             new RemoteCredentialStore(context,prefs).save(user,pass);new RemoteVideoCredentialStore(prefs).save(view);
+            prefs.edit().putString(CONTRACT_PREF,CONTRACT_ID).apply();
         }finally{c.disconnect();}
     }
 
@@ -73,7 +81,7 @@ public final class RemoteSessionManager {
 
     /** Entry/readiness check performs one probe; stale cached credentials trigger one forced bootstrap refresh. */
     public RemoteReadiness probe(){
-        try{bootstrapIfNeeded();}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"automatic remote setup failed");}
+        try{bootstrapIfNeeded();}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"automatic remote setup failed: "+e.getMessage());}
         if(!serviceProfileConfigured())return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"remote service profile not configured");
         synchronized(CONNECT_LOCK){
             for(int attempt=0;attempt<2;attempt++){
