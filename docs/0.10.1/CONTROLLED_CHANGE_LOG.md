@@ -155,6 +155,24 @@ Secrets and credentials themselves are not to be committed to source control. On
 - Tooling limitation: the currently exposed Render connector has no operation to change the branch of an existing service. Triggering a deploy would therefore redeploy the wrong branch and is intentionally not performed.
 - Status: **OPEN RELEASE BLOCKER / branch alignment + 0.10.1 live deployment required**.
 
+### HR-0101-015 — Latched software E-stop safety correction
+- Components: main ESP32 safety state, Direct API, Remote MQTT, Android control UI/command state.
+- Finding: current `emergencyStop()` immediately stops motion, measurement and MQ power but does **not** latch a software E-stop; a subsequent drive command can therefore authorize motion again without an explicit reset.
+- Authoritative correction contract is documented in `docs/0.10.1/SAFETY_CONTROL_CONTRACT.md`.
+- Required behavior: `estop` latches; drive is inhibited while latched; heartbeat/reconnect cannot clear it; reset is explicit (`/estop/reset` Direct and `estop_reset` Remote), leaves L/R at zero, and requires a subsequent new drive command before movement.
+- Android reset must be intentional rather than an ordinary tap, and telemetry shall expose the latch state.
+- Safety limitation: this remains a software interlock and is not a certified emergency-stop or substitute for physical power isolation.
+- Implementation rule: because this is a cross-cutting safety change, code implementation is deliberately withheld until Android/Firmware compilation can actually execute under CI rather than introducing an unbuildable change blindly.
+- Status: **IDENTIFIED / CONTRACT DOCUMENTED / IMPLEMENTATION BLOCKED BY HR-0101-013**.
+
+### HR-0101-016 — Remote camera status authority correction
+- Components: Android `RemoteConnection`, `StatusTab`, Render video status/WSS path.
+- Finding: actual remote video correctly uses authenticated Render `/hazrob/video/status/hazrob-001` plus WSS viewer/first-JPEG validation, but the Status tab currently derives camera state from MQTT topic `hazrob/hazrob-001/camera/status`.
+- No 0.10.1 publisher for that MQTT topic has been found in ESP32-CAM or Render, so Status can remain unknown while video itself works.
+- Authoritative correction contract is documented in `docs/0.10.1/REMOTE_CAMERA_STATUS_CONTRACT.md`.
+- Required behavior: Render publisher status is the lightweight status authority; full WSS first-frame/decode remains an explicit diagnostic; camera availability must not become a prerequisite for Remote robot control.
+- Status: **IDENTIFIED / CONTRACT DOCUMENTED / ANDROID CORRECTION PENDING BUILD AVAILABILITY**.
+
 ## Mandatory audit blocks before release approval
 
 1. Repository-wide version sweep and active-artifact identity.
