@@ -27,7 +27,7 @@ void remoteSetCloudState(bool tls,bool mqtt,bool commandAck,bool telemetry,bool 
 
 String remoteStatusJson(){
   bool connected=WiFi.status()==WL_CONNECTED;String ip=connected?WiFi.localIP().toString():"0.0.0.0";bool internet=connected&&dnsOk&&timeOk;bool ready=internet&&cloudTls&&cloudMqtt&&cloudAck&&cloudTelemetry;
-  String j="{\"configured\":";j+=configured?"true":"false";j+=",\"ssid\":\""+esc(ssid)+"\"";j+=",\"wifi\":";j+=connected?"true":"false";j+=",\"ip\":\""+ip+"\",\"ip_ok\":";j+=connected?"true":"false";j+=",\"rssi\":"+String(connected?WiFi.RSSI():0);j+=",\"dns\":";j+=dnsOk?"true":"false";j+=",\"time\":";j+=timeOk?"true":"false";j+=",\"internet\":";j+=internet?"true":"false";j+=",\"tls\":";j+=cloudTls?"true":"false";j+=",\"mqtt\":";j+=cloudMqtt?"true":"false";j+=",\"command_ack\":";j+=cloudAck?"true":"false";j+=",\"telemetry\":";j+=cloudTelemetry?"true":"false";j+=",\"camera\":";j+=cloudCamera?"true":"false";j+=",\"remote_ready\":";j+=ready?"true":"false";j+="}";return j;
+  String j="{\"configured\":";j+=configured?"true":"false";j+=",\"ssid\":\""+esc(ssid)+"\"";j+=",\"wifi\":";j+=connected?"true":"false";j+=",\"ip\":\""+ip+"\",\"ip_ok\":";j+=connected?"true":"false";j+=",\"rssi\":"+String(connected?WiFi.RSSI():0);j+=",\"dns\":";j+=dnsOk?"true":"false";j+=",\"time\":";j+=timeOk?"true":"false";j+=",\"internet\":";j+=internet?"true":"false";j+=",\"tls\":";j+=cloudTls?"true":"false";j+=",\"mqtt\":";j+=cloudMqtt?"true":"false";j+=",\"command_ack\":";j+=cloudAck?"true":"false";j+=",\"telemetry\":";j+=cloudTelemetry?"true":"false";j+=",\"remote_ready\":";j+=ready?"true":"false";j+="}";return j;
 }
 String remoteSsid(){return ssid;}
 bool remoteInternetReady(){return configured&&WiFi.status()==WL_CONNECTED&&dnsOk&&timeOk;}
