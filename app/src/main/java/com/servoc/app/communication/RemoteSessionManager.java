@@ -14,7 +14,6 @@ import java.nio.charset.StandardCharsets;
 /** Owns the Android side of the secure remote cloud session. */
 public final class RemoteSessionManager {
     private static final Object CONNECT_LOCK=new Object();
-    private static final String BOOTSTRAP_URL="https://hazrob-video-relay.onrender.com/hazrob/bootstrap";
     private static final String BOOTSTRAP_TOKEN="hazrob-prototype-bootstrap-v1";
     private static final String BOOTSTRAP_CLIENT="android";
     private static final String BOOTSTRAP_SERVICE_VERSION=RemoteServiceProfile.SERVICE_VERSION;
@@ -35,7 +34,7 @@ public final class RemoteSessionManager {
     private void bootstrapIfNeeded()throws Exception{bootstrap(false);}
     private void bootstrap(boolean force)throws Exception{
         if(!force&&serviceProfileConfigured())return;
-        HttpURLConnection c=(HttpURLConnection)new URL(BOOTSTRAP_URL).openConnection();
+        HttpURLConnection c=(HttpURLConnection)new URL(RemoteServiceProfile.BOOTSTRAP_HTTPS).openConnection();
         c.setConnectTimeout(3500);c.setReadTimeout(3500);c.setUseCaches(false);c.setRequestMethod("GET");
         c.setRequestProperty("Authorization","Bearer "+BOOTSTRAP_TOKEN);c.setRequestProperty("X-HazRob-Client",BOOTSTRAP_CLIENT);c.setRequestProperty("Accept","application/json");
         try{
