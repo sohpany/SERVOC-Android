@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-/** HazRob 0.10 Render video profile.
+/** HazRob 0.10.1 Render video profile.
  *  Normal field builds obtain the publisher credential at runtime from Render.
  *  RemoteVideoSecrets.h is optional fallback-only and is not required.
  */
