@@ -2,11 +2,11 @@ package com.servoc.app.hardware;
 
 import com.servoc.app.chemical.GasEngine;
 
-/** Single source of truth for the field-wired HazRob 0.10 sensor/power/drive topology. */
+/** Single source of truth for the field-wired HazRob 0.10.1 sensor/power/drive topology. */
 public final class HazRobHardwareProfile {
     private HazRobHardwareProfile(){}
 
-    public static final String ID="hazrob-0.10-1r8mq-l298n6-batt-ultra-ldr-v1";
+    public static final String ID="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1";
     public static final String DRIVE_DRIVER="L298N";
     public static final int DRIVE_L_EN=16;
     public static final int DRIVE_L_IN1=18;
@@ -36,7 +36,7 @@ public final class HazRobHardwareProfile {
 
     public static final int I2C_SDA_GPIO=21;
     public static final int I2C_SCL_GPIO=22;
-    /** Future BH1750-style quantitative illuminance may share I2C; no lux sensor is installed in 0.10. */
+    /** Future BH1750-style quantitative illuminance may share I2C; no lux sensor is installed in 0.10.1. */
     public static final boolean LUX_SENSOR_INSTALLED=false;
 
     /** Fixed HazRob hardware design value: both ADS1115 boards are supplied from the regulated 5 V rail. */
