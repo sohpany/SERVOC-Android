@@ -54,8 +54,8 @@ jobs:
               pstate='TARGET' if pct<=pct_target else 'HEADROOM-WARNING'
               bstate='TARGET' if size<=byte_target[k] else 'BINARY-WARNING'
               print(f'{k}: {size} bytes; flash={pct:.1f}% target<={pct_target:.1f}% hard<={limit:.1f}% [{pstate}; {bstate}]')
-              if pct>limit: sys.exit(f'{k} exceeds 0.10 partition headroom ceiling')
-              if size>byte_hard[k]: sys.exit(f'{k} exceeds 0.10 absolute binary ceiling')
+              if pct>limit: sys.exit(f'{k} exceeds 0.10.1 partition headroom ceiling')
+              if size>byte_hard[k]: sys.exit(f'{k} exceeds 0.10.1 absolute binary ceiling')
           PY
 
       - name: Remove optional local secret headers before source packaging
@@ -64,15 +64,15 @@ jobs:
       - name: Create source ZIPs
         run: |
           cd firmware
-          zip -qr ../HazRob-ESP32-v0.10.0-source.zip HazRob
-          zip -qr ../HazRob-ESP32-CAM-v0.10.0-source.zip HazRob-CAM
+          zip -qr ../HazRob-ESP32-v0.10.1-source.zip HazRob
+          zip -qr ../HazRob-ESP32-CAM-v0.10.1-source.zip HazRob-CAM
           cd ..
-          sha256sum HazRob-ESP32-v0.10.0-source.zip HazRob-ESP32-CAM-v0.10.0-source.zip > firmware-source-sha256.txt
+          sha256sum HazRob-ESP32-v0.10.1-source.zip HazRob-ESP32-CAM-v0.10.1-source.zip > firmware-source-sha256.txt
 
       - name: Upload firmware binaries and size logs
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-v0.10.0-firmware
+          name: HazRob-v0.10.1-firmware
           path: |
             build/master/*.bin
             build/camera/*.bin
@@ -83,10 +83,10 @@ jobs:
       - name: Upload source ZIPs
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-v0.10.0-firmware-sources
+          name: HazRob-v0.10.1-firmware-sources
           path: |
-            HazRob-ESP32-v0.10.0-source.zip
-            HazRob-ESP32-CAM-v0.10.0-source.zip
+            HazRob-ESP32-v0.10.1-source.zip
+            HazRob-ESP32-CAM-v0.10.1-source.zip
             firmware-source-sha256.txt
           if-no-files-found: error
           retention-days: 90
@@ -100,9 +100,9 @@ jobs:
           rm -rf /tmp/hazrob-dist
           git worktree add -B app-update-distribution /tmp/hazrob-dist origin/app-update-distribution
           mkdir -p /tmp/hazrob-dist/public/firmware
-          cp HazRob-ESP32-v0.10.0-source.zip HazRob-ESP32-CAM-v0.10.0-source.zip firmware-source-sha256.txt /tmp/hazrob-dist/public/firmware/
+          cp HazRob-ESP32-v0.10.1-source.zip HazRob-ESP32-CAM-v0.10.1-source.zip firmware-source-sha256.txt /tmp/hazrob-dist/public/firmware/
           git -C /tmp/hazrob-dist add public/firmware
           git -C /tmp/hazrob-dist diff --cached --quiet || {
-            git -C /tmp/hazrob-dist commit -m 'dist(firmware): publish HazRob 0.10.0 source ZIPs'
+            git -C /tmp/hazrob-dist commit -m 'dist(firmware): publish HazRob 0.10.1 source ZIPs'
             git -C /tmp/hazrob-dist push origin HEAD:app-update-distribution
           }
