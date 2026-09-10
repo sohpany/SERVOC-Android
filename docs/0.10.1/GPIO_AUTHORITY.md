@@ -1,7 +1,7 @@
 # HazRob 0.10.1 — Canonical GPIO Authority
 
 Status: **AUTHORITATIVE FOR 0.10.1 INTEGRATION**  
-Change control: `HR-0101-010`; explicit relay notation clarification: `HR-0101-019`  
+Change control: `HR-0101-010`; relay notation clarification: `HR-0101-019`; audit-readable aliases: `HR-0101-020`  
 Primary code sources: `firmware/HazRob/Config.h`, `firmware/HazRob/Hardware.cpp`, `firmware/HazRob/Alerts.cpp`, `firmware/HazRob-CAM/HazRob-CAM.ino`.
 
 This document is the only human-readable GPIO authority for HazRob 0.10.1. If another active document disagrees with this table, the disagreement is a release defect and must be corrected before release. Historical documents may retain historical mappings only when clearly marked historical.
@@ -30,7 +30,11 @@ Hardware profile: `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`
 | 39 | **Input only** | `ULTRA_ECHO_PIN` | Front ultrasonic ECHO | Typical 5 V ECHO must be reduced/level-shifted to <=3.3 V before this GPIO. |
 | 14 | Reserved | `INTERNAL_TEMP_RESERVED_PIN` | No installed sensor in 0.10.1 | Reserved only. Do not assume a sensor, bus, or driver until hardware is formally selected. |
 
-Explicit relay authority: `RELAY_MQ=GPIO25`.
+### Canonical machine-readable aliases
+
+These aliases repeat the table without changing it and are intentionally explicit for automated release auditing:
+
+`DRIVE_L_EN=GPIO16; DRIVE_L_IN1=GPIO18; DRIVE_L_IN2=GPIO27; DRIVE_R_EN=GPIO17; DRIVE_R_IN1=GPIO19; DRIVE_R_IN2=GPIO32; SDA=GPIO21; SCL=GPIO22; RELAY_MQ=GPIO25; ALERT_PIN=GPIO26; SOUND_PIN=GPIO36; IR_PIN=GPIO35; LDR_PIN=GPIO34; BATTERY_PIN=GPIO33; ULTRA_TRIG_PIN=GPIO23; ULTRA_ECHO_PIN=GPIO39; INTERNAL_TEMP_RESERVED_PIN=GPIO14.`
 
 ### L298N 4WD topology
 
