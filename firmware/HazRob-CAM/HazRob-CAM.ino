@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <WebServer.h>
+#include <time.h>
 #include "esp_camera.h"
 #include "img_converters.h"
 #include "esp32-hal-psram.h"
@@ -7,6 +8,7 @@
 
 constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.1";
 constexpr uint8_t LED=4,JQ=35; constexpr size_t JPG_CAP=160*1024;
+constexpr time_t TLS_TIME_MIN=1700000000;
 constexpr int PWDN=32,RST=-1,XCLK=0,SIOD=26,SIOC=27,Y9=35,Y8=34,Y7=39,Y6=36,Y5=21,Y4=19,Y3=18,Y2=5,VS=25,HR=23,PC=22;
 IPAddress ip(192,168,4,2),gw(192,168,4,1),sn(255,255,255,0),d1(1,1,1,1),d2(8,8,8,8);
 WebServer web(80); WiFiServer mjpeg(81); SemaphoreHandle_t camMx;
@@ -31,5 +33,5 @@ void streamTask(void*){for(;;){WiFiClient c=mjpeg.accept();if(!c){vTaskDelay(2);
 void wifiConnect(){WiFi.disconnect(false,false);delay(20);WiFi.config(ip,gw,sn,d1,d2);WiFi.begin(SSID);wifiAt=millis();}
 void status(){String e=String("0x")+String((uint32_t)camErr,HEX);e.toUpperCase();String j="{\"ok\":true,\"camera_ok\":"+String(camOK?"true":"false")+",\"camera_error\":\""+e+"\",\"psram\":"+(psOK?"true":"false")+",\"fw\":\""+FW+"\",\"ip\":\""+WiFi.localIP().toString()+"\",\"pid\":"+pid+",\"sensor\":\""+sensor()+"\",\"width\":320,\"height\":240,\"capture_format\":\"RGB565\",\"jpeg_encoder\":\"software_frame2jpg\",\"stream_format\":\"MJPEG+WSS\",\"jpeg_quality\":"+JQ+",\"fps\":"+String(fps100/100.0f,2)+",\"frames\":"+frames+",\"encode_ms\":"+String(encUs/1000.0f,2)+",\"jpeg_bytes\":"+(uint32_t)lastJpg+",\"capture_errors\":"+capErr+",\"encode_errors\":"+encErr+",\"stream_clients\":"+clients+",\"rssi\":"+WiFi.RSSI()+",\"flash_gpio\":4,\"flash\":\""+flashName()+"\",\"remote_video\":"+remoteVideoJson()+"}";web.sendHeader("Access-Control-Allow-Origin","*");web.send(200,"application/json",j);}
 
-void setup(){Serial.begin(115200);delay(150);pinMode(LED,OUTPUT);camMx=xSemaphoreCreateMutex();camOK=cameraBegin();WiFi.persistent(false);WiFi.mode(WIFI_STA);WiFi.setSleep(false);wifiConnect();web.on("/",[]{web.send(200,"text/plain",FW);});web.on("/status",status);web.on("/stream",[]{web.sendHeader("Location","http://"+WiFi.localIP().toString()+":81/stream",true);web.send(302,"text/plain","stream");});web.on("/flash",[]{if(web.hasArg("mode"))flashSet(web.arg("mode"));else if(web.hasArg("on"))flashSet(web.arg("on"));else return web.send(400,"text/plain","BAD");web.send(200,"text/plain","OK");});web.on("/led",[]{if(web.hasArg("on"))flashSet(web.arg("on"));else if(web.hasArg("state"))flashSet(web.arg("state"));else return web.send(400,"text/plain","BAD");web.send(200,"text/plain","OK");});web.on("/control",[]{String v=web.arg("var");if(v!="led_intensity"&&v!="flash"&&v!="led")return web.send(400,"text/plain","BAD");flashSet(web.arg("val"));web.send(200,"text/plain","OK");});web.onNotFound([]{web.send(404,"text/plain","NOT FOUND");});web.begin();mjpeg.begin();xTaskCreatePinnedToCore(streamTask,"mj",6144,nullptr,1,nullptr,1);remoteVideoBegin(captureJpeg);}
-void loop(){web.handleClient();fpsTick();if(WiFi.status()!=WL_CONNECTED&&millis()-wifiAt>4500)wifiConnect();delay(2);}
+void setup(){Serial.begin(115200);delay(150);pinMode(LED,OUTPUT);camMx=xSemaphoreCreateMutex();camOK=cameraBegin();WiFi.persistent(false);WiFi.mode(WIFI_STA);WiFi.setSleep(false);wifiConnect();configTime(0,0,"pool.ntp.org","time.cloudflare.com");web.on("/",[]{web.send(200,"text/plain",FW);});web.on("/status",status);web.on("/stream",[]{web.sendHeader("Location","http://"+WiFi.localIP().toString()+":81/stream",true);web.send(302,"text/plain","stream");});web.on("/flash",[]{if(web.hasArg("mode"))flashSet(web.arg("mode"));else if(web.hasArg("on"))flashSet(web.arg("on"));else return web.send(400,"text/plain","BAD");web.send(200,"text/plain","OK");});web.on("/led",[]{if(web.hasArg("on"))flashSet(web.arg("on"));else if(web.hasArg("state"))flashSet(web.arg("state"));else return web.send(400,"text/plain","BAD");web.send(200,"text/plain","OK");});web.on("/control",[]{String v=web.arg("var");if(v!="led_intensity"&&v!="flash"&&v!="led")return web.send(400,"text/plain","BAD");flashSet(web.arg("val"));web.send(200,"text/plain","OK");});web.onNotFound([]{web.send(404,"text/plain","NOT FOUND");});web.begin();mjpeg.begin();xTaskCreatePinnedToCore(streamTask,"mj",6144,nullptr,1,nullptr,1);}
+void loop(){web.handleClient();fpsTick();if(WiFi.status()!=WL_CONNECTED&&millis()-wifiAt>4500)wifiConnect();if(WiFi.status()==WL_CONNECTED&&time(nullptr)>TLS_TIME_MIN)remoteVideoBegin(captureJpeg);delay(2);}
