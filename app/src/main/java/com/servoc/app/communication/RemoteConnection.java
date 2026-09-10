@@ -19,7 +19,7 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     private static volatile RemoteConnection active;private static volatile boolean transportOwned=false;
     private final SecureMqtt311Client mqtt;private final String robotId,root,sessionId;private final AtomicLong sequence=new AtomicLong();private final SecureRandom random=new SecureRandom();
     private final ConcurrentHashMap<String,Pending> pending=new ConcurrentHashMap<>();
-    private volatile JSONObject latestTelemetry,latestStatus,cameraStatus;private volatile long telemetryAt;private volatile boolean disconnected;
+    private volatile JSONObject latestTelemetry,latestStatus;private volatile long telemetryAt;private volatile boolean disconnected;
     private static final class Pending{final CountDownLatch latch=new CountDownLatch(1);volatile JSONObject ack;}
 
     private RemoteConnection(SecureMqtt311Client mqtt,String robotId){this.mqtt=mqtt;this.robotId=robotId;this.root="hazrob/"+robotId+"/";this.sessionId=UUID.randomUUID().toString();}
@@ -29,7 +29,7 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
         String host=prefs.getString("remote_broker_host","").trim(),robot=prefs.getString("remote_robot_id","").trim();int port=prefs.getInt("remote_broker_port",8883);if(host.isEmpty()||robot.isEmpty())throw new IllegalStateException("remote service profile incomplete");
         RemoteCredentialStore.Credentials c=new RemoteCredentialStore(context,prefs).load();if(!c.present())throw new IllegalStateException("remote MQTT credentials unavailable");
         String client="hazrob-app-"+robot+"-"+Long.toHexString(System.currentTimeMillis());SecureMqtt311Client m=new SecureMqtt311Client(host,port,client,c.username,c.password);RemoteConnection r=new RemoteConnection(m,robot);
-        try{m.connect(r);m.subscribe(r.root+"ack");m.subscribe(r.root+"telemetry");m.subscribe(r.root+"status");m.subscribe(r.root+"camera/status");active=r;if(previous!=null&&previous!=r)previous.close();return r;}
+        try{m.connect(r);m.subscribe(r.root+"ack");m.subscribe(r.root+"telemetry");m.subscribe(r.root+"status");active=r;if(previous!=null&&previous!=r)previous.close();return r;}
         catch(Exception e){try{r.close();}catch(Exception ignored){}throw e;}
     }
 
@@ -41,11 +41,11 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     public String robotId(){return robotId;}public String sessionId(){return sessionId;}public String operatorRole(){return "operator";}
 
     public RemoteReadiness probe(long timeoutMs){
-        boolean tls=isConnected(),mqttOk=tls,ack=false,telemetry=false,camera=false;JSONObject status=latestStatus;
+        boolean tls=isConnected(),mqttOk=tls,ack=false,telemetry=false;JSONObject status=latestStatus;
         try{JSONObject a=command("probe",new JSONObject(),2500,true,Math.max(1000,timeoutMs));ack=a!=null&&a.optBoolean("ok",false);}catch(Exception ignored){}
-        long until=SystemClock.elapsedRealtime()+Math.max(500,timeoutMs);while(SystemClock.elapsedRealtime()<until){telemetry=latestTelemetry!=null&&SystemClock.elapsedRealtime()-telemetryAt<5000;status=latestStatus;camera=cameraStatus!=null&&cameraStatus.optBoolean("online",cameraStatus.optBoolean("ok",false));if(ack&&telemetry)break;try{Thread.sleep(50);}catch(InterruptedException e){Thread.currentThread().interrupt();break;}}
+        long until=SystemClock.elapsedRealtime()+Math.max(500,timeoutMs);while(SystemClock.elapsedRealtime()<until){telemetry=latestTelemetry!=null&&SystemClock.elapsedRealtime()-telemetryAt<5000;status=latestStatus;if(ack&&telemetry)break;try{Thread.sleep(50);}catch(InterruptedException e){Thread.currentThread().interrupt();break;}}
         boolean configured=true,wifi=status!=null&&status.optBoolean("wifi",ack),ip=status!=null&&status.optBoolean("ip_ok",wifi),dns=status!=null&&status.optBoolean("dns",ack),time=status!=null&&status.optBoolean("time",ack),internet=status!=null&&status.optBoolean("internet",ack);boolean ready=tls&&mqttOk&&ack&&telemetry;
-        return new RemoteReadiness(configured,wifi,ip,dns,time,internet,tls,mqttOk,ack,telemetry,camera,ready,ready?"remote end-to-end ready":"remote handshake incomplete");
+        return new RemoteReadiness(configured,wifi,ip,dns,time,internet,tls,mqttOk,ack,telemetry,false,ready,ready?"remote control/telemetry ready":"remote handshake incomplete");
     }
 
     public JSONObject command(String type,JSONObject payload,int ttlMs,boolean waitAck,long timeoutMs)throws Exception{
@@ -69,9 +69,9 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     public void cameraFlash(String mode)throws Exception{JSONObject p=new JSONObject();p.put("mode",mode==null?"off":mode);command("camera_flash",p,3000,true,2500);}
 
     public JSONObject snapshot(int left,int right){JSONObject t=latestTelemetry;if(t==null)return null;JSONObject s=t.optJSONObject("snapshot");if(s!=null)return s;JSONObject diag=t.optJSONObject("diag"),data=t.optJSONObject("data");if(diag!=null||data!=null)return RobotProtocolV4.normalize(diag,data,left,right);return t;}
-    public JSONObject status(){return latestStatus;}public JSONObject cameraStatus(){return cameraStatus;}
+    public JSONObject status(){return latestStatus;}
 
-    @Override public void onMessage(String topic,String payload){try{JSONObject j=new JSONObject(payload);if(topic.equals(root+"ack")){String nonce=j.optString("nonce","");Pending p=pending.get(nonce);if(p!=null){p.ack=j;p.latch.countDown();}}else if(topic.equals(root+"telemetry")){latestTelemetry=j;telemetryAt=SystemClock.elapsedRealtime();}else if(topic.equals(root+"status")){latestStatus=j;}else if(topic.equals(root+"camera/status"))cameraStatus=j;}catch(Exception ignored){}}
+    @Override public void onMessage(String topic,String payload){try{JSONObject j=new JSONObject(payload);if(topic.equals(root+"ack")){String nonce=j.optString("nonce","");Pending p=pending.get(nonce);if(p!=null){p.ack=j;p.latch.countDown();}}else if(topic.equals(root+"telemetry")){latestTelemetry=j;telemetryAt=SystemClock.elapsedRealtime();}else if(topic.equals(root+"status")){latestStatus=j;}}catch(Exception ignored){}}
     @Override public void onDisconnected(Exception error){disconnected=true;for(Pending p:pending.values())p.latch.countDown();}
 
     @Override public synchronized void close(){if(active==this)active=null;disconnected=true;mqtt.close();for(Pending p:pending.values())p.latch.countDown();pending.clear();}
