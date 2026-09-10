@@ -33,3 +33,6 @@ jobs:
 
       - name: Syntax check
         run: npm run check
+
+      - name: Bootstrap and JPEG relay contract
+        run: npm test
