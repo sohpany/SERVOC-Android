@@ -3,6 +3,12 @@
 
 extern Settings settings;
 
+struct SettingsPatch{
+  bool hasCam=false,hasSpeed=false,hasWarm=false,hasMeasure=false;
+  String cam;
+  int speed=0,warm=0,measure=0;
+};
+
 void hwBegin(),hwUpdate();
 
 void driveSet(int left,int right);
@@ -20,6 +26,7 @@ void linkHeartbeat();
 void linkSetArmed(bool armed);
 
 void saveSettings();
+void applySettings(const SettingsPatch& patch,bool persist=true);
 
 String dataJson();
 String diagJson();
