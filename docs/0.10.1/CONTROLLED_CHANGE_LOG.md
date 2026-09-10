@@ -316,6 +316,21 @@ Secrets and credentials themselves are not to be committed to source control. On
 - Tooling constraint: the available Render connector does not expose a branch-update operation for an existing service and does not expose existing secret values for safe migration. The production branch must therefore be aligned through Render configuration rather than by mutating the retired Git branch or duplicating secrets blindly.
 - Status: **SOURCE/VERIFY PASS / HR-0101-014 PRODUCTION BLOCKER OPEN / FIELD E2E PENDING**.
 
+### HR-0101-030 — Direct Wi-Fi preflight and fail-clear admission
+- Components: Android `LocalNetworkContract`, `ConnectionGate`, local-network unit tests.
+- Reason: Direct admission previously entered the operator workspace even when the phone was not actually routed to the HazRob AP, which could present a generic disconnected state without identifying the local-network prerequisite.
+- Correction:
+  - Direct mode still clears stale saved robot/camera hosts and releases any owned Remote transport;
+  - before entering `MainActivity`, Android attempts to bind the existing HazRob Wi-Fi route and performs a non-actuating `GET /` probe against canonical robot address `192.168.4.1`;
+  - the returned firmware banner must match controlled identity `HazRob 0.10.1`;
+  - failed preflight remains in the transport selector and exposes explicit actions to open system Wi-Fi settings, retry, or go back rather than silently entering a disconnected control workspace;
+  - no Drive, relay, measurement, alert, E-stop reset, or other actuation command is sent during preflight.
+- Compatibility impact: Direct admission/diagnostics only. No firmware, GPIO, L298N mapping, camera address, Remote MQTT contract, or safety-interlock behavior changed.
+- Operational limitation: the app does not silently join arbitrary Wi-Fi networks; the phone must be connected to the HazRob AP before preflight can pass. This avoids introducing new Android nearby-Wi-Fi permission/state complexity into the controlled test baseline.
+- Implementation commits: `567c5c55d9875b4a5a1fff2bb7bf63c1c98436a4`, `fa3f2792541ceed759249e1fb54b623dee832a24`, `d8c8856f1d72a7613d02c2e804bc62003ce45560`.
+- Verification on operational head `d8c8856f1d72a7613d02c2e804bc62003ce45560`: cross-component integration contract PASS; Android unit tests PASS; Android `assembleRelease` PASS; signer continuity PASS with signer SHA-256 `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`; APK SHA-256 `00c347937c9310ed3836c2af26c3f7e2732867f12887134d97fd27179ec88efc`.
+- Status: **SOURCE/BUILD PASS / DIRECT FIELD TEST PENDING**.
+
 ## Mandatory audit blocks before release approval
 
 1. Repository-wide version sweep and active-artifact identity.
