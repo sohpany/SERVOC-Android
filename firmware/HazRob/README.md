@@ -1,18 +1,20 @@
-# HazRob master ESP32 firmware — 0.10.0
+# HazRob master ESP32 firmware — 0.10.1
 
-Hardware target: **DOIT ESP32 DEVKIT V1 / ESP32-WROOM-compatible board** · API v4 · hardware profile `hazrob-0.10-1r8mq-l298n6-batt-ultra-ldr-v1`.
+Hardware target: **DOIT ESP32 DEVKIT V1 / ESP32-WROOM-compatible board** · API v4 · hardware profile `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`.
+
+Canonical GPIO authority: [`../../docs/0.10.1/GPIO_AUTHORITY.md`](../../docs/0.10.1/GPIO_AUTHORITY.md).
 
 ## Design boundary
 
 The master firmware is intentionally compact and deterministic. It performs hardware I/O, acquisition, drive safety, local API and remote transport. **ChemCore molecular intelligence, open-set inference, QSPR/AMCI, Estimated Energy Model SOC and scientific-library data remain on Android.**
 
-The 0.10 implementation uses compact direct-I2C ADS1115 and BME280/BMP280 drivers and therefore does not require the former Adafruit ADS/BME/BMP libraries or ESP32Servo.
+The 0.10.1 implementation uses compact direct-I2C ADS1115 and BME280/BMP280 drivers and therefore does not require the former Adafruit ADS/BME/BMP libraries or ESP32Servo.
 
 ## Arduino / partition setting
 
-0.10 experimental firmware is built for the board's **4 MB flash** with **Huge APP** partitioning. ESP32 firmware OTA is not used in this release; firmware is flashed locally. CI still enforces an absolute binary-size ceiling so the larger partition is not treated as permission for uncontrolled growth.
+0.10.1 firmware is built for the board's **4 MB flash** with **Huge APP** partitioning. ESP32 firmware OTA is not used in this release; firmware is flashed locally. CI enforces an absolute binary-size ceiling so the larger partition is not treated as permission for uncontrolled growth.
 
-**Manual Arduino IDE build for this release:** select **ESP32 Dev Module** as the board and select **Huge APP (3MB No OTA / 1MB SPIFFS, or the equivalent Huge APP entry provided by the installed ESP32 core)**. The physical board may still be a DOIT ESP32 DEVKIT V1; the generic ESP32 Dev Module menu is used because current Arduino-ESP32 DOIT definitions do not expose the required Huge APP partition option. If you compile with the default DOIT partition, Arduino will report roughly 84% even though the same binary is about one-third of the intended Huge APP partition.
+**Manual Arduino IDE build for this release:** select **ESP32 Dev Module** as the board and select **Huge APP (3MB No OTA / 1MB SPIFFS, or the equivalent Huge APP entry provided by the installed ESP32 core)**. The physical board may still be a DOIT ESP32 DEVKIT V1; the generic ESP32 Dev Module menu is used because current Arduino-ESP32 DOIT definitions do not expose the required Huge APP partition option.
 
 ## Network
 
@@ -50,7 +52,7 @@ The firmware currently carries `RL=10` and `R0=10` engineering/default values. T
 
 ## Other I/O
 
-| Function | GPIO | 0.10 status |
+| Function | GPIO | 0.10.1 status |
 |---|---:|---|
 | Speaker/alert signal | 26 | reserved; 8Ω speaker not installed; do not connect it directly |
 | MAX4466 | 36 | electrical RMS/P2P only, not calibrated dB SPL |
@@ -60,7 +62,7 @@ The firmware currently carries `RL=10` and `R0=10` engineering/default values. T
 | Ultrasonic TRIG | 23 | front obstacle ranging |
 | Ultrasonic ECHO | 39 | input-only; reduce a 5V echo to <=3.3V |
 | Internal temperature | 14 | **reserved only**, no sensor/driver assumed |
-| I2C SDA/SCL | 21 / 22 | ADS1 + ADS2 + chamber BME/BMP |
+| I2C SDA/SCL | 21 / 22 | ADS1 + ADS2 + chamber BME/BMP; 400 kHz |
 
 The chamber environment sensor is BME280 (`0x60`) or BMP280 (`0x56/0x57/0x58`) auto-detected at `0x76/0x77` by the compact direct-I2C driver.
 
@@ -89,11 +91,13 @@ Local HTTP endpoints remain: `/drive`, `/stop`, `/motion/stop`, `/estop`, `/sens
 
 ## Remote path
 
-MQTT 3.1.1 over TLS obtains the active prototype MQTT username/password at runtime from the Render bootstrap service over HTTPS. Whitespace is stripped from the returned password before MQTT authentication. The trusted root CA is embedded in `RemoteCloudConfig.h`. `RemoteCloudSecrets.h` is therefore **not required for the normal 0.10 field build**; it exists only as an optional controlled fallback. Commands carry session/sequence/nonce/TTL and application ACK semantics. A retained Last Will publishes an unavailable state after an unexpected disconnect. The master also provides Internet routing to ESP32-CAM when WAN is ready.
+MQTT 3.1.1 over TLS obtains the **robot-scoped** MQTT identity at runtime from the Render bootstrap service over HTTPS. The master identifies itself as `X-HazRob-Client: esp32`, validates the returned role/robot ID, strips whitespace from the returned password, and uses the embedded trusted root CA in `RemoteCloudConfig.h`. Operator credentials and video-view/publish tokens are not part of the master ESP32 role-scoped response. `RemoteCloudSecrets.h` remains only an optional controlled fallback and is removed from release source packaging. Commands carry session/sequence/nonce/TTL and application ACK semantics. A retained Last Will publishes an unavailable state after an unexpected disconnect. The master also provides Internet routing to ESP32-CAM when WAN is ready.
+
+The operator application does not request a HazRob remote password. That passwordless UX does not mean anonymous transport; internal service identities remain authenticated and role-scoped.
 
 ## Capacity policy
 
-CI reports both percentage of the configured app partition and the absolute compiled binary size. 0.10 policy is:
+CI reports both percentage of the configured app partition and the absolute compiled binary size. 0.10.1 policy is:
 
 - partition target `<=70%`, hard ceiling `<=80%`;
 - master binary target `<=1,000,000 bytes`, hard ceiling `<=1,150,000 bytes`.
