@@ -3,7 +3,7 @@ name: Build ChemCore Molecular Seed
 on:
   push:
     branches:
-      - dev/hazrob-0.10-chemcore-foundation
+      - dev/hazrob-0.10.1
     paths:
       - tools/build_chemcore_molecular_seed.py
       - tools/build_chemcore_unresolved_curation.py
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - name: Checkout research branch
+      - name: Checkout 0.10.1 integration branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -48,6 +48,7 @@ jobs:
           manifest_path=Path('app/src/main/assets/generated/chemcore/manifest.json')
           data=json.loads(data_path.read_text(encoding='utf-8'));manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
           assert data['record_count']==652;assert manifest['record_count']==652;assert data['error_count']==0
+          assert data['resolved_count']==615;assert data['unresolved_count']==37
           assert data['resolved_count']+data['unresolved_count']==652
           actual=hashlib.sha256(data_path.read_bytes()).hexdigest();assert actual==manifest['sha256']
           assert len(data['records'])==652;assert all(r.get('status') in {'RESOLVED','UNRESOLVED'} for r in data['records'])
@@ -73,6 +74,8 @@ jobs:
 
       - name: Commit pinned generated dataset safely
         run: |
+          set -euo pipefail
+          TARGET=dev/hazrob-0.10.1
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/src/main/assets/generated/chemcore/molecular_descriptors.json \
@@ -84,23 +87,25 @@ jobs:
           fi
           git commit -m "data(chemcore): pin PubChem seed and unresolved identity curation"
           for attempt in 1 2 3; do
-            git fetch origin dev/hazrob-0.10-chemcore-foundation
-            if git rebase origin/dev/hazrob-0.10-chemcore-foundation; then
-              if git push origin HEAD:dev/hazrob-0.10-chemcore-foundation; then exit 0; fi
+            git fetch origin "$TARGET"
+            if git rebase "origin/$TARGET"; then
+              if git push origin "HEAD:$TARGET"; then exit 0; fi
             else
               git rebase --abort || true
               echo "Rebase conflict while pinning generated data; refusing to overwrite branch."
               exit 1
             fi
-            echo "Push raced with another commit; retrying ($attempt/3).";sleep $((attempt*2))
+            echo "Push raced with another commit; retrying ($attempt/3)."
+            sleep $((attempt*2))
           done
-          echo "Unable to pin molecular seed after three safe retries.";exit 1
+          echo "Unable to pin molecular seed after three safe retries."
+          exit 1
 
       - name: Upload molecular seed audit artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: chemcore-molecular-seed
+          name: chemcore-molecular-seed-0.10.1
           if-no-files-found: warn
           retention-days: 30
           path: |
