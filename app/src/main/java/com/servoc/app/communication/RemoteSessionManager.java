@@ -16,6 +16,7 @@ public final class RemoteSessionManager {
     private static final Object CONNECT_LOCK=new Object();
     private static final String BOOTSTRAP_URL="https://hazrob-video-relay.onrender.com/hazrob/bootstrap";
     private static final String BOOTSTRAP_TOKEN="hazrob-prototype-bootstrap-v1";
+    private static final String BOOTSTRAP_CLIENT="android";
     private final Context context;private final SharedPreferences prefs;
     public RemoteSessionManager(Context context,SharedPreferences prefs){this.context=context.getApplicationContext();this.prefs=prefs;RemoteServiceProfile.ensureDefaults(prefs);}
 
@@ -31,11 +32,12 @@ public final class RemoteSessionManager {
         if(!force&&serviceProfileConfigured())return;
         HttpURLConnection c=(HttpURLConnection)new URL(BOOTSTRAP_URL).openConnection();
         c.setConnectTimeout(3500);c.setReadTimeout(3500);c.setUseCaches(false);c.setRequestMethod("GET");
-        c.setRequestProperty("Authorization","Bearer "+BOOTSTRAP_TOKEN);c.setRequestProperty("Accept","application/json");
+        c.setRequestProperty("Authorization","Bearer "+BOOTSTRAP_TOKEN);c.setRequestProperty("X-HazRob-Client",BOOTSTRAP_CLIENT);c.setRequestProperty("Accept","application/json");
         try{
             int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();String body=read(in,8192);
             if(code!=200)throw new IOException("bootstrap HTTP "+code);
             JSONObject j=new JSONObject(body);if(!j.optBoolean("ok",false))throw new IOException("bootstrap rejected");
+            String role=j.optString("client","").trim();if(!role.isEmpty()&&!BOOTSTRAP_CLIENT.equals(role)&&!"legacy".equals(role))throw new IOException("bootstrap role mismatch");
             String robot=j.optString("robot","").trim(),user=j.optString("mqtt_user","").trim(),pass=compact(j.optString("mqtt_password","")),view=compact(j.optString("video_view_token",""));
             if(!RemoteServiceProfile.ROBOT_ID.equals(robot)||user.isEmpty()||pass.length()<8||view.length()<8)throw new IOException("bootstrap incomplete");
             new RemoteCredentialStore(context,prefs).save(user,pass);new RemoteVideoCredentialStore(prefs).save(view);
