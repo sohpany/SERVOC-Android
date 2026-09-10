@@ -28,13 +28,13 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-/** HazRob 0.9 drive workspace. Tracking target is owned by Analysis and shared through HazRobHost. */
+/** HazRob 0.10.1 drive workspace. Tracking target is owned by Analysis and shared through HazRobHost. */
 public final class ControlTab {
     private final Context appContext;private final HazRobHost host;private final LinearLayout root;
     private final TextView status,drive,cameraBadge,flameBadge,irBadge,trackingBadge,recordInfo,speedBadge;
-    private final Button flash,record,cancelTracking;
+    private final Button stop,flash,record,cancelTracking;
     private final MjpegView video;private final MjpegRecorder recorder;private final FlameFrameAnalyzer flameAnalyzer;private final HazardOverlayView overlay;private final GasDirectionEstimator gasDirection=new GasDirectionEstimator();private final JoystickView joystick;private final VerticalSpeedControl speedControl;
-    private volatile boolean recordingStopping=false;private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;private FlameFrameAnalyzer.Result lastFlameResult;private int lastTarget=-1;
+    private volatile boolean recordingStopping=false,estopLatched=false;private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;private FlameFrameAnalyzer.Result lastFlameResult;private int lastTarget=-1;
     private int rawJoystickLeft=0,rawJoystickRight=0,speedPercent=DriveSpeedLimiter.DEFAULT_PERCENT;
 
     public ControlTab(Context c,HazRobHost host){
@@ -57,13 +57,25 @@ public final class ControlTab {
         flameBadge=badge(c,"🔥 —");FrameLayout.LayoutParams fp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.TOP);fp.setMargins(UiKit.dp(c,6),UiKit.dp(c,74),0,0);cameraBox.addView(flameBadge,fp);
         root.addView(cameraBox,new LinearLayout.LayoutParams(-1,0,1f));
 
-        LinearLayout actions=UiKit.hbox(c);Button stop=UiKit.button(c,"إيقاف طارئ");stop.setTextColor(Color.WHITE);stop.setBackgroundColor(0xFFC62828);stop.setOnClickListener(v->host.emergencyStop());actions.addView(stop,UiKit.weight(1.25f));flash=UiKit.button(c,"فلاش OFF");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1));record=UiKit.button(c,"تسجيل");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1));cancelTracking=UiKit.button(c,"إلغاء التتبع");cancelTracking.setOnClickListener(v->{host.setTrackingTarget(-1,"");gasDirection.reset();overlay.clearGas();host.refreshAllTabs();});actions.addView(cancelTracking,UiKit.weight(1.05f));root.addView(actions,UiKit.full(c));
+        LinearLayout actions=UiKit.hbox(c);stop=UiKit.button(c,"إيقاف طارئ");stop.setTextColor(Color.WHITE);stop.setBackgroundColor(0xFFC62828);stop.setOnClickListener(v->{latchEstopUi();host.emergencyStop();});stop.setOnLongClickListener(v->{requestEstopReset();return true;});actions.addView(stop,UiKit.weight(1.25f));flash=UiKit.button(c,"فلاش OFF");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1));record=UiKit.button(c,"تسجيل");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1));cancelTracking=UiKit.button(c,"إلغاء التتبع");cancelTracking.setOnClickListener(v->{host.setTrackingTarget(-1,"");gasDirection.reset();overlay.clearGas();host.refreshAllTabs();});actions.addView(cancelTracking,UiKit.weight(1.05f));root.addView(actions,UiKit.full(c));
         drive=UiKit.small(c,"L 0   R 0   —");drive.setBackgroundColor(0xFF151A20);root.addView(drive,UiKit.full(c));recordInfo=UiKit.small(c,"VIDEO —");recordInfo.setBackgroundColor(0xFF151A20);root.addView(recordInfo,UiKit.full(c));
+        renderEstopButton();
     }
 
     private TextView badge(Context c,String text){TextView v=UiKit.small(c,text);v.setTextColor(0xFF90A4AE);v.setBackgroundColor(0xCC151A20);v.setPadding(UiKit.dp(c,8),UiKit.dp(c,4),UiKit.dp(c,8),UiKit.dp(c,4));return v;}
     private void showCameraStatus(String state,String detail){if("streaming".equals(state)){cameraBadge.setText("CAM ●");cameraBadge.setTextColor(0xFF81C784);}else if("connecting".equals(state)){cameraBadge.setText("CAM …");cameraBadge.setTextColor(0xFFFFB74D);}else if("retrying".equals(state)){cameraBadge.setText("CAM ↻");cameraBadge.setTextColor(0xFFFF7043);}else{cameraBadge.setText("CAM ○");cameraBadge.setTextColor(0xFF90A4AE);}}
-    private void applyOperatorSpeed(){host.setDriveCommand(DriveSpeedLimiter.scale(rawJoystickLeft,speedPercent),DriveSpeedLimiter.scale(rawJoystickRight,speedPercent));}
+    private void applyOperatorSpeed(){if(estopLatched){host.setDriveCommand(0,0);return;}host.setDriveCommand(DriveSpeedLimiter.scale(rawJoystickLeft,speedPercent),DriveSpeedLimiter.scale(rawJoystickRight,speedPercent));}
+
+    private void latchEstopUi(){estopLatched=true;rawJoystickLeft=rawJoystickRight=0;joystick.reset();host.setDriveCommand(0,0);renderEstopButton();}
+    private void requestEstopReset(){
+        rawJoystickLeft=rawJoystickRight=0;joystick.reset();host.setDriveCommand(0,0);renderEstopButton();
+        host.io().execute(()->{try{host.robotApi().emergencyReset();root.post(()->{estopLatched=false;renderEstopButton();host.refreshAllTabs();host.showToast("تمت إعادة ضبط E-STOP");});}catch(Exception e){root.post(()->{estopLatched=true;renderEstopButton();host.showToast("تعذر إعادة ضبط E-STOP");});}});
+    }
+    private void syncEstopFromDiagnostics(JSONObject d){
+        if(d!=null){boolean latched=false,known=false;if(d.has("estop_latched")){known=true;latched=d.optBoolean("estop_latched",false);}JSONObject safety=d.optJSONObject("safety");if(safety!=null&&safety.has("estop_latched")){known=true;latched=latched||safety.optBoolean("estop_latched",false);}if(known&&latched){estopLatched=true;rawJoystickLeft=rawJoystickRight=0;joystick.reset();host.setDriveCommand(0,0);}}
+        renderEstopButton();
+    }
+    private void renderEstopButton(){if(estopLatched){stop.setText("E-STOP ●\nضغط مطول لإعادة الضبط");stop.setBackgroundColor(0xFF7F0000);}else{stop.setText("إيقاف طارئ");stop.setBackgroundColor(0xFFC62828);}}
 
     private boolean remoteMode(){return "remote".equalsIgnoreCase(host.preferences().getString("connection_mode","direct"));}
     private String effectiveFlashMode(){return remoteMode()?host.preferences().getString("flash_mode","off"):host.flashMode();}
@@ -101,9 +113,9 @@ public final class ControlTab {
         int target=host.trackingTargetId();String targetName=host.trackingTargetName();if(target!=lastTarget){lastTarget=target;gasDirection.reset();overlay.clearGas();}
         cancelTracking.setVisibility(target>=0?View.VISIBLE:View.GONE);trackingBadge.setText(target>=0?"تتبع ● "+targetName:"تتبع —");trackingBadge.setTextColor(target>=0?0xFF81C784:0xFF90A4AE);
 
-        JSONObject d=host.latestDiagnostics();if(d==null){status.setText("ROBOT ○");status.setTextColor(0xFFFFB74D);irBadge.setText("IR —");drive.setText("L "+host.driveLeft()+"   R "+host.driveRight()+"   LINK —");overlay.clearGas();return;}
+        JSONObject d=host.latestDiagnostics();syncEstopFromDiagnostics(d);if(d==null){status.setText("ROBOT ○");status.setTextColor(0xFFFFB74D);irBadge.setText("IR —");drive.setText("L "+host.driveLeft()+"   R "+host.driveRight()+"   LINK —");overlay.clearGas();return;}
         status.setText("ROBOT ●");status.setTextColor(0xFF81C784);JSONObject ir=d.optJSONObject("ir");boolean irWarn=ir!=null&&ir.optBoolean("warning",false);irBadge.setText(irWarn?"⚠ IR":"IR ●");irBadge.setTextColor(irWarn?0xFFFF7043:0xFF81C784);
-        JSONObject x=d.optJSONObject("drive");if(x!=null){boolean back=x.optBoolean("retrace",false),fail=x.optBoolean("failsafe",false);drive.setText("L "+x.optInt("left",host.driveLeft())+"   R "+x.optInt("right",host.driveRight())+"   "+(back?"RETRACE":fail?"LINK LOSS":"SAFE"));drive.setTextColor(back?0xFFFFB74D:Color.LTGRAY);}
+        JSONObject x=d.optJSONObject("drive");if(x!=null){boolean back=x.optBoolean("retrace",false),fail=x.optBoolean("failsafe",false);drive.setText("L "+x.optInt("left",host.driveLeft())+"   R "+x.optInt("right",host.driveRight())+"   "+(estopLatched?"E-STOP":back?"RETRACE":fail?"LINK LOSS":"SAFE"));drive.setTextColor(estopLatched?0xFFFF7043:back?0xFFFFB74D:Color.LTGRAY);}
         if(target<0){overlay.clearGas();return;}GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime(),target);int mask=MqRelayPlanner.forChemical(target);if(g.valid){overlay.setGasDirection(g.angleRad,g.confidence);trackingBadge.setText("تتبع ● "+targetName+"   "+bearingName(g.angleRad)+String.format(Locale.US," %.0f%%",100*g.confidence));}else{overlay.clearGas();trackingBadge.setText("تتبع ● "+targetName+"   "+MqRelayPlanner.rowsLabel(mask));}
     }
 
