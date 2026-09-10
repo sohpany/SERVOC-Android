@@ -27,6 +27,23 @@ public final class RemoteVideoReadiness {
         Result(boolean service,boolean publisher,boolean wss,String detail){this.service=service;this.publisher=publisher;this.wss=wss;this.ready=service&&publisher&&wss;this.detail=detail==null?"":detail;}
     }
 
+    /** Lightweight status authority for UI dashboards. It does not open a WSS viewer or decode a frame. */
+    public static Result probeStatus(SharedPreferences prefs){
+        RemoteServiceProfile.ensureDefaults(prefs);
+        String token=new RemoteVideoCredentialStore(prefs).load();
+        if(token.isEmpty())return new Result(false,false,false,"VIEW_TOKEN غير مضبوط");
+        try{
+            JSONObject status=getJson(RemoteServiceProfile.VIDEO_STATUS_HTTPS,token);
+            boolean service=status.optBoolean("ok",false)&&"hazrob-video-relay".equals(status.optString("service",""))&&status.optInt("protocol",0)>=1;
+            boolean publisher=service&&status.optBoolean("publisher_online",false);
+            return new Result(service,publisher,false,publisher?"ESP32-CAM publisher online":service?"ESP32-CAM publisher offline":"video service not ready");
+        }catch(Exception e){
+            String m=String.valueOf(e.getMessage());
+            if(m.contains("HTTP 401"))return new Result(false,false,false,"VIEW_TOKEN غير صحيح");
+            return new Result(false,false,false,e.getClass().getSimpleName());
+        }
+    }
+
     public static Result probe(Context context,SharedPreferences prefs){
         RemoteServiceProfile.ensureDefaults(prefs);
         String viewerUrl=prefs.getString("remote_video_url",RemoteServiceProfile.VIDEO_VIEW_WSS).trim();
