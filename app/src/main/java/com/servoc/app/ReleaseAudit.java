@@ -1,12 +1,12 @@
 package com.servoc.app;
 
-/** Build markers for the HazRob 0.10.0 major ChemCore release. */
+/** Build markers for the HazRob 0.10.1 integrated connectivity release. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.10.0";
+    public static final String VERSION="0.10.1";
     public static final String PROJECT_PREPARERS="شهاب الصهباني، مجدي ذيبان";
     public static final int DATABASE_SCHEMA=8;
-    public static final String ESP32_API="HazRob API v4 / firmware 0.10.0 / L298N 4WD GPIO18-27-19-32 / single MQ relay / fixed ADS1115 5V supply / exact session lineage / unified direct+remote transport";
+    public static final String ESP32_API="HazRob API v4 / firmware 0.10.1 / L298N 4WD GPIO18-27-19-32 / single MQ relay / fixed ADS1115 5V supply / exact session lineage / unified direct+remote transport";
 
     public static final boolean PRECALIBRATED_MQ=false;
     public static final boolean ARABIC_RTL_UI=true;
@@ -48,6 +48,8 @@ public final class ReleaseAudit {
     public static final boolean REMOTE_CONNECTIVITY=true;
     public static final boolean REMOTE_MQTT_TLS=true;
     public static final boolean REMOTE_WSS_VIDEO=true;
+    public static final boolean REMOTE_PASSWORDLESS_OPERATOR_UI=true;
+    public static final boolean REMOTE_ROLE_SCOPED_BOOTSTRAP=true;
     public static final boolean MQTT_RETAINED_LAST_WILL=true;
     public static final boolean L298N_4WD_DRIVE=true;
     public static final boolean CHEMCORE_FOUNDATION=true;
