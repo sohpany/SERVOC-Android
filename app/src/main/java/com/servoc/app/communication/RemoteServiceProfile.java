@@ -10,9 +10,10 @@ public final class RemoteServiceProfile {
     public static final String MQTT_HOST="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud";
     public static final int MQTT_PORT=8883;
     public static final String VIDEO_HOST="hazrob-video-relay.onrender.com";
-    public static final String VIDEO_VIEW_WSS="wss://hazrob-video-relay.onrender.com/hazrob/video/view/hazrob-001";
-    public static final String VIDEO_HEALTH_HTTPS="https://hazrob-video-relay.onrender.com/health";
-    public static final String VIDEO_STATUS_HTTPS="https://hazrob-video-relay.onrender.com/hazrob/video/status/hazrob-001";
+    public static final String BOOTSTRAP_HTTPS="https://"+VIDEO_HOST+"/hazrob/bootstrap";
+    public static final String VIDEO_VIEW_WSS="wss://"+VIDEO_HOST+"/hazrob/video/view/"+ROBOT_ID;
+    public static final String VIDEO_HEALTH_HTTPS="https://"+VIDEO_HOST+"/health";
+    public static final String VIDEO_STATUS_HTTPS="https://"+VIDEO_HOST+"/hazrob/video/status/"+ROBOT_ID;
 
     public static void ensureDefaults(SharedPreferences prefs){
         if(prefs==null)return;
