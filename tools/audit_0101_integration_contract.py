@@ -2,20 +2,38 @@
 """Fail-closed static integration contract for the HazRob 0.10.1 release baseline.
 
 This audit is deliberately cross-component. It catches release-identity, GPIO,
-Direct/Remote protocol, bootstrap-role and distribution drift that per-module
-compilation cannot detect. It does not replace runtime/end-to-end testing.
+Direct/Remote protocol, bootstrap-role, scientific-data and distribution drift
+that per-module compilation cannot detect. It does not replace runtime/end-to-end testing.
 """
 from pathlib import Path
+import hashlib
+import json
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def text(path: str) -> str:
+def path_of(path: str) -> Path:
     p = ROOT / path
     if not p.is_file():
         raise AssertionError(f"missing required file: {path}")
-    return p.read_text(encoding="utf-8")
+    return p
+
+
+def text(path: str) -> str:
+    return path_of(path).read_text(encoding="utf-8")
+
+
+def json_file(path: str):
+    return json.loads(text(path))
+
+
+def sha256_file(path: str) -> str:
+    h = hashlib.sha256()
+    with path_of(path).open("rb") as f:
+        for block in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(block)
+    return h.hexdigest()
 
 
 def require(hay: str, needle: str, where: str) -> None:
@@ -26,6 +44,13 @@ def require(hay: str, needle: str, where: str) -> None:
 def forbid(hay: str, needle: str, where: str) -> None:
     if needle in hay:
         raise AssertionError(f"{where}: forbidden stale marker {needle!r}")
+
+
+def java_string_array_count(src: str, field: str, where: str) -> int:
+    m = re.search(rf'public\s+static\s+final\s+String\[\]\s+{re.escape(field)}\s*=\s*\{{(.*?)\}}\s*;', src, re.S)
+    if not m:
+        raise AssertionError(f"{where}: cannot locate String[] {field}")
+    return len(re.findall(r'"(?:\\.|[^"\\])*"', m.group(1)))
 
 
 def main() -> int:
@@ -186,14 +211,122 @@ def main() -> int:
     require(relay, 'mqtt_user:c.robotUser,mqtt_password:c.robotPass', "robot MQTT response")
     require(relay, 'mqtt_user:c.appUser,mqtt_password:c.appPass', "operator MQTT response")
 
+    # 7) Scientific workflow authority: active generators target 0.10.1, while public Stable
+    # publication remains release-gated and cannot accept arbitrary payload/count declarations.
+    stable_wf = text(".github/workflows/chemcore-library-publish.yml")
+    molecular_wf = text(".github/workflows/chemcore-molecular-seed.yml")
+    curation_wf = text(".github/workflows/chemcore-unresolved-curation.yml")
+    candidate_wf = text(".github/workflows/chemcore-candidate-qc.yml")
+    pin_wf = text(".github/workflows/pin-scientific-data.yml")
+    for src, label in [
+        (stable_wf, "ChemCore Stable workflow"),
+        (molecular_wf, "molecular workflow"),
+        (curation_wf, "curation workflow"),
+        (candidate_wf, "candidate workflow"),
+        (pin_wf, "scientific pin workflow"),
+    ]:
+        forbid(src, "dev/hazrob-0.10-chemcore-foundation", label)
+        forbid(src, "dev/hazrob-0.6", label)
+
+    for src, label in [
+        (molecular_wf, "molecular workflow"),
+        (curation_wf, "curation workflow"),
+        (candidate_wf, "candidate workflow"),
+        (pin_wf, "scientific pin workflow"),
+    ]:
+        require(src, "dev/hazrob-0.10.1", label)
+
+    require(stable_wf, "release/hazrob-0.10.1-ready", "ChemCore Stable release gate")
+    require(stable_wf, "--payload-format json --min-app-version 0.10.1", "ChemCore Stable publication contract")
+    require(stable_wf, "Validate canonical snapshot and derive publication counts", "ChemCore count derivation")
+    forbid(stable_wf, "payload_path:", "ChemCore Stable manual inputs")
+    forbid(stable_wf, "chemical_count:", "ChemCore Stable manual inputs")
+    forbid(stable_wf, "model_count:", "ChemCore Stable manual inputs")
+    if re.search(r'rm\s+-rf\s+app/src/main/assets/generated\s*(?:\n|$)', pin_wf):
+        raise AssertionError("scientific pin workflow: broad generated/ wipe is forbidden")
+    require(pin_wf, "rm -rf app/src/main/assets/generated/niosh app/src/main/assets/generated/exposure", "scientific pin isolation")
+    require(pin_wf, "git add app/src/main/assets/generated/niosh app/src/main/assets/generated/exposure", "scientific pin commit isolation")
+
+    # 8) Manifest compatibility is fail-closed for the schema and Stable transport actually
+    # consumed by the 0.10.1 runtime.
+    manifest_src = text("app/src/main/java/com/servoc/app/chemcore/library/ChemCoreLibraryManifest.java")
+    require(manifest_src, "schemaVersion != MANIFEST_SCHEMA", "ChemCore manifest schema gate")
+    require(manifest_src, 'stable payload_format must be json', "ChemCore Stable JSON gate")
+    require(manifest_src, 'SHA256withRSA', "ChemCore Stable signature gate")
+
+    # 9) Priority analytical catalogue and research model catalogue must be real arrays, not
+    # descriptive constants. Formula/name rows remain positionally aligned.
+    chemical_catalog = text("app/src/main/java/com/servoc/app/chemical/ChemicalCatalog.java")
+    model_catalog = text("app/src/main/java/com/servoc/app/models/MqDataScience76Catalog.java")
+    chemical_names = java_string_array_count(chemical_catalog, "NAMES", "ChemicalCatalog")
+    chemical_formulas = java_string_array_count(chemical_catalog, "FORMULAS", "ChemicalCatalog")
+    model_names = java_string_array_count(model_catalog, "NAMES", "MqDataScience76Catalog")
+    if chemical_names != 144:
+        raise AssertionError(f"ChemicalCatalog: expected 144 priority entries, got {chemical_names}")
+    if chemical_formulas != chemical_names:
+        raise AssertionError(f"ChemicalCatalog: formula/name length mismatch {chemical_formulas}!={chemical_names}")
+    if model_names != 76:
+        raise AssertionError(f"MqDataScience76Catalog: expected 76 models, got {model_names}")
+    require(chemical_catalog, "COUNT = NAMES.length", "ChemicalCatalog derived count")
+    require(model_catalog, "COUNT=NAMES.length", "MqDataScience76Catalog derived count")
+
+    # 10) Pinned scientific data: exact release-baseline counts, provenance and payload hashes.
+    niosh = json_file("app/src/main/assets/generated/niosh/niosh_chemicals.json")
+    niosh_m = json_file("app/src/main/assets/generated/niosh/manifest.json")
+    idlh = json_file("app/src/main/assets/generated/exposure/niosh_idlh.json")
+    idlh_m = json_file("app/src/main/assets/generated/exposure/manifest.json")
+    osha = json_file("app/src/main/assets/generated/exposure/osha_z1/osha_z1.json")
+    osha_m = json_file("app/src/main/assets/generated/exposure/osha_z1/manifest.json")
+    datasets = [
+        ("NIOSH identity", niosh, niosh_m, "app/src/main/assets/generated/niosh/niosh_chemicals.json", 652),
+        ("NIOSH IDLH", idlh, idlh_m, "app/src/main/assets/generated/exposure/niosh_idlh.json", 402),
+        ("OSHA Z-1", osha, osha_m, "app/src/main/assets/generated/exposure/osha_z1/osha_z1.json", 638),
+    ]
+    for label, payload, manifest, payload_path, count in datasets:
+        if payload.get("record_count") != count or manifest.get("record_count") != count:
+            raise AssertionError(f"{label}: expected record_count {count}")
+        if manifest.get("authoritative") is not True:
+            raise AssertionError(f"{label}: manifest is not authoritative")
+        actual = sha256_file(payload_path)
+        if manifest.get("sha256") != actual:
+            raise AssertionError(f"{label}: payload SHA-256 mismatch")
+    if osha_m.get("substance_rows") != 432:
+        raise AssertionError(f"OSHA Z-1: expected 432 substance_rows, got {osha_m.get('substance_rows')}")
+
+    # 11) ChemCore molecular identity layer remains 652 = 615 resolved + 37 curated unresolved.
+    molecular = json_file("app/src/main/assets/generated/chemcore/molecular_descriptors.json")
+    molecular_m = json_file("app/src/main/assets/generated/chemcore/manifest.json")
+    curation = json_file("app/src/main/assets/generated/chemcore/unresolved_curation.json")
+    molecular_sha = sha256_file("app/src/main/assets/generated/chemcore/molecular_descriptors.json")
+    if molecular.get("record_count") != 652 or len(molecular.get("records", [])) != 652:
+        raise AssertionError("ChemCore molecular seed: expected 652 identities")
+    if molecular.get("resolved_count") != 615 or molecular.get("unresolved_count") != 37:
+        raise AssertionError("ChemCore molecular seed: expected 615 resolved / 37 unresolved")
+    if molecular.get("error_count") != 0:
+        raise AssertionError("ChemCore molecular seed: retrieval error_count must be zero")
+    if molecular_m.get("record_count") != 652 or molecular_m.get("resolved_count") != 615 or molecular_m.get("unresolved_count") != 37:
+        raise AssertionError("ChemCore molecular manifest counts drifted")
+    if molecular_m.get("sha256") != molecular_sha:
+        raise AssertionError("ChemCore molecular manifest SHA-256 mismatch")
+    if molecular_m.get("source_identity_sha256") != niosh_m.get("sha256"):
+        raise AssertionError("ChemCore molecular seed no longer identifies the pinned NIOSH identity source")
+    if curation.get("schema") != "chemcore-unresolved-curation-v1" or curation.get("record_count") != 37:
+        raise AssertionError("ChemCore unresolved curation count/schema drifted")
+    if curation.get("source_seed_sha256") != molecular_sha:
+        raise AssertionError("ChemCore unresolved curation is not bound to the pinned molecular seed")
+    if any(r.get("molecular_qspr_eligible") is not False for r in curation.get("records", [])):
+        raise AssertionError("ChemCore unresolved identity was silently made molecular-QSPR eligible")
+
     print("HazRob 0.10.1 cross-component integration contract: PASS")
     print("Remote commands:", ", ".join(sorted(emitted)))
+    print(f"Scientific catalogues: priority={chemical_names}, MQDataScience models={model_names}")
+    print("Pinned data: NIOSH=652, IDLH=402, OSHA-Z1=638/432 substances, ChemCore=652/615/37")
     return 0
 
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except AssertionError as exc:
+    except (AssertionError, json.JSONDecodeError) as exc:
         print(f"HazRob 0.10.1 integration contract: FAIL: {exc}")
         raise SystemExit(1)
