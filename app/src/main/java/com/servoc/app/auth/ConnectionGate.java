@@ -1,10 +1,12 @@
 package com.servoc.app.auth;
 
 import android.app.Activity;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Handler;
 import android.os.Looper;
+import android.provider.Settings;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -31,8 +33,8 @@ import java.util.concurrent.ExecutorService;
 
 /**
  * HazRob transport selector. Direct and Remote are two transports for the same robot API.
- * Direct mode admission is intentionally non-blocking: connectivity is reported inside the
- * operator workspace, not used as a gate that can strand the user before MainActivity starts.
+ * Direct mode verifies the local robot identity before admission so a missing Wi-Fi association
+ * is reported at the connection gate rather than appearing later as an unexplained offline state.
  */
 public final class ConnectionGate {
     public enum Mode{DIRECT,REMOTE}
@@ -77,10 +79,10 @@ public final class ConnectionGate {
     }
 
     private void enterDirect(){
-        busy("تهيئة الاتصال المباشر...",1);
+        busy("التحقق من شبكة HazRob والروبوت...",1);
         io.execute(()->{
             // Direct is a fixed local hardware contract. Purge any stale host persisted by an
-            // older APK before MainActivity constructs its RobotApi/CameraApi instances.
+            // older APK before probing or constructing MainActivity clients.
             prefs.edit()
                     .putString("robot",LocalNetworkContract.ROBOT_HOST)
                     .putString("camera",LocalNetworkContract.CAMERA_HOST)
@@ -88,11 +90,47 @@ public final class ConnectionGate {
                     .apply();
             local.setRobotHost(LocalNetworkContract.ROBOT_HOST);
             try{new RemoteSessionManager(a,prefs).close();}catch(Exception ignored){}
-            // Best-effort route pinning. Failure to identify the Network object must not block
-            // entry; MainActivity will retry and show the real live connection state.
+
+            // Bind an already-associated HazRob Wi-Fi network when Android exposes it. The HTTP
+            // identity probe is the final authority because binding can legitimately return false
+            // while the HazRob Wi-Fi is already the process/default route on some devices.
             WifiRoute.bindRobotWifi(a);
-            ui.post(()->listener.onReady(Mode.DIRECT));
+            boolean accepted=false;String detail="";
+            for(int attempt=0;attempt<2&&!accepted;attempt++){
+                try{
+                    String banner=local.getText("/",900);
+                    if(LocalNetworkContract.isExpectedFirmwareBanner(banner,ReleaseAudit.VERSION)){
+                        accepted=true;detail="تم التحقق من HazRob "+ReleaseAudit.VERSION;
+                    }else{
+                        String got=banner==null?"":banner.trim();
+                        detail=got.isEmpty()?"وصل رد فارغ من 192.168.4.1":"تم الوصول إلى 192.168.4.1 لكن هوية البرنامج هي: "+got;
+                        break;
+                    }
+                }catch(Exception e){
+                    detail="تعذر الوصول إلى HazRob على 192.168.4.1";
+                    if(attempt==0)try{Thread.sleep(250);}catch(InterruptedException x){Thread.currentThread().interrupt();break;}
+                }
+            }
+            final boolean ready=accepted;final String result=detail;
+            ui.post(()->{
+                if(ready){status.setText(result);status.setTextColor(0xFF2E7D32);listener.onReady(Mode.DIRECT);}
+                else showDirectRecovery(result);
+            });
         });
+    }
+
+    private void showDirectRecovery(String detail){
+        content.removeAllViews();progress.setVisibility(View.GONE);
+        String reason=detail==null||detail.trim().isEmpty()?"تعذر التحقق من الاتصال المباشر":detail.trim();
+        status.setText(reason+"\nاتصل من إعدادات الهاتف بشبكة Wi-Fi المسماة HazRob، ثم ارجع واضغط إعادة الاختبار.");status.setTextColor(0xFFD84315);
+        Button wifi=UiKit.button(a,"فتح إعدادات Wi-Fi");wifi.setOnClickListener(v->openWifiSettings());content.addView(wifi,UiKit.full(a));
+        Button retry=UiKit.button(a,"إعادة الاختبار");retry.setOnClickListener(v->enterDirect());content.addView(retry,UiKit.full(a));
+        Button back=UiKit.button(a,"رجوع");back.setOnClickListener(v->showChoice());content.addView(back,UiKit.full(a));
+    }
+
+    private void openWifiSettings(){
+        try{a.startActivity(new Intent(Settings.ACTION_WIFI_SETTINGS));status.setText("اختر شبكة HazRob، ثم ارجع إلى التطبيق واضغط إعادة الاختبار.");status.setTextColor(0xFF245A7A);}
+        catch(Exception e){status.setText("تعذر فتح إعدادات Wi-Fi تلقائيًا. افتح إعدادات Wi-Fi في الهاتف واتصل بشبكة HazRob ثم أعد الاختبار.");status.setTextColor(0xFFD84315);}
     }
 
     /** Remote mode uses the same operator command set as Direct mode; no guest token is requested. */
