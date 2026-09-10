@@ -27,6 +27,16 @@ public final class RemoteVideoReadiness {
         Result(boolean service,boolean publisher,boolean wss,String detail){this.service=service;this.publisher=publisher;this.wss=wss;this.ready=service&&publisher&&wss;this.detail=detail==null?"":detail;}
     }
 
+    /** A camera status is accepted only from the exact 0.10.1 relay contract for this robot. */
+    private static boolean serviceContract(JSONObject status){
+        return status!=null
+                && status.optBoolean("ok",false)
+                && "hazrob-video-relay".equals(status.optString("service",""))
+                && RemoteServiceProfile.SERVICE_VERSION.equals(status.optString("version",""))
+                && status.optInt("protocol",-1)==RemoteServiceProfile.PROTOCOL
+                && RemoteServiceProfile.ROBOT_ID.equals(status.optString("robot_id",""));
+    }
+
     /** Lightweight status authority for UI dashboards. It does not open a WSS viewer or decode a frame. */
     public static Result probeStatus(SharedPreferences prefs){
         RemoteServiceProfile.ensureDefaults(prefs);
@@ -34,9 +44,9 @@ public final class RemoteVideoReadiness {
         if(token.isEmpty())return new Result(false,false,false,"VIEW_TOKEN غير مضبوط");
         try{
             JSONObject status=getJson(RemoteServiceProfile.VIDEO_STATUS_HTTPS,token);
-            boolean service=status.optBoolean("ok",false)&&"hazrob-video-relay".equals(status.optString("service",""))&&status.optInt("protocol",0)>=1;
+            boolean service=serviceContract(status);
             boolean publisher=service&&status.optBoolean("publisher_online",false);
-            return new Result(service,publisher,false,publisher?"ESP32-CAM publisher online":service?"ESP32-CAM publisher offline":"video service not ready");
+            return new Result(service,publisher,false,publisher?"ESP32-CAM publisher online":service?"ESP32-CAM publisher offline":"video service contract mismatch");
         }catch(Exception e){
             String m=String.valueOf(e.getMessage());
             if(m.contains("HTTP 401"))return new Result(false,false,false,"VIEW_TOKEN غير صحيح");
@@ -57,10 +67,10 @@ public final class RemoteVideoReadiness {
         do{
             try{
                 JSONObject status=getJson(RemoteServiceProfile.VIDEO_STATUS_HTTPS,token);
-                service=status.optBoolean("ok",false)&&"hazrob-video-relay".equals(status.optString("service",""))&&status.optInt("protocol",0)>=1;
+                service=serviceContract(status);
                 publisher=service&&status.optBoolean("publisher_online",false);
                 if(service&&publisher)break;
-                last=service?"بانتظار اتصال ESP32-CAM بخادم الفيديو":"بانتظار تشغيل خدمة الفيديو";
+                last=service?"بانتظار اتصال ESP32-CAM بخادم الفيديو":"عقد خدمة الفيديو غير مطابق لـ HazRob 0.10.1";
             }catch(Exception e){
                 String m=String.valueOf(e.getMessage());
                 if(m.contains("HTTP 401"))return new Result(false,false,false,"VIEW_TOKEN غير صحيح");
