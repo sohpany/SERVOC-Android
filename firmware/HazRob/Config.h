@@ -2,9 +2,9 @@
 #include <Arduino.h>
 
 namespace Cfg{
-constexpr char FW[]="HazRob 0.10.0";
+constexpr char FW[]="HazRob 0.10.1";
 constexpr uint8_t API=4;
-constexpr char HW_PROFILE[]="hazrob-0.10-1r8mq-l298n6-batt-ultra-ldr-v1";
+constexpr char HW_PROFILE[]="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1";
 constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 
 // L298N 4WD differential drive: two motors per side in parallel.
