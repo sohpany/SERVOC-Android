@@ -72,32 +72,38 @@ Secrets and credentials themselves are not to be committed to source control. On
 ### HR-0101-007 — Relay contract test
 - Components: Render video relay source + CI.
 - Test coverage: health contract, role-scoped bootstrap, unauthorized rejection, publisher WebSocket, viewer WebSocket, binary JPEG forwarding, publisher-online status, frame count and byte-count reporting.
-- Status: IMPLEMENTED / pending confirmed CI result.
+- Status: IMPLEMENTED / relay CI PASS; live deployment verification still pending.
 
 ### HR-0101-008 — Controlled audit baseline created
 - Components: project governance/documentation.
 - Change: this controlled log is now the mandatory record for subsequent 0.10.1 changes.
 - Status: COMPLETE.
 
-## Current repository delta from the 0.10.1 branch baseline
+### HR-0101-009 — Active release identity and distribution normalization
+- Components: GitHub Actions, Android runtime identity, active architecture/release documentation, firmware documentation.
+- Finding: active 0.10.1 sources still contain operational 0.10.0/0.9 naming. Firmware source ZIPs/artifacts and publication commit text are still named 0.10.0; Android public APK distribution is still gated on the retired `dev/hazrob-0.10-chemcore-foundation` branch; `RobotLinkService` still displays `HazRob 0.10.0`; active README/architecture comments contain stale release identities.
+- Compatibility impact: naming/distribution/runtime-identification inconsistency; no intended protocol change.
+- Required correction: normalize active artifacts and release gates to 0.10.1 while preserving explicitly historical changelog entries as history.
+- Verification required: repository sweep + Android/Firmware CI + artifact filename inspection.
+- Status: IDENTIFIED / CORRECTION PENDING.
 
-At the time this control log was established, the 0.10.1 branch was **13 commits ahead** of the selected baseline ancestor and had no commits behind it. The delta affected these integration files:
+### HR-0101-010 — Canonical GPIO authority and L298N wiring correction
+- Components: main ESP32 firmware documentation, root README, final GPIO map.
+- Finding: root README states that ENA/ENB remain enabled and PWM is applied to direction inputs, which conflicts with authoritative 0.10.1 firmware. Firmware defines dedicated speed-enable pins and `Hardware.cpp` applies PWM on those enable pins.
+- Authoritative L298N contract: GPIO16=ENA/left PWM, GPIO18=IN1, GPIO27=IN2, GPIO17=ENB/right PWM, GPIO19=IN3, GPIO32=IN4. ENA/ENB jumpers must be removed when controlled by the ESP32.
+- Required correction: produce one canonical GPIO authority document derived from firmware; align all active documentation with it; verify electrical/input-only/ADC/I2C constraints and ESP32-CAM occupied pins.
+- Verification required: source-to-document pin comparison + firmware compilation.
+- Status: IDENTIFIED / CORRECTION PENDING.
 
-- `.github/workflows/build-firmware.yml`
-- `.github/workflows/validate-video-relay.yml`
-- `app/build.gradle`
-- `app/src/main/java/com/servoc/app/ReleaseAudit.java`
-- `app/src/main/java/com/servoc/app/communication/RemoteSessionManager.java`
-- `app/src/test/java/com/servoc/app/ReleaseAuditTest.java`
-- `firmware/HazRob/Config.h`
-- `firmware/HazRob/RemoteMqtt.cpp`
-- `firmware/HazRob-CAM/HazRob-CAM.ino`
-- `firmware/HazRob-CAM/RemoteVideo.cpp`
-- `remote/video-relay/package.json`
-- `remote/video-relay/src/index.js`
-- `remote/video-relay/test/contract.mjs`
+### HR-0101-011 — Remote configuration command parity
+- Components: Android `RobotApi`, master ESP32 `RemoteMqtt.cpp`.
+- Finding: Android Remote mode sends `config_get` and `config_set`, but the current ESP32 MQTT command dispatcher has no handlers for either command and therefore returns `unknown_command`.
+- Compatibility impact: remote configuration is not functionally equivalent to local `/cfg`; speed/camera/warmup/measurement settings can fail over Internet control.
+- Required correction: implement and test MQTT `config_get`/`config_set` parity using the same validation/persistence semantics as the local `/cfg` contract.
+- Verification required: command contract test, firmware CI, Android CI, remote round-trip verification.
+- Status: IDENTIFIED / CORRECTION PENDING.
 
-## Mandatory next audit blocks before release approval
+## Mandatory audit blocks before release approval
 
 1. Repository-wide version sweep: eliminate active 0.10.0/0.9.x runtime identifiers from authoritative 0.10.1 artifacts while preserving only historical documentation where intentional.
 2. GPIO authority review: derive one canonical pin table from firmware and check collisions, input-only constraints, ADC/I2C/PWM suitability, boot-strapping pins, voltage-domain assumptions, and actual hardware wiring.
