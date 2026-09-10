@@ -55,6 +55,8 @@ constexpr char PUBLISH_TOKEN[]=HAZROB_VIDEO_PUBLISH_TOKEN; // optional fallback 
 constexpr char ROOT_CA[]=HAZROB_VIDEO_ROOT_CA;
 constexpr char BOOTSTRAP_PATH[]="/hazrob/bootstrap";
 constexpr char BOOTSTRAP_TOKEN[]="hazrob-prototype-bootstrap-v1";
+constexpr char BOOTSTRAP_SERVICE_VERSION[]="0.10.1";
+constexpr int BOOTSTRAP_PROTOCOL=2;
 constexpr uint32_t FRAME_INTERVAL_MS=100;
 constexpr uint32_t RETRY_MIN_MS=2000,RETRY_MAX_MS=30000;
 constexpr size_t MAX_JPEG=160*1024;
