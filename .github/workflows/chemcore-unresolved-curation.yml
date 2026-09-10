@@ -3,7 +3,7 @@ name: Build ChemCore Unresolved Curation
 on:
   push:
     branches:
-      - dev/hazrob-0.10-chemcore-foundation
+      - dev/hazrob-0.10.1
     paths:
       - tools/build_chemcore_unresolved_curation.py
       - app/src/main/assets/generated/chemcore/molecular_descriptors.json
@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - name: Checkout research branch
+      - name: Checkout 0.10.1 integration branch
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -45,6 +45,8 @@ jobs:
           seed=json.loads(seed_path.read_text(encoding='utf-8'))
           out=json.loads(out_path.read_text(encoding='utf-8'))
           unresolved=[r for r in seed['records'] if r.get('status')=='UNRESOLVED']
+          assert seed.get('record_count')==652
+          assert seed.get('resolved_count')==615
           assert len(unresolved)==37, len(unresolved)
           assert out['schema']=='chemcore-unresolved-curation-v1'
           assert out['record_count']==37
@@ -59,6 +61,8 @@ jobs:
 
       - name: Commit pinned curation safely
         run: |
+          set -euo pipefail
+          TARGET=dev/hazrob-0.10.1
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/src/main/assets/generated/chemcore/unresolved_curation.json
@@ -68,23 +72,25 @@ jobs:
           fi
           git commit -m "data(chemcore): pin unresolved identity curation"
           for attempt in 1 2 3; do
-            git fetch origin dev/hazrob-0.10-chemcore-foundation
-            if git rebase origin/dev/hazrob-0.10-chemcore-foundation; then
-              if git push origin HEAD:dev/hazrob-0.10-chemcore-foundation; then exit 0; fi
+            git fetch origin "$TARGET"
+            if git rebase "origin/$TARGET"; then
+              if git push origin "HEAD:$TARGET"; then exit 0; fi
             else
               git rebase --abort || true
               echo "Curation rebase conflict; refusing to overwrite branch."
               exit 1
             fi
+            echo "Push raced with another commit; retrying ($attempt/3)."
             sleep $((attempt * 2))
           done
+          echo "Unable to pin curation after three safe retries."
           exit 1
 
       - name: Upload curation audit artifact
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: chemcore-unresolved-curation
+          name: chemcore-unresolved-curation-0.10.1
           path: app/src/main/assets/generated/chemcore/unresolved_curation.json
           if-no-files-found: error
           retention-days: 90
