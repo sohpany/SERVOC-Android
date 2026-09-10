@@ -71,6 +71,7 @@ def main() -> int:
     master = text("firmware/HazRob/HazRob.ino")
     hardware_h = text("firmware/HazRob/Hardware.h")
     mqtt = text("firmware/HazRob/RemoteMqtt.cpp")
+    remote_link = text("firmware/HazRob/RemoteLink.cpp")
     cloud_cfg = text("firmware/HazRob/RemoteCloudConfig.h")
     cam = text("firmware/HazRob-CAM/HazRob-CAM.ino")
     cam_remote = text("firmware/HazRob-CAM/RemoteVideo.cpp")
@@ -223,12 +224,17 @@ def main() -> int:
     require(relay, 'mqtt_user:c.robotUser,mqtt_password:c.robotPass', "robot MQTT response")
     require(relay, 'mqtt_user:c.appUser,mqtt_password:c.appPass', "operator MQTT response")
 
-    # Render publisher status is the remote-camera status authority; WSS first-frame remains the full video diagnostic.
+    # Render publisher status is the sole remote-camera status authority; WSS first-frame remains
+    # the full video diagnostic. Master MQTT/status must not pretend to know CAM publisher state.
     require(service_profile, 'VIDEO_STATUS_HTTPS=', "Render camera status coordinate")
     require(video_readiness, 'public static Result probeStatus(SharedPreferences prefs)', "lightweight Render camera status probe")
     require(video_readiness, 'RemoteServiceProfile.VIDEO_STATUS_HTTPS', "Render camera status endpoint use")
     require(status_tab, 'RemoteVideoReadiness.probeStatus(host.preferences())', "StatusTab Render camera authority")
     forbid(status_tab, 'remoteCameraStatus()', "StatusTab obsolete MQTT camera status")
+    forbid(remote_conn, 'camera/status', "RemoteConnection obsolete MQTT camera status")
+    forbid(robot_api, 'remoteCameraStatus()', "RobotApi obsolete camera status facade")
+    forbid(connection_gate, 'r.camera', "ConnectionGate obsolete MQTT camera status")
+    forbid(remote_link, '\\"camera\\":', "master remote status false camera authority")
 
     # 7) Scientific workflow authority: active generators target 0.10.1, while public Stable
     # publication remains release-gated and cannot accept arbitrary payload/count declarations.
