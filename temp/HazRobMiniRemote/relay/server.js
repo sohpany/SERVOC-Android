@@ -3,7 +3,6 @@ const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
 const CHANNEL = '0Jo6HgI-45pkxeEeiA3fs1rb';
-const DRIVE_TTL_MS = 700;
 const MAX_JPEG = 180 * 1024;
 
 let drive = { l: 0, r: 0, at: 0 };
@@ -27,19 +26,12 @@ function json(res, code, obj) {
   });
   res.end(body);
 }
-function validChannel(path) {
-  return path.endsWith('/' + CHANNEL);
-}
 function broadcastFrame(buf) {
   const head = Buffer.from(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${buf.length}\r\n\r\n`);
   const tail = Buffer.from('\r\n');
   for (const res of [...viewers]) {
-    try {
-      res.write(head); res.write(buf); res.write(tail);
-    } catch (_) {
-      viewers.delete(res);
-      try { res.end(); } catch (_) {}
-    }
+    try { res.write(head); res.write(buf); res.write(tail); }
+    catch (_) { viewers.delete(res); try { res.end(); } catch (_) {} }
   }
 }
 
@@ -47,14 +39,15 @@ const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://localhost');
   const p = u.pathname;
 
-  if (p === '/health') return json(res, 200, { ok: true, service: 'HazRobMiniRemote', version: 1 });
+  if (p === '/health') return json(res, 200, { ok: true, service: 'HazRobMiniRemote', version: 2 });
   if (p === '/status/' + CHANNEL) {
     const now = Date.now();
     return json(res, 200, {
       ok: true,
       robot_online: now - robotAt < 3000,
       camera_online: now - cameraAt < 3000,
-      drive_age_ms: drive.at ? now - drive.at : null,
+      drive_l: drive.l,
+      drive_r: drive.r,
       has_frame: !!lastFrame
     });
   }
@@ -66,9 +59,7 @@ const server = http.createServer((req, res) => {
 
   if (p === '/cmd/' + CHANNEL) {
     robotAt = Date.now();
-    const age = drive.at ? Date.now() - drive.at : 999999;
-    const active = age <= DRIVE_TTL_MS;
-    return json(res, 200, { l: active ? drive.l : 0, r: active ? drive.r : 0, age_ms: age });
+    return json(res, 200, { l: drive.l, r: drive.r });
   }
 
   if (p === '/frame/' + CHANNEL && req.method === 'POST') {
@@ -76,8 +67,7 @@ const server = http.createServer((req, res) => {
     let size = 0;
     req.on('data', c => {
       size += c.length;
-      if (size <= MAX_JPEG) chunks.push(c);
-      else req.destroy();
+      if (size <= MAX_JPEG) chunks.push(c); else req.destroy();
     });
     req.on('end', () => {
       if (!size || size > MAX_JPEG) return json(res, 413, { ok: false });
@@ -101,7 +91,10 @@ const server = http.createServer((req, res) => {
       'Access-Control-Allow-Origin': '*'
     });
     viewers.add(res);
-    if (lastFrame) broadcastFrame(lastFrame);
+    if (lastFrame) {
+      const head = Buffer.from(`--frame\r\nContent-Type: image/jpeg\r\nContent-Length: ${lastFrame.length}\r\n\r\n`);
+      res.write(head); res.write(lastFrame); res.write('\r\n');
+    }
     req.on('close', () => viewers.delete(res));
     return;
   }
