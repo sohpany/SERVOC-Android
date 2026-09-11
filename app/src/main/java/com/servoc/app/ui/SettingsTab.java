@@ -34,8 +34,8 @@ public final class SettingsTab {
 
         LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"الضبط"),UiKit.full(c));
         warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));
-        cfg.addView(UiKit.small(c,"سرعة حركة المركبة تضبط الآن من عمود السرعة في شاشة القيادة: 0–100%، والقيمة الافتراضية عند بدء التطبيق 50%."),UiKit.full(c));
-        cfg.addView(UiKit.small(c,"منظومة الحركة: L298N • يسار GPIO18/27 • يمين GPIO19/32 • ENA/ENB مفعّلان على اللوحة. لا توجد إعدادات Neutral Servo في هذا الإصدار."),UiKit.full(c));
+        cfg.addView(UiKit.small(c,"سرعة حركة المركبة تضبط من عمود السرعة في شاشة القيادة: 0–100%، والقيمة الافتراضية عند بدء التطبيق 100%."),UiKit.full(c));
+        cfg.addView(UiKit.small(c,"منظومة الحركة: L298N • ENA=GPIO16 وENB=GPIO17 للتحكم PWM مع إزالة جمبري ENA/ENB • يسار IN1/IN2=GPIO18/27 • يمين IN3/IN4=GPIO19/32."),UiKit.full(c));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
         LinearLayout compat=UiKit.card(c);compat.addView(UiKit.title(c,"النظام"),UiKit.full(c));compatibility=UiKit.text(c,"Firmware —");compat.addView(compatibility,UiKit.full(c));Button alertTest=UiKit.button(c,"اختبار تنبيه الروبوت");alertTest.setOnClickListener(v->testAlert());compat.addView(alertTest,UiKit.full(c));root.addView(compat,UiKit.full(c));
