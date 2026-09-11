@@ -337,8 +337,8 @@ Secrets and credentials themselves are not to be committed to source control. On
 - Correction: initialize NTP after Wi-Fi setup and start the remote video client only while station Wi-Fi is connected and `time(nullptr)` exceeds the controlled minimum epoch.
 - Implementation commit: `20f33c5f74e459afc322993f0bd2eaa7b9503438`.
 - Compatibility impact: camera remote startup sequencing only; Direct MJPEG, camera GPIO and video protocol unchanged.
-- Verification: source inspection complete; exact-head compile must be repeated after later HR-0101-033 camera correction.
-- Status: **IMPLEMENTED / EXACT-HEAD REBUILD PENDING**.
+- Verification: exact-source ESP32-CAM compile PASS on `8dfd6d3bc30126bc806ad7e37775d7949eb7d40a` under HR-0101-034 verification: 1,155,611 bytes program (36%), 68,220 bytes global RAM (20%).
+- Status: **SOURCE/BUILD PASS / LIVE REMOTE CAMERA FIELD TEST PENDING**.
 
 ### HR-0101-032 — Tolerate Render cold start during Android bootstrap
 - Components: Android `RemoteSessionManager`.
@@ -346,7 +346,8 @@ Secrets and credentials themselves are not to be committed to source control. On
 - Correction: bootstrap connect timeout is 15 s and read timeout is 70 s; bootstrap remains on the background I/O path so this does not block the Android UI thread.
 - Implementation commit: `efa5b80a34dbe3b94fd5cc992fdd95d6e29e0678`.
 - Compatibility impact: Remote bootstrap admission timing only; no drive cadence, GPIO, MQTT command semantics or safety behavior changed.
-- Status: **IMPLEMENTED / EXACT-HEAD ANDROID REBUILD PENDING**.
+- Verification: exact-source Android unit tests, `assembleRelease` and signer continuity PASS on `8dfd6d3bc30126bc806ad7e37775d7949eb7d40a` under HR-0101-034 independent verification.
+- Status: **SOURCE/BUILD PASS / LIVE COLD-START FIELD TEST PENDING**.
 
 ### HR-0101-033 — Correct ESP32-CAM pixel-format type
 - Components: ESP32-CAM camera initialization.
@@ -354,7 +355,8 @@ Secrets and credentials themselves are not to be committed to source control. On
 - Correction: `cameraInit(...)` now accepts `pixformat_t` while preserving JPEG-first initialization with RGB565 fallback.
 - Implementation commit: `144dc0aeb17470cfe3298ec578423888e6318b52`.
 - Compatibility impact: compile/type correction only; no camera pins, frame size or transport contract changed.
-- Status: **IMPLEMENTED / EXACT-HEAD REBUILD PENDING**.
+- Verification: exact-source ESP32-CAM compile PASS on `8dfd6d3bc30126bc806ad7e37775d7949eb7d40a`: 1,155,611 bytes program (36%), 68,220 bytes global RAM (20%).
+- Status: **SOURCE/BUILD PASS / FIELD VIDEO TEST PENDING**.
 
 ### HR-0101-034 — Direct motion-control responsiveness refactor
 - Components: Android operator input/control lifecycle, main ESP32 motion core, Direct HTTP drive path, Remote MQTT drive semantics, telemetry/status, CI gates and control documentation.
@@ -391,16 +393,19 @@ Secrets and credentials themselves are not to be committed to source control. On
   - ESP32-CAM GPIO and video transport unchanged;
   - MQTT topic, TLS, ACL, session/sequence/nonce and role-scoped credential contracts unchanged;
   - motion telemetry schema intentionally drops retired retrace/hold/history fields and adds command-age/stale-stop state.
-- Verification performed so far:
+- Verification performed:
   - branch/source review confirms direct PWM path and removal of retired configuration symbols/state;
   - new fail-closed motion audit is committed and wired into both build workflows;
-  - GitHub Actions remains blocked by HR-0101-013 before runner steps execute. Example Android run `34553214684` at head `7cb8a22f9efcf9f95a37abd8956e2470c7c07ca6` concluded failure with `steps=null`; this is not treated as a code-build failure or a build pass.
+  - GitHub Actions remains blocked by HR-0101-013 before runner steps execute. Example Android run `34553214684` at head `7cb8a22f9efcf9f95a37abd8956e2470c7c07ca6` concluded failure with `steps=null`; this is not treated as a code-build failure or a build pass;
+  - independent Android builder `hazrob-0101-build`, deploy `dep-dahm6h4s728c73ckq0ag`, checked out exact source baseline `8dfd6d3bc30126bc806ad7e37775d7949eb7d40a` and completed live: cross-component integration audit PASS, Android unit-test task PASS, `assembleRelease` PASS, signer continuity PASS with certificate SHA-256 `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`, APK SHA-256 `fd83c5d432a044e512c37501d8a56d04923644ed6702aa5e9b76b1f9f9c4b130`, size 29,740,149 bytes;
+  - independent firmware builder `hazrob-0101-firmware-build`, deploy `dep-dahm6iad0e5s73801prg`, checked out the same source baseline `8dfd6d3bc30126bc806ad7e37775d7949eb7d40a` with a clean cache and completed live: cross-component integration audit PASS; main ESP32 compile PASS at 1,083,613 bytes program (34%) and 50,148 bytes global RAM (15%); ESP32-CAM compile PASS at 1,155,611 bytes program (36%) and 68,220 bytes global RAM (20%).
+- Non-blocking compiler warnings observed during the independent firmware build: existing certificate-string address warning in `RemoteCloudConfig.h` and volatile increment deprecation warnings in ESP32-CAM `RemoteVideo.cpp`; neither stopped compilation and neither is part of the HR-0101-034 motion path.
 - Remaining gates:
-  - independent exact-head Android unit/release build and main/CAM firmware compilation;
+  - native GitHub Actions execution of the new motion-audit gate remains blocked by HR-0101-013;
   - wheels-up Direct test for 0->command, command->0, forward<->reverse and pivot response;
   - Remote latency/jitter/reconnect test through HiveMQ;
   - physical confirmation that rapid reversal does not produce unacceptable L298N/motor current or thermal stress.
-- Status: **SOURCE IMPLEMENTATION COMPLETE / AUTOMATED NATIVE CI BLOCKED / INDEPENDENT BUILD + FIELD VALIDATION PENDING**.
+- Status: **SOURCE/INDEPENDENT BUILD PASS / FIELD MOTION VALIDATION + NATIVE CI EXECUTION PENDING**.
 
 ## Mandatory audit blocks before release approval
 
