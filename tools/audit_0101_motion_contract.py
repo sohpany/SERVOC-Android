@@ -6,7 +6,6 @@ policy while preserving the independent stale-command neutral stop and explicit 
 It is a source contract only; it does not replace wheels-up or remote field testing.
 """
 from pathlib import Path
-import re
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -38,6 +37,7 @@ def main() -> int:
     joystick = read("app/src/main/java/com/servoc/app/control/JoystickView.java")
     limiter = read("app/src/main/java/com/servoc/app/control/DriveSpeedLimiter.java")
     control = read("app/src/main/java/com/servoc/app/ui/ControlTab.java")
+    status = read("app/src/main/java/com/servoc/app/ui/StatusTab.java")
     remote = read("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
 
     # Firmware normal motion is direct command -> PWM. Retired shaping/retrace code must be gone.
@@ -54,7 +54,7 @@ def main() -> int:
     for retired in (
         "float ramp(", "beginRetrace", "retraceUpdate", "historyUpdate", "clearHistory",
         "struct Hist", "linkWatchUpdate", "beginLinkHold", "recoverLink", "linkHold",
-        "linkLost", "retracing", "RETRACE", "failsafe\"", "hold_remaining_ms",
+        "linkLost", "retracing", "RETRACE", "failsafe", "hold_remaining_ms",
     ):
         forbid(hw, retired, "Hardware.cpp")
     require(hw, "link health: diagnostic only", "link/motion decoupling")
@@ -76,11 +76,13 @@ def main() -> int:
     forbid(control, '"RETRACE"', "retired retrace UI")
     forbid(control, '"LINK LOSS"', "retired link-hold UI")
     require(control, 'x.optBoolean("stale_stop",false)', "stale-stop UI")
+    forbid(status, 'optBoolean("lost"', "retired link-loss status")
 
     # Joystick changes dispatch immediately and a 20 Hz stream refreshes the current command.
     require(main_activity, "private void queueDriveSend()", "immediate drive dispatcher")
     require(main_activity, "queueDriveSend();", "drive-command immediate dispatch")
     require(main_activity, "0,50,TimeUnit.MILLISECONDS", "20 Hz drive refresh")
+    forbid(main_activity, "private void stopOperatorMotion()", "retired automatic-stop helper")
     forbid(main_activity, "stopCamera();stopOperatorMotion();", "tab-change auto stop")
     forbid(main_activity, "controlTab.stopCamera();stopOperatorMotion();", "lifecycle auto stop")
     forbid(main_activity, "10 Hz operator command cadence", "retired 10 Hz scheduler")
