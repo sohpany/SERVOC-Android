@@ -357,32 +357,56 @@ Secrets and credentials themselves are not to be committed to source control. On
 - Status: **IMPLEMENTED / EXACT-HEAD REBUILD PENDING**.
 
 ### HR-0101-034 — Direct motion-control responsiveness refactor
-- Components: Android operator input/control lifecycle, main ESP32 motion core, Direct HTTP drive path, Remote MQTT drive semantics, telemetry/status, integration audit and control documentation.
-- Reason: the existing stack combines an Android 50% default speed cap and quadratic joystick shaping with 10 Hz command scheduling, firmware acceleration/deceleration/reversal ramping, a 450 ms drive lease, link-loss hold, automatic retrace, and lifecycle/tab-triggered STOP calls. Together these mechanisms make manual driving less direct and couple connection health to motion and analytical subsystems.
-- Approved engineering direction:
-  - remove obsolete motion-shaping/retrace implementation from source rather than leaving zero-valued constants or dead branches;
-  - make normal operator motion direct and responsive, with linear joystick mapping, 100% default operator scale, immediate command-on-change and a faster refresh cadence;
-  - remove automatic Retrace and the link-loss side effects that stop measurement or switch MQ power;
-  - remove tab-change and transient Android lifecycle STOP side effects;
-  - keep Direct and Remote command semantics aligned and keep MQTT freshness/session/sequence protections because they reject stale/replayed packets without adding intentional motion ramp;
-  - retain a bounded final stale-control neutral stop and an explicit emergency-stop path; neither participates in normal acceleration/speed shaping;
-  - keep GPIO, L298N six-wire allocation, Render video relay, HiveMQ TLS/ACL and ESP32-CAM GPIO unchanged.
-- Planned implementation sequence:
-  1. Android input shaping/default scale and tests.
-  2. Main ESP32 direct PWM motion-core refactor; delete ramp/retrace source and obsolete constants/state.
-  3. Decouple link health from motion/measurement/MQ side effects; retain one bounded stale-command neutralization policy.
-  4. Android immediate command dispatch, refresh cadence and lifecycle/tab behavior.
-  5. Remote MQTT semantic cleanup and telemetry/UI contract update.
-  6. Integration-audit/documentation cleanup and repository-wide dead-symbol sweep.
-  7. Android/main/CAM exact-head builds followed by wheels-up Direct and Remote field tests.
-- Verification rule: each phase is committed and recorded before the next phase; no physical responsiveness or reversal behavior is claimed PASS until wheels-up hardware testing is performed.
-- Status: **IN PROGRESS — PHASE 0 GOVERNANCE BASELINE RECORDED**.
+- Components: Android operator input/control lifecycle, main ESP32 motion core, Direct HTTP drive path, Remote MQTT drive semantics, telemetry/status, CI gates and control documentation.
+- Reason: the previous stack combined an Android 50% default speed cap and quadratic joystick shaping with 10 Hz command scheduling, firmware acceleration/deceleration/reversal ramping, a 450 ms drive lease, link-loss hold, automatic retrace, and lifecycle/tab-triggered STOP calls. Together these mechanisms reduced manual-drive responsiveness and coupled connection health to movement and analytical subsystems.
+- Implemented source changes:
+  - Android operator default scale is 100%; joystick dead zone is 3% and response outside it is linear; quadratic `z *= z` shaping was deleted rather than disabled.
+  - Main ESP32 acceleration, deceleration and reversal ramp implementation was deleted from source; `driveSet()` now applies the validated L/R command directly to L298N PWM/direction output.
+  - `DRIVE_LEASE_MS`, `LINK_DETECT_MS`, `LINK_HOLD_MS`, `RETRACE_MS`, `RETRACE_MAX_SPEED`, `ACCEL`, `DECEL` and `REVERSE` were removed rather than retained with zero values.
+  - Motion-history/retrace buffer, `ramp()`, `historyUpdate()`, `beginRetrace()`, `retraceUpdate()`, link-hold/lost motion state and associated telemetry were removed.
+  - Link heartbeat is diagnostic only and no longer stops movement, cancels measurement, removes MQ power or initiates autonomous retrace.
+  - A single `CONTROL_COMMAND_TIMEOUT_MS=1500` boundary remains: it does not delay valid commands; it neutralizes a non-zero drive output only when the drive-command stream disappears for the full interval.
+  - Android dispatches a changed joystick command immediately and refreshes the latest command at 20 Hz; leaving the Drive tab and `Activity.onPause()` no longer issue automatic STOP. The retired `stopOperatorMotion()` helper was subsequently removed from source.
+  - Drive/status telemetry now uses `command_age_ms` and `stale_stop`; retired `retrace`, `hold`, history-count and old motion-failsafe display states were removed. `StatusTab` no longer consumes the retired `link.lost` field.
+  - Remote `drive` remains MQTT QoS0/fire-and-forget with the existing TTL/session/sequence/nonce freshness safeguards. Render and HiveMQ contain no acceleration/reversal policy and were therefore not weakened or modified for motion responsiveness.
+  - Explicit software-latched E-stop remains independent from normal drive shaping. Its contract was aligned with the new motion policy; it adds no intentional delay to accepted normal drive commands.
+- Authoritative motion document: `docs/0.10.1/MOTION_CONTROL_CONTRACT.md`.
+- Fail-closed audit: `tools/audit_0101_motion_contract.py`; both APK and firmware workflows invoke it before build stages.
+- Implementation commits:
+  - governance/reconciliation: `7b3923334145191436efd9a0d0822e3eb8f504b1`;
+  - Android 100% default: `21e93fd97bdde80336ade774cd78e87fa2a44aaf`;
+  - linear joystick / 3% dead zone: `05e4c30c1b7c33e022929a7293d1151b386c03b3`;
+  - speed-limit test update: `a17693b035d25241af15b7dce40a011b854f298e`;
+  - firmware direct-motion core / ramp-retrace-link-hold deletion: `af64e0365313c3fed18c1dd07778e40bb95f875d`;
+  - Android immediate dispatch / lifecycle-neutral drive: `216e6cc90fa53381937db373065f27cd39ae306a`;
+  - source motion audit: `8d58c868bedb8ca2531c32f5584e6e40e5f1e2b2`, hardened by `fc41bc0ef3f34517ff3a7ca06dfffd4fcf8be4fe`;
+  - motion contract document: `6491214f7a671e9d1ec1a2206e6a5618156cf596`;
+  - firmware CI motion gate: `9887241ab23ce4434f93824a6c3e11d82d26c0f0`;
+  - Android CI motion gate: `bdf46357b7b30ba8be8c7ed443fc0df52fbac5dd`;
+  - retired link-loss UI cleanup: `7cb8a22f9efcf9f95a37abd8956e2470c7c07ca6`;
+  - E-stop/motion-contract alignment: `0eab3df390adff82748c36d4a7ceeb6a7b3f8f02`;
+  - retired Android automatic-stop helper deletion: `0dc82739b4423bafc4c4312aff1998f02f5a5d6c`.
+- Compatibility impact:
+  - GPIO and L298N six-wire mapping unchanged;
+  - ESP32-CAM GPIO and video transport unchanged;
+  - MQTT topic, TLS, ACL, session/sequence/nonce and role-scoped credential contracts unchanged;
+  - motion telemetry schema intentionally drops retired retrace/hold/history fields and adds command-age/stale-stop state.
+- Verification performed so far:
+  - branch/source review confirms direct PWM path and removal of retired configuration symbols/state;
+  - new fail-closed motion audit is committed and wired into both build workflows;
+  - GitHub Actions remains blocked by HR-0101-013 before runner steps execute. Example Android run `34553214684` at head `7cb8a22f9efcf9f95a37abd8956e2470c7c07ca6` concluded failure with `steps=null`; this is not treated as a code-build failure or a build pass.
+- Remaining gates:
+  - independent exact-head Android unit/release build and main/CAM firmware compilation;
+  - wheels-up Direct test for 0->command, command->0, forward<->reverse and pivot response;
+  - Remote latency/jitter/reconnect test through HiveMQ;
+  - physical confirmation that rapid reversal does not produce unacceptable L298N/motor current or thermal stress.
+- Status: **SOURCE IMPLEMENTATION COMPLETE / AUTOMATED NATIVE CI BLOCKED / INDEPENDENT BUILD + FIELD VALIDATION PENDING**.
 
 ## Mandatory audit blocks before release approval
 
 1. Repository-wide version sweep and active-artifact identity.
 2. GPIO authority/electrical-capability review and physical wiring confirmation.
-3. Direct transport: Android <-> ESP32 HTTP/API, command lease, heartbeat, STOP/E-STOP, link recovery, camera local MJPEG/HTTP.
+3. Direct transport: Android <-> ESP32 HTTP/API, immediate drive dispatch, bounded stale-command neutralization, heartbeat diagnostics, explicit STOP/E-STOP, camera local MJPEG/HTTP.
 4. Remote transport: Android <-> HiveMQ <-> ESP32 command/ACK/telemetry/status plus Render bootstrap, ESP32-CAM publish and Android viewer.
 5. Render deployment: branch binding, build/start settings, environment-variable contract, health/bootstrap/video status, live version.
 6. HiveMQ: operator vs robot identities, TLS 8883, topic/ACL separation where administratively verifiable, retained LWT/status and command/ACK round-trip.
