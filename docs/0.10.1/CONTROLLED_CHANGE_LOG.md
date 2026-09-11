@@ -331,6 +331,53 @@ Secrets and credentials themselves are not to be committed to source control. On
 - Verification on operational head `d8c8856f1d72a7613d02c2e804bc62003ce45560`: cross-component integration contract PASS; Android unit tests PASS; Android `assembleRelease` PASS; signer continuity PASS with signer SHA-256 `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`; APK SHA-256 `00c347937c9310ed3836c2af26c3f7e2732867f12887134d97fd27179ec88efc`.
 - Status: **SOURCE/BUILD PASS / DIRECT FIELD TEST PENDING**.
 
+### HR-0101-031 — Gate ESP32-CAM remote TLS on valid wall clock
+- Components: ESP32-CAM remote video/TLS startup.
+- Reason: remote TLS could start before SNTP established a certificate-validating wall clock.
+- Correction: initialize NTP after Wi-Fi setup and start the remote video client only while station Wi-Fi is connected and `time(nullptr)` exceeds the controlled minimum epoch.
+- Implementation commit: `20f33c5f74e459afc322993f0bd2eaa7b9503438`.
+- Compatibility impact: camera remote startup sequencing only; Direct MJPEG, camera GPIO and video protocol unchanged.
+- Verification: source inspection complete; exact-head compile must be repeated after later HR-0101-033 camera correction.
+- Status: **IMPLEMENTED / EXACT-HEAD REBUILD PENDING**.
+
+### HR-0101-032 — Tolerate Render cold start during Android bootstrap
+- Components: Android `RemoteSessionManager`.
+- Reason: the previous 3.5 s bootstrap timeouts were shorter than legitimate Render Free cold-start latency and could reject a healthy service before it became ready.
+- Correction: bootstrap connect timeout is 15 s and read timeout is 70 s; bootstrap remains on the background I/O path so this does not block the Android UI thread.
+- Implementation commit: `efa5b80a34dbe3b94fd5cc992fdd95d6e29e0678`.
+- Compatibility impact: Remote bootstrap admission timing only; no drive cadence, GPIO, MQTT command semantics or safety behavior changed.
+- Status: **IMPLEMENTED / EXACT-HEAD ANDROID REBUILD PENDING**.
+
+### HR-0101-033 — Correct ESP32-CAM pixel-format type
+- Components: ESP32-CAM camera initialization.
+- Reason: `esp_camera` uses `pixformat_t`; the prior helper signature used the incorrect `pixel_format_t` type and could fail compilation with the active ESP32 camera headers.
+- Correction: `cameraInit(...)` now accepts `pixformat_t` while preserving JPEG-first initialization with RGB565 fallback.
+- Implementation commit: `144dc0aeb17470cfe3298ec578423888e6318b52`.
+- Compatibility impact: compile/type correction only; no camera pins, frame size or transport contract changed.
+- Status: **IMPLEMENTED / EXACT-HEAD REBUILD PENDING**.
+
+### HR-0101-034 — Direct motion-control responsiveness refactor
+- Components: Android operator input/control lifecycle, main ESP32 motion core, Direct HTTP drive path, Remote MQTT drive semantics, telemetry/status, integration audit and control documentation.
+- Reason: the existing stack combines an Android 50% default speed cap and quadratic joystick shaping with 10 Hz command scheduling, firmware acceleration/deceleration/reversal ramping, a 450 ms drive lease, link-loss hold, automatic retrace, and lifecycle/tab-triggered STOP calls. Together these mechanisms make manual driving less direct and couple connection health to motion and analytical subsystems.
+- Approved engineering direction:
+  - remove obsolete motion-shaping/retrace implementation from source rather than leaving zero-valued constants or dead branches;
+  - make normal operator motion direct and responsive, with linear joystick mapping, 100% default operator scale, immediate command-on-change and a faster refresh cadence;
+  - remove automatic Retrace and the link-loss side effects that stop measurement or switch MQ power;
+  - remove tab-change and transient Android lifecycle STOP side effects;
+  - keep Direct and Remote command semantics aligned and keep MQTT freshness/session/sequence protections because they reject stale/replayed packets without adding intentional motion ramp;
+  - retain a bounded final stale-control neutral stop and an explicit emergency-stop path; neither participates in normal acceleration/speed shaping;
+  - keep GPIO, L298N six-wire allocation, Render video relay, HiveMQ TLS/ACL and ESP32-CAM GPIO unchanged.
+- Planned implementation sequence:
+  1. Android input shaping/default scale and tests.
+  2. Main ESP32 direct PWM motion-core refactor; delete ramp/retrace source and obsolete constants/state.
+  3. Decouple link health from motion/measurement/MQ side effects; retain one bounded stale-command neutralization policy.
+  4. Android immediate command dispatch, refresh cadence and lifecycle/tab behavior.
+  5. Remote MQTT semantic cleanup and telemetry/UI contract update.
+  6. Integration-audit/documentation cleanup and repository-wide dead-symbol sweep.
+  7. Android/main/CAM exact-head builds followed by wheels-up Direct and Remote field tests.
+- Verification rule: each phase is committed and recorded before the next phase; no physical responsiveness or reversal behavior is claimed PASS until wheels-up hardware testing is performed.
+- Status: **IN PROGRESS — PHASE 0 GOVERNANCE BASELINE RECORDED**.
+
 ## Mandatory audit blocks before release approval
 
 1. Repository-wide version sweep and active-artifact identity.
