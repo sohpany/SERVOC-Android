@@ -47,7 +47,7 @@ public final class ControlTab {
 
         joystick=new JoystickView(c);int size=UiKit.dp(c,landscape?120:150);FrameLayout.LayoutParams jp=new FrameLayout.LayoutParams(size,size,Gravity.RIGHT|Gravity.BOTTOM);jp.setMargins(0,0,UiKit.dp(c,10),UiKit.dp(c,10));cameraBox.addView(joystick,jp);joystick.setListener((l,r,active)->{rawJoystickLeft=l;rawJoystickRight=r;applyOperatorSpeed();});
 
-        speedBadge=badge(c,"السرعة 50%");FrameLayout.LayoutParams sbp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.BOTTOM);sbp.setMargins(UiKit.dp(c,6),0,0,size+UiKit.dp(c,14));cameraBox.addView(speedBadge,sbp);
+        speedBadge=badge(c,"السرعة "+DriveSpeedLimiter.DEFAULT_PERCENT+"%");FrameLayout.LayoutParams sbp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.BOTTOM);sbp.setMargins(UiKit.dp(c,6),0,0,size+UiKit.dp(c,14));cameraBox.addView(speedBadge,sbp);
         speedControl=new VerticalSpeedControl(c);speedControl.setPercent(DriveSpeedLimiter.DEFAULT_PERCENT,false);FrameLayout.LayoutParams vsp=new FrameLayout.LayoutParams(UiKit.dp(c,64),size,Gravity.LEFT|Gravity.BOTTOM);vsp.setMargins(UiKit.dp(c,8),0,0,UiKit.dp(c,10));cameraBox.addView(speedControl,vsp);speedControl.setListener(p->{speedPercent=DriveSpeedLimiter.clampPercent(p);speedBadge.setText("السرعة "+speedPercent+"%");applyOperatorSpeed();});
 
         status=badge(c,"ROBOT —");FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.TOP);sp.setMargins(0,UiKit.dp(c,6),UiKit.dp(c,6),0);cameraBox.addView(status,sp);
@@ -115,7 +115,7 @@ public final class ControlTab {
 
         JSONObject d=host.latestDiagnostics();syncEstopFromDiagnostics(d);if(d==null){status.setText("ROBOT ○");status.setTextColor(0xFFFFB74D);irBadge.setText("IR —");drive.setText("L "+host.driveLeft()+"   R "+host.driveRight()+"   LINK —");overlay.clearGas();return;}
         status.setText("ROBOT ●");status.setTextColor(0xFF81C784);JSONObject ir=d.optJSONObject("ir");boolean irWarn=ir!=null&&ir.optBoolean("warning",false);irBadge.setText(irWarn?"⚠ IR":"IR ●");irBadge.setTextColor(irWarn?0xFFFF7043:0xFF81C784);
-        JSONObject x=d.optJSONObject("drive");if(x!=null){boolean back=x.optBoolean("retrace",false),fail=x.optBoolean("failsafe",false);drive.setText("L "+x.optInt("left",host.driveLeft())+"   R "+x.optInt("right",host.driveRight())+"   "+(estopLatched?"E-STOP":back?"RETRACE":fail?"LINK LOSS":"SAFE"));drive.setTextColor(estopLatched?0xFFFF7043:back?0xFFFFB74D:Color.LTGRAY);}
+        JSONObject x=d.optJSONObject("drive");if(x!=null){boolean stale=x.optBoolean("stale_stop",false);drive.setText("L "+x.optInt("left",host.driveLeft())+"   R "+x.optInt("right",host.driveRight())+"   "+(estopLatched?"E-STOP":stale?"STALE STOP":"DIRECT"));drive.setTextColor(estopLatched?0xFFFF7043:stale?0xFFFFB74D:Color.LTGRAY);}
         if(target<0){overlay.clearGas();return;}GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime(),target);int mask=MqRelayPlanner.forChemical(target);if(g.valid){overlay.setGasDirection(g.angleRad,g.confidence);trackingBadge.setText("تتبع ● "+targetName+"   "+bearingName(g.angleRad)+String.format(Locale.US," %.0f%%",100*g.confidence));}else{overlay.clearGas();trackingBadge.setText("تتبع ● "+targetName+"   "+MqRelayPlanner.rowsLabel(mask));}
     }
 

@@ -51,12 +51,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-/** HazRob 0.10.0 coordinator. Direct and Remote are transports for the same operator workspace. */
+/** HazRob 0.10.1 coordinator. Direct and Remote are transports for the same operator workspace. */
 public final class MainActivity extends Activity implements HazRobHost {
     private static final int EXPORT_XLSX=8101,EXPORT_PDF=8102,EXPORT_REFERENCE=8103,EXPORT_RAW=8104;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final ScheduledExecutorService workers=Executors.newScheduledThreadPool(7);
+    private final AtomicBoolean driveDispatching=new AtomicBoolean(false);
     private final MotionHistory motionHistory=new MotionHistory();
     private final SensorHealthEngine sensorHealth=new SensorHealthEngine();
     private final GasAlertCoordinator gasAlertCoordinator=new GasAlertCoordinator();
@@ -86,14 +88,18 @@ public final class MainActivity extends Activity implements HazRobHost {
     private void stopOperatorMotion(){left=right=0;motionHistory.record(0,0,SystemClock.elapsedRealtime());if(controlTab!=null)controlTab.resetJoystick();workers.execute(()->{try{robotApi.motionStop();}catch(Exception ignored){}});}
     private void showTab(int index){
         if(!entered||index<0||index>=tabViews.length)return;
-        if(selectedTab==0&&index!=0){controlTab.stopCamera();stopOperatorMotion();}
+        if(selectedTab==0&&index!=0)controlTab.stopCamera();
         selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}if(index==4&&!developerTab.isUnlocked())developerTab.requestUnlock();if(index==0&&foreground)controlTab.startCamera();refreshVisibleTab();
     }
 
+    private void queueDriveSend(){
+        if(!entered||!driveDispatching.compareAndSet(false,true))return;
+        workers.execute(()->{try{robotApi.drive(left,right);}catch(Exception ignored){}finally{driveDispatching.set(false);}});
+    }
     private void scheduleComms(){
         if(commsScheduled)return;commsScheduled=true;
-        // 10 Hz operator command cadence; the ESP32 drive lease independently stops stale motion.
-        workers.scheduleAtFixedRate(()->{if(!foreground||!entered)return;try{robotApi.drive(left,right);}catch(Exception ignored){}},0,100,TimeUnit.MILLISECONDS);
+        // 20 Hz refresh is a continuity stream; joystick changes also dispatch immediately.
+        workers.scheduleAtFixedRate(()->{if(entered)queueDriveSend();},0,50,TimeUnit.MILLISECONDS);
         // 4 Hz state/telemetry refresh matches the accelerated remote telemetry cadence.
         workers.scheduleAtFixedRate(()->{if(!entered)return;try{long now=SystemClock.elapsedRealtime();JSONObject snap=robotApi.snapshot(left,right);latestDiag=snap;sensorHealth.accept(snap,now);updateGasAlert(snap,now);telemetryRecorder.accept(snap,left,right,developerMode);ui.post(this::onTelemetryUpdated);}catch(Exception e){latestDiag=null;gasAlertCoordinator.reset();lastGasAlertLevel=GasAlertCoordinator.NONE;gasAlertSentAt=0;ui.post(this::onTelemetryUpdated);}},0,250,TimeUnit.MILLISECONDS);
     }
@@ -103,17 +109,17 @@ public final class MainActivity extends Activity implements HazRobHost {
         if(!changed&&!refresh)return;
         try{robotApi.setAlertLevel(level,3000);lastGasAlertLevel=level;gasAlertSentAt=now;}catch(Exception ignored){}
     }
-    private void onTelemetryUpdated(){JSONObject d=latestDiag;if(globalStatus==null)return;if(d==null){globalStatus.setText("غير متصل");globalStatus.setTextColor(0xFFFFB74D);}else{JSONObject ir=d.optJSONObject("ir"),drv=d.optJSONObject("drive"),alert=d.optJSONObject("alert");boolean warn=ir!=null&&ir.optBoolean("warning",false),back=drv!=null&&drv.optBoolean("retrace",false),hold=drv!=null&&drv.optBoolean("hold",false),gas=alert!=null&&alert.optInt("gas",0)>0;globalStatus.setText(hold?"فقد الاتصال • انتظار 3 ثوانٍ":"متصل"+(back?" • عودة":gas?" • ⚠ غازات":warn?" • ⚠ IR":""));globalStatus.setTextColor(hold?0xFFFFB74D:back?0xFFFFB74D:gas?0xFFFF7043:warn?0xFFFF7043:0xFF81C784);}refreshVisibleTab();}
+    private void onTelemetryUpdated(){JSONObject d=latestDiag;if(globalStatus==null)return;if(d==null){globalStatus.setText("غير متصل");globalStatus.setTextColor(0xFFFFB74D);}else{JSONObject ir=d.optJSONObject("ir"),drv=d.optJSONObject("drive"),alert=d.optJSONObject("alert");boolean warn=ir!=null&&ir.optBoolean("warning",false),stale=drv!=null&&drv.optBoolean("stale_stop",false),gas=alert!=null&&alert.optInt("gas",0)>0;globalStatus.setText("متصل"+(stale?" • توقف لانقطاع أوامر القيادة":gas?" • ⚠ غازات":warn?" • ⚠ IR":""));globalStatus.setTextColor(stale?0xFFFFB74D:gas?0xFFFF7043:warn?0xFFFF7043:0xFF81C784);}refreshVisibleTab();}
     private void refreshVisibleTab(){if(!entered)return;if(selectedTab==0)controlTab.refresh();else if(selectedTab==1)measurementsTab.refresh();else if(selectedTab==2)statusTab.refresh();else if(selectedTab==3)settingsTab.refresh();else if(selectedTab==4)developerTab.refresh();}
 
     @Override protected void onResume(){super.onResume();if(!"remote".equalsIgnoreCase(prefs.getString("connection_mode","direct")))WifiRoute.bindConnectedWifi(this);foreground=true;if(entered){startLinkService();if(selectedTab==0)controlTab.startCamera();refreshVisibleTab();}}
-    @Override protected void onPause(){foreground=false;if(entered){controlTab.stopCamera();stopOperatorMotion();}super.onPause();}
-    @Override protected void onDestroy(){if(controlTab!=null)controlTab.releaseCamera();try{if(lastGasAlertLevel!=GasAlertCoordinator.NONE)robotApi.setAlertLevel(GasAlertCoordinator.NONE,500);}catch(Exception ignored){}workers.shutdownNow();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
+    @Override protected void onPause(){foreground=false;if(entered)controlTab.stopCamera();super.onPause();}
+    @Override protected void onDestroy(){entered=false;if(controlTab!=null)controlTab.releaseCamera();try{if(lastGasAlertLevel!=GasAlertCoordinator.NONE)robotApi.setAlertLevel(GasAlertCoordinator.NONE,500);}catch(Exception ignored){}workers.shutdownNow();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
     private void startLinkService(){try{RobotLinkService.start(getApplicationContext());}catch(Exception ignored){}}
 
     @Override public RobotApi robotApi(){return robotApi;}@Override public SharedPreferences preferences(){return prefs;}@Override public ExperimentsDb database(){return db;}@Override public ExecutorService io(){return workers;}@Override public String operatorRole(){return developerMode?"DEVELOPER":"USER";}@Override public JSONObject latestDiagnostics(){return latestDiag;}@Override public void setLatestDiagnostics(JSONObject value){latestDiag=value;}@Override public void showToast(String text){ui.post(()->android.widget.Toast.makeText(this,text,android.widget.Toast.LENGTH_SHORT).show());}
     @Override public void emergencyStop(){left=right=0;motionHistory.record(0,0,SystemClock.elapsedRealtime());if(controlTab!=null)controlTab.resetJoystick();workers.execute(()->{try{robotApi.emergencyStop();}catch(Exception ignored){}});}
-    @Override public void setDriveCommand(int l,int r){int nl=Math.max(-100,Math.min(100,l)),nr=Math.max(-100,Math.min(100,r));left=nl;right=nr;motionHistory.record(nl,nr,SystemClock.elapsedRealtime());}
+    @Override public void setDriveCommand(int l,int r){int nl=Math.max(-100,Math.min(100,l)),nr=Math.max(-100,Math.min(100,r));left=nl;right=nr;motionHistory.record(nl,nr,SystemClock.elapsedRealtime());queueDriveSend();}
     @Override public int driveLeft(){return left;}@Override public int driveRight(){return right;}
     @Override public void setCameraHost(String host){cameraApi.setHost(host);prefs.edit().putString("camera",cameraApi.host()).apply();if(entered&&selectedTab==0&&foreground)controlTab.startCamera();}@Override public String cameraHost(){return cameraApi.host();}@Override public boolean cameraReachable(){return cameraApi.ping();}@Override public JSONObject cameraDiagnostics(){return cameraApi.status();}
     @Override public String flashMode(){return flashMode;}
