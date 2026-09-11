@@ -36,6 +36,9 @@ jobs:
       - name: Validate HazRob 0.10.1 cross-component contract
         run: python3 tools/audit_0101_integration_contract.py
 
+      - name: Validate HR-0101-034 motion contract
+        run: python3 tools/audit_0101_motion_contract.py
+
       - name: Validate pinned scientific datasets
         run: |
           python3 - <<'PY'
