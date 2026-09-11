@@ -12,9 +12,9 @@ constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 constexpr uint8_t DRIVE_L_EN=16,DRIVE_L_IN1=18,DRIVE_L_IN2=27;
 constexpr uint8_t DRIVE_R_EN=17,DRIVE_R_IN1=19,DRIVE_R_IN2=32;
 constexpr bool DRIVE_L_INVERT=false,DRIVE_R_INVERT=false;
-constexpr uint32_t DRIVE_LEASE_MS=450,LINK_DETECT_MS=900,LINK_HOLD_MS=3000,RETRACE_MS=60000,ADS_REPROBE_MS=3000;
-constexpr float ACCEL=500.0f,DECEL=800.0f,REVERSE=1000.0f;
-constexpr int RETRACE_MAX_SPEED=40;
+// Normal drive commands are applied immediately. This timeout does not shape speed;
+// it only neutralizes a non-zero output after the command stream disappears completely.
+constexpr uint32_t CONTROL_COMMAND_TIMEOUT_MS=1500,ADS_REPROBE_MS=3000;
 
 // Shared analytical I2C bus: ADS1 + ADS2 + chamber BME/BMP.
 constexpr uint8_t SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49;
