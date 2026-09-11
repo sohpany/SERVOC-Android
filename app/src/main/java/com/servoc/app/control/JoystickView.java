@@ -10,6 +10,7 @@ import android.view.View;
 public final class JoystickView extends View {
     public interface Listener { void onDrive(int left, int right, boolean active); }
 
+    private static final double DEAD_ZONE = 0.03;
     private final Paint ring = new Paint(1);
     private final Paint knob = new Paint(1);
     private float x = 0, y = 0;
@@ -47,10 +48,9 @@ public final class JoystickView extends View {
         float ny = -(e.getY() - cy) / radius;
         double m = Math.hypot(nx, ny);
         if (m > 1) { nx /= m; ny /= m; m = 1; }
-        if (m < .08) { nx = ny = 0; }
+        if (m < DEAD_ZONE) { nx = ny = 0; }
         else {
-            double z = (m - .08) / .92;
-            z *= z;
+            double z = (m - DEAD_ZONE) / (1.0 - DEAD_ZONE);
             nx = (float) (nx / m * z);
             ny = (float) (ny / m * z);
         }
