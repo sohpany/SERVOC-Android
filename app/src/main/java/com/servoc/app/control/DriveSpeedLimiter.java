@@ -1,8 +1,8 @@
 package com.servoc.app.control;
 
-/** Pure command scaler for the operator speed column. Firmware safety remains independent. */
+/** Pure command scaler for the operator speed column. Firmware motion policy remains independent. */
 public final class DriveSpeedLimiter {
-    public static final int DEFAULT_PERCENT = 50;
+    public static final int DEFAULT_PERCENT = 100;
 
     private DriveSpeedLimiter() {}
 
