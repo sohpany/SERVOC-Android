@@ -17,7 +17,7 @@ MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
 TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh
 cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4
 WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu
-ZXQgU2VjdXJpdHkgUmVzZWFyY2ggUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
+ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY
 MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJHP0FDfzm54rVygc
 h77ct984kIxuPOZXoHj3dcKi/vVqbvYATyjb3miGbESTtrFj/RQSa78f0uoxmyF+
 0TM8ukj13Xnfs7j/EvEhmkvBioZxaUpmZmyPfjxwv60pIgbz5MDmgK7iS4+3mX6U
@@ -51,7 +51,7 @@ constexpr char BROKER_HOST[]="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.clou
 constexpr uint16_t BROKER_PORT=8883;
 constexpr char ROBOT_ID[]="hazrob-001";
 constexpr char USERNAME[]=HAZROB_MQTT_USERNAME;
-constexpr char PASSWORD[]=HAZROB_MQTT_PASSWORD;
+constexpr char PASSWORD[]=HAZROB_MQTT_PASSWORD; // optional build-time fallback only
 constexpr char ROOT_CA[]=HAZROB_MQTT_ROOT_CA;
 constexpr char BOOTSTRAP_HOST[]="hazrob-video-relay.onrender.com";
 constexpr uint16_t BOOTSTRAP_PORT=443;
@@ -60,6 +60,8 @@ constexpr char BOOTSTRAP_TOKEN[]="hazrob-prototype-bootstrap-v1";
 constexpr char BOOTSTRAP_SERVICE_VERSION[]="0.10.1";
 constexpr int BOOTSTRAP_PROTOCOL=2;
 constexpr uint16_t KEEPALIVE_SEC=20;
-constexpr uint32_t RETRY_MS=2000,TELEMETRY_MS=250,STATUS_MS=2000;
-inline bool configured(){return BROKER_HOST[0]&&ROBOT_ID[0]&&sizeof(ROOT_CA)>32;}
+constexpr uint32_t RETRY_MS=2000;
+constexpr uint32_t TELEMETRY_MS=250;
+constexpr uint32_t STATUS_MS=2000;
+inline bool configured(){return BROKER_HOST[0]&&ROBOT_ID[0]&&strstr(ROOT_CA,"BEGIN CERTIFICATE")!=nullptr;}
 }
