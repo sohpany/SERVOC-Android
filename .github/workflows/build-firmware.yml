@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: ['dev/**','fix/**',main]
-    paths: ['firmware/**','tools/audit_0101_integration_contract.py','.github/workflows/build-firmware.yml']
+    paths: ['firmware/**','tools/audit_0101_integration_contract.py','tools/audit_0101_motion_contract.py','.github/workflows/build-firmware.yml']
 
 permissions: { contents: write }
 
@@ -17,6 +17,9 @@ jobs:
 
       - name: Validate HazRob 0.10.1 cross-component contract
         run: python3 tools/audit_0101_integration_contract.py
+
+      - name: Validate HR-0101-034 motion contract
+        run: python3 tools/audit_0101_motion_contract.py
 
       - uses: arduino/setup-arduino-cli@v2
       - name: Install ESP32 core
