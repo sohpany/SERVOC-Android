@@ -144,7 +144,8 @@ public final class StatusTab {
     private void renderNetwork(JSONObject d){
         JSONObject link=d==null?null:d.optJSONObject("link");
         if(!remoteMode()){
-            network.setText("الوضع   DIRECT / Wi-Fi\nLocal   "+(d==null?"○ OFFLINE":"● CONNECTED")+"\nHeartbeat   "+(link!=null&&link.optBoolean("lost",false)?"LOST":link!=null&&link.optBoolean("armed",false)?"ACTIVE":"LOCAL"));
+            String heartbeat=link!=null&&link.optBoolean("armed",false)?"ACTIVE • "+link.optLong("heartbeat_age_ms",0)+" ms":"LOCAL";
+            network.setText("الوضع   DIRECT / Wi-Fi\nLocal   "+(d==null?"○ OFFLINE":"● CONNECTED")+"\nHeartbeat   "+heartbeat);
             return;
         }
         RemoteConnection r=RemoteConnection.active();JSONObject st=r==null?null:r.status();boolean mqtt=r!=null&&r.isConnected(),internet=st!=null&&st.optBoolean("internet",false),telemetry=d!=null;
