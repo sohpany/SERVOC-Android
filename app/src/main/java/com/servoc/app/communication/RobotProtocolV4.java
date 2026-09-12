@@ -87,7 +87,7 @@ public final class RobotProtocolV4 {
 
     private static JSONObject adc(JSONObject diag,JSONObject data){
         JSONObject x=new JSONObject();try{
-            JSONObject a=first(data==null?null:data.optJSONObject("adc"),diag==null?null:diag.optJSONObject("adc"));boolean a1=a!=null?a.optBoolean("ads1",false):diag.optBoolean("ads1",false);boolean a2=a!=null?a.optBoolean("ads2",false):diag.optBoolean("ads2",false);x.put("ads1",a1);x.put("ads2",a2);x.put("ads1_address","0x48");x.put("ads2_address","0x49");
+            JSONObject a=first(data==null?null:data.optJSONObject("adc"),diag==null?null:diag.optJSONObject("adc"));boolean a1=a!=null?a.optBoolean("ads1",false):diag.optBoolean("ads1",false);boolean a2=a!=null?a.optBoolean("ads2",false):diag.optBoolean("ads2",false);x.put("ads1",a1);x.put("ads2",a2);x.put("ads1_address","0x48");x.put("ads2_address","0x49");x.put("any_ready",a1||a2);x.put("all_ready",a1&&a2);
             JSONObject provenance=a==null?null:a.optJSONObject("acquisition");if(provenance==null){JSONObject da=diag==null?null:diag.optJSONObject("adc");provenance=da==null?null:da.optJSONObject("acquisition");}
             if(provenance!=null)x.put("acquisition",new JSONObject(provenance.toString()));
         }catch(Exception ignored){}return x;
@@ -101,7 +101,8 @@ public final class RobotProtocolV4 {
             Object raw=m.opt("state");
             if(raw instanceof Number){code=((Number)raw).intValue();state=code==1?"warmup":code==2?"measuring":code==3?"ready":code==4?"error":"idle";}
             else{state=m.optString("state","idle").toLowerCase(Locale.US);code="warmup".equals(state)?1:"measuring".equals(state)?2:"ready".equals(state)?3:"error".equals(state)?4:0;}
-            x.put("state",state);x.put("state_code",code);x.put("mask",m.optInt("mask",0)!=0?1:0);x.put("power",m.optBoolean("power",m.optInt("mask",0)!=0));x.put("manual_power",m.optBoolean("manual_power",true));x.put("manual_warmup",m.optBoolean("manual_warmup",true));x.put("duration_s",m.optInt("duration_s",0));x.put("mq",mq(m.optJSONObject("mq"),true));
+            int duration=Math.max(0,m.optInt("duration_s",0)),elapsed=Math.max(0,m.optInt("elapsed_s",0)),remaining=m.has("remaining_s")?Math.max(0,m.optInt("remaining_s",0)):Math.max(0,duration-elapsed);
+            x.put("state",state);x.put("state_code",code);x.put("mask",m.optInt("mask",0)!=0?1:0);x.put("power",m.optBoolean("power",m.optInt("mask",0)!=0));x.put("manual_power",m.optBoolean("manual_power",true));x.put("manual_warmup",m.optBoolean("manual_warmup",true));x.put("duration_s",duration);x.put("elapsed_s",elapsed);x.put("remaining_s",remaining);x.put("error",m.optString("error",""));x.put("valid_channels",Math.max(0,m.optInt("valid_channels",0)));x.put("mq",mq(m.optJSONObject("mq"),true));
         }catch(Exception ignored){}return x;
     }
 
