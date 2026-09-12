@@ -61,8 +61,10 @@ def main() -> None:
     ):
         need(android, marker, "SecureMqtt311Client.java")
 
-    # Readiness UI must preserve the real exception message rather than class-only text.
-    need(session, 'e.getClass().getSimpleName()+": "+String.valueOf(e.getMessage())', "RemoteSessionManager.java")
+    # Readiness must preserve the real exception message rather than class-only text.
+    need(session, "private static String detail(Throwable e)", "RemoteSessionManager.java")
+    need(session, 'return e.getClass().getSimpleName()+(m==null||m.trim().isEmpty()?"":": "+m.trim());', "RemoteSessionManager.java")
+    need(session, "detail(e)", "RemoteSessionManager.java")
 
     print("HazRob 0.10.1 HR039 relay/remote guard: PASS")
 
