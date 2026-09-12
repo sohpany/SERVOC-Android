@@ -47,7 +47,7 @@ else if(t=="sensor_off")sensorPowerOff();
 else if(t=="heartbeat")linkHeartbeat();
 else if(t=="heartbeat_disarm")linkSetArmed(false);
 else if(t=="relay"){linkHeartbeat();int v=ji(j,"mask",-1);if(safetyEstopLatched()&&v==1){ok=false;err="estop_latched";}else ok=(v==0||v==1)&&relaySetMask(v);}
-else if(t=="measure_start"){if(safetyEstopLatched()){ok=false;err="estop_latched";}else{linkHeartbeat();measureStart();}}
+else if(t=="measure_start"){if(safetyEstopLatched()){ok=false;err="estop_latched";}else{linkHeartbeat();ok=measureStart();if(!ok)err="measurement_precheck";}}
 else if(t=="measure_cancel")measureCancel();
 else if(t=="alert"){int severity=(int)ji(j,"severity",-1);uint32_t ttlMs=(uint32_t)constrain((long)ji(j,"ttl",3000),500L,10000L);if(severity<0||severity>2)ok=false;else Alerts::setGas((uint8_t)severity,ttlMs);}
 else if(t=="alert_test")Alerts::test();
