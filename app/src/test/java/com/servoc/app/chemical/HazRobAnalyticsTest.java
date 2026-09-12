@@ -4,6 +4,7 @@ import com.servoc.app.calibration.EmpiricalMqCurve;
 import com.servoc.app.measurements.PhysicalCatalog;
 import com.servoc.app.models.MqDataScience76Catalog;
 import org.junit.Test;
+import java.util.Arrays;
 import static org.junit.Assert.*;
 
 public class HazRobAnalyticsTest {
@@ -14,6 +15,12 @@ public class HazRobAnalyticsTest {
     @Test public void targetBackedCurvesAreDirectAndResearchOnlyCurvesAreNot(){assertTrue(GasEngine.curveCount()>0);int direct=0,research=0;for(int chem:GasEngine.SUPPORTED){assertTrue(chem>=0&&chem<ChemicalCatalog.COUNT);if(CurveEligibility.hasTargetBackedCurve(chem)){assertEquals(ChemicalCoverage.DIRECT_CURVE,ChemicalCoverage.forChemical(chem).level);direct++;}else{assertNotEquals(ChemicalCoverage.DIRECT_CURVE,ChemicalCoverage.forChemical(chem).level);research++;}}assertTrue("expected target-backed curves",direct>0);assertTrue("expected research-only inherited curves",research>0);}
 
     @Test public void defaultR0CannotEnableQuantitativeScreening(){assertFalse(ValidatedGasEngine.PRECALIBRATED_INSTALLED_MQ);double[] ratios=GasEngine.simulateRatios(75,300.0);boolean[] heater={true,true,true,true,false,true,false,true};ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,75,heater);assertNotNull(r);assertTrue("expected manufacturer target evidence",r.primaryContributors>0);assertFalse("generic/default-R0 path must not be quantitative",r.quantitative);assertEquals(-1,r.risk);}
+
+    @Test public void singleSensorEvidenceNeverReportsInterSensorAgreement(){
+        double[] ratios=new double[8];Arrays.fill(ratios,Double.NaN);ratios[GasEngine.MQ3]=1.0;
+        boolean[] heater={true,true,true,true,true,true,true,true};ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,34,heater);
+        assertNotNull(r);assertEquals(1,r.totalContributors);assertEquals(1,r.agreementContributors);assertEquals(0.0,r.agreement,0.0);assertEquals(GasEngine.SUSPECTED,r.confidence);assertTrue(r.score<55.0);
+    }
 
     @Test public void manufacturerEvidenceSeparatesTargetsFromCrossResponses(){assertEquals(ManufacturerEvidenceMatrix.TARGET,ManufacturerEvidenceMatrix.level(GasEngine.MQ7,20));assertEquals(ManufacturerEvidenceMatrix.GRAPH_RESPONSE,ManufacturerEvidenceMatrix.level(GasEngine.MQ7,75));assertEquals(ManufacturerEvidenceMatrix.TARGET,ManufacturerEvidenceMatrix.level(GasEngine.MQ8,75));}
     @Test public void mqDataScienceEnvironmentalCorrectionIsDomainGuarded(){ResearchEnvironmentalCorrection.Result mq2=ResearchEnvironmentalCorrection.factor(GasEngine.MQ2,25.0,50.0);assertTrue(mq2.valid);assertTrue(Double.isFinite(mq2.factor));assertTrue(mq2.factor>0);ResearchEnvironmentalCorrection.Result out=ResearchEnvironmentalCorrection.factor(GasEngine.MQ2,25.0,20.0);assertFalse(out.valid);assertFalse(Double.isFinite(out.factor));ResearchEnvironmentalCorrection.Result mq9=ResearchEnvironmentalCorrection.factor(GasEngine.MQ9,25.0,60.0);assertTrue(mq9.valid);}
