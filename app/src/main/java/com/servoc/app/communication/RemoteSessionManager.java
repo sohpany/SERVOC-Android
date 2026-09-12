@@ -20,8 +20,6 @@ public final class RemoteSessionManager {
     private static final int BOOTSTRAP_PROTOCOL=RemoteServiceProfile.PROTOCOL;
     private static final String CONTRACT_PREF="remote_bootstrap_contract";
     private static final String CONTRACT_ID="hazrob-0.10.1-protocol-2";
-    // Render Free can cold-start well after the TCP connection is accepted. Bootstrap runs on
-    // the background I/O executor, so a long read window does not block the Android UI thread.
     private static final int BOOTSTRAP_CONNECT_TIMEOUT_MS=15000;
     private static final int BOOTSTRAP_READ_TIMEOUT_MS=70000;
     private final Context context;private final SharedPreferences prefs;
@@ -56,6 +54,7 @@ public final class RemoteSessionManager {
     }
 
     private static String compact(String s){return s==null?"":s.replaceAll("\\s+","");}
+    private static String detail(Throwable e){if(e==null)return"unknown";String m=e.getMessage();return e.getClass().getSimpleName()+(m==null||m.trim().isEmpty()?"":": "+m.trim());}
     private static String read(InputStream in,int max)throws Exception{
         if(in==null)return"";try(InputStream x=in;ByteArrayOutputStream o=new ByteArrayOutputStream()){byte[] b=new byte[1024];int n,total=0;while((n=x.read(b))!=-1){total+=n;if(total>max)throw new IOException("bootstrap response too large");o.write(b,0,n);}return o.toString(StandardCharsets.UTF_8.name());}
     }
@@ -75,7 +74,7 @@ public final class RemoteSessionManager {
                 RemoteConnection r=null;
                 try{
                     if(attempt==1)bootstrap(true);
-                    r=connectOnce();RemoteReadiness handshake=r.probe(2800);if(!handshake.commandAck)throw new IOException("remote session handshake failed");return r;
+                    r=connectOnce();RemoteReadiness handshake=r.probe(2800);if(!handshake.commandAck)throw new IOException("remote session handshake failed: "+handshake.detail);return r;
                 }catch(Exception e){first=e;if(r!=null)try{r.close();}catch(Exception ignored){}if(attempt==1)throw e;}
             }
             throw first==null?new IOException("remote session failed"):first;
@@ -84,7 +83,7 @@ public final class RemoteSessionManager {
 
     /** Entry/readiness check performs one probe; stale cached credentials trigger one forced bootstrap refresh. */
     public RemoteReadiness probe(){
-        try{bootstrapIfNeeded();}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"automatic remote setup failed: "+e.getMessage());}
+        try{bootstrapIfNeeded();}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"automatic remote setup failed: "+detail(e));}
         if(!serviceProfileConfigured())return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"remote service profile not configured");
         synchronized(CONNECT_LOCK){
             for(int attempt=0;attempt<2;attempt++){
@@ -93,7 +92,7 @@ public final class RemoteSessionManager {
                     if(attempt==1)bootstrap(true);
                     r=connectOnce();RemoteReadiness h=r.probe(2800);if(h.commandAck)return h;
                     try{r.close();}catch(Exception ignored){}
-                }catch(Exception e){if(r!=null)try{r.close();}catch(Exception ignored){}if(attempt==1)return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,e.getClass().getSimpleName());}
+                }catch(Exception e){if(r!=null)try{r.close();}catch(Exception ignored){}if(attempt==1)return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,detail(e));}
             }
             return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"remote handshake incomplete");
         }
