@@ -2,6 +2,7 @@ package com.servoc.app.communication;
 
 import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.hardware.HazRobHardwareProfile;
+import com.servoc.app.measurement.LiveSensorDiagnostic;
 import org.json.JSONObject;
 import java.util.Locale;
 
@@ -26,15 +27,17 @@ public final class RobotProtocolV4 {
             boolean failsafe=dd!=null?dd.optBoolean("failsafe",false):diag.optBoolean("failsafe",false);
             JSONObject drive=new JSONObject();drive.put("left",commandedLeft);drive.put("right",commandedRight);drive.put("failsafe",failsafe);drive.put("retrace",retrace);if(dd!=null&&dd.has("history"))drive.put("history",dd.optInt("history",0));out.put("drive",drive);out.put("retrace",retrace);
 
+            JSONObject relayNorm=relay(diag,data),adcNorm=adc(diag,data),mqNorm=mq(data.optJSONObject("mq"),false);
             out.put("env",environment(diag,data.optJSONObject("env")));
             out.put("device",device(diag,data));
-            out.put("relay",relay(diag,data));
+            out.put("relay",relayNorm);
             out.put("sound",sound(first(data.optJSONObject("sound"),diag.optJSONObject("sound"))));
             out.put("ir",ir(diag,first(data.optJSONObject("ir"),diag.optJSONObject("ir"))));
             out.put("ldr",ldr(diag,first(data.optJSONObject("ldr"),diag.optJSONObject("ldr"))));
             out.put("alert",alert(first(data.optJSONObject("alert"),diag.optJSONObject("alert"))));
-            out.put("adc",adc(diag,data));
-            out.put("mq",mq(data.optJSONObject("mq"),false));
+            out.put("adc",adcNorm);
+            out.put("mq",mqNorm);
+            out.put("sensor_power",LiveSensorDiagnostic.evaluate(relayNorm,adcNorm,mqNorm).toJson());
             out.put("measurement",measurement(data.optJSONObject("measurement")));
             out.put("link",link(diag));
             out.put("_diag_api",diag);out.put("_data_api",data);
