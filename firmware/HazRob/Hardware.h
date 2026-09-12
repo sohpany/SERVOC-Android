@@ -9,6 +9,9 @@ struct SettingsPatch{
   int speed=0,warm=0,measure=0;
 };
 
+// Earliest setup-stage relay guard: preload OFF before enabling GPIO25 output.
+// Hardware level translation/pull-up remains responsible for the pre-setup reset/ROM window.
+void relayBootSafeInit();
 void hwBegin(),hwUpdate();
 
 void driveSet(int left,int right);
