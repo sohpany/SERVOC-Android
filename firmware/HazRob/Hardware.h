@@ -9,9 +9,10 @@ struct SettingsPatch{
   int speed=0,warm=0,measure=0;
 };
 
-// Earliest setup-stage relay guard: preload OFF before enabling GPIO25 output.
-// Hardware level translation/pull-up remains responsible for the pre-setup reset/ROM window.
-void relayBootSafeInit();
+// Earliest setup-stage relay guard: write the inactive level before GPIO25 becomes an output,
+// then assert it again after direction change. The external 3.3V/5V level translator pull-up
+// remains responsible for holding Relay IN inactive during the reset/ROM window before setup().
+inline void relayBootSafeInit(){digitalWrite(Cfg::RELAY_MQ,Cfg::RELAY_OFF);pinMode(Cfg::RELAY_MQ,OUTPUT);digitalWrite(Cfg::RELAY_MQ,Cfg::RELAY_OFF);}
 void hwBegin(),hwUpdate();
 
 void driveSet(int left,int right);
