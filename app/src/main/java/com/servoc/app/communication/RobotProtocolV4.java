@@ -1,5 +1,6 @@
 package com.servoc.app.communication;
 
+import com.servoc.app.calibration.FieldR0Baseline;
 import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.measurement.LiveSensorDiagnostic;
@@ -128,8 +129,11 @@ public final class RobotProtocolV4 {
                 boolean firmwareCalibrated=r.optBoolean("r0_calibrated",false);String firmwareSource=r.optString("r0_source",firmwareCalibrated?"firmware_calibrated":"firmware_placeholder_or_unknown");
                 x.put("firmware_r0_calibrated",firmwareCalibrated);x.put("manual_calibration_confirmed",false);x.put("calibration_status",firmwareCalibrated?"CALIBRATED_FIRMWARE":"UNCALIBRATED");
                 ManualR0Calibration.apply(hw.key,x);
-                boolean manual="manual_device_r0".equals(x.optString("r0_source",""))&&x.optBoolean("r0_calibrated",false);
+                String activeSource=x.optString("r0_source","");boolean activeCalibrated=x.optBoolean("r0_calibrated",false);
+                boolean manual="manual_device_r0".equals(activeSource)&&activeCalibrated;
+                boolean field=FieldR0Baseline.SOURCE.equals(activeSource)&&activeCalibrated;
                 if(manual){x.put("manual_calibration_confirmed",true);x.put("calibration_status","CALIBRATED_MANUAL");}
+                else if(field){x.put("manual_calibration_confirmed",false);x.put("calibration_status","CALIBRATED_FIELD_BASELINE");x.put("r0_reference_validated",false);}
                 else if(firmwareCalibrated){x.put("r0_calibrated",true);x.put("r0_source",firmwareSource);x.put("manual_calibration_confirmed",false);x.put("calibration_status","CALIBRATED_FIRMWARE");}
                 else{x.put("r0_calibrated",false);x.put("manual_calibration_confirmed",false);x.put("calibration_status","UNCALIBRATED");}
                 x.put("r0_loaded",x.optBoolean("r0_calibrated",false));out.put(hw.key,x);
