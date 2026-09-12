@@ -17,7 +17,11 @@ public class HazRobAnalyticsTest {
     @Test public void defaultR0CannotEnableQuantitativeScreening(){assertFalse(ValidatedGasEngine.PRECALIBRATED_INSTALLED_MQ);double[] ratios=GasEngine.simulateRatios(75,300.0);boolean[] heater={true,true,true,true,false,true,false,true};ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,75,heater);assertNotNull(r);assertTrue("expected manufacturer target evidence",r.primaryContributors>0);assertFalse("generic/default-R0 path must not be quantitative",r.quantitative);assertEquals(-1,r.risk);}
 
     @Test public void singleSensorEvidenceNeverReportsInterSensorAgreement(){
-        double[] ratios=new double[8];Arrays.fill(ratios,Double.NaN);ratios[GasEngine.MQ3]=1.0;
+        // Benzene chemical 34 has one legacy MQ3 curve. Use 50 ppm so the synthetic point is
+        // inside the registered 5.15-500 ppm research envelope; the test is about consensus,
+        // not out-of-domain rejection.
+        double[] ratios=GasEngine.simulateRatios(34,50.0);
+        assertTrue(Double.isFinite(ratios[GasEngine.MQ3]));
         boolean[] heater={true,true,true,true,true,true,true,true};ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,34,heater);
         assertNotNull(r);assertEquals(1,r.totalContributors);assertEquals(1,r.agreementContributors);assertEquals(0.0,r.agreement,0.0);assertEquals(GasEngine.SUSPECTED,r.confidence);assertTrue(r.score<55.0);
     }
