@@ -50,11 +50,19 @@ public final class RobotProtocolV4 {
     private static JSONObject environment(JSONObject diag,JSONObject e){
         JSONObject x=new JSONObject();try{
             if(e==null)e=new JSONObject();boolean ok=e.optBoolean("ok",false);
-            int type=diag.optInt("envType",0),addr=diag.optInt("envAddr",0),chip=diag.optInt("envId",0);
+            int type=e.has("type")?e.optInt("type",0):diag.optInt("envType",0);
+            int addr=e.has("addr")?e.optInt("addr",0):diag.optInt("envAddr",0);
+            int chip=e.has("chip_id")?e.optInt("chip_id",0):diag.optInt("envId",0);
+            int lastAddr=e.optInt("last_addr",addr),lastChip=e.optInt("last_chip_id",chip);
+            boolean ack76=e.has("ack_0x76")?e.optBoolean("ack_0x76",false):diag.optBoolean("envAck76",false);
+            boolean ack77=e.has("ack_0x77")?e.optBoolean("ack_0x77",false):diag.optBoolean("envAck77",false);
+            String status=e.optString("status",diag.optString("envStatus",ok?"ok":"unknown"));
             String name=type==1?"BME280":type==2?"BMP280":"NONE";
-            x.put("ok",ok);x.put("i2c_found",type!=0||addr!=0||chip!=0);x.put("type",name);x.put("sensor",name);
+            x.put("ok",ok);x.put("i2c_found",ack76||ack77||type!=0||addr!=0||chip!=0||lastAddr!=0||lastChip!=0);x.put("type",name);x.put("sensor",name);
             x.put("address",addr>0?String.format(Locale.US,"0x%02X",addr):JSONObject.NULL);x.put("chip_id",chip>0?String.format(Locale.US,"0x%02X",chip):JSONObject.NULL);
-            x.put("temperature",finiteAny(e,"t","temperature"));x.put("humidity",finiteAny(e,"h","humidity"));x.put("pressure",finiteAny(e,"p","pressure"));x.put("humidity_available",type!=2&&!e.isNull(e.has("h")?"h":"humidity"));
+            x.put("last_address",lastAddr>0?String.format(Locale.US,"0x%02X",lastAddr):JSONObject.NULL);x.put("last_chip_id",lastChip>0?String.format(Locale.US,"0x%02X",lastChip):JSONObject.NULL);
+            x.put("status_code",status);x.put("ack_0x76",ack76);x.put("ack_0x77",ack77);x.put("read_failures",Math.max(0,e.optInt("read_failures",diag.optInt("envReadFailures",0))));x.put("last_ok_age_ms",Math.max(0,e.optLong("last_ok_age_ms",0)));x.put("reprobe_ms",Math.max(0,e.optLong("reprobe_ms",3000)));
+            x.put("temperature",finiteAny(e,"t","temperature"));x.put("humidity",finiteAny(e,"h","humidity"));x.put("pressure",finiteAny(e,"p","pressure"));x.put("humidity_available",type==1&&!e.isNull(e.has("h")?"h":"humidity"));
         }catch(Exception ignored){}return x;
     }
 
