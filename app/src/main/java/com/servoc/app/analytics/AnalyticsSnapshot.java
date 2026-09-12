@@ -1,6 +1,7 @@
 package com.servoc.app.analytics;
 
 import com.servoc.app.calibration.CalibrationCurveProvider;
+import com.servoc.app.chemical.CandidateRanker;
 import com.servoc.app.chemical.ChemicalCatalog;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.chemical.ValidatedGasEngine;
@@ -32,11 +33,11 @@ public final class AnalyticsSnapshot {
 
     public static String toJson(JSONObject diag,ChemicalRepository chemicals,CalibrationCurveProvider calibration,boolean identityConfirmed){
         Map<Integer,ValidatedGasEngine.Result> map=analyze(diag,calibration,identityConfirmed);
-        List<ValidatedGasEngine.Result> rows=new ArrayList<>(map.values());JSONArray a=new JSONArray();
-        for(Map.Entry<Integer,ValidatedGasEngine.Result> e:map.entrySet()){
-            int chem=e.getKey();ValidatedGasEngine.Result r=e.getValue();if(r==null||r.totalContributors<=0)continue;JSONObject x=new JSONObject();
+        List<ValidatedGasEngine.Result> rows=new ArrayList<>(map.values());rows.removeIf(r->r==null||r.totalContributors<=0);rows.sort(CandidateRanker.COMPARATOR);JSONArray a=new JSONArray();
+        for(ValidatedGasEngine.Result r:rows){
+            int chem=r.chemical;JSONObject x=new JSONObject();
             try{
-                x.put("chemical_id",chem);ChemicalRepository.Chemical c=chemicals==null?null:chemicals.byLegacyId(chem);
+                x.put("rank",a.length()+1);x.put("chemical_id",chem);ChemicalRepository.Chemical c=chemicals==null?null:chemicals.byLegacyId(chem);
                 if(c!=null){x.put("chemical_uid",c.uid);if(c.legacyId!=null)x.put("legacy_id",c.legacyId);if(c.cas!=null)x.put("cas",c.cas);if(c.name!=null){x.put("name",c.name);x.put("name_en",c.name);}if(c.arabicName!=null)x.put("name_ar",c.arabicName);if(c.formula!=null)x.put("formula",c.formula);if(c.source!=null)x.put("record_source",c.source);}
                 else if(chem>=0&&chem<ChemicalCatalog.COUNT){x.put("name",ChemicalCatalog.NAMES[chem]);x.put("formula",ChemicalCatalog.FORMULAS[chem]);}
                 x.put("ppm",r.ppm);x.put("agreement",r.agreement);x.put("agreement_defined",r.agreementContributors>=2);x.put("agreement_contributors",r.agreementContributors);
@@ -46,7 +47,7 @@ public final class AnalyticsSnapshot {
         }
         AnalysisDecision.Summary decision=AnalysisDecision.evaluate(rows,validChannelCount(diag),calibratedR0Count(diag),environmentAvailable(diag));
         JSONObject root=new JSONObject();try{
-            root.put("analysis_version",ANALYSIS_VERSION);root.put("results",a);root.put("result_count",a.length());root.put("result_scope","all evidence-bearing results; no fixed row cap");root.put("candidate_target_count",ChemicalCatalog.COUNT);
+            root.put("analysis_version",ANALYSIS_VERSION);root.put("results",a);root.put("result_count",a.length());root.put("result_scope","all evidence-bearing results; ranked deterministically");root.put("candidate_target_count",ChemicalCatalog.COUNT);
             root.put("device_calibration_provider",calibration==null?"none":"active");root.put("identity_confirmed",identityConfirmed);root.put("safety_interpretation_enabled",false);root.put("mq7_mq9_heater_validation",false);root.put("quality",qualityJson(decision));
         }catch(Exception ignored){}return root.toString();
     }
