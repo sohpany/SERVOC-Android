@@ -1,7 +1,7 @@
 # HazRob 0.10.1 — Field clean-air R0 baseline
 
 Controlled change: **HR-0101-043**  
-Status: **verification pending**
+Status: **SOURCE IMPLEMENTED — FINAL BUILD REVERIFICATION PENDING — FIELD VALIDATION PENDING**
 
 ## Source session
 
@@ -30,16 +30,28 @@ The project already aggregates MQ response in log space. For consistency, the ac
 | MQ9 | 32.3349994303 |
 | MQ135 | 198.8868482045 |
 
+## Implemented semantics
+
+- Firmware uses the eight field R0 values directly when calculating `Rs/R0`.
+- Raw firmware MQ JSON declares `r0_calibrated=true`, `r0_source=field_clean_air_r0`, the source session and sample count.
+- Raw firmware and Android both keep `r0_reference_validated=false`; the clean-air baseline cannot by itself enable quantitative ppm interpretation.
+- Android accepts a persistent manual device R0 as an override, otherwise it falls back to this controlled field baseline.
+- Normalized Android state distinguishes `CALIBRATED_FIELD_BASELINE` from `CALIBRATED_MANUAL`, `CALIBRATED_FIRMWARE`, and `UNCALIBRATED`.
+
 ## Scientific status
 
 These values are **device-specific clean-air normalization baselines** for the installed HazRob sensor assembly. They make the field fingerprint `Rs/R0` dimensionless and should place a repeat clean-air measurement near `Rs/R0 = 1.0` for each channel, within normal sensor drift and repeatability.
 
 They are **not** manufacturer/reference-gas validation of any ppm curve. A curve may be treated as quantitative only when its own device-specific calibration record passes the existing `referenceValidated` gate. Environmental compensation is also not claimed because temperature/humidity/pressure data were unavailable during this source session.
 
-## Acceptance tests
+## Verification history
 
-1. Android unit tests pass, including `FieldR0BaselineTest`.
-2. Android release APK builds successfully.
-3. ESP32 master firmware compiles with the new R0 constants; ESP32-CAM remains unaffected.
-4. A new very-clean-air session after flashing the firmware yields approximately `Rs/R0 ≈ 1.0` on all eight channels; deviations are evaluated by the stability gate rather than forced to exactly 1.0.
-5. Reports expose the calibration provenance and do not promote this clean-air baseline to `reference-gas validated` ppm calibration.
+A preliminary integrated build before the final raw-firmware provenance correction passed the HazRob cross-component audit, all Android unit tests, Android release assembly, and both ESP32 master / ESP32-CAM compilation. The final provenance correction changes metadata only; both controlled builders must be rerun on the same final branch head before source/build verification is closed.
+
+## Remaining acceptance tests
+
+1. Final-head Android unit tests and release APK build pass.
+2. Final-head ESP32 master and ESP32-CAM firmware compile pass.
+3. A new very-clean-air session after flashing the final firmware yields approximately `Rs/R0 ≈ 1.0` on all eight channels; deviations are evaluated by the stability gate rather than forced to exactly 1.0.
+4. The new report exposes `field_clean_air_r0` provenance and does not promote it to `reference-gas validated` ppm calibration.
+5. ENV diagnostics are reviewed in the same physical session because environmental compensation remains unavailable until a valid BME/BMP measurement is present.
