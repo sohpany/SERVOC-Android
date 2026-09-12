@@ -20,7 +20,8 @@ void motionStop(),emergencyStop();
 
 bool relaySetMask(uint8_t on);
 void sensorPowerOff();
-void measureStart(),measureCancel();
+bool measureStart();
+void measureCancel();
 
 // App-originated gas-response alerts: 0=clear, 1=warning, 2=danger.
 bool alertSet(uint8_t severity,uint32_t ttlMs=3000);
