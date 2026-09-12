@@ -1,7 +1,7 @@
 # HazRob 0.10.1 — Field clean-air R0 baseline
 
 Controlled change: **HR-0101-043**  
-Status: **SOURCE IMPLEMENTED — FINAL BUILD REVERIFICATION PENDING — FIELD VALIDATION PENDING**
+Status: **SOURCE/BUILD PASS — FIELD VALIDATION PENDING**
 
 ## Source session
 
@@ -44,14 +44,27 @@ These values are **device-specific clean-air normalization baselines** for the i
 
 They are **not** manufacturer/reference-gas validation of any ppm curve. A curve may be treated as quantitative only when its own device-specific calibration record passes the existing `referenceValidated` gate. Environmental compensation is also not claimed because temperature/humidity/pressure data were unavailable during this source session.
 
-## Verification history
+## Source/build verification
 
-A preliminary integrated build before the final raw-firmware provenance correction passed the HazRob cross-component audit, all Android unit tests, Android release assembly, and both ESP32 master / ESP32-CAM compilation. The final provenance correction changes metadata only; both controlled builders must be rerun on the same final branch head before source/build verification is closed.
+Verified source commit: `48c374660a64f0840e92c3fd142fc8780ba90026`
 
-## Remaining acceptance tests
+- Cross-component HazRob 0.10.1 integration contract: **PASS**.
+- Android unit tests: **PASS**.
+- Android release assembly: **PASS**.
+- Android controlled builder deploy: `dep-daiualm7bikc73a3tc3g` — **live**.
+- Final test APK SHA-256: `e6836b6304e2915962d72f64de3bf2fdaca8d49c26aa9d52a3bab3ee3125c05e`.
+- APK signer SHA-256: `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
+- ESP32 master firmware compile: **PASS**; 1,091,089 bytes program storage (34%), 50,204 bytes globals (15%).
+- ESP32-CAM firmware compile: **PASS**; 1,118,771 bytes program storage (35%), 67,836 bytes globals (20%).
+- Firmware controlled builder deploy: `dep-daiuan7qj5pc73bjl8c0` — **live**.
+- Existing non-blocking compiler warnings remain in remote cloud/video code and one unused helper; no R0/calibration compile errors were recorded.
 
-1. Final-head Android unit tests and release APK build pass.
-2. Final-head ESP32 master and ESP32-CAM firmware compile pass.
-3. A new very-clean-air session after flashing the final firmware yields approximately `Rs/R0 ≈ 1.0` on all eight channels; deviations are evaluated by the stability gate rather than forced to exactly 1.0.
-4. The new report exposes `field_clean_air_r0` provenance and does not promote it to `reference-gas validated` ppm calibration.
-5. ENV diagnostics are reviewed in the same physical session because environmental compensation remains unavailable until a valid BME/BMP measurement is present.
+The documentation closeout commit is intentionally separate from the verified source commit and changes documentation only; no source code was changed after the verified build.
+
+## Remaining field acceptance tests
+
+1. Flash the final master firmware derived from verified source commit `48c374660a64f0840e92c3fd142fc8780ba90026`.
+2. Run a new very-clean-air session after adequate MQ warm-up. The eight channels should center approximately around `Rs/R0 ≈ 1.0`; normal drift is evaluated by the stability gate rather than forcing an exact value.
+3. Confirm the exported report exposes `field_clean_air_r0`, the calibration session provenance, and `r0_reference_validated=false`.
+4. Review the detailed ENV diagnostics in the same physical session because environmental compensation remains unavailable until a valid BME/BMP measurement is present.
+5. Only after this physical repeatability check may HR-0101-043 be marked **FIELD PASS**.
