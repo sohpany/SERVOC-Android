@@ -1,5 +1,6 @@
 package com.servoc.app.communication;
 
+import com.servoc.app.calibration.FieldR0Baseline;
 import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import org.json.JSONObject;
@@ -39,17 +40,20 @@ public class RobotProtocolV4AlertTest {
         assertFalse(HazRobHardwareProfile.LDR_QUANTITATIVE_LUX);
     }
 
-    @Test public void firmwarePlaceholderR0NeverBecomesManualCalibration()throws Exception{
+    @Test public void firmwarePlaceholderR0FallsBackToAcceptedFieldBaselineWithoutReferenceValidation()throws Exception{
         ManualR0Calibration.clear(null,"mq2");
         JSONObject diag=new JSONObject().put("fw","HazRob 0.10.0").put("api",4).put("hardware_profile",HazRobHardwareProfile.ID);
         JSONObject mq2=new JSONObject().put("ok",true).put("raw",1000).put("ao",1.0).put("adc",1.0).put("rs",40.0).put("ratio",4.0).put("r0",10.0).put("r0_calibrated",false).put("r0_source","firmware_default").put("powered",true);
         JSONObject data=new JSONObject().put("mq",new JSONObject().put("mq2",mq2));
         JSONObject q=RobotProtocolV4.normalize(diag,data,0,0).getJSONObject("mq").getJSONObject("mq2");
         assertFalse(q.getBoolean("firmware_r0_calibrated"));
-        assertFalse(q.getBoolean("r0_calibrated"));
+        assertTrue(q.getBoolean("r0_calibrated"));
         assertFalse(q.getBoolean("manual_calibration_confirmed"));
-        assertEquals("UNCALIBRATED",q.getString("calibration_status"));
-        assertEquals("firmware_placeholder_or_unknown",q.getString("r0_source"));
+        assertEquals("CALIBRATED_FIELD_BASELINE",q.getString("calibration_status"));
+        assertEquals(FieldR0Baseline.SOURCE,q.getString("r0_source"));
+        assertFalse(q.getBoolean("r0_reference_validated"));
+        assertEquals(FieldR0Baseline.value("mq2"),q.getDouble("r0"),1e-9);
+        assertEquals(40.0/FieldR0Baseline.value("mq2"),q.getDouble("ratio"),1e-9);
     }
 
     @Test public void normalizesBatteryProximityAndEnergyBasis()throws Exception{
