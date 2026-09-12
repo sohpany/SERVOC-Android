@@ -18,11 +18,10 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-/** HazRob analytical report facade. All new reports bind charts and ChemCore provenance to the exact measurement session. */
+/** HazRob analytical report facade. All reports bind analytical provenance to the exact measurement session. */
 public final class ReportExporter {
     private ReportExporter(){}
     private static final String FOOTER="HazRob "+ReleaseAudit.VERSION+" • إعداد المشروع/ "+ReleaseAudit.PROJECT_PREPARERS+".";
@@ -39,39 +38,18 @@ public final class ReportExporter {
 
         PdfDocument.Page page=page(pdf,pageNo++);Canvas c=page.getCanvas();summary(c,r,snapshot,analytics,chemcore,series,chemicals);footer(c);pdf.finishPage(page);
 
-        if(chemcore!=null){
-            page=page(pdf,pageNo++);c=page.getCanvas();chemCoreProvenance(c,chemcore);footer(c);pdf.finishPage(page);
-        }
+        if(resultCount(analytics)>0||analytics.optJSONObject("quality")!=null){page=page(pdf,pageNo++);c=page.getCanvas();advancedAnalysis(c,analytics,snapshot);footer(c);pdf.finishPage(page);}
+
+        if(chemcore!=null){page=page(pdf,pageNo++);c=page.getCanvas();chemCoreProvenance(c,chemcore);footer(c);pdf.finishPage(page);}
 
         if(series!=null&&series.usable()){
-            page=page(pdf,pageNo++);c=page.getCanvas();
-            AnalyticalCharts.mqRsR0(c,new RectF(28,42,567,405),series);
-            AnalyticalCharts.fingerprint(c,new RectF(28,430,567,790),series);
-            footer(c);pdf.finishPage(page);
-
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqRsR0(c,new RectF(28,42,567,405),series);AnalyticalCharts.fingerprint(c,new RectF(28,430,567,790),series);footer(c);pdf.finishPage(page);
             PpmImage ppm=chemicals==null?null:renderPpm(series,chemicals,analytics);
-            if(ppm!=null&&ppm.count>0){
-                page=page(pdf,pageNo++);c=page.getCanvas();
-                c.drawBitmap(ppm.bitmap,null,new RectF(28,70,567,650),null);
-                text(c,"يظهر هذا الرسم فقط للمركبات التي أعاد محرك المعايرة لها قياساً كمياً صالحاً عبر أكثر من عينة.",32,700,10,Color.DKGRAY,false);
-                footer(c);pdf.finishPage(page);ppm.bitmap.recycle();
-            }
-
-            page=page(pdf,pageNo++);c=page.getCanvas();
-            AnalyticalCharts.candidates(c,new RectF(28,42,567,330),candidatePayload(analytics,chemcore));
-            AnalyticalCharts.temperature(c,new RectF(28,350,567,555),series);
-            AnalyticalCharts.humidity(c,new RectF(28,575,567,790),series);
-            footer(c);pdf.finishPage(page);
-
-            page=page(pdf,pageNo++);c=page.getCanvas();
-            AnalyticalCharts.pressure(c,new RectF(28,42,567,390),series);
-            AnalyticalCharts.sound(c,new RectF(28,420,567,790),series);
-            footer(c);pdf.finishPage(page);
+            if(ppm!=null&&ppm.count>0){page=page(pdf,pageNo++);c=page.getCanvas();c.drawBitmap(ppm.bitmap,null,new RectF(28,70,567,650),null);text(c,"Quantitative curves are shown only when the calibration engine returned a valid quantitative result across recorded samples.",32,700,9,Color.DKGRAY,false);footer(c);pdf.finishPage(page);ppm.bitmap.recycle();}
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(28,42,567,330),candidatePayload(analytics,chemcore));AnalyticalCharts.temperature(c,new RectF(28,350,567,555),series);AnalyticalCharts.humidity(c,new RectF(28,575,567,790),series);footer(c);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.pressure(c,new RectF(28,42,567,390),series);AnalyticalCharts.sound(c,new RectF(28,420,567,790),series);footer(c);pdf.finishPage(page);
         }else{
-            page=page(pdf,pageNo++);c=page.getCanvas();
-            AnalyticalCharts.candidates(c,new RectF(28,42,567,400),candidatePayload(analytics,chemcore));
-            text(c,"لا توجد سلسلة زمنية مسجلة ومطابقة لهذه التجربة؛ لم يتم إنشاء منحنيات زمنية.",35,445,11,Color.DKGRAY,false);
-            footer(c);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(28,42,567,400),candidatePayload(analytics,chemcore));text(c,"No matching recorded time-series is available for this experiment; temporal charts were not generated.",35,445,10,Color.DKGRAY,false);footer(c);pdf.finishPage(page);
         }
         pdf.writeTo(out);pdf.close();
     }
@@ -86,42 +64,33 @@ public final class ReportExporter {
 
     private static void summary(Canvas c,ExperimentQueries.Record r,JSONObject d,JSONObject a,JSONObject chemcore,SessionSeries.Series s,ChemicalRepository chemicals){
         text(c,"HazRob "+ReleaseAudit.VERSION+" — Analytical Report",32,44,18,Color.BLACK,true);float y=78;
-        JSONObject relay=d.optJSONObject("relay"),adc=d.optJSONObject("adc"),env=d.optJSONObject("env"),measurement=d.optJSONObject("measurement"),sensorPower=d.optJSONObject("sensor_power");boolean mqOn=relay!=null&&relay.optBoolean("on",relay.optInt("mask",0)!=0);long mqPowerMs=relay==null?0:relay.optLong("power_ms",0);
-        boolean ads1=adc!=null&&adc.optBoolean("ads1",false),ads2=adc!=null&&adc.optBoolean("ads2",false);String envState=env!=null&&env.optBoolean("ok",false)?env.optString("type",env.optString("sensor","ENV")):"not detected";String measureState=measurement==null?"—":measurement.optString("state","—");String measureError=measurement==null?"":measurement.optString("error","");if(!measureError.isEmpty())measureState+=" • "+measureError;
+        JSONObject relay=d.optJSONObject("relay"),adc=d.optJSONObject("adc"),env=d.optJSONObject("env"),measurement=d.optJSONObject("measurement"),sensorPower=d.optJSONObject("sensor_power"),quality=a.optJSONObject("quality");boolean mqOn=relay!=null&&relay.optBoolean("on",relay.optInt("mask",0)!=0);long mqPowerMs=relay==null?0:relay.optLong("power_ms",0);
+        boolean ads1=adc!=null&&adc.optBoolean("ads1",false),ads2=adc!=null&&adc.optBoolean("ads2",false);String envState=env!=null&&env.optBoolean("ok",false)?env.optString("type",env.optString("sensor","ENV"))+" • "+env.optString("address","—"):"not ready • "+(env==null?"no diagnostics":env.optString("status_code","unknown"));String measureState=measurement==null?"—":measurement.optString("state","—");String measureError=measurement==null?"":measurement.optString("error","");if(!measureError.isEmpty())measureState+=" • "+measureError;
         String liveDiagnostic="—";if(sensorPower!=null){liveDiagnostic=sensorPower.optString("code","—")+" • "+sensorPower.optInt("valid_channels",0)+"/"+sensorPower.optInt("available_channels",0)+" valid"+(sensorPower.optBoolean("power_cause_confirmed",false)?" • power cause confirmed":" • power cause inferred only");}
         String session=s==null?nz(r.sessionId):nz(s.sessionId);
-        String[][] rows={{"Experiment",String.valueOf(r.id)},{"UTC",nz(r.ts)},{"Protocol",nz(r.protocol)},{"Session",session},{"Capture",r.captureId>0?String.valueOf(r.captureId):"—"},{"Reference kind",nz(r.referenceKind)},{"Firmware",d.optString("firmware","—")},{"API",String.valueOf(d.optInt("api_version",0))},{"Hardware",d.optString("hardware_profile",HazRobHardwareProfile.ID)},{"ADS1 0x48",ads1?"OK":"NOT DETECTED"},{"ADS2 0x49",ads2?"OK":"NOT DETECTED"},{"Environment",envState},{"Live MQ diagnostic",liveDiagnostic},{"Measurement",measureState},{"MQ Power",(mqOn?"ON":"OFF")+" • GPIO25 • 8 sensors"},{"MQ Power Time",mqOn?mqPowerMs+" ms":"0 ms"},{"Time-series",s!=null&&s.usable()?s.samples.size()+" samples / "+String.format(Locale.US,"%.1f s",s.durationMs()/1000.0):"not available"},{"Knowledge base",chemicals==null?"—":String.valueOf(chemicals.count())},{"Legacy candidates",String.valueOf(resultCount(a))},{"ChemCore outcome",chemcore==null?"not recorded":chemcore.optString("outcome","—")},{"Evidence tier",chemcore==null?"—":chemcore.optString("evidence_tier","—")}};
-        for(String[] row:rows){text(c,row[0],38,y,10,Color.DKGRAY,true);text(c,row[1],170,y,10,Color.BLACK,false);y+=22;}
-        y+=8;text(c,"Analytical interpretation",38,y,13,Color.BLACK,true);y+=22;
-        if(chemcore!=null){
-            String top=chemcore.optString("chemical","");double p=chemcore.optDouble("top_posterior",Double.NaN),ood=chemcore.optDouble("ood_score",Double.NaN);
-            String value=(top.isEmpty()?"No accepted identity":top)+(Double.isFinite(p)?String.format(Locale.US," • posterior %.3f",p):"")+(Double.isFinite(ood)?String.format(Locale.US," • OOD %.3f",ood):"");
-            text(c,value,42,y,9,Color.BLACK,false);y+=20;
-            text(c,"ChemCore provenance is printed on the following page and is bound to this exact session ID.",42,y,9,Color.DKGRAY,false);y+=20;
-        }else{
-            text(c,"No session-bound ChemCore decision exists for this experiment; legacy analytics are shown without promotion to ChemCore evidence.",42,y,9,Color.DKGRAY,false);y+=20;
-        }
-        y+=8;text(c,"Safety interpretation",38,y,12,Color.BLACK,true);y+=20;text(c,"التحذير اللحظي واستجابة MQ لا يمثلان وحدهما تحديداً كيميائياً قطعياً؛ التحليل النهائي يعتمد على الأدلة المتعددة والمعايرة المتاحة.",38,y,9,Color.DKGRAY,false);
+        String[][] rows={{"Experiment",String.valueOf(r.id)},{"UTC",nz(r.ts)},{"Protocol",nz(r.protocol)},{"Session",session},{"Capture",r.captureId>0?String.valueOf(r.captureId):"—"},{"Reference kind",nz(r.referenceKind)},{"Firmware",d.optString("firmware","—")},{"API",String.valueOf(d.optInt("api_version",0))},{"Hardware",d.optString("hardware_profile",HazRobHardwareProfile.ID)},{"ADS1 0x48",ads1?"OK":"NOT DETECTED"},{"ADS2 0x49",ads2?"OK":"NOT DETECTED"},{"Environment",envState},{"Live MQ diagnostic",liveDiagnostic},{"Measurement",measureState},{"MQ Power",(mqOn?"ON":"OFF")+" • GPIO25 • 8 sensors"},{"MQ Power Time",mqOn?mqPowerMs+" ms":"0 ms"},{"Time-series",s!=null&&s.usable()?s.samples.size()+" samples / "+String.format(Locale.US,"%.1f s",s.durationMs()/1000.0):"not available"},{"Knowledge base",chemicals==null?"—":String.valueOf(chemicals.count())},{"Analytical candidates",String.valueOf(resultCount(a))},{"Analysis version",a.optString("analysis_version","legacy")},{"Screening outcome",quality==null?"—":quality.optString("outcome","—")},{"Valid MQ channels",quality==null?"—":quality.optInt("valid_channels",0)+"/8"},{"Calibrated R0",quality==null?"—":quality.optInt("calibrated_r0_channels",0)+"/8"},{"Top score",quality==null?"—":finite(quality,"top_score_pct")+" %"},{"Separation margin",quality==null?"—":finite(quality,"separation_margin_pct")+" %"},{"ChemCore outcome",chemcore==null?"not recorded":chemcore.optString("outcome","—")},{"Evidence tier",chemcore==null?"—":chemcore.optString("evidence_tier","—")}};
+        for(String[] row:rows){if(y>675)break;text(c,row[0],38,y,9,Color.DKGRAY,true);text(c,row[1],180,y,9,Color.BLACK,false);y+=19;}
+        y=Math.max(y+8,610);text(c,"Safety interpretation",38,y,12,Color.BLACK,true);y+=20;text(c,"MQ-array output is a screening/e-nose candidate result. Definitive identity and quantitative exposure claims require the documented calibration/evidence gates.",38,y,8,Color.DKGRAY,false);
+    }
+
+    private static void advancedAnalysis(Canvas c,JSONObject a,JSONObject d){
+        text(c,"Advanced MQ Fingerprint Analysis",32,44,17,Color.BLACK,true);JSONObject q=a.optJSONObject("quality");float y=76;
+        if(q!=null){String[][] meta={{"Analysis version",a.optString("analysis_version","—")},{"Outcome",q.optString("outcome","—")},{"Valid channels",q.optInt("valid_channels",0)+"/8"},{"Calibrated R0",q.optInt("calibrated_r0_channels",0)+"/8"},{"Environment",q.optBoolean("environment_available",false)?"available":"not available"},{"Quantitative gate",q.optBoolean("quantitative_permitted",false)?"permitted":"withheld"},{"Top score",finite(q,"top_score_pct")+" %"},{"Runner-up score",finite(q,"runner_up_score_pct")+" %"},{"Separation margin",finite(q,"separation_margin_pct")+" %"}};for(String[] r:meta){text(c,r[0],36,y,9,Color.DKGRAY,true);text(c,r[1],170,y,9,Color.BLACK,false);y+=18;}text(c,q.optString("note",""),36,y+4,8,Color.DKGRAY,false);y+=35;}
+        JSONObject env=d.optJSONObject("env");if(env!=null){String ev="ENV "+env.optString("type","NONE")+" • status "+env.optString("status_code","unknown")+" • 0x76 "+(env.optBoolean("ack_0x76",false)?"ACK":"—")+" • 0x77 "+(env.optBoolean("ack_0x77",false)?"ACK":"—");text(c,ev,36,y,8,Color.DKGRAY,false);y+=24;}
+        text(c,"Rank",36,y,8,Color.DKGRAY,true);text(c,"Candidate",70,y,8,Color.DKGRAY,true);text(c,"Score",275,y,8,Color.DKGRAY,true);text(c,"Coverage",325,y,8,Color.DKGRAY,true);text(c,"Evidence",385,y,8,Color.DKGRAY,true);text(c,"Agreement",445,y,8,Color.DKGRAY,true);text(c,"n",525,y,8,Color.DKGRAY,true);y+=16;
+        JSONArray rs=a.optJSONArray("results");if(rs==null||rs.length()==0){text(c,"No evidence-bearing candidates recorded.",42,y,9,Color.DKGRAY,false);return;}
+        for(int i=0;i<rs.length()&&y<760;i++){JSONObject r=rs.optJSONObject(i);if(r==null)continue;String name=r.optString("name_ar",r.optString("name",r.optString("name_en","Chemical #"+r.optInt("chemical_id",-1))));String agreement=r.optBoolean("agreement_defined",false)?String.format(Locale.US,"%.0f%%",r.optDouble("agreement",0)):"N/A";text(c,String.valueOf(r.optInt("rank",i+1)),36,y,8,Color.BLACK,false);text(c,name,70,y,8,Color.BLACK,false);text(c,String.format(Locale.US,"%.1f",r.optDouble("candidate_score_pct",0)),275,y,8,Color.BLACK,false);text(c,String.format(Locale.US,"%.1f",r.optDouble("coverage_pct",0)),325,y,8,Color.BLACK,false);text(c,String.format(Locale.US,"%.1f",r.optDouble("evidence_quality_pct",0)),385,y,8,Color.BLACK,false);text(c,agreement,445,y,8,Color.BLACK,false);text(c,String.valueOf(r.optInt("contributors",0)),525,y,8,Color.BLACK,false);y+=17;}
+        text(c,"Agreement is intentionally undefined for a single contributing sensor and is not displayed as 100%.",36,792,8,Color.DKGRAY,false);
     }
 
     private static void chemCoreProvenance(Canvas c,JSONObject q){
-        text(c,"ChemCore — Session-Bound Analytical Provenance",32,44,17,Color.BLACK,true);float y=80;
-        JSONObject lib=q.optJSONObject("library");
+        text(c,"ChemCore — Session-Bound Analytical Provenance",32,44,17,Color.BLACK,true);float y=80;JSONObject lib=q.optJSONObject("library");
         String[][] rows={{"Schema",q.optString("schema","—")},{"Session",q.optString("session_id","—")},{"Outcome",q.optString("outcome","—")},{"Evidence tier",q.optString("evidence_tier","—")},{"Chemical UID",q.has("chemical_uid")?String.valueOf(q.optLong("chemical_uid")):"—"},{"Chemical",q.optString("chemical","—")},{"PPM",finite(q,"ppm")},{"Prediction interval",finite(q,"prediction_low")+" .. "+finite(q,"prediction_high")},{"Top posterior",finite(q,"top_posterior")},{"Normalized entropy",finite(q,"normalized_entropy")},{"OOD score",finite(q,"ood_score")},{"Sampling profile",q.optString("sampling_profile_id","—")},{"Feature schema",q.optString("feature_schema","—")},{"Model version",q.optString("model_version","—")},{"Library version",lib==null?"—":lib.optString("version","—")},{"Library SHA-256",lib==null?"—":lib.optString("sha256","—")},{"Library source commit",lib==null?"—":lib.optString("source_commit","—")},{"Occupational quantitative interpretation",q.optBoolean("quantitative_occupational_interpretation_permitted",false)?"PERMITTED by evidence gate":"NOT PERMITTED"},{"Note",q.optString("note","")}};
         for(String[] row:rows){text(c,row[0],36,y,9,Color.DKGRAY,true);text(c,221,y,9,Color.BLACK,false,row[1]);y+=22;}
-        JSONArray candidates=q.optJSONArray("candidates");y+=6;text(c,"Candidate posterior ranking",36,y,12,Color.BLACK,true);y+=22;
-        if(candidates==null||candidates.length()==0){text(c,"No ChemCore candidates recorded.",42,y,9,Color.DKGRAY,false);return;}
-        for(int i=0;i<Math.min(8,candidates.length())&&y<790;i++){
-            JSONObject x=candidates.optJSONObject(i);if(x==null)continue;
-            String label=x.optString("label","Chemical "+x.optLong("chemical_uid",-1));
-            String v="posterior "+finite(x,"posterior")+" • best ppm "+finite(x,"best_ppm")+" • residual "+finite(x,"residual_rms")+" • n="+x.optInt("contributors",0)+" • "+x.optString("evidence_tier","—");
-            text(c,(i+1)+". "+label,42,y,9,Color.BLACK,true);text(c,v,255,y,8,Color.DKGRAY,false);y+=20;
-        }
+        JSONArray candidates=q.optJSONArray("candidates");y+=6;text(c,"Candidate posterior ranking",36,y,12,Color.BLACK,true);y+=22;if(candidates==null||candidates.length()==0){text(c,"No ChemCore candidates recorded.",42,y,9,Color.DKGRAY,false);return;}for(int i=0;i<Math.min(8,candidates.length())&&y<790;i++){JSONObject x=candidates.optJSONObject(i);if(x==null)continue;String label=x.optString("label","Chemical "+x.optLong("chemical_uid",-1));String v="posterior "+finite(x,"posterior")+" • best ppm "+finite(x,"best_ppm")+" • residual "+finite(x,"residual_rms")+" • n="+x.optInt("contributors",0)+" • "+x.optString("evidence_tier","—");text(c,(i+1)+". "+label,42,y,9,Color.BLACK,true);text(c,v,255,y,8,Color.DKGRAY,false);y+=20;}
     }
 
-    private static JSONObject chemCoreFor(ChemicalRepository chemicals,ExperimentQueries.Record r,SessionSeries.Series series){
-        if(chemicals==null)return null;String session=series!=null&&!nz(series.sessionId).isEmpty()?series.sessionId:r.sessionId;if(nz(session).isEmpty())return null;return new ChemCoreDecisionRepository(chemicals.database()).latestPayloadForSession(session);
-    }
+    private static JSONObject chemCoreFor(ChemicalRepository chemicals,ExperimentQueries.Record r,SessionSeries.Series series){if(chemicals==null)return null;String session=series!=null&&!nz(series.sessionId).isEmpty()?series.sessionId:r.sessionId;if(nz(session).isEmpty())return null;return new ChemCoreDecisionRepository(chemicals.database()).latestPayloadForSession(session);}
     private static JSONObject candidatePayload(JSONObject legacy,JSONObject chemcore){return chemcore!=null&&chemcore.optJSONArray("candidates")!=null?chemcore:legacy;}
     private static String finite(JSONObject q,String key){double v=q==null?Double.NaN:q.optDouble(key,Double.NaN);return Double.isFinite(v)?String.format(Locale.US,"%.6g",v):"—";}
     private static void footer(Canvas c){text(c,FOOTER,297,826,8,Color.DKGRAY,false,Paint.Align.CENTER);}
