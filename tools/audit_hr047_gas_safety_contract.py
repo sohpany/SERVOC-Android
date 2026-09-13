@@ -76,7 +76,7 @@ def main() -> int:
     req(gas, 'symbols(toxicReferenceCrossed,flame)', "hazard symbols")
     req(gas, 'if(skull)s.append("☠")', "skull marker")
     req(gas, 'if(flame)s.append("🔥")', "flame marker")
-    req(gas_test, "lflBelowThresholdDoesNotRaiseFlameAndAtThresholdDoes", "LFL marker regression")
+    req(gas_test, "lflUsesVolPercentToPpmAndFlameOnlyAtFullLfl", "LFL marker regression")
 
     # 5) Relative hazard is the default safety order; absolute ppm remains an operator view only.
     req(priority, "enum Mode { HAZARD, CONCENTRATION }", "sort modes")
