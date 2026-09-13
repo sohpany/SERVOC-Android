@@ -57,6 +57,7 @@ The joint inverse solver continues to use logarithmic/power-law response models 
 - The fitted solution must remain inside every contributing validated concentration domain.
 - If calibrated evidence exists but the solution is outside the validated domain, the outcome is `OUT_OF_VALIDATED_DOMAIN`, not an extrapolated ppm.
 - M1–M3 fitted ppm values remain internal screening/fit hypotheses and are withheld from the reportable quantitative result.
+- `InverseMolecularSolver.Result.hasDeviceValidatedQuantitativeSupport()` is aligned to the same rule so no secondary caller can interpret partial M4 evidence as complete quantitative support.
 
 The candidate agreement metric is a residual-consistency diagnostic, not a calibrated probability of identity.
 
@@ -121,6 +122,9 @@ The accepted field clean-air R0 values from `FIELD-1789255293867` remain device-
   - a complete 3-level × 3-replicate controlled campaign can generate an accepted QC marker;
   - legacy plain-text curve provenance cannot count as M4;
   - incomplete campaigns cannot generate accepted M4 provenance.
+- `ChemCoreM4CompletenessGateTest`
+  - one M4 curve plus one literature/manufacturer curve in the same joint fit remains `IDENTIFIED`/M3 with PPM withheld;
+  - a fully M4-calibrated joint fit inside the accepted open-set/domain gates may become `QUANTIFIED`.
 
 Existing cross-component integration, Android unit and release tests remain mandatory.
 
@@ -155,4 +159,4 @@ Only after those physical campaigns may the relevant calibration pairs and overa
 - No assumed environmental values.
 - No automatic extrapolation beyond validated curve domains.
 - No automatic promotion of field-clean-air R0 to reference-gas calibration.
-- No quantitative occupational ppm result without M4 + identity-domain acceptance.
+- No quantitative occupational ppm result without complete M4 + identity-domain acceptance.
