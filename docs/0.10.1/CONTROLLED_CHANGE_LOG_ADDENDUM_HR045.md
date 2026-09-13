@@ -3,7 +3,7 @@
 **Change ID:** HR-0101-045  
 **Title:** Three-session field clean-air R0 acceptance baseline  
 **Version:** HazRob 0.10.1 / API 4  
-**Status:** FIELD R0 ACCEPTANCE PASS — SOURCE UPDATED — BUILD VERIFICATION PENDING
+**Status:** **SOURCE/BUILD PASS — FIELD R0 ACCEPTANCE PASS**
 
 ## 1. Objective
 
@@ -76,7 +76,7 @@ Updated without changing HazRob 0.10.1/API4 identity or GPIO allocation:
 
 Immediate physical reflashing of the installed ESP32 is not required to accept the field campaign. The uploaded reports already contain sufficient traceable data to reconstruct `Rs` and calculate the accepted R0 standard.
 
-Until the ESP32 is reflashed, it will continue to emit normalized ratios using its currently installed older R0 constants. The controlled source and subsequent matching Android build contain the new standard; hardware synchronization can be performed when physical access is convenient.
+Until the ESP32 is reflashed, it will continue to emit normalized ratios using its currently installed older R0 constants. The controlled source and matching Android build contain the new standard; hardware synchronization can be performed when physical access is convenient.
 
 ESP32-CAM does not require an R0-related logic change.
 
@@ -86,14 +86,37 @@ HR-0101-045 closes the clean-air **R0 field repeatability/acceptance** requireme
 
 PPM remains gated by the HR-0101-044 M4 requirements, including accepted device/reference-gas calibration, complete contributing-curve validation, QC/publication acceptance, open-set identity acceptance, and operation inside the validated concentration domain.
 
-## 9. Required source/build verification
+## 9. Source/build verification
 
-Before HR-0101-045 is marked SOURCE/BUILD PASS, the final exact branch head containing these changes must pass the controlled Render evidence path:
+Verified exact source commit: `197918e583e60f9369194137cc2ca098ecf75e90`.
 
-1. HazRob cross-component integration contract;
-2. Android unit tests including `FieldR0BaselineTest`;
-3. Android release assembly/signing continuity;
-4. main ESP32 compile;
-5. ESP32-CAM compatibility compile or explicit unchanged-camera compatibility confirmation under the existing whole-system builder.
+### Android controlled builder
+
+- Deploy: `dep-daivpde7bikc73a8dcng` — **live**.
+- Cross-component HazRob 0.10.1 integration contract: **PASS**.
+- `:app:testDebugUnitTest`: **PASS**, including the updated `FieldR0BaselineTest`.
+- `:app:assembleRelease`: **PASS**.
+- `lintVitalRelease`: **PASS**.
+- APK SHA-256: `cd961801351e5ee0b413074767887fe9d8943d56236846f1c148f3d7a5c035d6`.
+- Signer certificate SHA-256: `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0` — signing continuity **PASS**.
+- Version identity remains `versionName=0.10.1`, `versionCode=21`.
+
+### Firmware controlled builder
+
+An initial cached deployment `dep-daivperm8hqs73eeruag` stopped before compilation because `arduino-cli config init` encountered a pre-existing cached configuration file. This was a builder-cache state issue, not a source/compile failure. A clean-cache exact-source redeploy was therefore executed.
+
+- Clean-cache deploy: `dep-daivr095efls73f3tcj0` — **live**.
+- Cross-component HazRob 0.10.1 integration contract: **PASS**.
+- Arduino CLI: `1.5.1`.
+- ESP32 Arduino core: `esp32:esp32@3.3.11`.
+- Main ESP32 target `esp32:esp32:esp32:PartitionScheme=huge_app`: **PASS**.
+  - Program storage: **1,091,105 bytes (34%)**.
+  - Globals: **50,204 bytes (15%)**; **277,476 bytes** left for local variables.
+- ESP32-CAM target `esp32:esp32:esp32cam`: **PASS**.
+  - Program storage: **1,118,771 bytes (35%)**.
+  - Globals: **67,836 bytes (20%)**; **259,844 bytes** left for local variables.
+- Existing non-blocking warnings in remote cloud/video code and the unused helper remain; no HR-0101-045 R0 compilation error is present.
+
+The documentation closeout commit(s) after `197918e...` are documentation-only and do not modify the verified executable source.
 
 GitHub Actions remains non-authoritative while the previously documented pre-run infrastructure blocker HR-0101-013 persists.
