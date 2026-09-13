@@ -1,11 +1,15 @@
 package com.servoc.app.calibration;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /** Quality-gate result for one device-specific MQ calibration session. */
 public final class CalibrationQualityReport {
+    public static final String SCHEMA="hazrob-calibration-qc/1";
     public final boolean accepted;
     public final int distinctConcentrations;
     public final double concentrationSpanFactor;
@@ -84,6 +88,10 @@ public final class CalibrationQualityReport {
         return new CalibrationQualityReport(fail.isEmpty(),levels.size(),span,r2,worstCv,fail,warn);
     }
 
+    public JSONObject toJson(){
+        JSONObject o=new JSONObject();try{o.put("schema",SCHEMA);o.put("accepted",accepted);o.put("distinct_concentrations",distinctConcentrations);put(o,"concentration_span_factor",concentrationSpanFactor);put(o,"log_power_r2",logPowerR2);put(o,"worst_replicate_cv_pct",worstReplicateCvPercent);JSONArray f=new JSONArray();for(String s:failures)f.put(s);o.put("failures",f);JSONArray w=new JSONArray();for(String s:warnings)w.put(s);o.put("warnings",w);}catch(Exception ignored){}return o;
+    }
+
     public String summary(){
         StringBuilder s=new StringBuilder(accepted?"ACCEPTED":"REJECTED");
         s.append(" | levels=").append(distinctConcentrations)
@@ -95,6 +103,7 @@ public final class CalibrationQualityReport {
         return s.toString();
     }
 
+    private static void put(JSONObject o,String key,double x)throws Exception{o.put(key,Double.isFinite(x)?x:JSONObject.NULL);}
     private static String round(double x){
         if(!Double.isFinite(x))return "NA";
         return String.format(java.util.Locale.US,"%.3f",x);
