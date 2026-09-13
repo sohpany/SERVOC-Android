@@ -3,8 +3,8 @@
 **Change ID:** HR-0101-046  
 **Title:** Unified expanded chemical analytical laboratory, analysis UI and session-bound reporting  
 **Version:** HazRob 0.10.1 / API 4  
-**Executable source baseline:** `2349fdffa81c6b9079167e828028dc8b2a7659ee`  
-**Status:** **SOURCE/ANDROID BUILD PASS — ANALYTICAL SOFTWARE UNIFICATION PASS — EXACT-HEAD FIRMWARE COMPATIBILITY BUILD IN PROGRESS — PHYSICAL M4/ENV VALIDATION PENDING**
+**Executable source baseline:** `6ab64a33a829fa7fd87166aeb0a2e1cbec4b1afc`  
+**Status:** **SOURCE/BUILD PASS — ANALYTICAL SOFTWARE UNIFICATION PASS — PHYSICAL M4/ENV VALIDATION PENDING**
 
 ## 1. Objective
 
@@ -22,7 +22,9 @@ Added `AcceptedR0Normalizer` (`hazrob-r0-normalizer/1`) as the application-side 
 
 The telemetry-provided `ratio` is used only as a compatibility fallback when physical `Rs` is unavailable. This permits the accepted HR-0101-045 baseline to be used immediately even while the installed ESP32 still contains older embedded R0 constants. Firmware synchronization can therefore be deferred until convenient physical access.
 
-`ChemCoreSessionFeatureAdapter` now records normalization provenance, accepted-R0 sample count and telemetry-ratio fallback count for the exact persisted session.
+`ChemCoreSessionFeatureAdapter` records normalization provenance, accepted-R0 sample count and telemetry-ratio fallback count for the exact persisted session.
+
+`SessionSeries` also rebinds the read-only analytical/report view of every recorded MQ sample to the accepted HR-0101-045 R0 whenever `Rs` is present. Raw database bytes remain unchanged. This prevents PDF/XLSX plots and tables from silently using a stale firmware ratio while the physical ESP32 reflash is deferred.
 
 ### Phase B — Single ChemCore analytical authority
 
@@ -58,7 +60,7 @@ Joint inference selects a common concentration hypothesis by minimizing the weig
 
 `ChemCoreLabQuality` now treats the accepted HR-0101-045 R0 campaign as the normalization readiness authority and separately counts M4-capable sensors from active calibration curves whose provenance contains an accepted machine-readable `CalibrationValidationMarker` plus a recorded reference gas.
 
-A semantic weakness in `ChemCoreResultEnvelope.CandidateSummary.hasDeviceQuantitativeSupport()` was also corrected. Candidate-level device quantitative support now requires:
+A semantic weakness in `ChemCoreResultEnvelope.CandidateSummary.hasDeviceQuantitativeSupport()` was corrected. Candidate-level device quantitative support now requires:
 
 `contributors > 0 AND calibratedContributors == contributors AND allContributorsInsideDomain == true`
 
@@ -70,11 +72,11 @@ The controlled ChemCore workflow now attaches the exact lab-quality/calibration/
 
 The controlled result surface records the capture sample count/duration, feature SHA-256, R0 normalization provenance, candidate ranking, equations and residuals.
 
-### Phase F — Expanded PDF/report semantics
+### Phase F — Expanded PDF/XLSX report semantics
 
 The PDF analytical report now includes the HR-0101-045 R0 standard, PPM reportability and withholding reason, runner-up posterior and margin, lab gate snapshot, M4 contributor count, validated-domain state, mathematical equations and explicit `screen-fit` wording for non-reportable fitted concentration hypotheses.
 
-The existing XLSX report remains session-bound and already carries time-series, MQ channels, candidate rows, ChemCore decision/provenance, hardware/environment state and analytical charts. PPM safety remains controlled by the quantitative gate; no M1–M3 screening fit is promoted to an occupational quantitative result.
+The XLSX report remains session-bound and carries time-series, MQ channels, candidate rows, ChemCore decision/provenance, hardware/environment state and analytical charts. Its `SessionSeries` input is now normalized from recorded `Rs` against the accepted HR-0101-045 R0 before report/chart generation, so report-side `Rs/R0` is consistent with the current analytical authority even before physical firmware synchronization.
 
 ## 3. Regression protection added
 
@@ -82,40 +84,58 @@ The existing XLSX report remains session-bound and already carries time-series, 
 
 `ChemCoreAnalysisPresenterTest` verifies that screening-fit ppm remains visibly withheld and that the log/inverse equations, joint-fit explanation, M4 gate and residual evidence are present.
 
-`ChemCoreResultEnvelopeV3Test` now explicitly locks the rule that partial M4 contributor coverage is insufficient while complete contributor coverage inside the validated domain may qualify at the candidate-support level.
+`ChemCoreResultEnvelopeV3Test` explicitly locks the rule that partial M4 contributor coverage is insufficient while complete contributor coverage inside the validated domain may qualify at the candidate-support level.
+
+`SessionSeriesNormalizationTest` verifies that the report view replaces a stale telemetry `ratio/R0` with the accepted HR-0101-045 normalization from `Rs` while retaining `r0_reference_validated=false`.
 
 ## 4. Android exact-source verification
 
 Controlled builder: `hazrob-0101-build`  
-Deploy: `dep-daj07p15efls73f523j0`  
-Source: `2349fdffa81c6b9079167e828028dc8b2a7659ee`  
+Deploy: `dep-daj0ah15efls73f5ae5g`  
+Source: `6ab64a33a829fa7fd87166aeb0a2e1cbec4b1afc`  
 Status: **live**
 
 Verified:
 
 - HazRob 0.10.1 cross-component integration contract: **PASS**;
-- `:app:testDebugUnitTest`: **PASS**;
+- `:app:testDebugUnitTest`: **PASS**, including the HR-0101-046 normalization/presentation/report regressions;
 - `:app:assembleRelease`: **PASS**;
 - `lintVitalRelease`: **PASS**;
 - signing continuity: **PASS**;
 - versionName: `0.10.1`;
 - versionCode: `21`;
-- APK SHA-256: `5e78606ece2ffc3306f9e15e7d3c0f8b26fd22067fbcbef7aaf7b1a7bce37523`;
+- APK SHA-256: `56f4fd8e93c2aa5a6a295e2816d4b27bc2d17735aa74287de4f6d570b062c1f9`;
 - signer certificate SHA-256: `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
 
 ## 5. Firmware compatibility verification
 
-No HR-0101-046 firmware source logic change was introduced after HR-0101-045. A clean controlled compatibility build at source `1311d787de8928232d48f8f1afff6f2f1bb81cb2` completed **live** as deploy `dep-daj07168h83s73a1egk0`:
+HR-0101-046 introduced no firmware source logic change after HR-0101-045. Redundant controlled firmware builds were used to verify whole-system compatibility.
+
+### Exact executable-source firmware baseline before report-only/app-report closeout
+
+Deploy: `dep-daj07qg6gcjs738ghr1g`  
+Source: `2349fdffa81c6b9079167e828028dc8b2a7659ee`  
+Status: **live**
+
+Verified:
 
 - cross-component integration contract: **PASS**;
-- main ESP32: **PASS**, 1,091,105 bytes program storage (34%), 50,204 bytes globals (15%);
-- ESP32-CAM compatibility compile: **PASS** under the whole-system builder.
+- main ESP32: **PASS**, 1,091,105 bytes program storage (34%), 50,204 bytes globals (15%), 277,476 bytes remaining for local variables;
+- ESP32-CAM: **PASS** under `esp32:esp32:esp32cam` with the existing non-blocking compiler warnings only.
 
-Git comparison from `1311d787...` to executable head `2349fdff...` shows that the only intervening file is `app/src/main/java/com/servoc/app/report/ReportExporter.java`; no firmware path changed. An additional exact-head firmware compatibility build `dep-daj07qg6gcjs738ghr1g` was started for redundant exact-SHA evidence and is still in progress at this documentation commit.
+A preceding clean build `dep-daj07168h83s73a1egk0` at source `1311d787de8928232d48f8f1afff6f2f1bb81cb2` also completed **live** with the same main ESP32 size/RAM result and camera compatibility PASS.
+
+Git comparison from `2349fdff...` to final executable Android source `6ab64a33...` contains only:
+
+- `app/src/main/java/com/servoc/app/data/SessionSeries.java`;
+- `app/src/test/java/com/servoc/app/data/SessionSeriesNormalizationTest.java`;
+- HR-0101-046 documentation/manifest files.
+
+No `firmware/` path changed after the successful exact `2349fdff...` firmware build. Therefore the final HR-0101-046 app/report closeout does not invalidate the verified ESP32 or ESP32-CAM binaries.
 
 ## 6. Scientific state after HR-0101-046
 
-The software architecture, mathematical presentation, R0 normalization authority, ChemCore-only analysis surface and session-bound reporting path are complete enough to proceed to controlled physical validation rather than further architectural discovery.
+The software architecture, mathematical presentation, R0 normalization authority, ChemCore-only analysis surface and session-bound PDF/XLSX reporting path are now closed at the source/build level. The next work is controlled physical validation rather than further architectural discovery.
 
 Still pending before final analytical/metrological acceptance:
 
@@ -129,9 +149,11 @@ Still pending before final analytical/metrological acceptance:
 
 - HazRob remains 0.10.1 / API4.
 - No GPIO reassignment.
-- No drive/camera/remote-control behavior change is intended by HR-0101-046.
+- No drive/camera/remote-control behavior change is introduced by HR-0101-046.
 - No assumed T/RH/P.
 - No automatic extrapolation beyond validated calibration domains.
 - No field clean-air R0 promoted to reference-gas calibration.
 - No screening-fit concentration presented as reportable occupational ppm.
 - No candidate-level quantitative support unless every contributing quantitative curve is device/reference-gas validated and inside its validated domain.
+
+The documentation closeout commits after executable source `6ab64a33...` are documentation-only and do not alter the verified executable source.
