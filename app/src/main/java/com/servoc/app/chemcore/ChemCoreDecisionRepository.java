@@ -32,4 +32,21 @@ public final class ChemCoreDecisionRepository {
             try{return new JSONObject(raw);}catch(Exception ignored){return null;}
         }
     }
+
+    /**
+     * Binds the analytical-lab readiness/calibration/environment snapshot to the latest decision of
+     * the same telemetry session. This updates only the JSON audit envelope; scientific scalar
+     * columns and the decision itself are unchanged.
+     */
+    public boolean attachLabQuality(String sessionId,JSONObject quality,long capturedAtMs){
+        if(sessionId==null||sessionId.trim().isEmpty()||quality==null)return false;String id=sessionId.trim();
+        try(Cursor c=db.getReadableDatabase().rawQuery(
+                "SELECT id,payload FROM chemcore_decisions WHERE session_id=? AND payload IS NOT NULL ORDER BY t_ms DESC,id DESC LIMIT 1",
+                new String[]{id})){
+            if(!c.moveToFirst())return false;long rowId=c.getLong(0);String raw=c.getString(1);JSONObject payload=new JSONObject(raw==null?"{}":raw);
+            JSONObject copy=new JSONObject(quality.toString());copy.put("captured_at_ms",Math.max(0,capturedAtMs));copy.put("binding","session_bound_post_decision_runtime_snapshot");
+            payload.put("lab_quality",copy);JSONObject gate=copy.optJSONObject("calibration_gate");if(gate!=null)payload.put("calibration_gate",new JSONObject(gate.toString()));
+            ContentValues v=new ContentValues();v.put("payload",payload.toString());return db.getWritableDatabase().update("chemcore_decisions",v,"id=?",new String[]{String.valueOf(rowId)})==1;
+        }catch(Exception ignored){return false;}
+    }
 }
