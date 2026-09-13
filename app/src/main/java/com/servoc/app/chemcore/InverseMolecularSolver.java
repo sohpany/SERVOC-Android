@@ -55,7 +55,8 @@ public final class InverseMolecularSolver {
             this.note=note==null?"":note;
         }
 
-        public boolean hasDeviceValidatedQuantitativeSupport(){return calibratedContributors>0;}
+        /** Joint quantitative support is complete only when every contributor is M4 and the fit is inside domain. */
+        public boolean hasDeviceValidatedQuantitativeSupport(){return contributors>0&&calibratedContributors==contributors&&allContributorsInsideDomain;}
     }
 
     private static final class Fit {
