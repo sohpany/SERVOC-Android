@@ -54,9 +54,14 @@ public final class SqliteCalibrationProvider implements CalibrationCurveProvider
         try{
             EmpiricalMqCurve curve=new EmpiricalMqCurve(sensorId,chemicalId,p,q,System.currentTimeMillis(),referenceGas,source);
             EmpiricalMqCurve.Estimate e=curve.estimatePpm(rsOverR0);
-            boolean referenceValidated=referenceGas!=null&&!referenceGas.trim().isEmpty();
-            return new Estimate(e.ppm,e.valid(),referenceValidated,version,
-                    e.valid()?"Active SQLite calibration; interpolation only.":"Active calibration cannot estimate this ratio without extrapolation.");
+            boolean hasReferenceGas=referenceGas!=null&&!referenceGas.trim().isEmpty();
+            boolean qcAccepted=CalibrationValidationMarker.accepted(source);
+            boolean referenceValidated=hasReferenceGas&&qcAccepted;
+            String note;
+            if(!e.valid())note="Active calibration cannot estimate this ratio without extrapolation.";
+            else if(referenceValidated)note="Active QC-accepted HazRob device/reference calibration; interpolation only.";
+            else note="Active calibration curve is usable for screening interpolation but is NOT M4 reference-validated; accepted calibration QC provenance is missing.";
+            return new Estimate(e.ppm,e.valid(),referenceValidated,version,note);
         }catch(IllegalArgumentException ex){
             return new Estimate(Double.NaN,false,false,version,"Stored calibration rejected: "+ex.getMessage());
         }
