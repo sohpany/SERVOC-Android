@@ -9,7 +9,6 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Session-independent readiness snapshot for the HazRob analytical laboratory.
@@ -47,8 +46,8 @@ public final class ChemCoreLabQuality {
         this.environmentSensor=nz(environmentSensor);this.environmentStatus=nz(environmentStatus);
         this.environmentAddress=nz(environmentAddress);this.environmentChipId=nz(environmentChipId);
         this.temperatureC=temperatureC;this.humidityRh=humidityRh;this.pressureHpa=pressureHpa;
-        this.blockers=Collections.unmodifiableList(new ArrayList<>(blockers==null?List.of():blockers));
-        this.advisories=Collections.unmodifiableList(new ArrayList<>(advisories==null?List.of():advisories));
+        this.blockers=Collections.unmodifiableList(new ArrayList<>(blockers==null?Collections.<String>emptyList():blockers));
+        this.advisories=Collections.unmodifiableList(new ArrayList<>(advisories==null?Collections.<String>emptyList():advisories));
     }
 
     public static ChemCoreLabQuality evaluate(JSONObject diagnostics,int driveLeft,int driveRight){
@@ -107,7 +106,7 @@ public final class ChemCoreLabQuality {
             o.put("configuration_ready",configurationReady);o.put("capture_ready",captureReady);o.put("fingerprint_normalization_ready",fingerprintNormalizationReady());o.put("any_reference_gas_calibration_available",anyReferenceGasCalibrationAvailable());
             JSONObject e=new JSONObject();e.put("ready",environmentReady);e.put("sensor",environmentSensor);e.put("status",environmentStatus);e.put("address",environmentAddress);e.put("chip_id",environmentChipId);putFinite(e,"temperature_c",temperatureC);putFinite(e,"humidity_rh",humidityRh);putFinite(e,"pressure_hpa",pressureHpa);o.put("environment",e);
             o.put("blockers",array(blockers));o.put("advisories",array(advisories));
-            JSONObject calibration=new JSONObject();calibration.put("field_r0_normalization_ready",fingerprintNormalizationReady());calibration.put("field_r0_channels",fieldR0Channels);calibration.put("reference_gas_validated_channels",referenceValidatedChannels);calibration.put("ppm_globally_unlocked",false);calibration.put("ppm_rule","candidate requires M4 device/reference-gas support + accepted open-set identity + validated domain");o.put("calibration_gate",calibration);
+            JSONObject calibration=new JSONObject();calibration.put("field_r0_normalization_ready",fingerprintNormalizationReady());calibration.put("field_r0_channels",fieldR0Channels);calibration.put("reference_gas_validated_channels",referenceValidatedChannels);calibration.put("global_ppm_permission","candidate_specific_by_design");calibration.put("ppm_rule","candidate requires complete M4 device/reference-gas support for all contributing quantitative curves + accepted open-set identity + validated domain");o.put("calibration_gate",calibration);
             return o;
         }catch(JSONException ex){throw new IllegalStateException("Unable to serialize ChemCore lab quality",ex);}
     }
