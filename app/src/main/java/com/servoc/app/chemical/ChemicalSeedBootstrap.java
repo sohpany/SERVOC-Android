@@ -6,6 +6,7 @@ import com.servoc.app.chemcore.ChemCoreIdentityCurationRepository;
 import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
+import com.servoc.app.exposure.GasFlammabilitySeedBootstrap;
 
 import java.io.InputStream;
 
@@ -25,8 +26,9 @@ public final class ChemicalSeedBootstrap {
             db.putMeta("chemical_seed_niosh_last_error",e.getClass().getSimpleName()+": "+String.valueOf(e.getMessage()));
         }
 
-        // Import exposure data only after the identity table has been populated so CAS matching is deterministic.
+        // Import exposure/flammability data only after the identity table has been populated so CAS matching is deterministic.
         ExposureSeedBootstrap.ensureNioshIdlh(context,db);
+        GasFlammabilitySeedBootstrap.ensure(context,db);
 
         // Molecular intelligence prefers an activated, verified Stable snapshot and falls back to the APK seed.
         // The importer is hash-idempotent, so startup remains cheap after the same content is installed once.
