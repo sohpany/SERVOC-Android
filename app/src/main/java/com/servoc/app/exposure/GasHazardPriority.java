@@ -4,33 +4,51 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /**
- * Safety-ordering policy for accepted gas detections.
+ * Display-order policy for already accepted gas detections.
  *
- * Analytical identity ranking remains independent. This class sorts only already-accepted hazard
- * assessments by their dimensionless relative hazard ratio, never by absolute ppm.
+ * Analytical identity ranking remains independent. HAZARD is the default safety view and orders by
+ * the dimensionless substance-specific hazard ratio. CONCENTRATION is an operator display option
+ * that orders by measured ppm only. Neither mode changes identity, thresholds, symbols or evidence.
  */
 public final class GasHazardPriority {
+    public enum Mode { HAZARD, CONCENTRATION }
     private GasHazardPriority(){}
 
-    public static double score(JSONObject assessment){
+    public static String labelAr(Mode mode){return mode==Mode.CONCENTRATION?"التركيز":"الخطر";}
+    public static Mode parse(String value){return "concentration".equalsIgnoreCase(value)||"ppm".equalsIgnoreCase(value)?Mode.CONCENTRATION:Mode.HAZARD;}
+
+    public static double hazardScore(JSONObject assessment){
         if(assessment==null||!assessment.optBoolean("input_gate_passed",false))return Double.NaN;
         double x=assessment.optDouble("hazard_priority_ratio",Double.NaN);return Double.isFinite(x)&&x>=0?x:Double.NaN;
     }
+    public static double concentrationPpm(JSONObject assessment){
+        if(assessment==null||!assessment.optBoolean("input_gate_passed",false))return Double.NaN;
+        double x=assessment.optDouble("ppm",Double.NaN);return Double.isFinite(x)&&x>=0?x:Double.NaN;
+    }
+    public static double score(JSONObject assessment){return hazardScore(assessment);}
 
-    public static int compareDescending(JSONObject a,JSONObject b){
-        double x=score(a),y=score(b);boolean xv=Double.isFinite(x),yv=Double.isFinite(y);
+    public static int compare(JSONObject a,JSONObject b,Mode mode){
+        Mode m=mode==null?Mode.HAZARD:mode;
+        double x=m==Mode.CONCENTRATION?concentrationPpm(a):hazardScore(a),y=m==Mode.CONCENTRATION?concentrationPpm(b):hazardScore(b);
+        boolean xv=Double.isFinite(x),yv=Double.isFinite(y);
         if(xv&&yv){int c=Double.compare(y,x);if(c!=0)return c;}
         else if(xv)return -1;else if(yv)return 1;
-        // Stable deterministic tie-breaker; concentration is deliberately not used as the primary key.
+        // The non-selected dimension is only a tie-breaker, never the primary sort key.
+        double tx=m==Mode.CONCENTRATION?hazardScore(a):concentrationPpm(a),ty=m==Mode.CONCENTRATION?hazardScore(b):concentrationPpm(b);
+        boolean txv=Double.isFinite(tx),tyv=Double.isFinite(ty);if(txv&&tyv){int c=Double.compare(ty,tx);if(c!=0)return c;}else if(txv)return -1;else if(tyv)return 1;
         return Long.compare(a==null?Long.MAX_VALUE:a.optLong("chemical_uid",Long.MAX_VALUE),b==null?Long.MAX_VALUE:b.optLong("chemical_uid",Long.MAX_VALUE));
     }
 
-    public static JSONArray sort(JSONArray input){
+    public static int compareDescending(JSONObject a,JSONObject b){return compare(a,b,Mode.HAZARD);}
+    public static JSONArray sort(JSONArray input){return sort(input,Mode.HAZARD);}
+    public static JSONArray sort(JSONArray input,Mode mode){
         List<JSONObject> rows=new ArrayList<>();if(input!=null)for(int i=0;i<input.length();i++){JSONObject q=input.optJSONObject(i);if(q!=null)rows.add(q);}
-        rows.sort(GasHazardPriority::compareDescending);JSONArray out=new JSONArray();for(JSONObject q:rows)out.put(q);return out;
+        rows.sort((a,b)->compare(a,b,mode));JSONArray out=new JSONArray();for(JSONObject q:rows)out.put(q);return out;
     }
+
+    public static String sortDescriptor(Mode mode){Mode m=mode==null?Mode.HAZARD:mode;return m==Mode.HAZARD?"hazard_priority_ratio_desc":"ppm_desc";}
 }
