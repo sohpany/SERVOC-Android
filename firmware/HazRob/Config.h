@@ -34,20 +34,24 @@ constexpr uint8_t IR_ACTIVE=LOW;
 // Future quantitative illuminance: prefer BH1750 on this same I2C bus (0x23/0x5C) after installation.
 constexpr bool LUX_SENSOR_INSTALLED=false;
 
-// Device-specific clean-air normalization baseline accepted from measurement session 10.
-// Geometric mean of Rs over 74 samples / 30.1 s from FIELD-1789255293867.
+// Device-specific field clean-air normalization baseline accepted from three independent
+// 30.0 s sessions on 2026-09-13 (73 + 70 + 73 = 216 samples). Each session is first
+// aggregated as the geometric mean of Rs, then the three session means receive equal
+// weight in log space. Field wind suitability is controlled protocol context; T/RH/P
+// were unavailable from the onboard ENV channel and no environmental correction is claimed.
 // This is NOT manufacturer/reference-gas validation for quantitative ppm curves.
 constexpr char R0_SOURCE[]="field_clean_air_r0";
-constexpr char R0_SESSION[]="FIELD-1789255293867";
-constexpr char R0_UTC[]="2026-09-12T23:22:12Z";
-constexpr uint16_t R0_SAMPLES=74;
+constexpr char R0_SESSION[]="FIELD-R0-3SESSION-20260913";
+constexpr char R0_UTC[]="2026-09-13T01:00:47Z";
+constexpr uint16_t R0_SAMPLES=216;
+constexpr uint8_t R0_SESSIONS=3;
 constexpr bool R0_REFERENCE_GAS_VALIDATED=false;
 constexpr bool R0_ENVIRONMENT_COMPENSATED=false;
 
 struct MQ{const char* name;uint8_t ads,ch;float r0;};
 constexpr MQ mq[]={
-  {"mq2",0,0,79.317604f},{"mq4",0,1,36.145413f},{"mq5",0,2,214.539886f},{"mq8",0,3,35.783680f},
-  {"mq3",1,0,8.714965f},{"mq7",1,1,119.240860f},{"mq9",1,2,32.334999f},{"mq135",1,3,198.886856f}
+  {"mq2",0,0,91.734024f},{"mq4",0,1,65.269585f},{"mq5",0,2,251.964722f},{"mq8",0,3,54.888683f},
+  {"mq3",1,0,20.686031f},{"mq7",1,1,160.601349f},{"mq9",1,2,69.990082f},{"mq135",1,3,213.239044f}
 };
 constexpr uint8_t MQ_N=sizeof(mq)/sizeof(mq[0]);
 
