@@ -1,5 +1,43 @@
 plugins { id 'com.android.application' }
 
+import java.security.MessageDigest
+
+final String HAZROB_FLAMMABILITY_URL = 'https://hazrob-0101-flammability-seed.onrender.com/flammability/niosh_npg_flammability.json'
+final String HAZROB_FLAMMABILITY_SHA256 = '457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434'
+def generatedHazrobAssets = file("$buildDir/generated/hazrobAssets")
+def generatedFlammability = file("$generatedHazrobAssets/generated/flammability/niosh_npg_flammability.json")
+def sourceFlammability = file('src/main/assets/generated/flammability/niosh_npg_flammability.json')
+
+def sha256File = { File f ->
+    MessageDigest md = MessageDigest.getInstance('SHA-256')
+    f.withInputStream { input -> byte[] buf = new byte[8192]; int n; while ((n=input.read(buf)) > 0) md.update(buf,0,n) }
+    md.digest().collect { String.format('%02x', it & 0xff) }.join()
+}
+
+tasks.register('prepareHazRobFlammabilitySeed') {
+    outputs.file(generatedFlammability)
+    doLast {
+        generatedFlammability.parentFile.mkdirs()
+        if (sourceFlammability.exists()) {
+            generatedFlammability.bytes = sourceFlammability.bytes
+        } else {
+            Exception last = null
+            for (int attempt=1; attempt<=3; attempt++) {
+                try {
+                    URLConnection c = new URL(HAZROB_FLAMMABILITY_URL).openConnection()
+                    c.setConnectTimeout(20_000); c.setReadTimeout(60_000); c.setRequestProperty('User-Agent','HazRob-0.10.1-HR047-build')
+                    c.inputStream.withCloseable { input -> generatedFlammability.withOutputStream { output -> output << input } }
+                    last = null; break
+                } catch (Exception e) { last=e; if (attempt<3) sleep(1000L*attempt) }
+            }
+            if (last != null) throw new GradleException('Unable to obtain controlled HazRob flammability seed',last)
+        }
+        String actual=sha256File(generatedFlammability)
+        if (!HAZROB_FLAMMABILITY_SHA256.equalsIgnoreCase(actual)) throw new GradleException("HazRob flammability seed SHA-256 mismatch: $actual")
+        println "HazRob flammability seed verified: $actual"
+    }
+}
+
 android {
     namespace 'com.servoc.app'
     compileSdk 36
@@ -16,6 +54,8 @@ android {
         // Stable read-only endpoints; developer mode alone may override the ChemCore source.
         buildConfigField 'String', 'CHEMCORE_LIBRARY_MANIFEST_URL', '"https://hazrob-app-updates.onrender.com/chemcore/manifest.json"'
     }
+
+    sourceSets { main { assets.srcDir generatedHazrobAssets } }
 
     signingConfigs {
         prototype {
@@ -36,6 +76,8 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 }
+
+tasks.named('preBuild').configure { dependsOn tasks.named('prepareHazRobFlammabilitySeed') }
 
 dependencies {
     implementation 'androidx.core:core:1.15.0'
