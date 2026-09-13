@@ -4,6 +4,7 @@ import android.content.ContentValues;
 import android.database.Cursor;
 
 import com.servoc.app.data.ExperimentsDb;
+import com.servoc.app.exposure.GasPpmExposureAssessment;
 
 import org.json.JSONObject;
 
@@ -14,8 +15,9 @@ public final class ChemCoreDecisionRepository {
 
     public long save(long tMs,ChemCoreResultEnvelope r){
         if(r==null||r.sessionId.isEmpty())return -1;ContentValues v=new ContentValues();v.put("session_id",r.sessionId);v.put("t_ms",tMs);v.put("outcome",r.outcome.name());v.put("evidence_tier",r.evidenceTier.name());
-        if(r.chemicalUid!=null)v.put("chemical_uid",r.chemicalUid);if(Double.isFinite(r.ppm))v.put("ppm",r.ppm);if(Double.isFinite(r.predictionLow))v.put("prediction_low",r.predictionLow);if(Double.isFinite(r.predictionHigh))v.put("prediction_high",r.predictionHigh);if(Double.isFinite(r.oodScore))v.put("ood_score",r.oodScore);v.put("payload",r.toJson().toString());
-        return db.getWritableDatabase().insert("chemcore_decisions",null,v);
+        if(r.chemicalUid!=null)v.put("chemical_uid",r.chemicalUid);if(Double.isFinite(r.ppm))v.put("ppm",r.ppm);if(Double.isFinite(r.predictionLow))v.put("prediction_low",r.predictionLow);if(Double.isFinite(r.predictionHigh))v.put("prediction_high",r.predictionHigh);if(Double.isFinite(r.oodScore))v.put("ood_score",r.oodScore);
+        JSONObject payload=r.toJson();try{payload.put(GasPpmExposureAssessment.KEY,GasPpmExposureAssessment.evaluate(db,payload,tMs));}catch(Exception ignored){}
+        v.put("payload",payload.toString());return db.getWritableDatabase().insert("chemcore_decisions",null,v);
     }
 
     /**
