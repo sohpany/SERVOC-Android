@@ -1,7 +1,13 @@
 package com.servoc.app.data;
 
 import android.database.Cursor;
+
+import com.servoc.app.calibration.AcceptedR0Normalizer;
+import com.servoc.app.calibration.FieldR0Baseline;
+import com.servoc.app.hardware.HazRobHardwareProfile;
+
 import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -12,7 +18,7 @@ public final class SessionSeries {
 
     public static final class Sample{
         public final long tMs;public final JSONObject env,mq,state;
-        Sample(long tMs,String env,String mq,String state){this.tMs=tMs;this.env=json(env);this.mq=json(mq);this.state=json(state);}
+        Sample(long tMs,String env,String mq,String state){this.tMs=tMs;this.env=json(env);this.mq=normalizeMq(json(mq));this.state=json(state);}
     }
     public static final class Series{
         public final String sessionId,startedTs,endedTs;public final List<Sample> samples;
@@ -21,7 +27,7 @@ public final class SessionSeries {
         public long durationMs(){return samples.isEmpty()?0:samples.get(samples.size()-1).tMs;}
     }
 
-    /** Exact lineage path used by all new 0.9.2 reference/report records. */
+    /** Exact lineage path used by all new 0.9.2+ reference/report records. */
     public static Series forExperiment(ExperimentsDb db,ExperimentQueries.Record r){
         if(db==null||r==null)return null;
         if(r.sessionId!=null&&!r.sessionId.trim().isEmpty()){Series exact=byId(db,r.sessionId.trim());if(exact!=null)return exact;}
@@ -45,6 +51,25 @@ public final class SessionSeries {
     }
 
     private static List<Sample> readSamples(ExperimentsDb db,String id){List<Sample> rows=new ArrayList<>();try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload,motion_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms,id",new String[]{id})){while(c.moveToNext())rows.add(new Sample(c.getLong(0),c.getString(1),c.getString(2),c.getString(3)));}catch(Exception ignored){}return rows;}
+
+    /**
+     * Report/analysis view of the recorded MQ payload. Raw database bytes remain untouched.
+     * When Rs exists, ratio/R0 are rebound to the accepted HR-0101-045 campaign so PDF/XLSX charts
+     * and exported analytical tables cannot silently use stale embedded firmware R0 constants.
+     */
+    private static JSONObject normalizeMq(JSONObject source){
+        if(source==null)return new JSONObject();
+        try{
+            JSONObject out=new JSONObject(source.toString());
+            for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){
+                JSONObject q=out.optJSONObject(hw.key);if(q==null)continue;
+                double ratio=AcceptedR0Normalizer.ratio(hw.key,q),r0=FieldR0Baseline.value(hw.key);
+                if(Double.isFinite(ratio)&&ratio>0){q.put("ratio",ratio);q.put("r0",r0);q.put("r0_calibrated",true);q.put("r0_source",AcceptedR0Normalizer.SOURCE);q.put("r0_session",FieldR0Baseline.SESSION);q.put("r0_reference_validated",false);q.put("r0_environment_compensated",false);}
+            }
+            return out;
+        }catch(Exception ignored){return source;}
+    }
+
     public static double value(JSONObject o,String key){if(o==null||o.isNull(key))return Double.NaN;double v=o.optDouble(key,Double.NaN);return Double.isFinite(v)?v:Double.NaN;}
     public static JSONObject sensor(Sample s,String key){return s==null||s.mq==null?null:s.mq.optJSONObject(key);}
     private static JSONObject json(String s){try{return s==null||s.trim().isEmpty()?new JSONObject():new JSONObject(s);}catch(Exception ignored){return new JSONObject();}}
