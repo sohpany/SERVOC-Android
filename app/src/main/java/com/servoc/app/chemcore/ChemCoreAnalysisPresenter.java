@@ -116,6 +116,14 @@ public final class ChemCoreAnalysisPresenter {
         s.append("\nCompliance: NOT MADE. TWA/STEL require their averaging duration and applicable sampling method.");return s.toString();
     }
 
+    /** Safety-only list of accepted quantitative findings; never reorders analytical candidates. */
+    public static String gasFindings(JSONArray rows,GasHazardPriority.Mode mode,int limit){
+        GasHazardPriority.Mode m=mode==null?GasHazardPriority.Mode.HAZARD:mode;JSONArray sorted=GasHazardPriority.sort(rows,m);if(sorted.length()==0)return "لا توجد نتائج غازية كمية M4 مقبولة حتى الآن.";
+        StringBuilder s=new StringBuilder("النتائج الغازية المقبولة • فرز: ").append(GasHazardPriority.labelAr(m));int n=Math.min(Math.max(1,limit),sorted.length());
+        for(int i=0;i<n;i++){JSONObject g=sorted.optJSONObject(i);if(g==null)continue;s.append("\n\n").append(i+1).append(") ").append(g.optString("hazard_symbols","")).append(g.optString("chemical","—"));s.append(" • ").append(fmt(g.optDouble("ppm",Double.NaN))).append(" ppm");double h=g.optDouble("hazard_priority_percent",Double.NaN);if(Double.isFinite(h))s.append(" • خطر نسبي ").append(String.format(Locale.US,"%.1f%%",h));double t=g.optDouble("toxicity_priority_percent",Double.NaN);if(Double.isFinite(t))s.append(" • سمية ").append(String.format(Locale.US,"%.1f%%",t));double f=g.optDouble("percent_lfl",Double.NaN);if(Double.isFinite(f))s.append(" • LFL ").append(String.format(Locale.US,"%.2f%%",f));String sid=g.optString("session_id","");if(!sid.isEmpty())s.append("\nSession: ").append(sid);}
+        return s.toString();
+    }
+
     public static double[] candidatePosteriorPct(JSONObject p,int limit){
         JSONArray rows=p==null?null:p.optJSONArray("candidates");if(rows==null)return new double[0];int n=Math.min(Math.max(0,limit),rows.length());double[] out=new double[n];for(int i=0;i<n;i++){JSONObject r=rows.optJSONObject(i);double v=r==null?Double.NaN:r.optDouble("posterior",Double.NaN);out[i]=Double.isFinite(v)?100.0*v:Double.NaN;}return out;
     }
