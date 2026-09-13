@@ -25,7 +25,9 @@ public class InverseMolecularSolverTest {
         assertEquals("A",r.get(0).label);
         assertEquals(ppm,r.get(0).bestPpm,0.5);
         assertTrue(r.get(0).posterior>r.get(1).posterior);
-        assertTrue(r.get(0).hasDeviceValidatedQuantitativeSupport());
+        // One M4 contributor does not validate a 3-sensor joint quantitative fit.
+        assertFalse(r.get(0).hasDeviceValidatedQuantitativeSupport());
+        assertEquals(1,r.get(0).calibratedContributors);
         assertEquals(3,r.get(0).contributors);
     }
 
