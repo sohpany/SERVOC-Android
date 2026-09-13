@@ -87,8 +87,8 @@ public final class ChemCoreInferenceEngine {
         if(tier==null)return 0;switch(tier){
             case M4_HAZROB_VALIDATED:return 100;
             case M3_ARRAY_CONSISTENT:return 85;
-            case M2_MANUFACTURER_SUPPORTED:return 60;
-            case M1_QSPR_INFERRED:return 30;
+            case M2_LITERATURE_OR_MANUFACTURER_SUPPORTED:return 60;
+            case M1_MOLECULARLY_INFERRED:return 30;
             default:return 15;
         }
     }
