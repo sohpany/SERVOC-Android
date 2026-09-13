@@ -4,8 +4,10 @@ import android.content.ContentValues;
 import android.database.Cursor;
 
 import com.servoc.app.data.ExperimentsDb;
+import com.servoc.app.exposure.GasHazardPriority;
 import com.servoc.app.exposure.GasPpmExposureAssessment;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 /** Persists and retrieves auditable ChemCore analytical decisions separately from raw telemetry. */
@@ -33,6 +35,21 @@ public final class ChemCoreDecisionRepository {
             String raw=c.getString(0);if(raw==null||raw.trim().isEmpty())return null;
             try{return new JSONObject(raw);}catch(Exception ignored){return null;}
         }
+    }
+
+    /**
+     * Returns only accepted, quantitative gas-safety findings. Candidate identities and screening
+     * hypotheses are deliberately excluded so safety sorting can never alter analytical identity.
+     */
+    public JSONArray recentAcceptedGasFindings(int limit,GasHazardPriority.Mode mode){
+        int requested=Math.max(1,Math.min(100,limit)),scan=Math.max(requested*4,20);JSONArray raw=new JSONArray();
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT session_id,payload FROM chemcore_decisions WHERE payload IS NOT NULL ORDER BY id DESC LIMIT "+scan,null)){
+            while(c.moveToNext()&&raw.length()<requested){
+                String session=c.getString(0),text=c.getString(1);if(text==null||text.trim().isEmpty())continue;
+                try{JSONObject p=new JSONObject(text),g=p.optJSONObject(GasPpmExposureAssessment.KEY);if(g==null||!g.optBoolean("input_gate_passed",false))continue;JSONObject q=new JSONObject(g.toString());q.put("session_id",session==null?"":session);q.put("chemical",p.optString("chemical",q.optString("chemical","")));q.put("evidence_tier",p.optString("evidence_tier",""));q.put("outcome",p.optString("outcome",""));raw.put(q);}catch(Exception ignored){}
+            }
+        }
+        return GasHazardPriority.sort(raw,mode);
     }
 
     /**
