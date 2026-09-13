@@ -1,0 +1,73 @@
+{
+  "schema": "hazrob-calibration-build-manifest/1",
+  "project": "HazRob",
+  "version": "0.10.1",
+  "api": 4,
+  "change_id": "HR-0101-044",
+  "status": "SOURCE_BUILD_PASS_CALIBRATION_FIELD_VALIDATION_PENDING",
+  "authoritative_executable_source_sha": "69d17f52b2096cc303f005db78a6a2c7bfcd3ab9",
+  "approval_scope": "software/build controlled calibration-candidate baseline; not final metrological or field validation",
+  "android": {
+    "source_sha": "69d17f52b2096cc303f005db78a6a2c7bfcd3ab9",
+    "independent_builder": "hazrob-0101-build",
+    "render_deploy_id": "dep-daiuqi0ae00c738166jg",
+    "cross_component_integration_contract": "PASS",
+    "unit_tests": "PASS",
+    "assemble_release": "PASS",
+    "lint_vital_release": "PASS",
+    "signing_continuity": "PASS",
+    "version_name": "0.10.1",
+    "version_code": 21,
+    "artifact": "HazRob-0.10.1-TEST.apk",
+    "artifact_url": "https://hazrob-0101-build.onrender.com/HazRob-0.10.1-TEST.apk",
+    "artifact_sha256": "98d6fa152fc18963b22ae792d89596a51f7d746f7d1f6a77cc21e468126cdaab",
+    "signer_certificate_sha256": "d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0",
+    "sha256_record_url": "https://hazrob-0101-build.onrender.com/HazRob-0.10.1-TEST.sha256",
+    "signing_record_url": "https://hazrob-0101-build.onrender.com/HazRob-0.10.1-TEST-signing.txt",
+    "build_info_url": "https://hazrob-0101-build.onrender.com/build-info.txt"
+  },
+  "firmware": {
+    "source_sha": "69d17f52b2096cc303f005db78a6a2c7bfcd3ab9",
+    "independent_builder": "hazrob-0101-firmware-build",
+    "render_deploy_id": "dep-daiuqk7qj5pc73bl9srg",
+    "cross_component_integration_contract": "PASS",
+    "arduino_cli": "1.5.1",
+    "esp32_core": "esp32:esp32@3.3.11",
+    "master": {
+      "compile": "PASS",
+      "fqbn": "esp32:esp32:esp32:PartitionScheme=huge_app",
+      "program_bytes": 1091089,
+      "program_percent": 34,
+      "global_ram_bytes": 50204,
+      "global_ram_percent": 15,
+      "source_url": "https://hazrob-0101-firmware-build.onrender.com/source/HazRob-ESP32-v0.10.1-source.zip",
+      "merged_binary_url": "https://hazrob-0101-firmware-build.onrender.com/master/HazRob.ino.merged.bin"
+    },
+    "camera": {
+      "hr044_executable_change_required": false,
+      "included_for_whole_system_compatibility": true,
+      "compile": "PASS",
+      "fqbn": "esp32:esp32:esp32cam",
+      "program_bytes": 1118771,
+      "program_percent": 35,
+      "global_ram_bytes": 67836,
+      "global_ram_percent": 20,
+      "source_url": "https://hazrob-0101-firmware-build.onrender.com/source/HazRob-ESP32-CAM-v0.10.1-source.zip",
+      "merged_binary_url": "https://hazrob-0101-firmware-build.onrender.com/camera/HazRob-CAM.ino.merged.bin"
+    },
+    "sha256_record_url": "https://hazrob-0101-firmware-build.onrender.com/SHA256SUMS.txt",
+    "build_info_url": "https://hazrob-0101-firmware-build.onrender.com/build-info.txt"
+  },
+  "native_github_actions": {
+    "status": "BLOCKED_BEFORE_RUNNER_ALLOCATION_HR_0101_013",
+    "interpretation": "not a code failure and not build evidence; independent Render exact-head builders are authoritative build evidence",
+    "hr044_firmware_run": 34728297485,
+    "hr044_android_run": 34728297540
+  },
+  "scientific_boundary": {
+    "field_clean_air_r0": "accepted for device normalization only",
+    "ppm": "withheld unless complete M4 device/reference-gas calibration plus accepted identity/domain gates are satisfied",
+    "final_calibration_validation": "PENDING",
+    "final_field_validation": "PENDING"
+  }
+}
