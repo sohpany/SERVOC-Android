@@ -1,0 +1,58 @@
+{
+  "schema": "hazrob-analytical-unification-manifest/1",
+  "change_id": "HR-0101-046",
+  "version": "0.10.1",
+  "api": 4,
+  "executable_source_sha": "2349fdffa81c6b9079167e828028dc8b2a7659ee",
+  "status": "SOURCE_ANDROID_BUILD_PASS_ANALYTICAL_SOFTWARE_UNIFICATION_PASS_FIRMWARE_EXACT_HEAD_BUILD_IN_PROGRESS_PHYSICAL_M4_ENV_VALIDATION_PENDING",
+  "accepted_r0": {
+    "campaign": "FIELD-R0-3SESSION-20260913",
+    "samples": 216,
+    "sessions": 3,
+    "normalization_authority": "app_accepted_field_r0",
+    "reference_gas_validated": false,
+    "environment_compensated": false
+  },
+  "android": {
+    "service": "hazrob-0101-build",
+    "deploy": "dep-daj07p15efls73f523j0",
+    "status": "live",
+    "integration_contract": "PASS",
+    "unit_tests": "PASS",
+    "assemble_release": "PASS",
+    "lint_vital_release": "PASS",
+    "apk_sha256": "5e78606ece2ffc3306f9e15e7d3c0f8b26fd22067fbcbef7aaf7b1a7bce37523",
+    "signer_sha256": "d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0",
+    "version_name": "0.10.1",
+    "version_code": 21
+  },
+  "firmware_compatibility": {
+    "verified_source_sha": "1311d787de8928232d48f8f1afff6f2f1bb81cb2",
+    "verified_deploy": "dep-daj07168h83s73a1egk0",
+    "verified_status": "live",
+    "main_compile": "PASS",
+    "main_program_bytes": 1091105,
+    "main_globals_bytes": 50204,
+    "camera_compile": "PASS",
+    "exact_head_deploy": "dep-daj07qg6gcjs738ghr1g",
+    "exact_head_status": "build_in_progress_at_manifest_creation",
+    "diff_to_executable_head": "ReportExporter.java only; no firmware path changed"
+  },
+  "scientific_guards": {
+    "chemcore_schema": "chemcore-result/3",
+    "analysis_presentation_schema": "chemcore-analysis-presentation/1",
+    "r0_normalizer_schema": "hazrob-r0-normalizer/1",
+    "screening_ppm_reportable": false,
+    "m4_complete_contributor_rule": true,
+    "open_set_required_for_quantification": true,
+    "validated_domain_required": true,
+    "extrapolation_allowed": false
+  },
+  "physical_pending": [
+    "android_device_install_runtime_smoke_test",
+    "bme_bmp_live_trh_pressure_validation",
+    "reference_gas_m4_campaigns",
+    "open_set_ambiguity_interference_mixture_validation",
+    "optional_deferred_esp32_r0_provenance_sync"
+  ]
+}
