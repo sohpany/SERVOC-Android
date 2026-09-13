@@ -3,37 +3,41 @@ package com.servoc.app.calibration;
 import java.util.Locale;
 
 /**
- * Device-specific clean-air R0 baseline derived from HazRob measurement session 10.
+ * Device-specific field clean-air R0 baseline derived from three independent HazRob
+ * clean-air sessions on 2026-09-13.
  *
- * The values are geometric means of Rs across all 74 time-series samples from
- * FIELD-1789255293867 (2026-09-12T23:22:12Z). They are valid as a field
- * clean-air normalization baseline for this physical eight-MQ assembly.
+ * For each session, Rs is aggregated as a geometric mean over the complete 30.0 s
+ * time series. The three session geometric means are then combined with equal session
+ * weight in log space. The campaign contains 216 samples total (73 + 70 + 73).
  *
- * They are NOT reference-gas validation for manufacturer ppm curves. Quantitative
- * ppm remains gated by CalibrationCurveProvider.Estimate.referenceValidated.
+ * Wind suitability is controlled field-protocol context. The onboard ENV channel did
+ * not provide T/RH/P in these reports, so no environmental compensation is claimed.
+ * These values are NOT reference-gas validation for manufacturer ppm curves.
+ * Quantitative ppm remains gated by CalibrationCurveProvider.Estimate.referenceValidated.
  */
 public final class FieldR0Baseline {
     private FieldR0Baseline() {}
 
     public static final String SOURCE="field_clean_air_r0";
-    public static final String SESSION="FIELD-1789255293867";
-    public static final String UTC="2026-09-12T23:22:12Z";
-    public static final int SAMPLE_COUNT=74;
-    public static final double WINDOW_SECONDS=30.1;
+    public static final String SESSION="FIELD-R0-3SESSION-20260913";
+    public static final String UTC="2026-09-13T01:00:47Z";
+    public static final int SESSION_COUNT=3;
+    public static final int SAMPLE_COUNT=216;
+    public static final double WINDOW_SECONDS=30.0;
     public static final boolean REFERENCE_GAS_VALIDATED=false;
     public static final boolean ENVIRONMENT_COMPENSATED=false;
 
     public static double value(String key){
         if(key==null)return Double.NaN;
         switch(key.trim().toLowerCase(Locale.US)){
-            case "mq2": return 79.3176036586;
-            case "mq4": return 36.1454126550;
-            case "mq5": return 214.5398913808;
-            case "mq8": return 35.7836813368;
-            case "mq3": return 8.7149649220;
-            case "mq7": return 119.2408579279;
-            case "mq9": return 32.3349994303;
-            case "mq135": return 198.8868482045;
+            case "mq2": return 91.7340228444;
+            case "mq4": return 65.2695876771;
+            case "mq5": return 251.9647223909;
+            case "mq8": return 54.8886824742;
+            case "mq3": return 20.6860315768;
+            case "mq7": return 160.6013515297;
+            case "mq9": return 69.9900854903;
+            case "mq135": return 213.2390474819;
             default: return Double.NaN;
         }
     }
