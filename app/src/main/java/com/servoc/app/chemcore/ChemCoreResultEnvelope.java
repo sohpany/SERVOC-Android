@@ -43,7 +43,8 @@ public final class ChemCoreResultEnvelope {
             this.residualLog10BySensor=Collections.unmodifiableMap(new LinkedHashMap<>(residualLog10BySensor==null?Collections.emptyMap():residualLog10BySensor));
         }
 
-        public boolean hasDeviceQuantitativeSupport(){return calibratedContributors>0&&allContributorsInsideDomain;}
+        /** Candidate-level quantitative support is complete only when every contributor is M4 and all remain inside domain. */
+        public boolean hasDeviceQuantitativeSupport(){return contributors>0&&calibratedContributors==contributors&&allContributorsInsideDomain;}
     }
 
     public final String sessionId;
