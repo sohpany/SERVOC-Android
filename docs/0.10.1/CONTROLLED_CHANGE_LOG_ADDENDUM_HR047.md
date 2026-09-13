@@ -4,7 +4,8 @@
 **Title:** Gas-relative safety prioritization, ppm-only exposure interpretation, flammability library, and whole-system compatibility closeout  
 **Version:** HazRob 0.10.1 / API 4  
 **Executable source baseline:** `7877fb372a84c8bce56be887b864fee166f27fa7`  
-**Status:** **SOURCE/INTEGRATION BUILD PASS — GAS-SAFETY SOFTWARE LOOP CLOSED — PHYSICAL ENV/M4 VALIDATION STILL CONTROLLED SEPARATELY**
+**Distribution/test-gate source:** `5aa65eca113969cb8ec49dc5850076c327fdea5f`  
+**Status:** **SOURCE/INTEGRATION/DISTRIBUTION BUILD PASS — GAS-SAFETY SOFTWARE LOOP CLOSED — PHYSICAL ENV/M4 VALIDATION STILL CONTROLLED SEPARATELY**
 
 ## 1. Objective
 
@@ -118,11 +119,11 @@ PDF output now contains a dedicated gas-safety page. XLSX output contains a dedi
 
 ## 6. Firmware compatibility determination
 
-Git comparison from the HR-0101-044 executable baseline `69d17f52b2096cc303f005db78a6a2c7bfcd3ab9` to HR-0101-047 baseline `7877fb372a84c8bce56be887b864fee166f27fa7` shows only one firmware file changed: `firmware/HazRob/Config.h`. That change synchronizes the accepted HR-0101-045 R0 constants/provenance. No master drive, networking, MQTT, ADC, relay, ENV driver or command-handler source was changed by HR-0101-046/047.
+Git comparison from the HR-0101-044 executable baseline `69d17f52b2096cc303f005db78a6a2c7bfcd3ab9` to HR-0101-047 executable baseline `7877fb372a84c8bce56be887b864fee166f27fa7` shows only one firmware file changed: `firmware/HazRob/Config.h`. That change synchronizes the accepted HR-0101-045 R0 constants/provenance. No master drive, networking, MQTT, ADC, relay, ENV driver or command-handler source was changed by HR-0101-046/047.
 
 No file under `firmware/HazRob-CAM/` changed in that comparison. Camera behavior is therefore source-identical to the previously verified HazRob-CAM 0.10.1 baseline.
 
-The final distribution build must nevertheless compile both ESP32 targets from the same final branch head to prove that documentation/app additions have not introduced repository-level integration drift.
+The final distribution build nevertheless compiled both ESP32 targets from the same distribution/test-gate source `5aa65eca113969cb8ec49dc5850076c327fdea5f` to prove that repository-level changes did not introduce integration drift.
 
 ## 7. Android pre-closeout verification at executable baseline
 
@@ -140,8 +141,6 @@ Verified before documentation closeout:
 - signing continuity: **PASS**;
 - APK SHA-256: `27bd82ba796dfa57fbebe19364774e93467780664c5583898f3cfeffb418d086`;
 - signer certificate SHA-256: `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
-
-A final exact-head Android + ESP32 + ESP32-CAM distribution build is required after this documentation commit before user delivery.
 
 ## 8. Controlled limitations — not compatibility failures
 
@@ -168,3 +167,69 @@ These limitations are intentionally represented as fail-closed gates. They do no
 - no quantitative ppm outside complete M4/open-set/domain gates;
 - no assumed T/RH/P when ENV telemetry is unavailable;
 - no unpinned flammability seed accepted into a release build.
+
+## 10. Final synchronized distribution closeout
+
+**Distribution/test-gate source:** `5aa65eca113969cb8ec49dc5850076c327fdea5f`  
+This source differs from executable baseline `7877fb...` only by controlled documentation/test-gate additions; application and firmware executable logic is unchanged by those later commits.
+
+### 10.1 Independent release gates
+
+Controlled release-gate service: `hazrob-0101-hr047-release-gate`  
+Deploy: `dep-daj1cf95efls73f8bsbg`  
+Result: **LIVE / PASS**
+
+- HazRob 0.10.1 cross-component integration contract: **PASS**;
+- HR-0101-047 gas-safety integration gate: **PASS**;
+- M4/reportable-ppm gate binding: **PASS**;
+- toxicological PPM-only policy: **PASS**;
+- pinned LFL/UFL policy: **PASS**;
+- Hazard/Concentration sort contract: **PASS**;
+- R0 synchronization app ↔ ESP32 source: **PASS**.
+
+### 10.2 Android final distribution build
+
+Controlled builder: `hazrob-0101-build`  
+Deploy: `dep-daj1ch89qbnc73fja6dg`  
+Source: `5aa65eca113969cb8ec49dc5850076c327fdea5f`  
+Result: **LIVE / PASS**
+
+- integration contract: **PASS**;
+- flammability seed SHA-256 verification: **PASS**;
+- `:app:testDebugUnitTest`: **PASS**;
+- `:app:assembleRelease`: **PASS**;
+- `lintVitalRelease`: **PASS**;
+- signer continuity: **PASS**;
+- APK SHA-256: `4c9f21c5478335fce60ed237c2ac7c59fc99d0add54145e940c57141d7f902e2`;
+- signer certificate SHA-256: `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
+
+### 10.3 Main ESP32 final distribution build
+
+Controlled builder: `hazrob-0101-firmware-build`  
+Deploy: `dep-daj1cjiq185c73ajsojg`  
+Source: `5aa65eca113969cb8ec49dc5850076c327fdea5f`  
+Target: `esp32:esp32:esp32:PartitionScheme=huge_app`  
+Arduino ESP32 core: `3.3.11`  
+Result: **LIVE / PASS**
+
+- program storage: **1,091,121 bytes / 34%**;
+- global dynamic memory: **50,204 bytes / 15%**;
+- free local-variable memory: **277,476 bytes**.
+
+### 10.4 ESP32-CAM final distribution build
+
+Same controlled firmware deploy and source as 10.3.  
+Target: `esp32:esp32:esp32cam`  
+Result: **PASS**
+
+- program storage: **1,118,803 bytes / 35%**;
+- global dynamic memory: **67,836 bytes / 20%**;
+- free local-variable memory: **259,844 bytes**.
+
+Compiler warnings about volatile-qualified increments and the existing certificate-pointer expression remain warnings only; no compile/link failure occurred. They are unchanged from the previously accepted CAM baseline and do not indicate Android/master/CAM contract incompatibility.
+
+### 10.5 Infrastructure incident disposition
+
+The first final firmware attempt failed before compilation because cached Arduino CLI state caused `arduino-cli config init` to report an existing configuration file under `set -e`. The source integration audit had already passed. The builder was corrected by assigning a fresh controlled `ARDUINO_CONFIG_FILE`/data directory and the exact-head rebuild then compiled both master and CAM successfully. This event is classified as **build-environment failure, resolved**, not a firmware regression.
+
+**Final distribution determination:** Android + main ESP32 + ESP32-CAM + remote protocol + chemical-analysis/reporting safety contract are source/build compatible for HazRob 0.10.1. Physical ENV qualification and reference-gas M4 validation remain intentionally pending and must not be represented as completed metrological validation.
