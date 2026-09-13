@@ -1,7 +1,7 @@
 # HazRob 0.10.1 — Accepted three-session field clean-air R0 baseline
 
 Controlled change: **HR-0101-045**  
-Status: **FIELD R0 ACCEPTANCE PASS — SOURCE UPDATED — BUILD VERIFICATION PENDING**
+Status: **SOURCE/BUILD PASS — FIELD R0 ACCEPTANCE PASS**
 
 ## 1. Acceptance campaign
 
@@ -84,7 +84,7 @@ This acceptance does **not** establish:
 
 Quantitative ppm remains withheld unless the relevant device/reference-gas M4 calibration, identity/open-set, quality-control, and validated-domain gates pass independently.
 
-## 7. Source implementation
+## 7. Source implementation and build verification
 
 HazRob remains **0.10.1 / API 4**. No GPIO or hardware-profile change is introduced.
 
@@ -94,4 +94,15 @@ The accepted baseline is implemented in:
 - `app/src/main/java/com/servoc/app/calibration/FieldR0Baseline.java`;
 - `app/src/test/java/com/servoc/app/calibration/FieldR0BaselineTest.java`.
 
+Verified executable/source commit: `197918e583e60f9369194137cc2ca098ecf75e90`.
+
+- Android controlled deploy `dep-daivpde7bikc73a8dcng`: **live / PASS**.
+- Android unit tests, release assembly, lint vital, and signer continuity: **PASS**.
+- APK SHA-256: `cd961801351e5ee0b413074767887fe9d8943d56236846f1c148f3d7a5c035d6`.
+- Firmware clean-cache controlled deploy `dep-daivr095efls73f3tcj0`: **live / PASS**.
+- Main ESP32 compile: **PASS**, 1,091,105 bytes program / 50,204 bytes globals.
+- ESP32-CAM compatibility compile: **PASS**, 1,118,771 bytes program / 67,836 bytes globals.
+
 The physical ESP32 does not acquire the new embedded constants until it is eventually reflashed. This does not invalidate the three accepted reports: their complete time-series ratios and prior R0 provenance allow reconstruction of `Rs` and derivation of the accepted campaign baseline. Reflash may therefore be deferred until physical access to the ESP32 is convenient.
+
+Subsequent closeout commits are documentation-only and do not alter the verified executable source.
