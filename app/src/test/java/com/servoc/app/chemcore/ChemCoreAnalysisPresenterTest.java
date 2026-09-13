@@ -1,5 +1,7 @@
 package com.servoc.app.chemcore;
 
+import com.servoc.app.exposure.GasPpmExposureAssessment;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
@@ -35,5 +37,11 @@ public class ChemCoreAnalysisPresenterTest {
         assertTrue(text.contains("Joint fit"));
         assertTrue(text.contains("M4"));
         assertTrue(text.contains("MQ2"));
+    }
+
+    @Test public void gasPpmAssessmentIsRenderedWithTemporalWarning()throws Exception{
+        JSONObject p=screeningPayload();JSONObject g=new JSONObject().put("schema",GasPpmExposureAssessment.SCHEMA).put("input_gate_passed",true).put("state","REFERENCE_CONTEXT_CROSSED").put("ppm",20.0).put("measurement_duration_ms",30000).put("ppm_reference_count",1).put("excluded_non_ppm_count",2).put("crossed_reference_count",1).put("action_relevant_crossed_count",0).put("max_ratio_to_reference",2.0);
+        g.put("references",new JSONArray().put(new JSONObject().put("authority","NIOSH").put("limit_type","STEL").put("value_ppm",10.0).put("percent_of_reference",200.0).put("reference_crossed",true).put("temporal_role","STEL").put("duration_min",15.0).put("duration_coverage_satisfied",false)));p.put(GasPpmExposureAssessment.KEY,g);
+        String summary=ChemCoreAnalysisPresenter.summary(p),detail=ChemCoreAnalysisPresenter.gasExposurePpm(p,5);assertTrue(summary.contains("Gas exposure PPM: REFERENCE_CONTEXT_CROSSED"));assertTrue(detail.contains("NIOSH STEL: 10.00 ppm"));assertTrue(detail.contains("duration not covered"));assertTrue(detail.contains("Compliance: NOT MADE"));
     }
 }
