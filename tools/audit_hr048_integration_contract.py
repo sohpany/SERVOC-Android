@@ -112,7 +112,7 @@ def main() -> int:
     # Alert GPIO is fail-closed electrically until a safe driver is explicitly declared installed.
     require(cfg, "ALERT_OUTPUT_INSTALLED=false", "alert hardware gate")
     require(alerts, "Cfg::ALERT_OUTPUT_INSTALLED&&activeLevel!=NONE", "alert output gating")
-    require(alerts, '\"output_asserted\"', "alert telemetry assertion state")
+    require(alerts, "output_asserted", "alert telemetry assertion state")
 
     # Remote diagnostic UI and firmware must expose the same ordered readiness stages.
     for key in ("configured", "wifi", "ip_ok", "dns", "time", "internet", "tls", "mqtt", "command_ack", "telemetry", "remote_ready", "detail"):
