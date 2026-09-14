@@ -1,0 +1,50 @@
+name: HazRob 0.10.1 HR048 Controlled Validation
+
+on:
+  push:
+    branches:
+      - fix/hr-0101-048-field-remediation
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hr048-controlled-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  controlled-validation:
+    name: HR048 full software/build gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout immutable source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Record source identity
+        run: |
+          set -euxo pipefail
+          printf 'source=%s\nref=%s\nrun_id=%s\n' "$GITHUB_SHA" "$GITHUB_REF" "$GITHUB_RUN_ID" > HR048-CI-SOURCE.txt
+
+      - name: Run controlled HR048 validation
+        run: |
+          set -euxo pipefail
+          bash tools/build_hr048_validation.sh
+
+      - name: Attach CI source identity
+        if: always()
+        run: |
+          mkdir -p public/hr048
+          cp HR048-CI-SOURCE.txt public/hr048/HR048-CI-SOURCE.txt
+
+      - name: Upload controlled artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: HazRob-0.10.1-HR048-controlled-${{ github.sha }}
+          path: public/hr048/
+          if-no-files-found: error
+          retention-days: 30
