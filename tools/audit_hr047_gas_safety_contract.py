@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Fail-closed HR-0101-047 gas-safety/release integration gate.
 
-This supplements audit_0101_integration_contract.py.  It deliberately checks the
+This supplements audit_0101_integration_contract.py. It deliberately checks the
 cross-file scientific contract introduced by HR047 rather than re-testing numerical
-unit behaviour already covered by JUnit.
+unit behaviour already covered by JUnit. On the consolidated 0.10.1 branch it also
+invokes the HR048 drive contract so the release gate cannot pass with drive drift.
 """
 from pathlib import Path
+import os
 import re
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -111,10 +113,26 @@ def main() -> int:
         if abs(a-b) > max(1e-5, abs(a)*1e-6):
             raise AssertionError(f"R0 mismatch {key}: app={a} fw={b}")
 
+    # 9) Consolidated-branch release gate also executes HR048 drive invariants. Suppress the
+    # HR048 audit's own integration recursion because the release service runs the base audit first.
+    old_skip = os.environ.get("HR048_SKIP_INTEGRATION")
+    os.environ["HR048_SKIP_INTEGRATION"] = "1"
+    try:
+        from audit_hr048_drive_contract import main as drive_main
+        rc = drive_main()
+        if rc not in (None, 0):
+            raise AssertionError(f"HR048 drive contract returned {rc}")
+    finally:
+        if old_skip is None:
+            os.environ.pop("HR048_SKIP_INTEGRATION", None)
+        else:
+            os.environ["HR048_SKIP_INTEGRATION"] = old_skip
+
     print("HazRob HR-0101-047 gas-safety integration gate: PASS")
     print("Policy: reportable M4 ppm -> ppm-only health refs + pinned LFL/UFL -> relative hazard")
     print("Sort modes: hazard_priority_ratio_desc (default), ppm_desc (operator view)")
     print("R0 authority: FIELD-R0-3SESSION-20260913 synchronized app <-> ESP32 source")
+    print("Consolidated release gate: HR048 drive contract PASS")
     return 0
 
 
@@ -122,5 +140,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HazRob HR-0101-047 gas-safety integration gate: FAIL: {exc}")
+        print(f"HazRob HR-0101-047/048 release gate: FAIL: {exc}")
         raise SystemExit(1)
