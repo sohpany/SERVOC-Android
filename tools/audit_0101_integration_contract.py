@@ -131,11 +131,12 @@ def main() -> int:
     require(connection_gate, 'listener.onReady(Mode.DIRECT)', "Direct non-blocking admission")
     forbid(connection_gate, 'diagnosticsRaw()', "Direct admission gate")
 
-    # 3) Canonical GPIO contract. Any change here requires explicit hardware review.
+    # 3) Canonical GPIO contract. HR-0101-048 corrected logical side association at the L298N boundary.
     gpio_needles = [
         'HW_PROFILE[]="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1"',
-        'DRIVE_L_EN=16,DRIVE_L_IN1=18,DRIVE_L_IN2=27',
-        'DRIVE_R_EN=17,DRIVE_R_IN1=19,DRIVE_R_IN2=32',
+        'DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32',
+        'DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27',
+        'DRIVE_L_INVERT=false,DRIVE_R_INVERT=false',
         'SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49',
         'RELAY_MQ=25',
         'ALERT_PIN=26',
@@ -156,6 +157,8 @@ def main() -> int:
         "GPIO21", "GPIO22",
     ]:
         require(gpio_doc, needle, "GPIO authority document")
+    require(gpio_doc, "LEFT → channel B", "GPIO authority HR048 left association")
+    require(gpio_doc, "RIGHT → channel A", "GPIO authority HR048 right association")
     require(gpio_doc, "Remove the ENA jumper", "GPIO authority ENA rule")
     require(gpio_doc, "Remove the ENB jumper", "GPIO authority ENB rule")
 
