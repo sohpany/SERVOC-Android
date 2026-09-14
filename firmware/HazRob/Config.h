@@ -16,9 +16,10 @@ constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 constexpr uint8_t DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32;
 constexpr uint8_t DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27;
 constexpr bool DRIVE_L_INVERT=false,DRIVE_R_INVERT=false;
-// Normal drive commands are applied immediately. This timeout does not shape speed;
-// it only neutralizes a non-zero output after the command stream disappears completely.
-constexpr uint32_t CONTROL_COMMAND_TIMEOUT_MS=1500,ADS_REPROBE_MS=3000;
+// Commands are applied immediately with no acceleration shaping. At the normal 20 Hz hold-refresh,
+// a 500 ms watchdog tolerates ten consecutive missed refreshes while limiting uncontrolled travel
+// after a complete command-stream loss. Joystick release still sends an explicit immediate zero.
+constexpr uint32_t CONTROL_COMMAND_TIMEOUT_MS=500,ADS_REPROBE_MS=3000;
 
 // Shared analytical I2C bus: ADS1 + ADS2 + chamber BME/BMP.
 constexpr uint8_t SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49;
