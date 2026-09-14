@@ -41,12 +41,12 @@ public final class AnalyticalLabTab {
 
         ScrollView scroll=new ScrollView(c);scroll.setFillViewport(true);LinearLayout dash=UiKit.vbox(c);dash.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));scroll.addView(dash);dashboardView=scroll;
         dash.addView(UiKit.title(c,"المختبر الكيميائي التحليلي الموسع • HazRob 0.10.1"),UiKit.full(c));
-        dash.addView(UiKit.small(c,"المصدر التحليلي الوحيد هنا هو ChemCore v3. يفصل النظام بين R0 للهواء النظيف، التعرف متعدد الحساسات، ومعايرة M4 الكمية؛ ولا يحول screening-fit إلى PPM قابل للتقرير."),UiKit.full(c));
+        TextView scope=UiKit.small(c,"طبقتان منفصلتان: (1) Screening/التعرف والترتيب والبصمة والبواقي — متاحة بعد جلسة صالحة، (2) PPM كمي قابل للتقرير — محجوب فقط حتى اكتمال M4. حجب PPM لا يعني أن التحليل النوعي مقيد.");scope.setTextColor(0xFF81C784);scope.setBackgroundColor(0xFF13251A);dash.addView(scope,UiKit.full(c));
 
         LinearLayout readyCard=UiKit.card(c);readyCard.addView(UiKit.title(c,"جاهزية المختبر"),UiKit.full(c));readiness=box(c);readyCard.addView(readiness,UiKit.full(c));dash.addView(readyCard,UiKit.full(c));
         LinearLayout calCard=UiKit.card(c);calCard.addView(UiKit.title(c,"R0 وبوابات المعايرة"),UiKit.full(c));calibration=box(c);calCard.addView(calibration,UiKit.full(c));dash.addView(calCard,UiKit.full(c));
         LinearLayout envCard=UiKit.card(c);envCard.addView(UiKit.title(c,"البيئة والحالة I²C"),UiKit.full(c));environment=box(c);envCard.addView(environment,UiKit.full(c));dash.addView(envCard,UiKit.full(c));
-        LinearLayout resultCard=UiKit.card(c);resultCard.addView(UiKit.title(c,"آخر قرار ChemCore مرتبط بجلسة"),UiKit.full(c));result=box(c);result.setTextIsSelectable(true);resultCard.addView(result,UiKit.full(c));candidates=box(c);candidates.setTextIsSelectable(true);resultCard.addView(candidates,UiKit.full(c));dash.addView(resultCard,UiKit.full(c));
+        LinearLayout resultCard=UiKit.card(c);resultCard.addView(UiKit.title(c,"نتيجة Screening / قرار ChemCore الأخير"),UiKit.full(c));TextView resultNote=UiKit.small(c,"المرشحون وPosterior والبواقي نتائج Screening قابلة للعرض. يظهر PPM فقط إذا اجتازت النتيجة بوابة M4 الكمية المستقلة.");resultNote.setTextColor(0xFFB0BEC5);resultCard.addView(resultNote,UiKit.full(c));result=box(c);result.setTextIsSelectable(true);resultCard.addView(result,UiKit.full(c));candidates=box(c);candidates.setTextIsSelectable(true);resultCard.addView(candidates,UiKit.full(c));dash.addView(resultCard,UiKit.full(c));
         LinearLayout mathCard=UiKit.card(c);mathCard.addView(UiKit.title(c,"المنحنيات • اللوغاريتمات • البواقي"),UiKit.full(c));math=box(c);math.setTextIsSelectable(true);mathCard.addView(math,UiKit.full(c));dash.addView(mathCard,UiKit.full(c));
 
         sessionButton.setOnClickListener(v->show(0));dashboardButton.setOnClickListener(v->show(1));show(0);
@@ -70,8 +70,8 @@ public final class AnalyticalLabTab {
                 "\nBlockers: "+join(q.blockers)+"\nAdvisories: "+join(q.advisories));
         readiness.setTextColor(q.configurationReady?0xFF81C784:0xFFFFB74D);
         calibration.setText("R0 accepted campaign: "+FieldR0Baseline.SESSION+"\nR0 normalization: "+q.r0NormalizedChannels+"/8 • field clean-air: "+q.fieldR0Channels+"/8 • "+FieldR0Baseline.SAMPLE_COUNT+" samples / "+FieldR0Baseline.SESSION_COUNT+" sessions\nReference-gas/M4 sensors with ≥1 active accepted curve: "+q.referenceValidatedChannels+"/8\n"+
-                (q.fingerprintNormalizationReady()?"البصمة Rs/R0 جاهزة؛ التطبيق يعيد التطبيع من Rs باستخدام HR-0101-045 حتى قبل مزامنة Firmware.":"البصمة غير جاهزة: R0 غير مكتمل.")+"\n"+
-                (q.anyReferenceGasCalibrationAvailable()?"توجد معايرة مرجعية جزئية؛ السماح الكمي يظل خاصاً بكل مرشح وبجميع منحنياته المساهمة.":"PPM الكمي محجوب: لا توجد بعد منحنيات غاز مرجعي M4 نشطة ومقبولة."));
+                (q.fingerprintNormalizationReady()?"Screening READY — البصمة Rs/R0 جاهزة للتعرف النسبي وترتيب المرشحين.":"Screening NOT READY — R0 غير مكتمل.")+"\n"+
+                (q.anyReferenceGasCalibrationAvailable()?"Quantitative PPM: توجد معايرة مرجعية جزئية؛ السماح الكمي يظل خاصاً بكل مرشح وبجميع منحنياته المساهمة.":"Quantitative PPM: WITHHELD حتى M4؛ هذا لا يحجب Screening أو المرشحين أو البواقي."));
         String t=finite(q.temperatureC)?String.format(Locale.US,"%.2f °C",q.temperatureC):"—",h=finite(q.humidityRh)?String.format(Locale.US,"%.1f %%RH",q.humidityRh):"—",p=finite(q.pressureHpa)?String.format(Locale.US,"%.1f hPa",q.pressureHpa):"—";
         environment.setText("Sensor: "+blank(q.environmentSensor)+" • Status: "+blank(q.environmentStatus)+"\nAddress: "+blank(q.environmentAddress)+" • Chip ID: "+blank(q.environmentChipId)+"\nT "+t+" • RH "+h+" • P "+p+"\nEnvironmental correction: "+(q.environmentReady?"بيانات البيئة متاحة؛ يطبق التصحيح فقط إذا كان نموذج المركب يدعمه.":"WITHHELD — لا توجد قراءة بيئية صالحة."));
         environment.setTextColor(q.environmentReady?0xFF81C784:0xFFFFB74D);
