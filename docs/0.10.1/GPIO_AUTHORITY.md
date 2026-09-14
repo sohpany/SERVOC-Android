@@ -4,7 +4,7 @@ Status: **HR-0101-048 REMEDIATION AUTHORITY — BUILD VALIDATION REQUIRED; PHYSI
 Change control: `HR-0101-010`; relay notation clarification: `HR-0101-019`; audit-readable aliases: `HR-0101-020`; field steering correction: `HR-0101-048`  
 Primary code sources: `firmware/HazRob/Config.h`, `firmware/HazRob/Hardware.cpp`, `firmware/HazRob/Alerts.cpp`, `firmware/HazRob-CAM/HazRob-CAM.ino`.
 
-This document is the human-readable GPIO authority for the HR-0101-048 remediation branch of HazRob 0.10.1. The original HR047 release baseline remains historical until HR048 is build-validated and physically re-accepted. The 2026-09-14 field test confirmed that the previous logical Left/Right association produced reversed steering while straight forward and reverse remained correct. HR048 therefore preserves the canonical joystick mixer and swaps the logical side association at the L298N channel boundary. Final wheels-up side-isolation validation is still required after flashing the remediation firmware.
+This document is the human-readable GPIO authority for the HR-0101-048 remediation branch of HazRob 0.10.1. The original HR047 release baseline remains historical until HR048 is build-validated and physically re-accepted. The 2026-09-14 field test confirmed reversed steering handedness while straight forward and reverse remained correct. HR048 therefore preserves the canonical joystick mixer and applies a controlled logical-side swap at the L298N channel boundary as the remediation candidate. Final wheels-up side-isolation validation is still required after flashing the remediation firmware; the mapping is not a physical-acceptance claim until that gate passes.
 
 ## 1. Main ESP32 — DOIT ESP32 DEVKIT V1 / ESP32-WROOM profile
 
@@ -12,12 +12,12 @@ Hardware profile: `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`
 
 | GPIO | Direction / capability | HazRob 0.10.1 HR048 function | External connection | Electrical / integration rule |
 |---:|---|---|---|---|
-| 17 | Digital output + PWM | `DRIVE_L_EN` | L298N ENB | **Logical left-side** speed PWM after HR048 steering correction. Remove the ENB jumper when ESP32 controls ENB. |
-| 19 | Digital output | `DRIVE_L_IN1` | L298N IN3 | Logical left-side direction after HR048 correction; not speed PWM. |
-| 32 | Digital output | `DRIVE_L_IN2` | L298N IN4 | Logical left-side direction after HR048 correction; not speed PWM. |
-| 16 | Digital output + PWM | `DRIVE_R_EN` | L298N ENA | **Logical right-side** speed PWM after HR048 steering correction. Remove the ENA jumper when ESP32 controls ENA. |
-| 18 | Digital output | `DRIVE_R_IN1` | L298N IN1 | Logical right-side direction after HR048 correction; not speed PWM. |
-| 27 | Digital output | `DRIVE_R_IN2` | L298N IN2 | Logical right-side direction after HR048 correction; not speed PWM. |
+| 17 | Digital output + PWM | `DRIVE_L_EN` | L298N ENB | **Logical left-side** speed PWM in the HR048 remediation candidate. Remove the ENB jumper when ESP32 controls ENB. |
+| 19 | Digital output | `DRIVE_L_IN1` | L298N IN3 | Logical left-side direction in the HR048 candidate; not speed PWM. |
+| 32 | Digital output | `DRIVE_L_IN2` | L298N IN4 | Logical left-side direction in the HR048 candidate; not speed PWM. |
+| 16 | Digital output + PWM | `DRIVE_R_EN` | L298N ENA | **Logical right-side** speed PWM in the HR048 remediation candidate. Remove the ENA jumper when ESP32 controls ENA. |
+| 18 | Digital output | `DRIVE_R_IN1` | L298N IN1 | Logical right-side direction in the HR048 candidate; not speed PWM. |
+| 27 | Digital output | `DRIVE_R_IN2` | L298N IN2 | Logical right-side direction in the HR048 candidate; not speed PWM. |
 | 21 | I2C bidirectional | `SDA` | ADS1115 #1/#2 + BME/BMP bus | 3.3 V ESP32 logic. I2C clock is 400 kHz. Do not allow pull-ups to 5 V on the ESP32 side. |
 | 22 | I2C bidirectional | `SCL` | ADS1115 #1/#2 + BME/BMP bus | 3.3 V ESP32 logic. I2C clock is 400 kHz. Do not allow pull-ups to 5 V on the ESP32 side. |
 | 25 | Digital output | `RELAY_MQ` | MQ power relay input | One relay controls all eight MQ modules. Active LOW: LOW=ON, HIGH=OFF. |
@@ -38,11 +38,11 @@ Hardware profile: `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`
 
 - Physical L298N channel A remains `ENA=GPIO16`, `IN1=GPIO18`, `IN2=GPIO27`, outputs `OUT1/OUT2`.
 - Physical L298N channel B remains `ENB=GPIO17`, `IN3=GPIO19`, `IN4=GPIO32`, outputs `OUT3/OUT4`.
-- HR048 logical association: **LEFT → channel B** and **RIGHT → channel A**.
+- HR048 remediation candidate association: **LEFT → channel B** and **RIGHT → channel A**.
 - The joystick coordinate convention remains `+Y=forward`, `+X=right` with the canonical mixer `Left=Y+X`, `Right=Y-X`.
 - A forward-right arc therefore requires both sides forward with logical Left faster than logical Right; a forward-left arc requires logical Right faster than logical Left.
 - Pivot-right requires logical `(Left>0, Right<0)`; pivot-left requires `(Left<0, Right>0)`.
-- This logical channel swap corrects the field-confirmed steering handedness without changing forward/reverse polarity. It does **not** by itself prove that both motors on each physical side are electrically healthy; post-flash side-isolation remains mandatory.
+- This logical channel swap is intended to correct the field-confirmed reversed steering handedness without changing forward/reverse polarity. It does **not** by itself prove that both motors on each physical side are electrically healthy; post-flash side-isolation remains mandatory.
 - ESP32 control wires remain exactly six GPIO lines: `16, 18, 27, 17, 19, 32`.
 - Remove both ENA/ENB enable jumpers when ENA/ENB are driven by ESP32 PWM.
 - Main ESP32, L298N logic interface, sensors, and interface circuits require a common signal ground.
@@ -59,7 +59,7 @@ Bus: `SDA GPIO21`, `SCL GPIO22`, 400 kHz.
 | BME280 / BMP280 | auto-detect `0x76` or `0x77` | Chamber temperature/pressure and humidity when BME280 is fitted |
 | BH1750 | future only `0x23` or `0x5C` | Preferred future quantitative illuminance sensor; not installed in 0.10.1 |
 
-ADS1115 acquisition contract: fixed 5 V ADS supply, PGA ±6.144 V, 860 SPS, four conversions averaged per channel. The ESP32 I2C pins are a 3.3 V logic domain; any 5 V-side pull-ups require a proper level-shifting implementation. The I2C shifter is for I2C devices, not for MAX4466 analog OUT, IR logic merely because it is 5 V powered, or ultrasonic ECHO as a generic substitute for a dedicated level interface.
+The **software acquisition contract** is configured for ADS1115 VDD = 5 V, PGA ±6.144 V, 860 SPS and four conversions averaged per channel. HR048 physical acceptance must independently confirm the assembled ADS1115 supply domain before this 5 V assumption is treated as a measured hardware fact. The measured ~3.3 V I2C idle level establishes the ESP32-side logic domain but does not prove ADS VDD. Any 5 V-side I2C pull-ups require a proper level-shifting implementation. The I2C shifter is for I2C devices, not for MAX4466 analog OUT, IR logic merely because it is 5 V powered, or ultrasonic ECHO as a generic substitute for a dedicated level interface.
 
 ## 3. ESP32 electrical capability review
 
@@ -120,4 +120,5 @@ Before this remediation mapping replaces the HR047 field baseline, all of the fo
 4. wheels-up isolation proves logical Left commands only the physical left side and logical Right only the physical right side;
 5. positive and negative commands are checked independently per side;
 6. forward/reverse, forward-right/forward-left arcs, pivot-right and pivot-left are physically verified at low speed;
-7. any remaining weak-side behavior is investigated electrically/mechanically rather than hidden by additional sign swaps.
+7. any remaining weak-side behavior is investigated electrically/mechanically rather than hidden by additional sign swaps;
+8. assembled ADS1115 VDD is measured and reconciled with the software acquisition constant before analytical physical acceptance.
