@@ -21,7 +21,11 @@ constexpr uint8_t SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49;
 constexpr uint8_t RELAY_MQ=25,RELAY_ON=LOW,RELAY_OFF=HIGH;
 
 // Discrete / device-health channels.
-constexpr uint8_t ALERT_PIN=26;          // reserved 8-ohm speaker alert signal; safe interface required before installation
+// ALERT_PIN is a logic-level control output only. Never connect an 8-ohm speaker directly to ESP32.
+// Keep false until an external transistor/MOSFET/amplifier or active-buzzer interface is physically installed.
+constexpr uint8_t ALERT_PIN=26;
+constexpr bool ALERT_OUTPUT_INSTALLED=false;
+constexpr uint8_t ALERT_ACTIVE=HIGH,ALERT_INACTIVE=LOW;
 constexpr uint8_t SOUND_PIN=36;          // MAX4466 ADC1
 constexpr uint8_t IR_PIN=35;             // lower-front fall-edge warning
 constexpr uint8_t LDR_PIN=34;            // LM393 digital light-threshold output; NOT quantitative lux
