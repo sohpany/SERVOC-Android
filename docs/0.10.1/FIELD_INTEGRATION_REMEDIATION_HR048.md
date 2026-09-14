@@ -25,15 +25,17 @@ These findings reopen physical integration acceptance. HR047 remains a source/bu
 - Reverse command: correct.
 - Right steering command: vehicle turns left.
 - Left steering command: vehicle barely turns and wheel behavior is not the expected differential/pivot motion.
-- Browser-side drive tests were performed while the Android application may still have owned the 20 Hz drive command stream. Therefore those browser results are not yet authoritative for L298N channel mapping.
+- Browser-side drive tests were performed while the Android application could still own the 20 Hz drive command stream. Therefore those browser results are not authoritative for L298N channel mapping.
 
-### Software review
+### Software review and remediation
 
-The joystick differential mixer is mathematically standard (`left=y+x`, `right=y-x`). Firmware applies the accepted left/right command directly to the two L298N channels with no acceleration/reversal shaping. No left/right inversion or channel swap is being changed in HR048 until an isolated wheels-up channel test is repeated with the Android process fully stopped.
+The joystick differential mixer is mathematically standard (`left=y+x`, `right=y-x`). Firmware applies the accepted left/right command directly to the two L298N channels with no acceleration/reversal shaping. No left/right inversion or channel swap is being changed until isolated physical channel mapping is measured.
+
+A separate Android ownership defect was fixed in HR048: Direct mode previously retransmitted idle `0,0` every 50 ms, allowing an open but idle app to overwrite independent browser/diagnostic drive commands. HR048 now sends the zero transition once, then suppresses repeated idle-zero Direct commands until Android itself sends a non-zero command. Non-zero operator commands retain the 20 Hz continuity refresh.
 
 ### Required field gate
 
-Repeat with Android Force Stop:
+After installing an HR048 verified build, or after Force Stop of the old Android app, repeat wheels-up:
 
 - `L=+50, R=0`
 - `L=0, R=+50`
@@ -55,7 +57,7 @@ HR048 changes the operational warning rule:
 - Existing 20% ELEVATED and 40% HIGH response thresholds are retained for this first remediation build to avoid changing two variables at once.
 - This remains an operational response alarm only. It is not quantitative ppm, IDLH, LFL or chemical-identification validation.
 
-Unit tests are updated to require warning operation after warm-up even when the app baseline has not yet been captured.
+Unit tests were updated to require warning operation after warm-up even when the app baseline has not yet been captured.
 
 ## 4. Alert GPIO defect — LOGIC FIXED / HARDWARE ENABLE STILL CONTROLLED
 
@@ -81,31 +83,46 @@ These are not I2C devices in the authoritative HazRob profile:
 
 A bidirectional BSS138-style I2C level shifter is not an appropriate analog signal path for MAX4466 and is not the preferred path for HC-SR04 ECHO. Physical rewiring is required before these channels can be evaluated as firmware defects.
 
-## 6. Remote-control finding
+The ultrasonic implementation must also be re-evaluated after correct wiring because the present non-blocking ECHO polling shares the main loop; short ECHO pulses require a field timing check before this channel can be declared PASS.
+
+## 6. Remote-control finding and diagnostic remediation
 
 Render/HiveMQ infrastructure diagnostics passed externally: stored app/robot MQTT credentials, TLS, ACL subscriptions and command/ACK/telemetry round-trips were accepted. The field failure is therefore not currently assigned to Render or HiveMQ.
 
-The next authoritative field datum is the robot's `/remote/status` chain:
+HR048 expands the developer connection screen to show the complete robot-side chain and the first failing stage:
 
 `configured -> wifi -> ip_ok -> dns -> time -> internet -> tls -> mqtt -> command_ack -> telemetry -> remote_ready`
 
-No remote transport code will be changed until the first failing stage and `detail` value are captured.
+It also displays the firmware `detail` field, so the next field test can distinguish Wi-Fi/DHCP/DNS/NTP/bootstrap/TLS/MQTT/ACK/telemetry without guessing.
 
-## 7. Analysis UI / M4
+No transport behavior has been changed before the first failing stage is captured.
 
-PPM withholding remains scientifically intentional until complete M4 evidence exists. HR048 must improve presentation so screening candidate results are visibly separated from validated quantitative ppm; it must not bypass M4 or relabel screening estimates as reportable concentration.
+## 7. Analysis UI / M4 — PRESENTATION REMEDIATED
 
-## 8. Acceptance state
+PPM withholding remains scientifically intentional until complete M4 evidence exists. HR048 now labels the two layers explicitly:
+
+- `Screening`: Rs/R0 fingerprint, ranked candidates, posterior, residuals and screening fit — available after a valid controlled session.
+- `Quantitative PPM`: reportable only after the independent M4 gate.
+
+The UI now states that a withheld PPM does not mean the screening analysis is unavailable. No M4 safety gate is bypassed and no screening estimate is relabeled as reportable concentration.
+
+## 8. Verification infrastructure state
+
+GitHub Actions push runs were created for the remediation commits, but the hosted job terminated before any workflow step started (`steps=[]`, zero runner execution). This is treated as CI infrastructure unavailability, not as evidence that the source passed or failed compilation.
+
+A separate Render verification service was created to run Android unit tests plus main ESP32 and ESP32-CAM compilation. Its result must be checked before an HR048 APK/firmware artifact is released.
+
+## 9. Acceptance state
 
 Current state:
 
-- Source baseline: PASS.
-- Previous synchronized builds: PASS for HR047 source, not field acceptance.
-- HR048 MQ warning patch: code changed, build/test pending.
-- HR048 alert-output logic: code changed, build/firmware compile pending.
-- Drive mapping: field gate pending; no speculative inversion committed.
-- IR/ECHO/sound: physical rewiring pending.
-- Remote: robot status capture pending.
-- Analysis UX: remediation pending.
+- Source baseline: PASS as HR047 source baseline only.
+- HR048 MQ warning patch: code changed; verification pending.
+- HR048 alert-output logic: code changed; verification pending; hardware output intentionally disabled by default.
+- HR048 Direct idle-zero ownership fix: code changed; verification and field retest pending.
+- Drive side mapping/inversion: field gate pending; no speculative inversion committed.
+- IR/ECHO/sound: physical rewiring pending; ultrasonic timing review remains open.
+- Remote diagnostic visibility: code changed; field `/remote/status` capture pending.
+- Analysis Screening/M4 presentation: code changed; verification pending.
 
 No HR048 artifact is approved for field use until Android tests, firmware compilation and the listed physical gates pass.
