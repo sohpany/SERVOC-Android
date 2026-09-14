@@ -26,6 +26,8 @@ public final class InstantMqWarningEngine {
         public Result(Level l,String label,String alert,double d,boolean fallback){
             this.level=l;this.label=label;this.alert=alert;this.delta=d;this.usedFallbackBaseline=fallback;
         }
+        /** Compatibility constructor for states that do not perform baseline comparison (e.g. warm-up). */
+        public Result(Level l,String label,String alert,double d){this(l,label,alert,d,false);}
     }
 
     public static Result evaluate(String key,JSONObject reading,SensorHealthEngine.Snapshot health){
