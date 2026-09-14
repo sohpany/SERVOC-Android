@@ -8,8 +8,10 @@ cd "$ROOT"
 rm -rf public/hr048 build/hr048 .tooling/hr048
 mkdir -p public/hr048 build/hr048/master build/hr048/camera .tooling/hr048/bin signing
 
-# Fail-closed software contracts first.
+# Fail-closed software contracts first. HR048 integration preserves the baseline 0.10.1
+# cross-component gate and explicitly validates the intentional drive-map remediation delta.
 python3 tools/audit_hr048_drive_contract.py | tee public/hr048/HR048-DRIVE-AUDIT.txt
+python3 tools/audit_hr048_integration_contract.py | tee public/hr048/HR048-INTEGRATION-AUDIT.txt
 python3 tools/audit_0101_motion_contract.py | tee public/hr048/MOTION-AUDIT.txt
 python3 tools/audit_hr047_gas_safety_contract.py | tee public/hr048/GAS-SAFETY-AUDIT.txt
 
@@ -74,7 +76,7 @@ rm -f firmware/HazRob/RemoteCloudSecrets.h firmware/HazRob-CAM/RemoteVideoSecret
 )
 
 SOURCE_SHA="${RENDER_GIT_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo unknown)}"
-printf 'HazRob 0.10.1 HR048 FULL VALIDATION\nsource=%s\nandroid_tests=PASS\nandroid_release_build=PASS\nandroid_signer=PASS\nesp32_master_compile=PASS\nesp32_cam_compile=PASS\nphysical_field_acceptance=PENDING\n' "$SOURCE_SHA" > public/hr048/build-info.txt
+printf 'HazRob 0.10.1 HR048 FULL VALIDATION\nsource=%s\nhr048_drive_audit=PASS\nhr048_integration_audit=PASS\nmotion_audit=PASS\ngas_safety_regression=PASS\nandroid_tests=PASS\nandroid_release_build=PASS\nandroid_signer=PASS\nesp32_master_compile=PASS\nesp32_cam_compile=PASS\nphysical_field_acceptance=PENDING\nflammability_offline_bundle=PENDING\n' "$SOURCE_SHA" > public/hr048/build-info.txt
 find public/hr048 -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > public/hr048/SHA256SUMS.txt
 
 cat > public/hr048/index.html <<'EOF'
@@ -86,6 +88,7 @@ cat > public/hr048/index.html <<'EOF'
 <li><a href="HazRob-ESP32-v0.10.1-HR048-source.zip">Main ESP32 source ZIP</a></li>
 <li><a href="HazRob-ESP32-CAM-v0.10.1-HR048-source.zip">ESP32-CAM source ZIP</a></li>
 <li><a href="HR048-DRIVE-AUDIT.txt">HR048 drive audit</a></li>
+<li><a href="HR048-INTEGRATION-AUDIT.txt">HR048 integration audit</a></li>
 <li><a href="ANDROID-TESTS.txt">Android tests</a></li>
 <li><a href="ESP32-COMPILE.txt">Main ESP32 compile log</a></li>
 <li><a href="ESP32-CAM-COMPILE.txt">ESP32-CAM compile log</a></li>
