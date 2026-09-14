@@ -45,9 +45,9 @@ public final class RobotConnectionSetupTab {
         TextView note=UiKit.small(c,"تهيئة الشبكة الخارجية واستكشافها تتم عبر اتصال مؤقت بشبكة HazRob المحلية. بعد حفظ الشبكة يستطيع الروبوت استخدام الإنترنت والاتصال البعيد، بينما تبقى شبكة HazRob متاحة للاتصال المباشر.");
         note.setTextColor(0xFFB0BEC5);root.addView(note,UiKit.full(c));
 
-        LinearLayout current=UiKit.card(c);current.addView(UiKit.title(c,"حالة الشبكة الحالية"),UiKit.full(c));
+        LinearLayout current=UiKit.card(c);current.addView(UiKit.title(c,"حالة الشبكة والاتصال البعيد"),UiKit.full(c));
         status=UiKit.text(c,"اضغط تحديث الحالة");status.setTextColor(Color.WHITE);status.setBackgroundColor(0xFF151A20);current.addView(status,UiKit.full(c));
-        LinearLayout stateButtons=UiKit.hbox(c);Button refresh=UiKit.button(c,"تحديث الحالة");refresh.setOnClickListener(v->refreshStatus());stateButtons.addView(refresh,UiKit.weight(1));Button useSaved=UiKit.button(c,"استخدام الإعداد الحالي");useSaved.setOnClickListener(v->loadRemembered());stateButtons.addView(useSaved,UiKit.weight(1));current.addView(stateButtons,UiKit.full(c));root.addView(current,UiKit.full(c));
+        LinearLayout stateButtons=UiKit.hbox(c);Button refresh=UiKit.button(c,"تشخيص الاتصال");refresh.setOnClickListener(v->refreshStatus());stateButtons.addView(refresh,UiKit.weight(1));Button useSaved=UiKit.button(c,"استخدام الإعداد الحالي");useSaved.setOnClickListener(v->loadRemembered());stateButtons.addView(useSaved,UiKit.weight(1));current.addView(stateButtons,UiKit.full(c));root.addView(current,UiKit.full(c));
 
         LinearLayout discovery=UiKit.card(c);discovery.addView(UiKit.title(c,"استكشاف الشبكات"),UiKit.full(c));
         Button scan=UiKit.button(c,"استكشاف الشبكات");scan.setOnClickListener(v->scanNetworks());discovery.addView(scan,UiKit.full(c));
@@ -83,16 +83,24 @@ public final class RobotConnectionSetupTab {
 
     private void refreshStatus(){
         if(!statusBusy.compareAndSet(false,true))return;
-        status.setText("جارٍ قراءة حالة الشبكة...");
+        status.setText("جارٍ قراءة سلسلة الاتصال من الروبوت...");
         host.io().execute(()->{
             try{
                 JSONObject j=host.robotApi().remoteStatus();
-                String text="SSID: "+dash(j.optString("ssid",""))+"\n"+
-                        "Wi-Fi: "+yes(j.optBoolean("wifi",false))+"   •   IP: "+dash(j.optString("ip",""))+"\n"+
-                        "RSSI: "+j.optInt("rssi",0)+" dBm   •   Internet: "+yes(j.optBoolean("internet",false))+"\n"+
-                        "TLS: "+yes(j.optBoolean("tls",false))+"   •   MQTT: "+yes(j.optBoolean("mqtt",false))+"   •   Telemetry: "+yes(j.optBoolean("telemetry",false));
-                root.post(()->{status.setText(text);status.setTextColor(j.optBoolean("internet",false)?0xFF81C784:0xFFFFB74D);});
-            }catch(Exception e){root.post(()->{status.setText("تعذر الوصول إلى إعداد الشبكة. اتصل بشبكة HazRob المحلية ثم أعد المحاولة.");status.setTextColor(0xFFFF7043);});}
+                boolean configured=j.optBoolean("configured",false),wifi=j.optBoolean("wifi",false),ip=j.optBoolean("ip_ok",false),dns=j.optBoolean("dns",false),time=j.optBoolean("time",false),internet=j.optBoolean("internet",false),tls=j.optBoolean("tls",false),mqtt=j.optBoolean("mqtt",false),ack=j.optBoolean("command_ack",false),telemetry=j.optBoolean("telemetry",false),ready=j.optBoolean("remote_ready",false);
+                String first=firstFailure(configured,wifi,ip,dns,time,internet,tls,mqtt,ack,telemetry);
+                String detail=dash(j.optString("detail",""));
+                String text="SSID: "+dash(j.optString("ssid",""))+"   •   IP: "+dash(j.optString("ip",""))+"\n"+
+                        "RSSI: "+j.optInt("rssi",0)+" dBm\n\n"+
+                        stage("1. Config",configured)+"   "+stage("2. Wi-Fi",wifi)+"   "+stage("3. IP",ip)+"\n"+
+                        stage("4. DNS",dns)+"   "+stage("5. Time",time)+"   "+stage("6. Internet",internet)+"\n"+
+                        stage("7. TLS",tls)+"   "+stage("8. MQTT",mqtt)+"\n"+
+                        stage("9. CMD ACK",ack)+"   "+stage("10. Telemetry",telemetry)+"\n\n"+
+                        "Remote ready: "+yes(ready)+"\n"+
+                        "أول مرحلة غير مكتملة: "+first+"\n"+
+                        "Firmware detail: "+detail;
+                root.post(()->{status.setText(text);status.setTextColor(ready?0xFF81C784:0xFFFFB74D);});
+            }catch(Exception e){root.post(()->{status.setText("تعذر قراءة /remote/status من الروبوت. اتصل بشبكة HazRob المحلية ثم أعد التشخيص.\n"+e.getClass().getSimpleName()+": "+dash(e.getMessage()));status.setTextColor(0xFFFF7043);});}
             finally{statusBusy.set(false);}
         });
     }
@@ -121,11 +129,25 @@ public final class RobotConnectionSetupTab {
             try{
                 host.robotApi().remoteProvision(s,p);
                 RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(context,host.preferences());if(save)store.save(s,p);else store.clear();
-                root.post(()->{status.setText("تم إرسال إعداد الشبكة. سيحاول الروبوت الاتصال بها الآن. أبقِ شبكة HazRob متاحة كقناة مباشرة ثم حدّث الحالة.");status.setTextColor(0xFF81C784);});
+                root.post(()->{status.setText("تم إرسال إعداد الشبكة. سيحاول الروبوت الاتصال بها الآن. أبقِ شبكة HazRob متاحة كقناة مباشرة ثم شغّل «تشخيص الاتصال» لمعرفة أول مرحلة متوقفة.");status.setTextColor(0xFF81C784);});
             }catch(Exception e){root.post(()->{status.setText("فشل إرسال إعداد الشبكة. تأكد من اتصال الهاتف بشبكة HazRob.");status.setTextColor(0xFFFF7043);});}
         });
     }
 
+    private static String stage(String label,boolean ok){return (ok?"● ":"○ ")+label;}
+    private static String firstFailure(boolean configured,boolean wifi,boolean ip,boolean dns,boolean time,boolean internet,boolean tls,boolean mqtt,boolean ack,boolean telemetry){
+        if(!configured)return"Config / لم تُحفظ شبكة خارجية";
+        if(!wifi)return"Wi-Fi / اتصال الراوتر";
+        if(!ip)return"IP / DHCP";
+        if(!dns)return"DNS";
+        if(!time)return"Time / NTP";
+        if(!internet)return"Internet readiness";
+        if(!tls)return"TLS إلى HiveMQ";
+        if(!mqtt)return"MQTT authentication/session";
+        if(!ack)return"Command ACK";
+        if(!telemetry)return"Telemetry";
+        return"لا يوجد فشل — السلسلة مكتملة";
+    }
     private static String yes(boolean b){return b?"● نعم":"○ لا";}
     private static String dash(String s){return s==null||s.trim().isEmpty()?"—":s;}
 }
