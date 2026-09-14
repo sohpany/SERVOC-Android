@@ -8,12 +8,14 @@ public final class HazRobHardwareProfile {
 
     public static final String ID="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1";
     public static final String DRIVE_DRIVER="L298N";
-    public static final int DRIVE_L_EN=16;
-    public static final int DRIVE_L_IN1=18;
-    public static final int DRIVE_L_IN2=27;
-    public static final int DRIVE_R_EN=17;
-    public static final int DRIVE_R_IN1=19;
-    public static final int DRIVE_R_IN2=32;
+    /** Field-corrected 2026-09-14: logical LEFT is L298N channel B (ENB/IN3/IN4). */
+    public static final int DRIVE_L_EN=17;
+    public static final int DRIVE_L_IN1=19;
+    public static final int DRIVE_L_IN2=32;
+    /** Field-corrected 2026-09-14: logical RIGHT is L298N channel A (ENA/IN1/IN2). */
+    public static final int DRIVE_R_EN=16;
+    public static final int DRIVE_R_IN1=18;
+    public static final int DRIVE_R_IN2=27;
 
     public static final int MQ_GROUPS=1;
     public static final int RELAY_CHANNELS=1;
