@@ -3,11 +3,16 @@
 
 The operator coordinate convention is canonical: +Y forward, +X right.
 For a differential drive, a right command must produce logical L > R.
-Field evidence showed the previous logical L/R hardware association was reversed,
-so logical LEFT now maps to L298N channel B and logical RIGHT to channel A.
+Field behavior showed reversed steering handedness while straight motion remained correct,
+so HR048 tests the controlled remediation candidate logical LEFT -> L298N B and RIGHT -> A.
+Physical acceptance still requires the post-flash wheels-up gate.
+
+When invoked directly by the legacy HR048 Render gate this script also runs the HR048
+cross-component integration contract. Full validation may set HR048_SKIP_INTEGRATION=1 and run
+that integration audit as a separately captured artifact.
 """
 from pathlib import Path
-import re
+import os
 
 ROOT=Path(__file__).resolve().parents[1]
 
@@ -38,8 +43,8 @@ def main():
     if mix(1.0,0.0)!=(100,-100): raise AssertionError("right pivot mix invalid")
     if mix(-1.0,0.0)!=(-100,100): raise AssertionError("left pivot mix invalid")
 
-    # Field-corrected logical side association. Forward/reverse remain unchanged because both sides
-    # receive equal signs; only steering/pivot handedness changes.
+    # HR048 remediation candidate side association. Forward/reverse remain unchanged because both sides
+    # receive equal signs; only steering/pivot handedness changes. Physical acceptance remains separate.
     req(cfg,"DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32","logical LEFT -> L298N B")
     req(cfg,"DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27","logical RIGHT -> L298N A")
     req(cfg,"DRIVE_L_INVERT=false,DRIVE_R_INVERT=false","no speculative direction inversion")
@@ -57,11 +62,16 @@ def main():
     req(remote,'p.put("left",left);p.put("right",right);command("drive",p,700,false,0);',"remote drive parity")
 
     print("HazRob 0.10.1 HR-0101-048 drive contract: PASS")
-    print("right-pivot logical=(+100,-100); field hardware mapping: LEFT=B, RIGHT=A")
+    print("right-pivot logical=(+100,-100); remediation mapping: LEFT=B, RIGHT=A; physical acceptance=PENDING")
+
+    if os.environ.get("HR048_SKIP_INTEGRATION") != "1":
+        from audit_hr048_integration_contract import main as integration_main
+        if integration_main() not in (None,0):
+            raise AssertionError("HR048 cross-component integration audit returned non-zero")
     return 0
 
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as e:
-        print("HazRob 0.10.1 HR-0101-048 drive contract: FAIL:",e)
+        print("HazRob 0.10.1 HR-0101-048 drive/integration gate: FAIL:",e)
         raise SystemExit(1)
