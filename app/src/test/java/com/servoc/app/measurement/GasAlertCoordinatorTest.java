@@ -26,11 +26,20 @@ public class GasAlertCoordinatorTest {
         assertEquals(GasAlertCoordinator.WARNING,c.evaluate(snapshot(1.25,60000),health,60,1000));
     }
 
-    @Test public void neverAlarmsBeforeWarmupOrWithoutBaseline()throws Exception{
+    @Test public void acceptedR0NormalizationIsFallbackWhenAppBaselineMissing()throws Exception{
         SensorHealthEngine health=new SensorHealthEngine();
         GasAlertCoordinator c=new GasAlertCoordinator();
         assertEquals(GasAlertCoordinator.NONE,c.evaluate(snapshot(1.80,10000),health,60,1000));
-        assertEquals(GasAlertCoordinator.NONE,c.evaluate(snapshot(1.80,60000),health,60,2000));
+        assertEquals(GasAlertCoordinator.DANGER,c.evaluate(snapshot(1.80,60000),health,60,2000));
+        InstantMqWarningEngine.Result r=InstantMqWarningEngine.evaluate("mq2",snapshot(1.80,60000).getJSONObject("mq").getJSONObject("mq2"),health.snapshot("mq2"));
+        assertTrue(r.usedFallbackBaseline);
+    }
+
+    @Test public void capturedBaselineOverridesR0NormalizedFallback()throws Exception{
+        SensorHealthEngine health=new SensorHealthEngine();health.setBaseline("mq2",1.50);
+        InstantMqWarningEngine.Result r=InstantMqWarningEngine.evaluate("mq2",snapshot(1.80,60000).getJSONObject("mq").getJSONObject("mq2"),health.snapshot("mq2"));
+        assertFalse(r.usedFallbackBaseline);
+        assertEquals(InstantMqWarningEngine.Level.NORMAL,r.level);
     }
 
     @Test public void mqPowerOffClearsImmediately()throws Exception{
