@@ -10,7 +10,7 @@ mkdir -p public/hr048 build/hr048/master build/hr048/camera .tooling/hr048/bin s
 
 # Fail-closed software contracts first. HR048 integration preserves the baseline 0.10.1
 # cross-component gate and explicitly validates the intentional drive-map remediation delta.
-python3 tools/audit_hr048_drive_contract.py | tee public/hr048/HR048-DRIVE-AUDIT.txt
+HR048_SKIP_INTEGRATION=1 python3 tools/audit_hr048_drive_contract.py | tee public/hr048/HR048-DRIVE-AUDIT.txt
 python3 tools/audit_hr048_integration_contract.py | tee public/hr048/HR048-INTEGRATION-AUDIT.txt
 python3 tools/audit_0101_motion_contract.py | tee public/hr048/MOTION-AUDIT.txt
 python3 tools/audit_hr047_gas_safety_contract.py | tee public/hr048/GAS-SAFETY-AUDIT.txt
