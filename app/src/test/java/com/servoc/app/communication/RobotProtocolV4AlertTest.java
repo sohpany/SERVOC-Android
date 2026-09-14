@@ -22,12 +22,13 @@ public class RobotProtocolV4AlertTest {
     @Test public void profilePinContractMatchesFirmware010(){
         assertEquals("hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1",HazRobHardwareProfile.ID);
         assertEquals("L298N",HazRobHardwareProfile.DRIVE_DRIVER);
-        assertEquals(16,HazRobHardwareProfile.DRIVE_L_EN);
-        assertEquals(18,HazRobHardwareProfile.DRIVE_L_IN1);
-        assertEquals(27,HazRobHardwareProfile.DRIVE_L_IN2);
-        assertEquals(17,HazRobHardwareProfile.DRIVE_R_EN);
-        assertEquals(19,HazRobHardwareProfile.DRIVE_R_IN1);
-        assertEquals(32,HazRobHardwareProfile.DRIVE_R_IN2);
+        // HR-0101-048: logical LEFT is physical L298N channel B; RIGHT is channel A.
+        assertEquals(17,HazRobHardwareProfile.DRIVE_L_EN);
+        assertEquals(19,HazRobHardwareProfile.DRIVE_L_IN1);
+        assertEquals(32,HazRobHardwareProfile.DRIVE_L_IN2);
+        assertEquals(16,HazRobHardwareProfile.DRIVE_R_EN);
+        assertEquals(18,HazRobHardwareProfile.DRIVE_R_IN1);
+        assertEquals(27,HazRobHardwareProfile.DRIVE_R_IN2);
         assertEquals(25,HazRobHardwareProfile.MQ_RELAY_GPIO);
         assertEquals(26,HazRobHardwareProfile.ALERT_GPIO);
         assertEquals(34,HazRobHardwareProfile.LDR_GPIO);
