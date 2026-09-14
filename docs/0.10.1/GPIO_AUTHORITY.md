@@ -34,6 +34,8 @@ Hardware profile: `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`
 
 `DRIVE_L_EN=GPIO17; DRIVE_L_IN1=GPIO19; DRIVE_L_IN2=GPIO32; DRIVE_R_EN=GPIO16; DRIVE_R_IN1=GPIO18; DRIVE_R_IN2=GPIO27; SDA=GPIO21; SCL=GPIO22; RELAY_MQ=GPIO25; ALERT_PIN=GPIO26; SOUND_PIN=GPIO36; IR_PIN=GPIO35; LDR_PIN=GPIO34; BATTERY_PIN=GPIO33; ULTRA_TRIG_PIN=GPIO23; ULTRA_ECHO_PIN=GPIO39; INTERNAL_TEMP_RESERVED_PIN=GPIO14.`
 
+Legacy audit-readable physical L298N aliases (physical channel naming only; not logical side assignment): `ENA=GPIO16; ENB=GPIO17; IN1=18; IN2=27; IN3=19; IN4=32.`
+
 ### L298N 4WD topology and steering semantics
 
 - Physical L298N channel A remains `ENA=GPIO16`, `IN1=GPIO18`, `IN2=GPIO27`, outputs `OUT1/OUT2`.
