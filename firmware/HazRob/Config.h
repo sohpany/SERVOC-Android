@@ -7,10 +7,13 @@ constexpr uint8_t API=4;
 constexpr char HW_PROFILE[]="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1";
 constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 
-// L298N 4WD differential drive: two motors per side in parallel.
-// ENA/ENB are dedicated PWM speed pins; IN1..IN4 are direction only.
-constexpr uint8_t DRIVE_L_EN=16,DRIVE_L_IN1=18,DRIVE_L_IN2=27;
-constexpr uint8_t DRIVE_R_EN=17,DRIVE_R_IN1=19,DRIVE_R_IN2=32;
+// L298N 4WD differential drive: two motors per physical side in parallel.
+// Field steering validation on 2026-09-14 confirmed that the previously named logical
+// Left/Right channels were physically cross-associated. Keep joystick math canonical;
+// map logical LEFT to L298N channel B (ENB/IN3/IN4) and logical RIGHT to channel A
+// (ENA/IN1/IN2) so Direct and Remote commands share the same corrected semantics.
+constexpr uint8_t DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32;
+constexpr uint8_t DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27;
 constexpr bool DRIVE_L_INVERT=false,DRIVE_R_INVERT=false;
 // Normal drive commands are applied immediately. This timeout does not shape speed;
 // it only neutralizes a non-zero output after the command stream disappears completely.
