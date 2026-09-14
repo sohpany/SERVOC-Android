@@ -1,41 +1,64 @@
 # HazRob 0.10.1 — HR-0101-048 Field Integration Remediation
 
-Status: **IN PROGRESS — FIELD FINDINGS CONFIRMED; REMEDIATION BUILD NOT YET FIELD-ACCEPTED**
+Status: **CONTROLLED REMEDIATION CANDIDATE — SOFTWARE/BUILD VALIDATION AND PHYSICAL RE-ACCEPTANCE REQUIRED**
 
-Branch: `fix/hr-0101-048-field-remediation`
-Baseline: `dev/hazrob-0.10.1` at `702ddcf9cef20f1212719902acbc275bda7f3f58`
+Release identity: `HazRob 0.10.1` — **no version bump**  
+Branch: `fix/hr-0101-048-field-remediation`  
+Controlled baseline: `dev/hazrob-0.10.1` at `702ddcf9cef20f1212719902acbc275bda7f3f58`  
+Previous field-distribution source: HR047 `5aa65eca113969cb8ec49dc5850076c327fdea5f`
 
-## 1. Trigger
+## 1. Trigger and change-control rule
 
-Physical testing after loading the HR047 distribution artifacts exposed integration failures that were not closed by source/build gates alone:
+Physical testing after loading the HR047 distribution exposed integration failures that were not closed by source/build gates alone:
 
-1. Forward and reverse motion work, but steering/pivot behavior is not correct.
-2. MQ response appears weak operationally and immediate gas alerts are absent.
-3. Analysis UI is perceived as withholding all results.
+1. Forward and reverse motion work, but steering/pivot behavior is incorrect and steering handedness is reversed.
+2. MQ response is operationally weak and immediate gas alerts are absent.
+3. The analysis surface is perceived as withholding all results.
 4. Remote control over the Internet does not work in the field.
-5. IR, ultrasonic ECHO and sound channels do not work in the current physical wiring; the user reported routing their signals through an I2C level shifter while powering modules from 5 V.
+5. IR, ultrasonic ECHO and sound channels do not work in the current physical wiring; their signals were reported routed through an I2C level shifter while modules were powered from 5 V.
 
-These findings reopen physical integration acceptance. HR047 remains a source/build baseline, not a field-acceptance claim.
+HR047 therefore remains a source/build baseline only. HR048 is handled as a controlled remediation inside 0.10.1. No HR048 code is accepted into `dev/hazrob-0.10.1` until the software gates and the applicable physical gates in this document pass.
 
-## 2. Drive finding
+## 2. Drive control — controlled remediation candidate
 
-### Confirmed field observations
+### 2.1 Confirmed field observations
 
 - Forward command: correct.
 - Reverse command: correct.
 - Right steering command: vehicle turns left.
 - Left steering command: vehicle barely turns and wheel behavior is not the expected differential/pivot motion.
-- Browser-side drive tests were performed while the Android application could still own the 20 Hz drive command stream. Therefore those browser results are not authoritative for L298N channel mapping.
+- Initial browser-side isolation attempts were performed while the old Android application could still own a 20 Hz drive stream. Those individual browser results are therefore not accepted as proof of physical L298N channel isolation.
 
-### Software review and remediation
+### 2.2 Software path review
 
-The joystick differential mixer is mathematically standard (`left=y+x`, `right=y-x`). Firmware applies the accepted left/right command directly to the two L298N channels with no acceleration/reversal shaping. No left/right inversion or channel swap is being changed until isolated physical channel mapping is measured.
+The operator coordinate convention remains canonical:
 
-A separate Android ownership defect was fixed in HR048: Direct mode previously retransmitted idle `0,0` every 50 ms, allowing an open but idle app to overwrite independent browser/diagnostic drive commands. HR048 now sends the zero transition once, then suppresses repeated idle-zero Direct commands until Android itself sends a non-zero command. Non-zero operator commands retain the 20 Hz continuity refresh.
+- `+Y = forward`
+- `+X = right`
+- `Left = Y + X`
+- `Right = Y - X`
 
-### Required field gate
+This means a forward-right arc must have both sides forward with logical Left faster than logical Right. Pivot-right is logical `(Left>0, Right<0)`. The Android mixer is therefore not inverted and must not be patched by merely negating X.
 
-After installing an HR048 verified build, or after Force Stop of the old Android app, repeat wheels-up:
+The Direct and MQTT/Remote paths preserve the same logical `left/right` values. The correction must therefore be placed at the hardware association boundary if the physical sides are cross-associated.
+
+### 2.3 HR048 mapping candidate
+
+Based on the field-confirmed steering inversion while straight forward/reverse remained correct, HR048 applies the controlled remediation candidate:
+
+- logical **LEFT** -> L298N channel B: `ENB GPIO17`, `IN3 GPIO19`, `IN4 GPIO32`;
+- logical **RIGHT** -> L298N channel A: `ENA GPIO16`, `IN1 GPIO18`, `IN2 GPIO27`;
+- `DRIVE_L_INVERT=false` and `DRIVE_R_INVERT=false` remain unchanged.
+
+This is deliberately a **remediation candidate, not a physical-acceptance claim**. It changes steering handedness without changing the equal-sign forward/reverse behavior. A weak/non-reversing side after this change must be investigated electrically/mechanically rather than hidden by another software sign swap.
+
+### 2.4 Android drive-ownership defect — fixed
+
+Direct mode previously retransmitted idle `0,0` every 50 ms. An open but idle Android activity could therefore overwrite independent browser/diagnostic drive commands. HR048 sends the zero transition once, then suppresses repeated idle-zero Direct commands until Android itself sends a non-zero drive command again. Non-zero operator commands retain the 20 Hz continuity refresh.
+
+### 2.5 Mandatory post-flash wheels-up gate
+
+With the HR048 candidate installed, wheels lifted and low speed selected, record physical side and direction for:
 
 - `L=+50, R=0`
 - `L=0, R=+50`
@@ -44,85 +67,122 @@ After installing an HR048 verified build, or after Force Stop of the old Android
 - `L=+50, R=-50`
 - `L=-50, R=+50`
 
-Record which physical side moves and its direction. Only then may logical side-swap or inversion be committed.
+Acceptance requires logical Left to operate only the physical left side, logical Right only the physical right side, positive/negative direction to reverse each side, forward/right and forward/left arcs to have the expected differential speed relationship, and both pivots to rotate in the requested direction.
 
-## 3. MQ immediate-warning defect — FIXED IN REMEDIATION BRANCH
+## 3. MQ immediate warning — remediation implemented
 
-The Android instant-warning layer previously required a separately captured/persisted clean-air baseline. If that baseline was absent, a valid `Rs/R0` response was silently treated as NORMAL, so a fresh installation could never produce a gas warning after warm-up.
+The Android instant-warning layer previously required a separately captured/persisted clean-air baseline. If that baseline was absent, a valid firmware `Rs/R0` response could be treated as NORMAL and a fresh installation could fail to produce an operational gas warning after warm-up.
 
-HR048 changes the operational warning rule:
+HR048 changes the operational response alarm rule:
 
-- A captured Android clean-air baseline still takes precedence.
-- If it is absent, the accepted firmware normalization `Rs/R0` uses `1.0` as the operational fallback baseline.
-- Existing 20% ELEVATED and 40% HIGH response thresholds are retained for this first remediation build to avoid changing two variables at once.
-- This remains an operational response alarm only. It is not quantitative ppm, IDLH, LFL or chemical-identification validation.
+- a captured Android clean-air baseline still takes precedence;
+- if absent, the accepted firmware normalization uses `Rs/R0 = 1.0` as the operational fallback baseline;
+- the first remediation build retains 20% `ELEVATED` and 40% `HIGH` response deltas to avoid changing multiple variables simultaneously;
+- the delta is an MQ response alarm only, not validated ppm, IDLH, LFL or exact chemical identification.
 
-Unit tests were updated to require warning operation after warm-up even when the app baseline has not yet been captured.
+Unit-test coverage requires warning operation after warm-up even when no separate Android baseline has yet been saved.
 
-## 4. Alert GPIO defect — LOGIC FIXED / HARDWARE ENABLE STILL CONTROLLED
+## 4. Alert GPIO26 — logic corrected, electrical output fail-closed
 
-The prior firmware calculated alert levels but forced GPIO26 LOW on every update. HR048 corrects the logic so the pin can follow an active alert when a safe external alert interface is declared installed.
+The prior firmware calculated alert levels but forced GPIO26 LOW on every update. HR048 corrects the logical output path so an installed safe interface can follow an active alert.
 
-Safety rule:
+The electrical boundary remains fail-closed:
 
-- GPIO26 is a logic output only.
-- An 8-ohm speaker must never be connected directly to the ESP32 GPIO.
-- `ALERT_OUTPUT_INSTALLED=false` remains the default until a transistor/MOSFET/amplifier or suitable active-buzzer interface is physically confirmed.
-- Telemetry now distinguishes logical alert activity from actual asserted alert output.
+- GPIO26 is a logic output only;
+- an approximately 8-ohm speaker must never be connected directly to an ESP32 GPIO;
+- `ALERT_OUTPUT_INSTALLED=false` remains the default until a transistor/MOSFET/amplifier or suitable active-buzzer interface is physically confirmed;
+- telemetry distinguishes logical alert activity from actual asserted hardware output;
+- phone-side audible warning remains independent of the external GPIO driver.
 
-Phone-side audible warning remains available independently and benefits from the MQ fallback-baseline fix.
+## 5. IR / ultrasonic / sound — physical interface correction required
 
-## 5. IR / ECHO / sound physical wiring finding
+These channels are not I2C devices in the authoritative HazRob profile:
 
-These are not I2C devices in the authoritative HazRob profile:
+- MAX4466 sound `OUT -> GPIO36` as ADC1 analog input;
+- IR digital output `-> GPIO35`;
+- ultrasonic `TRIG -> GPIO23`;
+- ultrasonic `ECHO -> GPIO39` input-only, with a 5 V ECHO reduced to `<=3.3 V` using an appropriate divider/unidirectional interface.
 
-- Sound/MAX4466 OUT -> GPIO36 (ADC1 analog).
-- IR digital output -> GPIO35.
-- Ultrasonic TRIG -> GPIO23.
-- Ultrasonic ECHO -> GPIO39 (input only; 5 V ECHO must be reduced to <=3.3 V).
+A bidirectional BSS138-style I2C level shifter is not an appropriate analog path for MAX4466 and is not the preferred generic interface for HC-SR04 ECHO. Physical rewiring is required before these channels may be classified as firmware failures.
 
-A bidirectional BSS138-style I2C level shifter is not an appropriate analog signal path for MAX4466 and is not the preferred path for HC-SR04 ECHO. Physical rewiring is required before these channels can be evaluated as firmware defects.
+The ultrasonic non-blocking ECHO implementation also remains subject to a post-rewire timing test because short ECHO pulses share the main firmware loop.
 
-The ultrasonic implementation must also be re-evaluated after correct wiring because the present non-blocking ECHO polling shares the main loop; short ECHO pulses require a field timing check before this channel can be declared PASS.
+## 6. Remote control — diagnostic remediation, no speculative transport rewrite
 
-## 6. Remote-control finding and diagnostic remediation
-
-Render/HiveMQ infrastructure diagnostics passed externally: stored app/robot MQTT credentials, TLS, ACL subscriptions and command/ACK/telemetry round-trips were accepted. The field failure is therefore not currently assigned to Render or HiveMQ.
-
-HR048 expands the developer connection screen to show the complete robot-side chain and the first failing stage:
+The robot firmware already exposes a staged remote status chain. HR048 expands the developer connection screen to display it explicitly:
 
 `configured -> wifi -> ip_ok -> dns -> time -> internet -> tls -> mqtt -> command_ack -> telemetry -> remote_ready`
 
-It also displays the firmware `detail` field, so the next field test can distinguish Wi-Fi/DHCP/DNS/NTP/bootstrap/TLS/MQTT/ACK/telemetry without guessing.
+The firmware `detail` field is displayed as well. The next field test must identify the **first failing stage** before transport behavior is changed. This prevents replacing HiveMQ/Render/TLS/MQTT code without evidence.
 
-No transport behavior has been changed before the first failing stage is captured.
+The diagnostic UI and firmware keys are required to remain contract-aligned.
 
-## 7. Analysis UI / M4 — PRESENTATION REMEDIATED
+## 7. Analysis UI / M4 — presentation corrected without weakening scientific gates
 
-PPM withholding remains scientifically intentional until complete M4 evidence exists. HR048 now labels the two layers explicitly:
+HR048 explicitly separates:
 
-- `Screening`: Rs/R0 fingerprint, ranked candidates, posterior, residuals and screening fit — available after a valid controlled session.
-- `Quantitative PPM`: reportable only after the independent M4 gate.
+- **Screening:** normalized `Rs/R0` fingerprint, ranked candidates, posterior, residuals and screening fit after a valid controlled session;
+- **Quantitative PPM:** reportable only after the independent M4 evidence gate for the relevant candidate/curves.
 
-The UI now states that a withheld PPM does not mean the screening analysis is unavailable. No M4 safety gate is bypassed and no screening estimate is relabeled as reportable concentration.
+A withheld PPM must not be presented as “all analysis unavailable.” No M4 gate is bypassed and no screening estimate is relabeled as reportable concentration.
 
-## 8. Verification infrastructure state
+## 8. LFL/UFL flammability library — offline closure still pending
 
-GitHub Actions push runs were created for the remediation commits, but the hosted job terminated before any workflow step started (`steps=[]`, zero runner execution). This is treated as CI infrastructure unavailability, not as evidence that the source passed or failed compilation.
+The gas-flammability runtime is designed to import the authoritative NIOSH LFL/UFL seed into local SQLite and then make hazard decisions offline. The pinned seed identity is:
 
-A separate Render verification service was created to run Android unit tests plus main ESP32 and ESP32-CAM compilation. Its result must be checked before an HR048 APK/firmware artifact is released.
+`SHA-256 457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434`
 
-## 9. Acceptance state
+Current source still attempts bundled asset `generated/flammability/niosh_npg_flammability.json` first and uses the controlled Render endpoint only as a pinned first-install fallback if the asset is absent. The HR048 branch currently does **not** contain that bundled asset. Therefore the primary `hazrob-0101-flammability-seed` service must not be deleted yet.
 
-Current state:
+Closure rule:
 
-- Source baseline: PASS as HR047 source baseline only.
-- HR048 MQ warning patch: code changed; verification pending.
-- HR048 alert-output logic: code changed; verification pending; hardware output intentionally disabled by default.
-- HR048 Direct idle-zero ownership fix: code changed; verification and field retest pending.
-- Drive side mapping/inversion: field gate pending; no speculative inversion committed.
-- IR/ECHO/sound: physical rewiring pending; ultrasonic timing review remains open.
-- Remote diagnostic visibility: code changed; field `/remote/status` capture pending.
-- Analysis Screening/M4 presentation: code changed; verification pending.
+1. place the exact pinned file in `app/src/main/assets/generated/flammability/`;
+2. verify its SHA-256 against the pinned value;
+3. add a build gate requiring the bundled asset and hash;
+4. verify a fresh-install offline bootstrap from the bundled asset;
+5. only then may the Render flammability seed service be retired. Duplicate no-op seed services are not runtime authorities, but service cleanup is operational infrastructure work separate from source acceptance.
 
-No HR048 artifact is approved for field use until Android tests, firmware compilation and the listed physical gates pass.
+This LFL/UFL seed is unrelated to camera flame recognition. Visual flame analysis remains an application-side/offline vision subsystem.
+
+## 9. Hardware-assumption status requiring physical confirmation
+
+The source acquisition contract currently assumes ADS1115 VDD = 5 V, PGA `+/-6.144 V`, 860 SPS and four conversions/channel. HR048 documentation now treats the **5 V ADS supply as a software configuration assumption requiring physical confirmation**. A 3.3 V SDA/SCL idle level proves the ESP32-side I2C logic domain, not the ADS board supply voltage.
+
+No ADS supply constant is changed without measuring the assembled board and reviewing the resulting analog conversion assumptions.
+
+## 10. Verification gates
+
+HR048 must pass, from one immutable source commit:
+
+1. HR048 drive contract audit;
+2. cross-component integration audit adapted for the intentional HR048 drive-map change;
+3. motion-control audit;
+4. HR047 gas-safety contract regression audit;
+5. Android unit tests;
+6. Android release assembly and signer verification;
+7. main ESP32 compile with the controlled ESP32 core;
+8. ESP32-CAM compile with the controlled ESP32 core;
+9. SHA-256 manifest for released test artifacts;
+10. physical wheels-up drive gate;
+11. corrected IR/ECHO/sound wiring test;
+12. remote staged-status capture and command/ACK/telemetry field test;
+13. MQ response/phone-alert field test after warm-up.
+
+A build PASS is not a physical PASS. Physical acceptance remains separately recorded.
+
+## 11. Current acceptance state
+
+- Version identity: **0.10.1 retained**.
+- Controlled branch isolation from `dev/hazrob-0.10.1`: **PASS**.
+- Drive-mixer review: **PASS — canonical mixer retained**.
+- HR048 logical side mapping: **implemented candidate; physical acceptance pending**.
+- Direct idle-zero ownership fix: **implemented; build/field verification pending**.
+- MQ fallback operational warning: **implemented; unit/build/field verification pending**.
+- GPIO26 alert logic: **implemented; hardware output intentionally disabled pending safe driver**.
+- Remote diagnostic visibility: **implemented; field first-failure capture pending**.
+- Screening vs M4 presentation: **implemented; build verification pending**.
+- IR/ECHO/sound: **physical rewiring pending**.
+- ADS VDD: **software assumes 5 V; physical confirmation pending**.
+- LFL/UFL offline bundle: **not yet closed; primary Render seed authority retained**.
+
+No HR048 APK, firmware binary or source package is approved as the new 0.10.1 field baseline until the applicable gates above pass.
