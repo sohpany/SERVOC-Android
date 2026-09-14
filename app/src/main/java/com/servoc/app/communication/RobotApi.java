@@ -13,6 +13,9 @@ import java.nio.charset.StandardCharsets;
 /** HazRob API facade: direct HTTP locally, secure MQTT automatically when Remote owns transport. */
 public final class RobotApi {
     private volatile String robotHost;
+    // Direct-mode ownership: keep refreshing non-zero operator commands, but do not let an idle
+    // Android activity overwrite independent local diagnostic commands with 0/0 every 50 ms.
+    private int lastDirectDriveLeft=Integer.MIN_VALUE,lastDirectDriveRight=Integer.MIN_VALUE;
     public RobotApi(String host){setRobotHost(host);}
 
     public void setRobotHost(String host){if(host==null||host.trim().isEmpty())host="192.168.4.1";host=host.trim().replace("http://","").replace("https://","");while(host.endsWith("/"))host=host.substring(0,host.length()-1);robotHost=host;}
@@ -25,10 +28,16 @@ public final class RobotApi {
     private static String finish(HttpURLConnection c)throws Exception{int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();StringBuilder s=new StringBuilder();if(in!=null){try(BufferedReader r=new BufferedReader(new InputStreamReader(in,StandardCharsets.UTF_8))){String line;while((line=r.readLine())!=null)s.append(line);}}c.disconnect();if(code<200||code>=300)throw new IllegalStateException("HTTP "+code+" "+s);return s.toString();}
     public JSONObject getJson(String path,int timeoutMs)throws Exception{return new JSONObject(getText(path,timeoutMs));}
 
-    public void drive(int left,int right)throws Exception{RemoteConnection r=remote();if(r!=null){r.drive(left,right);return;}getText("/drive?l="+left+"&r="+right,450);}
-    public void motionStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.motionStop();return;}try{getText("/motion/stop",450);}catch(Exception e){getText("/stop",450);}}
+    public synchronized void drive(int left,int right)throws Exception{
+        RemoteConnection r=remote();if(r!=null){r.drive(left,right);return;}
+        // A zero transition is sent once. Repeated idle zero refreshes are suppressed until Android
+        // itself sends a non-zero drive command again. Non-zero commands still refresh at 20 Hz.
+        if(left==0&&right==0&&lastDirectDriveLeft==0&&lastDirectDriveRight==0)return;
+        getText("/drive?l="+left+"&r="+right,450);lastDirectDriveLeft=left;lastDirectDriveRight=right;
+    }
+    public synchronized void motionStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.motionStop();return;}try{getText("/motion/stop",450);}catch(Exception e){getText("/stop",450);}lastDirectDriveLeft=lastDirectDriveRight=0;}
     public void stop()throws Exception{motionStop();}
-    public void emergencyStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.emergencyStop();return;}getText("/estop",650);}
+    public synchronized void emergencyStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.emergencyStop();return;}getText("/estop",650);lastDirectDriveLeft=lastDirectDriveRight=0;}
     public void emergencyReset()throws Exception{RemoteConnection r=remote();if(r!=null){r.emergencyReset();return;}getText("/estop/reset",650);}
     public void sensorPowerOff()throws Exception{RemoteConnection r=remote();if(r!=null){r.sensorOff();return;}try{getText("/sensor/off",650);}catch(Exception e){mqPower(false);}}
     public void heartbeat()throws Exception{RemoteConnection r=remote();if(r!=null){r.heartbeat();return;}getText("/heartbeat",500);}
