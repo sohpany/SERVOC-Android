@@ -5,20 +5,32 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-/** HazRob API facade: direct HTTP locally, secure MQTT automatically when Remote owns transport. */
+/** HazRob API facade: low-latency UDP drive locally, HTTP for local control/telemetry, MQTT remotely. */
 public final class RobotApi {
     private volatile String robotHost;
+    private volatile boolean directFastDrive=false;
+    private DatagramSocket driveSocket;
+    private InetAddress driveAddress;
+    private int driveSequence=0;
     // Direct-mode ownership: keep refreshing non-zero operator commands, but do not let an idle
     // Android activity overwrite independent local diagnostic commands with 0/0 every 50 ms.
     private int lastDirectDriveLeft=Integer.MIN_VALUE,lastDirectDriveRight=Integer.MIN_VALUE;
     public RobotApi(String host){setRobotHost(host);}
 
-    public void setRobotHost(String host){if(host==null||host.trim().isEmpty())host="192.168.4.1";host=host.trim().replace("http://","").replace("https://","");while(host.endsWith("/"))host=host.substring(0,host.length()-1);robotHost=host;}
+    public synchronized void setRobotHost(String host){
+        if(host==null||host.trim().isEmpty())host="192.168.4.1";
+        host=host.trim().replace("http://","").replace("https://","");while(host.endsWith("/"))host=host.substring(0,host.length()-1);
+        if(!host.equals(robotHost)){closeDriveSocket();directFastDrive=false;driveAddress=null;driveSequence=0;lastDirectDriveLeft=lastDirectDriveRight=Integer.MIN_VALUE;}
+        robotHost=host;
+    }
     public String getRobotHost(){return robotHost;}
     private String url(String path){return "http://"+robotHost+(path.startsWith("/")?path:"/"+path);}
     private static RemoteConnection remote(){RemoteConnection r=RemoteConnection.current();if(r==null&&RemoteConnection.transportOwned())throw new IllegalStateException("remote transport reconnecting");return r;}
@@ -28,23 +40,40 @@ public final class RobotApi {
     private static String finish(HttpURLConnection c)throws Exception{int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();StringBuilder s=new StringBuilder();if(in!=null){try(BufferedReader r=new BufferedReader(new InputStreamReader(in,StandardCharsets.UTF_8))){String line;while((line=r.readLine())!=null)s.append(line);}}c.disconnect();if(code<200||code>=300)throw new IllegalStateException("HTTP "+code+" "+s);return s.toString();}
     public JSONObject getJson(String path,int timeoutMs)throws Exception{return new JSONObject(getText(path,timeoutMs));}
 
+    private void observeDirectCapabilities(JSONObject diag){
+        JSONObject u=diag==null?null:diag.optJSONObject("drive_udp");
+        directFastDrive=u!=null&&u.optBoolean("installed",false)&&u.optInt("port",0)==DirectDriveDatagram.PORT&&u.optInt("version",0)==DirectDriveDatagram.VERSION;
+        if(!directFastDrive)closeDriveSocket();
+    }
+    private void closeDriveSocket(){if(driveSocket!=null){try{driveSocket.close();}catch(Exception ignored){}driveSocket=null;}}
+    private void sendDriveDatagram(int left,int right)throws Exception{
+        if(driveSocket==null||driveSocket.isClosed())driveSocket=new DatagramSocket();
+        if(driveAddress==null)driveAddress=InetAddress.getByName(robotHost);
+        driveSequence=(driveSequence+1)&0xFFFF;
+        byte[] b=DirectDriveDatagram.encode(driveSequence,left,right);
+        driveSocket.send(new DatagramPacket(b,b.length,driveAddress,DirectDriveDatagram.PORT));
+    }
+    private void sendStopBurst(){for(int i=0;i<3;i++){try{sendDriveDatagram(0,0);}catch(Exception ignored){break;}}}
+
     public synchronized void drive(int left,int right)throws Exception{
         RemoteConnection r=remote();if(r!=null){r.drive(left,right);return;}
-        // A zero transition is sent once. Repeated idle zero refreshes are suppressed until Android
-        // itself sends a non-zero drive command again. Non-zero commands still refresh at 20 Hz.
         if(left==0&&right==0&&lastDirectDriveLeft==0&&lastDirectDriveRight==0)return;
+        if(directFastDrive){
+            try{if(left==0&&right==0)sendStopBurst();else sendDriveDatagram(left,right);lastDirectDriveLeft=left;lastDirectDriveRight=right;return;}
+            catch(Exception e){directFastDrive=false;closeDriveSocket();}
+        }
         getText("/drive?l="+left+"&r="+right,450);lastDirectDriveLeft=left;lastDirectDriveRight=right;
     }
-    public synchronized void motionStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.motionStop();return;}try{getText("/motion/stop",450);}catch(Exception e){getText("/stop",450);}lastDirectDriveLeft=lastDirectDriveRight=0;}
+    public synchronized void motionStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.motionStop();return;}if(directFastDrive)sendStopBurst();try{getText("/motion/stop",450);}catch(Exception e){getText("/stop",450);}lastDirectDriveLeft=lastDirectDriveRight=0;}
     public void stop()throws Exception{motionStop();}
-    public synchronized void emergencyStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.emergencyStop();return;}getText("/estop",650);lastDirectDriveLeft=lastDirectDriveRight=0;}
+    public synchronized void emergencyStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.emergencyStop();return;}if(directFastDrive)sendStopBurst();getText("/estop",650);lastDirectDriveLeft=lastDirectDriveRight=0;}
     public void emergencyReset()throws Exception{RemoteConnection r=remote();if(r!=null){r.emergencyReset();return;}getText("/estop/reset",650);}
     public void sensorPowerOff()throws Exception{RemoteConnection r=remote();if(r!=null){r.sensorOff();return;}try{getText("/sensor/off",650);}catch(Exception e){mqPower(false);}}
     public void heartbeat()throws Exception{RemoteConnection r=remote();if(r!=null){r.heartbeat();return;}getText("/heartbeat",500);}
     public void disarmHeartbeat()throws Exception{RemoteConnection r=remote();if(r!=null){r.command("heartbeat_disarm",new JSONObject(),2000,false,0);return;}getText("/heartbeat?arm=0",500);}
 
     /** Raw endpoints intentionally remain local for provisioning and direct-mode compatibility checks. */
-    public JSONObject diagnosticsRaw()throws Exception{return getJson("/diag",1000);}
+    public JSONObject diagnosticsRaw()throws Exception{JSONObject d=getJson("/diag",1000);observeDirectCapabilities(d);return d;}
     public JSONObject dataRaw()throws Exception{return getJson("/data",1200);}
     public JSONObject snapshot(int commandedLeft,int commandedRight)throws Exception{RemoteConnection r=remote();if(r!=null){if(!r.isConnected())throw new IllegalStateException("remote MQTT disconnected");JSONObject s=r.snapshot(commandedLeft,commandedRight);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return RobotProtocolV4.normalize(diagnosticsRaw(),dataRaw(),commandedLeft,commandedRight);}
     public JSONObject diagnostics()throws Exception{RemoteConnection r=remote();if(r!=null){if(!r.isConnected())throw new IllegalStateException("remote MQTT disconnected");JSONObject s=r.snapshot(0,0);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return diagnosticsRaw();}
