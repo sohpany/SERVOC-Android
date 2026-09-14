@@ -7,7 +7,7 @@
 
 WiFiServer web(80);WiFiUDP driveUdp;uint32_t wifiAt=0;bool naptEnabled=false;
 constexpr uint16_t DRIVE_UDP_PORT=4210;constexpr uint8_t DRIVE_UDP_VERSION=1;
-uint32_t driveUdpPackets=0,driveUdpRejected=0,driveUdpAt=0;uint16_t driveUdpSeq=0;bool driveUdpSeqValid=false;
+uint32_t driveUdpPackets=0,driveUdpRejected=0,driveUdpAt=0;uint16_t driveUdpSeq=0;bool driveUdpSeqValid=false,driveUdpPeerValid=false;IPAddress driveUdpPeerIp;uint16_t driveUdpPeerPort=0;
 uint8_t hx(char c){return c>='0'&&c<='9'?c-'0':c>='A'&&c<='F'?c-'A'+10:c>='a'&&c<='f'?c-'a'+10:0;}
 String dec(const String&s){String o;o.reserve(s.length());for(size_t i=0;i<s.length();i++){char c=s[i];if(c=='+')o+=' ';else if(c=='%'&&i+2<s.length()){o+=(char)((hx(s[i+1])<<4)|hx(s[i+2]));i+=2;}else o+=c;}return o;}
 String esc(const String&s){String o;o.reserve(s.length()+4);for(char c:s){if(c=='\\'||c=='\"')o+='\\';if((uint8_t)c>=0x20)o+=c;}return o;}
@@ -25,16 +25,20 @@ void startAP(){WiFi.persistent(false);WiFi.mode(WIFI_AP_STA);WiFi.setSleep(false
 void gatewayUpdate(){bool w=remoteInternetReady();if(w!=naptEnabled&&WiFi.AP.enableNAPT(w))naptEnabled=w;}
 void wifiWatch(){if(millis()-wifiAt<5000)return;wifiAt=millis();if(!(WiFi.getMode()&WIFI_AP)||WiFi.softAPIP()!=IPAddress(192,168,4,1)){if(naptEnabled)WiFi.AP.enableNAPT(false);WiFi.softAPdisconnect(true);startAP();}}
 
-bool driveUdpNewer(uint16_t seq,uint32_t now){return !driveUdpSeqValid||now-driveUdpAt>1000||(int16_t)(seq-driveUdpSeq)>0;}
+bool driveUdpNewer(uint16_t seq,uint32_t now,const IPAddress&ip,uint16_t port){
+  if(!driveUdpSeqValid||!driveUdpPeerValid||!(ip==driveUdpPeerIp)||port!=driveUdpPeerPort||now-driveUdpAt>1000)return true;
+  return (int16_t)(seq-driveUdpSeq)>0;
+}
 void driveUdpUpdate(){
   int n=0;while((n=driveUdp.parsePacket())>0){
+    IPAddress peerIp=driveUdp.remoteIP();uint16_t peerPort=driveUdp.remotePort();
     uint8_t b[8];int got=0;while(driveUdp.available()&&got<8)b[got++]=(uint8_t)driveUdp.read();while(driveUdp.available())driveUdp.read();
     if(n!=8||got!=8){driveUdpRejected++;continue;}
     uint8_t check=0;for(uint8_t i=0;i<7;i++)check^=b[i];
     if(b[0]!='H'||b[1]!='R'||b[2]!=DRIVE_UDP_VERSION||check!=b[7]){driveUdpRejected++;continue;}
     uint16_t seq=(uint16_t)b[3]|((uint16_t)b[4]<<8);int l=(int8_t)b[5],r=(int8_t)b[6];uint32_t now=millis();
-    if(l<-100||l>100||r<-100||r>100||!driveUdpNewer(seq,now)||safetyEstopLatched()){driveUdpRejected++;continue;}
-    linkHeartbeat();driveSet(l,r);driveUdpSeq=seq;driveUdpSeqValid=true;driveUdpAt=now;driveUdpPackets++;
+    if(l<-100||l>100||r<-100||r>100||!driveUdpNewer(seq,now,peerIp,peerPort)||safetyEstopLatched()){driveUdpRejected++;continue;}
+    linkHeartbeat();driveSet(l,r);driveUdpSeq=seq;driveUdpSeqValid=true;driveUdpPeerValid=true;driveUdpPeerIp=peerIp;driveUdpPeerPort=peerPort;driveUdpAt=now;driveUdpPackets++;
   }
 }
 
