@@ -5,6 +5,7 @@ The operator coordinate convention is canonical: +Y forward, +X right.
 For a differential drive, a right command must produce logical L > R.
 Field behavior showed reversed steering handedness while straight motion remained correct,
 so HR048 tests the controlled remediation candidate logical LEFT -> L298N B and RIGHT -> A.
+Direct local drive additionally has a capability-gated UDP fast lane; legacy HTTP remains fallback.
 Physical acceptance still requires the post-flash wheels-up gate.
 
 When invoked directly by the legacy HR048 Render gate this script also runs the HR048
@@ -29,8 +30,10 @@ def mix(x,y):
 def main():
     cfg=txt("firmware/HazRob/Config.h")
     hw=txt("firmware/HazRob/Hardware.cpp")
+    ino=txt("firmware/HazRob/HazRob.ino")
     joy=txt("app/src/main/java/com/servoc/app/control/JoystickView.java")
     api=txt("app/src/main/java/com/servoc/app/communication/RobotApi.java")
+    udp=txt("app/src/main/java/com/servoc/app/communication/DirectDriveDatagram.java")
     remote=txt("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
     profile=txt("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
 
@@ -51,10 +54,24 @@ def main():
     req(profile,"DRIVE_L_EN=17","Android profile left EN")
     req(profile,"DRIVE_R_EN=16","Android profile right EN")
 
-    # Firmware remains direct logical command -> channel output; no hidden turn inversion/shaping.
+    # Firmware remains direct logical command -> channel output; no hidden acceleration shaping.
     req(hw,"void driveSet(int l,int r){curL=lim(l);curR=lim(r);cmdAt=millis();staleStop=false;driveWrite();}","firmware direct drive")
     req(hw,"motorWrite(Cfg::DRIVE_L_EN,Cfg::DRIVE_L_IN1,Cfg::DRIVE_L_IN2,curL,Cfg::DRIVE_L_INVERT)","left output")
     req(hw,"motorWrite(Cfg::DRIVE_R_EN,Cfg::DRIVE_R_IN1,Cfg::DRIVE_R_IN2,curR,Cfg::DRIVE_R_INVERT)","right output")
+
+    # Low-latency Direct mode contract. Android enables it only after firmware advertises the same
+    # version/port in /diag; HTTP therefore remains a compatibility fallback for older firmware.
+    req(udp,"PORT = 4210","Android UDP port")
+    req(udp,"VERSION = 1","Android UDP protocol version")
+    req(udp,"SIZE = 8","Android UDP packet size")
+    req(ino,"DRIVE_UDP_PORT=4210","firmware UDP port")
+    req(ino,"DRIVE_UDP_VERSION=1","firmware UDP protocol version")
+    req(ino,"driveUdp.begin(DRIVE_UDP_PORT)","firmware UDP listener")
+    req(ino,"b[0]!='H'||b[1]!='R'||b[2]!=DRIVE_UDP_VERSION||check!=b[7]","firmware UDP packet validation")
+    req(ino,'\\"drive_udp\\":{\\"installed\\":true,\\"port\\":',"firmware capability advertisement")
+    req(api,"directFastDrive","Android capability gate")
+    req(api,"DirectDriveDatagram.encode","Android UDP encoder use")
+    req(api,"getText(\"/drive?l=\"+left+\"&r=\"+right,450)","legacy HTTP fallback")
 
     # Direct idle ownership fix: send zero transition once, then allow independent diagnostic commands.
     req(api,"if(left==0&&right==0&&lastDirectDriveLeft==0&&lastDirectDriveRight==0)return;","direct idle zero suppression")
@@ -62,7 +79,7 @@ def main():
     req(remote,'p.put("left",left);p.put("right",right);command("drive",p,700,false,0);',"remote drive parity")
 
     print("HazRob 0.10.1 HR-0101-048 drive contract: PASS")
-    print("right-pivot logical=(+100,-100); remediation mapping: LEFT=B, RIGHT=A; physical acceptance=PENDING")
+    print("right-pivot logical=(+100,-100); mapping LEFT=B RIGHT=A; direct fast lane=UDP/4210 v1; physical acceptance=PENDING")
 
     if os.environ.get("HR048_SKIP_INTEGRATION") != "1":
         from audit_hr048_integration_contract import main as integration_main
