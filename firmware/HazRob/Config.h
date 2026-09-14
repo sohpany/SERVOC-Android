@@ -8,10 +8,11 @@ constexpr char HW_PROFILE[]="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1";
 constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 
 // L298N 4WD differential drive: two motors per physical side in parallel.
-// Field steering validation on 2026-09-14 confirmed that the previously named logical
-// Left/Right channels were physically cross-associated. Keep joystick math canonical;
-// map logical LEFT to L298N channel B (ENB/IN3/IN4) and logical RIGHT to channel A
-// (ENA/IN1/IN2) so Direct and Remote commands share the same corrected semantics.
+// 2026-09-14 field behavior confirmed reversed steering handedness while straight forward/reverse
+// remained correct. HR048 therefore applies the controlled remediation at the hardware boundary:
+// logical LEFT -> L298N channel B and logical RIGHT -> channel A, while keeping canonical joystick
+// math and both direction inversions false. This mapping is a remediation candidate until the
+// post-flash wheels-up side-isolation/arc/pivot field gate passes; it is not yet physical acceptance.
 constexpr uint8_t DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32;
 constexpr uint8_t DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27;
 constexpr bool DRIVE_L_INVERT=false,DRIVE_R_INVERT=false;
@@ -62,7 +63,10 @@ constexpr MQ mq[]={
 };
 constexpr uint8_t MQ_N=sizeof(mq)/sizeof(mq[0]);
 
-// ADS1115 is fixed at 5 V; PGA ±6.144 V, 860 SPS, four conversions/channel.
+// Software acquisition contract is configured for ADS1115 VDD=5 V, PGA +/-6.144 V, 860 SPS,
+// four conversions/channel. HR048 physical acceptance must confirm the assembled ADS supply domain;
+// a measured 3.3 V I2C logic level alone does not prove ADS VDD. Do not change this conversion
+// assumption without a controlled physical measurement and corresponding recalculation review.
 constexpr uint16_t ADS_RATE_SPS=860;
 constexpr float ADS_FULL_SCALE_V=6.144f,ADS_SUPPLY_V=5.0f,MQ_VCC=5.0f,RL=10.0f;
 constexpr uint16_t MQ_PERIOD=100,SAMPLE_PERIOD=200,OPERATIONAL_WARMUP_SEC=60,ANALYSIS_WINDOW_SEC=30;
