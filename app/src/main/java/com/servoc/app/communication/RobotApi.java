@@ -83,6 +83,8 @@ public final class RobotApi {
     public JSONObject remoteStatus()throws Exception{return getJson("/remote/status",1800);}
     public JSONObject remoteScan()throws Exception{return getJson("/remote/scan",2800);}
     public JSONObject remoteProvision(String ssid,String password)throws Exception{return new JSONObject(postForm("/remote/provision","ssid="+enc(ssid)+"&password="+enc(password),3000));}
+    public JSONObject remoteDisconnect()throws Exception{return new JSONObject(postForm("/remote/disconnect","",1500));}
+    public JSONObject remoteReconnect()throws Exception{return new JSONObject(postForm("/remote/connect","",1800));}
     public JSONObject remoteClear()throws Exception{return new JSONObject(postForm("/remote/clear","confirm=1",1500));}
 
     /** L298N drive configuration. Direction mapping stays in firmware; operator sets only speed. */
