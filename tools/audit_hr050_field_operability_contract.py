@@ -29,6 +29,7 @@ def main() -> int:
     remote = txt("app/src/main/java/com/servoc/app/communication/RemoteSessionManager.java")
     mqtt = txt("app/src/main/java/com/servoc/app/communication/SecureMqtt311Client.java")
     entry = txt("app/src/main/java/com/servoc/app/auth/ConnectionGate.java")
+    control_tab = txt("app/src/main/java/com/servoc/app/ui/ControlTab.java")
     instant = txt("app/src/main/java/com/servoc/app/measurement/InstantMqWarningEngine.java")
     gas_alert = txt("app/src/main/java/com/servoc/app/measurement/GasAlertCoordinator.java")
     main_activity = txt("app/src/main/java/com/servoc/app/MainActivity.java")
@@ -53,6 +54,8 @@ def main() -> int:
     req(hw, "irWarning=true", "IR cliff assertion")
     req(hw, '\\"cliff_warning\\"', "IR telemetry cliff state")
     req(hw, '\\"ground_detected\\"', "IR telemetry ground state")
+    req(control_tab, 'irBadge.setText(cliff?"⚠ حافة":ground?"أرض ●":"أرض ؟")', "drive cliff UX")
+    req(control_tab, 'optBoolean("cliff_warning",ir.optBoolean("warning",false))', "drive cliff telemetry authority")
 
     req(remote, "BOOTSTRAP_CONNECT_TIMEOUT_MS=5000", "bootstrap connect bound")
     req(remote, "BOOTSTRAP_READ_TIMEOUT_MS=8000", "bootstrap read bound")
@@ -85,7 +88,7 @@ def main() -> int:
 
     print("HazRob HR-0101-050 field-operability contract: PASS")
     print("ENV: dedicated GPIO13/14 I2C; ADS remains GPIO21/22")
-    print("IR: persistent loss-of-ground cliff warning")
+    print("IR: persistent loss-of-ground cliff warning with explicit drive-screen semantics")
     print("Remote: bounded verified TLS/MQTT; control admission independent from video")
     print("MQ: RESPONSE visibility remains below warning/quantitative authority")
     print("Video: adaptive 55..120 ms pacing; nominal good-link target ~18.2 fps")
