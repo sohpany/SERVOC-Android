@@ -57,7 +57,11 @@ constexpr char BOOTSTRAP_PATH[]="/hazrob/bootstrap";
 constexpr char BOOTSTRAP_TOKEN[]="hazrob-prototype-bootstrap-v1";
 constexpr char BOOTSTRAP_SERVICE_VERSION[]="0.10.1";
 constexpr int BOOTSTRAP_PROTOCOL=2;
-constexpr uint32_t FRAME_INTERVAL_MS=100;
+// HR050: nominal good-link target is ~18.2 fps (55 ms). Publisher may back off toward 120 ms
+// under sustained send pressure; frames are never queued for later transmission.
+constexpr uint32_t FRAME_INTERVAL_MIN_MS=55;
+constexpr uint32_t FRAME_INTERVAL_MAX_MS=120;
+constexpr uint32_t FRAME_INTERVAL_STEP_MS=10;
 constexpr uint32_t RETRY_MIN_MS=2000,RETRY_MAX_MS=30000;
 constexpr size_t MAX_JPEG=160*1024;
 inline bool configured(){return HOST[0]&&ROBOT_ID[0]&&BOOTSTRAP_TOKEN[0]&&strstr(ROOT_CA,"BEGIN CERTIFICATE")!=nullptr;}
