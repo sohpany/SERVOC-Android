@@ -35,6 +35,7 @@ def main():
     api=txt("app/src/main/java/com/servoc/app/communication/RobotApi.java")
     udp=txt("app/src/main/java/com/servoc/app/communication/DirectDriveDatagram.java")
     remote=txt("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
+    remote_policy=txt("app/src/main/java/com/servoc/app/communication/RemoteDrivePolicy.java")
     profile=txt("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
 
     req(joy,"double l = y + x, r = y - x;","joystick differential mixer")
@@ -74,7 +75,9 @@ def main():
     req(api,"getText(\"/drive?l=\"+left+\"&r=\"+right,450)","legacy HTTP fallback")
 
     req(api,"if(left==0&&right==0&&lastDirectDriveLeft==0&&lastDirectDriveRight==0)return;","direct idle zero suppression")
-    req(remote,'p.put("left",left);p.put("right",right);command("drive",p,700,false,0);',"remote drive parity")
+    req(remote,"RemoteDrivePolicy.COMMAND_TTL_MS","remote drive policy binding")
+    req(remote,"publishedDriveRevision","remote latest-command coalescing")
+    req(remote_policy,"MIN_PUBLISH_MS=40","remote publish ceiling")
 
     print("HazRob 0.10.1 HR-0101-048 drive contract: PASS")
     print("right-pivot=(+100,-100); mapping LEFT=B RIGHT=A; UDP/4210 v1; watchdog=500ms; physical acceptance=PENDING")
