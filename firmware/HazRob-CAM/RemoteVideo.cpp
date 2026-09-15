@@ -23,6 +23,7 @@ constexpr char WS_GUID[]="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 String compact(const String&s){String o;o.reserve(s.length());for(char c:s)if(c!=' '&&c!='\t'&&c!='\r'&&c!='\n')o+=c;return o;}
 int keyPos(const String&j,const char*k){String x="\""+String(k)+"\":";return j.indexOf(x);}
 String jsonString(const String&j,const char*k){int p=keyPos(j,k);if(p<0)return"";p=j.indexOf('"',p+strlen(k)+3);if(p<0)return"";String o;for(++p;p<(int)j.length()&&j[p]!='"';p++){if(j[p]=='\\'&&p+1<(int)j.length())p++;o+=j[p];}return o;}
+int64_t jsonInt(const String&j,const char*k,int64_t d=-1){int p=keyPos(j,k);if(p<0)return d;p+=strlen(k)+3;while(p<(int)j.length()&&(j[p]==' '||j[p]=='\t'))p++;bool neg=p<(int)j.length()&&j[p]=='-';if(neg)p++;if(p>=(int)j.length()||j[p]<'0'||j[p]>'9')return d;int64_t v=0;while(p<(int)j.length()&&j[p]>='0'&&j[p]<='9')v=v*10+(j[p++]-'0');return neg?-v:v;}
 String b64(const uint8_t* data,size_t len){size_t outLen=0;size_t cap=((len+2)/3)*4+4;char* out=(char*)malloc(cap);if(!out)return"";if(mbedtls_base64_encode((unsigned char*)out,cap,&outLen,data,len)!=0){free(out);return"";}String s;for(size_t i=0;i<outLen;i++)s+=(char)out[i];free(out);return s;}
 String expectedAccept(const String& key){String in=key+WS_GUID;uint8_t digest[20];mbedtls_sha1_context c;mbedtls_sha1_init(&c);mbedtls_sha1_starts(&c);mbedtls_sha1_update(&c,(const unsigned char*)in.c_str(),in.length());mbedtls_sha1_finish(&c,digest);mbedtls_sha1_free(&c);return b64(digest,sizeof(digest));}
 
@@ -36,8 +37,9 @@ bool bootstrapPublishToken(bool force=false){
   while((int32_t)(until-millis())>0&&c.connected()){String h=c.readStringUntil('\n');if(h=="\r"||h.length()<=1)break;}
   String body;body.reserve(512);while((int32_t)(until-millis())>0&&(c.connected()||c.available())){while(c.available()&&body.length()<2048)body+=(char)c.read();if(body.length()>=2048)break;delay(1);}c.stop();
   if(!ok)return publishToken.length()>=8;
-  String role=jsonString(body,"client"),robot=jsonString(body,"robot"),token=compact(jsonString(body,"video_publish_token"));
-  if((!role.isEmpty()&&role!="esp32-cam"&&role!="legacy")||robot!=RemoteVideoCfg::ROBOT_ID||token.length()<8)return publishToken.length()>=8;
+  String version=jsonString(body,"version"),role=jsonString(body,"client"),robot=jsonString(body,"robot"),token=compact(jsonString(body,"video_publish_token"));
+  int64_t protocol=jsonInt(body,"protocol",-1);
+  if(version!=RemoteVideoCfg::BOOTSTRAP_SERVICE_VERSION||protocol!=RemoteVideoCfg::BOOTSTRAP_PROTOCOL||role!="esp32-cam"||robot!=RemoteVideoCfg::ROBOT_ID||token.length()<8)return publishToken.length()>=8;
   publishToken=token;credentialReady=true;return true;
 }
 
