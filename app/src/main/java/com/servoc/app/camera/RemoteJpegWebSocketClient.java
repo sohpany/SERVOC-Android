@@ -6,11 +6,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.EOFException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
-import java.util.Locale;
 
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSocket;
@@ -20,6 +21,7 @@ import javax.net.ssl.SSLSocketFactory;
 final class RemoteJpegWebSocketClient {
     interface Sink{boolean active();void frame(byte[] jpeg);void status(String state,String detail);}
     private static final int MAX_JPEG=1024*1024,MAX_HEADERS=16384;
+    private static final int CONNECT_TIMEOUT_MS=4000,IO_TIMEOUT_MS=8000;
     private static final String GUID="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
     private final SecureRandom random=new SecureRandom();
     private volatile SSLSocket socket;
@@ -28,17 +30,24 @@ final class RemoteJpegWebSocketClient {
 
     void stream(String url,String bearer,Sink sink)throws Exception{
         URI u=new URI(url);if(!"wss".equalsIgnoreCase(u.getScheme()))throw new IllegalArgumentException("wss required");String host=u.getHost();if(host==null||host.isEmpty())throw new IllegalArgumentException("host");int port=u.getPort()>0?u.getPort():443;String path=u.getRawPath();if(path==null||path.isEmpty())path="/";if(u.getRawQuery()!=null&&!u.getRawQuery().isEmpty())path+="?"+u.getRawQuery();
-        SSLSocket s=(SSLSocket)SSLSocketFactory.getDefault().createSocket(host,port);socket=s;s.setSoTimeout(8000);SSLParameters p=s.getSSLParameters();p.setEndpointIdentificationAlgorithm("HTTPS");s.setSSLParameters(p);s.startHandshake();
-        InputStream in=s.getInputStream();OutputStream out=s.getOutputStream();byte[] nonce=new byte[16];random.nextBytes(nonce);String key=Base64.encodeToString(nonce,Base64.NO_WRAP);String hostHeader=port==443?host:host+":"+port;
-        StringBuilder q=new StringBuilder("GET ").append(path).append(" HTTP/1.1\r\nHost: ").append(hostHeader).append("\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ").append(key).append("\r\nSec-WebSocket-Version: 13\r\n");if(bearer!=null&&!bearer.isEmpty())q.append("Authorization: Bearer ").append(bearer).append("\r\n");q.append("\r\n");out.write(q.toString().getBytes(StandardCharsets.US_ASCII));out.flush();
-        String headers=readHeaders(in);String first=headers.substring(0,headers.indexOf("\r\n"));if(!first.contains(" 101 "))throw new IllegalStateException("WSS "+first);String expected=accept(key),actual=header(headers,"Sec-WebSocket-Accept");if(!expected.equals(actual))throw new SecurityException("WebSocket accept mismatch");
-        sink.status("streaming",hostHeader+path);ByteArrayOutputStream fragmented=null;int fragmentedOpcode=0;
-        while(sink.active()&&s==socket&&!s.isClosed()){
-            int b0=in.read();if(b0<0)throw new EOFException();int b1=read1(in);boolean fin=(b0&0x80)!=0,masked=(b1&0x80)!=0;int opcode=b0&0x0F;long len=b1&0x7F;if(len==126)len=((long)read1(in)<<8)|read1(in);else if(len==127){len=0;for(int i=0;i<8;i++)len=(len<<8)|read1(in);}
-            if(len>MAX_JPEG)throw new IllegalStateException("WSS frame too large");byte[] mask=masked?readN(in,4):null,payload=readN(in,(int)len);if(mask!=null)for(int i=0;i<payload.length;i++)payload[i]^=mask[i&3];
-            if(opcode==8){sendControl(out,8,new byte[0]);return;}if(opcode==9){sendControl(out,10,payload);continue;}if(opcode==10)continue;
-            if(opcode==2){if(fin){deliver(payload,sink);}else{fragmented=new ByteArrayOutputStream(Math.min(MAX_JPEG,Math.max(4096,payload.length*2)));fragmented.write(payload);fragmentedOpcode=2;}continue;}
-            if(opcode==0&&fragmented!=null){if(fragmented.size()+payload.length>MAX_JPEG)throw new IllegalStateException("fragmented JPEG too large");fragmented.write(payload);if(fin){if(fragmentedOpcode==2)deliver(fragmented.toByteArray(),sink);fragmented=null;fragmentedOpcode=0;}}
+        Socket plain=new Socket();SSLSocket s=null;
+        try{
+            plain.connect(new InetSocketAddress(host,port),CONNECT_TIMEOUT_MS);plain.setTcpNoDelay(true);plain.setKeepAlive(true);
+            SSLSocketFactory factory=(SSLSocketFactory)SSLSocketFactory.getDefault();s=(SSLSocket)factory.createSocket(plain,host,port,true);socket=s;s.setSoTimeout(IO_TIMEOUT_MS);SSLParameters p=s.getSSLParameters();p.setEndpointIdentificationAlgorithm("HTTPS");s.setSSLParameters(p);s.startHandshake();
+            InputStream in=s.getInputStream();OutputStream out=s.getOutputStream();byte[] nonce=new byte[16];random.nextBytes(nonce);String key=Base64.encodeToString(nonce,Base64.NO_WRAP);String hostHeader=port==443?host:host+":"+port;
+            StringBuilder q=new StringBuilder("GET ").append(path).append(" HTTP/1.1\r\nHost: ").append(hostHeader).append("\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: ").append(key).append("\r\nSec-WebSocket-Version: 13\r\n");if(bearer!=null&&!bearer.isEmpty())q.append("Authorization: Bearer ").append(bearer).append("\r\n");q.append("\r\n");out.write(q.toString().getBytes(StandardCharsets.US_ASCII));out.flush();
+            String headers=readHeaders(in);String first=headers.substring(0,headers.indexOf("\r\n"));if(!first.contains(" 101 "))throw new IllegalStateException("WSS "+first);String expected=accept(key),actual=header(headers,"Sec-WebSocket-Accept");if(!expected.equals(actual))throw new SecurityException("WebSocket accept mismatch");
+            sink.status("streaming",hostHeader+path);ByteArrayOutputStream fragmented=null;int fragmentedOpcode=0;
+            while(sink.active()&&s==socket&&!s.isClosed()){
+                int b0=in.read();if(b0<0)throw new EOFException();int b1=read1(in);boolean fin=(b0&0x80)!=0,masked=(b1&0x80)!=0;int opcode=b0&0x0F;long len=b1&0x7F;if(len==126)len=((long)read1(in)<<8)|read1(in);else if(len==127){len=0;for(int i=0;i<8;i++)len=(len<<8)|read1(in);}
+                if(len>MAX_JPEG)throw new IllegalStateException("WSS frame too large");byte[] mask=masked?readN(in,4):null,payload=readN(in,(int)len);if(mask!=null)for(int i=0;i<payload.length;i++)payload[i]^=mask[i&3];
+                if(opcode==8){sendControl(out,8,new byte[0]);return;}if(opcode==9){sendControl(out,10,payload);continue;}if(opcode==10)continue;
+                if(opcode==2){if(fin){deliver(payload,sink);}else{fragmented=new ByteArrayOutputStream(Math.min(MAX_JPEG,Math.max(4096,payload.length*2)));fragmented.write(payload);fragmentedOpcode=2;}continue;}
+                if(opcode==0&&fragmented!=null){if(fragmented.size()+payload.length>MAX_JPEG)throw new IllegalStateException("fragmented JPEG too large");fragmented.write(payload);if(fin){if(fragmentedOpcode==2)deliver(fragmented.toByteArray(),sink);fragmented=null;fragmentedOpcode=0;}}
+            }
+        }finally{
+            if(socket==s)socket=null;
+            if(s!=null)try{s.close();}catch(Exception ignored){}else try{plain.close();}catch(Exception ignored){}
         }
     }
 
