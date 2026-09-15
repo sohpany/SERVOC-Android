@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Fail-closed HR-0101-050 field-operability/reproducibility contract gate."""
 from pathlib import Path
+import os
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -23,6 +24,11 @@ def forbid(src: str, needle: str, label: str) -> None:
 
 
 def main() -> int:
+    if os.environ.get("HAZROB_HR050_RECOVER_SEED") == "1":
+        from hr050_recover_pinned_seed import main as recover_seed
+        if recover_seed() not in (None, 0):
+            raise AssertionError("temporary controlled seed recovery failed")
+
     cfg = txt("firmware/HazRob/Config.h")
     hw = txt("firmware/HazRob/Hardware.cpp")
     profile = txt("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
