@@ -19,7 +19,7 @@ struct Sink{uint8_t*b;size_t cap,len;};
 size_t outJpg(void*a,size_t i,const void*d,size_t n){auto*s=(Sink*)a;if(!s||i+n>s->cap)return 0;memcpy(s->b+i,d,n);s->len=i+n;return n;}
 bool jpegOK(const uint8_t*p,size_t n){return p&&n>3&&p[0]==0xFF&&p[1]==0xD8&&p[n-2]==0xFF&&p[n-1]==0xD9;}
 void fpsTick(){uint32_t n=millis();if(!fpsAt){fpsAt=n;lastFrames=frames;return;}uint32_t dt=n-fpsAt;if(dt<1000)return;fps100=(uint32_t)((uint64_t)(frames-lastFrames)*100000ULL/dt);fpsAt=n;lastFrames=frames;}
-bool captureJpeg(uint8_t*out,size_t cap,size_t&len){len=0;if(!camOK||!out||cap<4096||xSemaphoreTake(camMx,pdMS_TO_TICKS(1200))!=pdTRUE)return false;camera_fb_t*f=esp_camera_fb_get();if(!f){capErr++;xSemaphoreGive(camMx);return false;}Sink s{out,cap,0};uint32_t t=micros();bool ok=false;if(f->format==PIXFORMAT_JPEG){if(f->len<=cap){memcpy(out,f->buf,f->len);s.len=f->len;ok=true;}}else ok=frame2jpg_cb(f,JQ,outJpg,&s);encUs=micros()-t;esp_camera_fb_return(f);ok=ok&&jpegOK(out,s.len);if(ok){len=lastJpg=s.len;frames++;fpsTick();}else encErr++;xSemaphoreGive(camMx);return ok;}
+bool captureJpeg(uint8_t*out,size_t cap,size_t&len){len=0;if(!camOK||!out||cap<4096||xSemaphoreTake(camMx,pdMS_TO_TICKS(1200))!=pdTRUE)return false;camera_fb_t*f=esp_camera_fb_get();if(!f){capErr++;xSemaphoreGive(camMx);return false;}Sink s{out,cap,0};uint32_t t=micros();bool ok=frame2jpg_cb(f,JQ,outJpg,&s);encUs=micros()-t;esp_camera_fb_return(f);ok=ok&&jpegOK(out,s.len);if(ok){len=lastJpg=s.len;frames++;fpsTick();}else encErr++;xSemaphoreGive(camMx);return ok;}
 
 bool wr(WiFiClient&c,const uint8_t*p,size_t n){uint32_t t=millis();while(n&&c.connected()){size_t w=c.write(p,n);if(w){p+=w;n-=w;t=millis();}else if(millis()-t>2000)return false;else delay(1);}return !n;}
 bool wr(WiFiClient&c,const char*s){return wr(c,(const uint8_t*)s,strlen(s));}
@@ -35,11 +35,11 @@ bool cameraInit(pixformat_t format){
   c.pin_d0=Y2;c.pin_d1=Y3;c.pin_d2=Y4;c.pin_d3=Y5;c.pin_d4=Y6;c.pin_d5=Y7;c.pin_d6=Y8;c.pin_d7=Y9;
   c.pin_xclk=XCLK;c.pin_pclk=PC;c.pin_vsync=VS;c.pin_href=HR;c.pin_sccb_sda=SIOD;c.pin_sccb_scl=SIOC;c.pin_pwdn=PWDN;c.pin_reset=RST;
   c.xclk_freq_hz=20000000;c.pixel_format=format;c.frame_size=FRAMESIZE_QVGA;c.jpeg_quality=12;
-  c.fb_count=(format==PIXFORMAT_JPEG&&psOK)?2:1;
-  c.grab_mode=(format==PIXFORMAT_JPEG&&psOK)?CAMERA_GRAB_LATEST:CAMERA_GRAB_WHEN_EMPTY;
+  c.fb_count=1;
+  c.grab_mode=CAMERA_GRAB_WHEN_EMPTY;
   c.fb_location=psOK?CAMERA_FB_IN_PSRAM:CAMERA_FB_IN_DRAM;
   camErr=esp_camera_init(&c);if(camErr!=ESP_OK)return false;
-  nativeJpeg=format==PIXFORMAT_JPEG;
+  nativeJpeg=false;
   if(auto*s=esp_camera_sensor_get()){pid=s->id.PID;s->set_framesize(s,FRAMESIZE_QVGA);}
   return true;
 }
@@ -49,18 +49,16 @@ bool cameraBegin(){
   jpg=psOK?(uint8_t*)ps_malloc(jpgCap):(uint8_t*)malloc(jpgCap);
   Serial.printf("[CAM] PSRAM=%s JPEG_BUFFER=%u bytes (%s)\n",psOK?"YES":"NO",(unsigned)jpgCap,fbMemory());
   if(!jpg){camErr=ESP_ERR_NO_MEM;Serial.println("[CAM] JPEG buffer allocation failed");return false;}
-  if(cameraInit(PIXFORMAT_JPEG)){Serial.printf("[CAM] init OK format=JPEG sensor=%s pid=0x%04X fb=%s\n",sensor(),pid,fbMemory());return true;}
-  Serial.printf("[CAM] JPEG init failed err=0x%X\n",(unsigned)camErr);
-  esp_camera_deinit();delay(40);
-  if(!psOK){Serial.println("[CAM] no-PSRAM mode: RGB565 fallback skipped to preserve DRAM");return false;}
-  bool ok=cameraInit(PIXFORMAT_RGB565);Serial.printf("[CAM] RGB565 fallback %s err=0x%X sensor=%s\n",ok?"OK":"FAIL",(unsigned)camErr,sensor());return ok;
+  bool ok=cameraInit(PIXFORMAT_RGB565);
+  Serial.printf("[CAM] compatibility RGB565 init %s err=0x%X sensor=%s pid=0x%04X fb=%s\n",ok?"OK":"FAIL",(unsigned)camErr,sensor(),pid,fbMemory());
+  return ok;
 }
 
 void localActive(bool on){clients=on?1:0;remoteVideoSetLocalActive(on);}
 void streamTask(void*){for(;;){WiFiClient c=mjpeg.accept();if(!c){vTaskDelay(2);continue;}localActive(true);c.setNoDelay(true);drain(c);if(!camOK){wr(c,"HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\nCAMERA FAIL\n");c.stop();localActive(false);continue;}if(!wr(c,"HTTP/1.1 200 OK\r\nAccess-Control-Allow-Origin: *\r\nCache-Control: no-cache\r\nConnection: close\r\nContent-Type: multipart/x-mixed-replace; boundary=frame\r\n\r\n")){c.stop();localActive(false);continue;}while(c.connected()&&WiFi.status()==WL_CONNECTED){size_t n=0;if(!captureJpeg(jpg,jpgCap,n)){vTaskDelay(5);continue;}char h[96];int hn=snprintf(h,sizeof(h),"--frame\r\nContent-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n",(unsigned)n);if(hn<1||!wr(c,(uint8_t*)h,hn)||!wr(c,jpg,n)||!wr(c,"\r\n"))break;vTaskDelay(pdMS_TO_TICKS(5));}c.stop();localActive(false);}}
 
 void wifiConnect(){WiFi.disconnect(false,false);delay(20);WiFi.config(ip,gw,sn,d1,d2);WiFi.begin(SSID);wifiAt=millis();wifiReported=false;Serial.printf("[WIFI] connecting SSID=%s static=%s gateway=%s\n",SSID,ip.toString().c_str(),gw.toString().c_str());}
-String statusJson(){String e=String("0x")+String((uint32_t)camErr,HEX);e.toUpperCase();return "{\"ok\":true,\"camera_ok\":"+String(camOK?"true":"false")+",\"camera_error\":\""+e+"\",\"psram\":"+(psOK?"true":"false")+",\"fb_memory\":\""+String(fbMemory())+"\",\"jpeg_buffer_bytes\":"+String((uint32_t)jpgCap)+",\"wifi_connected\":"+String(WiFi.status()==WL_CONNECTED?"true":"false")+",\"wifi_status\":"+String((int)WiFi.status())+",\"fw\":\""+FW+"\",\"ip\":\""+WiFi.localIP().toString()+"\",\"pid\":"+pid+",\"sensor\":\""+sensor()+"\",\"width\":320,\"height\":240,\"capture_format\":\""+(nativeJpeg?String("JPEG"):String("RGB565"))+"\",\"stream_format\":\"MJPEG+WSS\",\"jpeg_quality\":"+String(nativeJpeg?12:JQ)+",\"fps\":"+String(fps100/100.0f,2)+",\"frames\":"+frames+",\"jpeg_bytes\":"+(uint32_t)lastJpg+",\"capture_errors\":"+capErr+",\"encode_errors\":"+encErr+",\"stream_clients\":"+clients+",\"rssi\":"+WiFi.RSSI()+",\"flash_gpio\":4,\"flash\":\""+flashName()+"\",\"remote_video\":"+remoteVideoJson()+"}";}
+String statusJson(){String e=String("0x")+String((uint32_t)camErr,HEX);e.toUpperCase();return "{\"ok\":true,\"camera_ok\":"+String(camOK?"true":"false")+",\"camera_error\":\""+e+"\",\"psram\":"+(psOK?"true":"false")+",\"fb_memory\":\""+String(fbMemory())+"\",\"jpeg_buffer_bytes\":"+String((uint32_t)jpgCap)+",\"wifi_connected\":"+String(WiFi.status()==WL_CONNECTED?"true":"false")+",\"wifi_status\":"+String((int)WiFi.status())+",\"fw\":\""+FW+"\",\"ip\":\""+WiFi.localIP().toString()+"\",\"pid\":"+pid+",\"sensor\":\""+sensor()+"\",\"width\":320,\"height\":240,\"capture_format\":\"RGB565\",\"jpeg_encoder\":\"software_frame2jpg\",\"stream_format\":\"MJPEG+WSS\",\"jpeg_quality\":"+String(JQ)+",\"fps\":"+String(fps100/100.0f,2)+",\"frames\":"+frames+",\"encode_ms\":"+String(encUs/1000.0f,2)+",\"jpeg_bytes\":"+(uint32_t)lastJpg+",\"capture_errors\":"+capErr+",\"encode_errors\":"+encErr+",\"stream_clients\":"+clients+",\"rssi\":"+WiFi.RSSI()+",\"flash_gpio\":4,\"flash\":\""+flashName()+"\",\"remote_video\":"+remoteVideoJson()+"}";}
 void reply(WiFiClient&c,int code,const char*type,const String&body,const String&extra=""){c.print("HTTP/1.1 ");c.print(code);c.print(code==200?" OK\r\n":code==302?" Found\r\n":code==400?" Bad Request\r\n":" Not Found\r\n");if(extra.length())c.print(extra);c.print("Content-Type: ");c.print(type);c.print("\r\nContent-Length: ");c.print(body.length());c.print("\r\nConnection: close\r\nCache-Control: no-store\r\nAccess-Control-Allow-Origin: *\r\n\r\n");c.print(body);}
 String qarg(const String&q,const char*k){String key=String(k)+"=";int p=0;while(p<(int)q.length()){int e=q.indexOf('&',p);if(e<0)e=q.length();if(q.substring(p,p+key.length())==key)return q.substring(p+key.length(),e);p=e+1;}return "";}
 void httpUpdate(){WiFiClient c=http.accept();if(!c)return;c.setTimeout(180);String line=c.readStringUntil('\n');line.trim();int a=line.indexOf(' '),z=line.indexOf(' ',a+1);if(a<1||z<a){c.stop();return;}String target=line.substring(a+1,z);drain(c);int qi=target.indexOf('?');String path=qi<0?target:target.substring(0,qi),q=qi<0?"":target.substring(qi+1);if(path=="/")reply(c,200,"text/plain",FW);else if(path=="/status")reply(c,200,"application/json",statusJson());else if(path=="/stream"){String u="Location: http://"+WiFi.localIP().toString()+":81/stream\r\n";reply(c,302,"text/plain","stream",u);}else if(path=="/flash"){String m=qarg(q,"mode");if(m!="off"&&m!="auto"&&m!="on")reply(c,400,"text/plain","BAD");else{flashSet(m);reply(c,200,"text/plain","OK");}}else reply(c,404,"text/plain","NOT FOUND");c.stop();}
