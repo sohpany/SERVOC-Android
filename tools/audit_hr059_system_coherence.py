@@ -77,7 +77,7 @@ def main():
     req(mqttc,'HttpsURLConnection.getDefaultHostnameVerifier().verify(host,session)','Android MQTT hostname verify'); req(wssc,'p.setEndpointIdentificationAlgorithm("HTTPS")','Android WSS hostname verify'); req(rcfg,'ROOT_CA[]=HAZROB_MQTT_ROOT_CA','main CA'); req(rvcfg,'ROOT_CA[]=HAZROB_VIDEO_ROOT_CA','CAM CA'); ban(mqttc,'TrustAll','MQTT insecure TLS'); ban(wssc,'TrustAll','WSS insecure TLS')
 
     # Relay role isolation plus local and live production contract coverage.
-    req(relay,'expected=role==="publisher"?c.publish:c.view','relay token isolation'); req(rtest,'openWs("/hazrob/video/view/hazrob-001",PUBLISH)','publisher token rejection'); req(rtest,'openWs("/hazrob/video/publish/hazrob-001",VIEW)','viewer token rejection'); req(rtest,'liveProductionHealth()','live health test'); req(rtest,'mqttDiagnostic?.state,"pass"','live Hive diagnostic')
+    req(relay,'expected=role==="publisher"?c.publish:c.view','relay token isolation'); req(rtest,'openWs("/hazrob/video/view/hazrob-001",PUBLISH)','publisher token rejection'); req(rtest,'openWs("/hazrob/video/publish/hazrob-001",VIEW)','viewer token rejection'); req(rtest,'liveProductionContract()','live production contract test'); req(rtest,'mqttDiagnostic?.state,"pass"','live Hive diagnostic')
 
     print("HazRob HR-0101-059 five-layer system coherence: PASS")
     print(f"Identity: 0.10.1 / protocol 2 / hazrob-001; cloud={hive}:8883 + {render}")
