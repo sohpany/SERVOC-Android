@@ -4,50 +4,36 @@ import org.json.JSONObject;
 import java.util.Locale;
 
 /**
- * Fast operational warning layer. It signals MQ response elevation only; chemical identification
- * and quantitative ppm remain later controlled analysis steps.
- *
- * HazRob firmware reports ratio = Rs/R0 using the accepted field clean-air R0 set. Therefore a
- * normalized ratio of 1.0 is a valid operational fallback when the Android clean-air baseline has
- * not yet been captured/persisted. A captured baseline still takes precedence when available.
+ * Fast operational MQ response layer. RESPONSE is visibility only; ELEVATED/HIGH remain the
+ * phone/robot warning tiers. None of these states is a calibrated ppm, IDLH or LFL decision.
  */
 public final class InstantMqWarningEngine {
     private static final double R0_NORMALIZED_FALLBACK = 1.0;
+    private static final double RESPONSE_MIN_DELTA = 0.05;
+    private static final double RESPONSE_MAX_DELTA = 0.15;
     private static final double ELEVATED_DELTA = 0.20;
     private static final double HIGH_DELTA = 0.40;
 
     private InstantMqWarningEngine(){}
-    public enum Level{UNAVAILABLE,NORMAL,ELEVATED,HIGH}
+    public enum Level{UNAVAILABLE,NORMAL,RESPONSE,ELEVATED,HIGH}
     public static final class Result{
         public final Level level;
         public final String label,alert;
         public final double delta;
         public final boolean usedFallbackBaseline;
-        public Result(Level l,String label,String alert,double d,boolean fallback){
-            this.level=l;this.label=label;this.alert=alert;this.delta=d;this.usedFallbackBaseline=fallback;
-        }
-        /** Compatibility constructor for states that do not perform baseline comparison (e.g. warm-up). */
+        public Result(Level l,String label,String alert,double d,boolean fallback){this.level=l;this.label=label;this.alert=alert;this.delta=d;this.usedFallbackBaseline=fallback;}
         public Result(Level l,String label,String alert,double d){this(l,label,alert,d,false);}
     }
 
     public static Result evaluate(String key,JSONObject reading,SensorHealthEngine.Snapshot health){
         String target=target(key);
-        if(reading==null||!reading.optBoolean("valid",reading.optBoolean("ok",false)))
-            return new Result(Level.UNAVAILABLE,target,"",Double.NaN,false);
-
-        double ratio=reading.optDouble("ratio",Double.NaN);
-        if(!Double.isFinite(ratio)||ratio<=0)
-            return new Result(Level.UNAVAILABLE,target,"",Double.NaN,false);
-
-        double saved=health==null?Double.NaN:health.baselineRatio;
-        boolean fallback=!Double.isFinite(saved)||saved<=0;
-        double base=fallback?R0_NORMALIZED_FALLBACK:saved;
-        double delta=Math.abs(ratio/base-1.0);
-
-        if(delta>=HIGH_DELTA)
-            return new Result(Level.HIGH,target,"استجابة عالية متوافقة مع "+target,delta,fallback);
-        if(delta>=ELEVATED_DELTA)
-            return new Result(Level.ELEVATED,target,"استجابة مرتفعة متوافقة مع "+target,delta,fallback);
+        if(reading==null||!reading.optBoolean("valid",reading.optBoolean("ok",false)))return new Result(Level.UNAVAILABLE,target,"",Double.NaN,false);
+        double ratio=reading.optDouble("ratio",Double.NaN);if(!Double.isFinite(ratio)||ratio<=0)return new Result(Level.UNAVAILABLE,target,"",Double.NaN,false);
+        double saved=health==null?Double.NaN:health.baselineRatio;boolean fallback=!Double.isFinite(saved)||saved<=0;double base=fallback?R0_NORMALIZED_FALLBACK:saved;double delta=Math.abs(ratio/base-1.0);
+        if(delta>=HIGH_DELTA)return new Result(Level.HIGH,target,"استجابة عالية متوافقة مع "+target,delta,fallback);
+        if(delta>=ELEVATED_DELTA)return new Result(Level.ELEVATED,target,"استجابة مرتفعة متوافقة مع "+target,delta,fallback);
+        double noise=health==null?Double.NaN:health.noiseCv;double responseThreshold=Double.isFinite(noise)?Math.max(RESPONSE_MIN_DELTA,Math.min(RESPONSE_MAX_DELTA,3.0*Math.abs(noise))):RESPONSE_MIN_DELTA;
+        if(delta>=responseThreshold)return new Result(Level.RESPONSE,target,"استجابة أولية مرصودة",delta,fallback);
         return new Result(Level.NORMAL,target,"",delta,fallback);
     }
 
