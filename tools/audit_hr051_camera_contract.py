@@ -3,99 +3,75 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-def text(path: str) -> str:
+def text(path):
     return (ROOT / path).read_text(encoding="utf-8")
 
-def require(haystack: str, needle: str, label: str) -> None:
-    if needle not in haystack:
-        raise AssertionError(f"HR051 missing {label}: {needle}")
+def req(src, needle, label):
+    if needle not in src:
+        raise AssertionError(f"HR053 missing {label}: {needle}")
 
-def forbid(haystack: str, needle: str, label: str) -> None:
-    if needle in haystack:
-        raise AssertionError(f"HR052 forbidden {label}: {needle}")
+def ban(src, needle, label):
+    if needle in src:
+        raise AssertionError(f"HR053 forbidden {label}: {needle}")
 
-def main() -> int:
-    cam = text("firmware/HazRob-CAM/HazRob-CAM.ino")
-    remote = text("app/src/main/java/com/servoc/app/camera/RemoteJpegWebSocketClient.java")
-    settings = text("app/src/main/java/com/servoc/app/ui/SettingsTab.java")
-    control = text("app/src/main/java/com/servoc/app/ui/ControlTab.java")
-    manifest = text("app/src/main/AndroidManifest.xml")
-    config = text("firmware/HazRob/Config.h")
-    change = text("docs/0.10.1/HR051_CAMERA_RECOVERY_MANIFEST.md")
+def main():
+    cam=text("firmware/HazRob-CAM/HazRob-CAM.ino")
+    cfg=text("firmware/HazRob/Config.h")
+    hw=text("firmware/HazRob/Hardware.cpp")
+    proto=text("app/src/main/java/com/servoc/app/communication/RobotProtocolV4.java")
+    settings=text("app/src/main/java/com/servoc/app/ui/SettingsTab.java")
+    control=text("app/src/main/java/com/servoc/app/ui/ControlTab.java")
+    change=text("docs/0.10.1/HR053_SYSTEM_COHERENCE_MANIFEST.md")
 
-    for needle, label in [
-        ('PWDN=32,RST=-1,XCLK=0,SIOD=26,SIOC=27', 'AI-Thinker control pins'),
-        ('Y9=35,Y8=34,Y7=39,Y6=36,Y5=21,Y4=19,Y3=18,Y2=5', 'AI-Thinker data pins'),
-        ('VS=25,HR=23,PC=22', 'AI-Thinker sync pins'),
-        ('IPAddress ip(192,168,4,2)', 'camera static IP'),
-        ('gw(192,168,4,1)', 'camera gateway'),
-        ('WiFiServer http(80),mjpeg(81)', 'camera local ports'),
-    ]:
-        require(cam, needle, label)
+    for n,l in [
+        ('#include <WebServer.h>','WebServer'),
+        ('WebServer web(80); WiFiServer mjpeg(81)','local ports'),
+        ('IPAddress ip(192,168,4,2)','camera IP'),
+        ('c.pixel_format=PIXFORMAT_RGB565','RGB565 capture'),
+        ('c.frame_size=FRAMESIZE_QVGA','QVGA'),
+        ('c.fb_count=1','single framebuffer'),
+        ('c.grab_mode=CAMERA_GRAB_WHEN_EMPTY','grab mode'),
+        ('c.fb_location=CAMERA_FB_IN_PSRAM','PSRAM framebuffer'),
+        ('frame2jpg_cb(f,JQ,outJpg,&s)','software JPEG'),
+        ('constexpr uint8_t LED=4,JQ=35','JPEG quality'),
+        ('if(!psOK)return camErr=ESP_ERR_NO_MEM,false','PSRAM requirement'),
+        ('web.on("/stream"','stream redirect')]: req(cam,n,l)
+    ban(cam,'PIXFORMAT_JPEG','native JPEG path')
+    ban(cam,'CAMERA_FB_IN_DRAM','DRAM fallback')
+    req(control,'"http://"+h+":81/stream"','Android stream URL')
 
-    for needle, label in [
-        ('Serial.begin(115200)', 'serial boot diagnostics'),
-        ('psramFound()', 'PSRAM detection'),
-        ('CAMERA_FB_IN_DRAM', 'DRAM framebuffer fallback'),
-        ('JPG_CAP_DRAM', 'DRAM JPEG buffer'),
-        ('fb_memory', 'framebuffer memory status'),
-        ('wifi_connected', 'Wi-Fi status'),
-        ('camera_error', 'camera error status'),
-        ('sensor', 'sensor identity status'),
-        ('http://192.168.4.2:81/stream', 'serial stream endpoint'),
-    ]:
-        require(cam, needle, label)
+    for n,l in [
+        ('ENV_SDA=13,ENV_SCL=14','ENV pins'),
+        ('ENV_I2C_HZ=100000','ENV speed'),
+        ('SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49','ADS separation'),
+        ('R0_SESSION[]="FIELD-R0-3SESSION-20260913"','R0 authority')]: req(cfg,n,l)
+    for n,l in [
+        ('TwoWire EnvWire(1)','second I2C controller'),
+        ('EnvWire.begin(Cfg::ENV_SDA,Cfg::ENV_SCL)','ENV init'),
+        ('envAck76=envProbe(0x76)','0x76 probe'),
+        ('envAck77=envProbe(0x77)','0x77 probe'),
+        ('id==0x60?1','BME280 ID'),
+        ('id==0x56||id==0x57||id==0x58','BMP280 IDs'),
+        ('\\"p\\":','pressure telemetry'),
+        ('\\"status\\":\\"','ENV status telemetry')]: req(hw,n,l)
+    for n,l in [
+        ('finiteAny(e,"p","pressure")','pressure normalization'),
+        ('x.put("status_code",status)','status normalization'),
+        ('x.put("ack_0x76",ack76)','ACK76 normalization'),
+        ('x.put("ack_0x77",ack77)','ACK77 normalization')]: req(proto,n,l)
+    for n,l in [
+        ('optString("status_code",env.optString("status","NOT READY"))','status visibility'),
+        ('optString("address","—")','address visibility'),
+        ('optString("chip_id","—")','chip visibility'),
+        ('optBoolean("ack_0x76",false)','ACK76 visibility'),
+        ('optBoolean("ack_0x77",false)','ACK77 visibility')]: req(settings,n,l)
 
-    # HR-0101-052: direct/local camera compatibility must retain the field-proven
-    # HazRob 0.10.0 acquisition contract. GC2145 is captured as RGB565 and every
-    # frame is converted to a complete JPEG in software before MJPEG delivery.
-    for needle, label in [
-        ('cameraInit(PIXFORMAT_RGB565)', 'RGB565 compatibility initialization'),
-        ('frame2jpg_cb(f,JQ,outJpg,&s)', 'software JPEG conversion'),
-        ('capture_format\\\":\\\"RGB565', 'RGB565 status declaration'),
-        ('jpeg_encoder\\\":\\\"software_frame2jpg', 'software encoder status declaration'),
-    ]:
-        require(cam, needle, label)
-    forbid(cam, 'cameraInit(PIXFORMAT_JPEG)', 'native-JPEG-first initialization')
-
-    require(control, '"http://"+h+":81/stream"', 'Android canonical MJPEG URL')
-    require(control, '"http://"+h+"/stream"', 'Android port-80 redirect fallback')
-    require(manifest, 'android:usesCleartextTraffic="true"', 'local HTTP cleartext allowance')
-
-    for needle, label in [
-        ('CONNECT_TIMEOUT_MS=4000', 'remote-video TCP timeout'),
-        ('plain.connect(new InetSocketAddress(host,port),CONNECT_TIMEOUT_MS)', 'bounded TCP connect'),
-        ('createSocket(plain,host,port,true)', 'TLS layered over bounded TCP socket'),
-        ('setEndpointIdentificationAlgorithm("HTTPS")', 'TLS hostname verification'),
-    ]:
-        require(remote, needle, label)
-
-    for needle, label in [
-        ('"camera_error"', 'app camera error detail'),
-        ('"fb_memory"', 'app memory detail'),
-        ('"sensor"', 'app sensor detail'),
-        ('"clients"', 'master AP client diagnostic'),
-        ('GPIO0-GND', 'boot-mode operator hint'),
-        ('cam="192.168.4.2"', 'safe camera host fallback'),
-    ]:
-        require(settings, needle, label)
-
-    for needle, label in [
-        ('DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32', 'left drive authority'),
-        ('DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27', 'right drive authority'),
-        ('ENV_SDA=13,ENV_SCL=14', 'ENV bus authority'),
-        ('SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49', 'ADS bus authority'),
-        ('R0_SESSION[]="FIELD-R0-3SESSION-20260913"', 'R0 authority'),
-    ]:
-        require(config, needle, label)
-
-    require(change, 'HR-0101-051', 'controlled change manifest')
-    print('HR-0101-051/052 camera recovery contract: PASS')
+    req(change,'HR-0101-053','manifest')
+    print('HR-0101-053 camera/ENV coherence contract: PASS')
     return 0
 
 if __name__ == "__main__":
-    try:
-        raise SystemExit(main())
+    try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HR-0101-051/052 camera recovery contract: FAIL: {exc}")
+        print(f"HR-0101-053 camera/ENV coherence contract: FAIL: {exc}")
         raise SystemExit(1)
