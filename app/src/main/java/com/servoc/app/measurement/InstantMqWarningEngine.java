@@ -13,6 +13,8 @@ public final class InstantMqWarningEngine {
     private static final double RESPONSE_MAX_DELTA = 0.15;
     private static final double ELEVATED_DELTA = 0.20;
     private static final double HIGH_DELTA = 0.40;
+    /** Numerical tolerance only; does not alter the 20%/40% operational thresholds. */
+    private static final double BOUNDARY_EPS = 1e-12;
 
     private InstantMqWarningEngine(){}
     public enum Level{UNAVAILABLE,NORMAL,RESPONSE,ELEVATED,HIGH}
@@ -25,15 +27,17 @@ public final class InstantMqWarningEngine {
         public Result(Level l,String label,String alert,double d){this(l,label,alert,d,false);}
     }
 
+    private static boolean reaches(double value,double threshold){return value+BOUNDARY_EPS>=threshold;}
+
     public static Result evaluate(String key,JSONObject reading,SensorHealthEngine.Snapshot health){
         String target=target(key);
         if(reading==null||!reading.optBoolean("valid",reading.optBoolean("ok",false)))return new Result(Level.UNAVAILABLE,target,"",Double.NaN,false);
         double ratio=reading.optDouble("ratio",Double.NaN);if(!Double.isFinite(ratio)||ratio<=0)return new Result(Level.UNAVAILABLE,target,"",Double.NaN,false);
         double saved=health==null?Double.NaN:health.baselineRatio;boolean fallback=!Double.isFinite(saved)||saved<=0;double base=fallback?R0_NORMALIZED_FALLBACK:saved;double delta=Math.abs(ratio/base-1.0);
-        if(delta>=HIGH_DELTA)return new Result(Level.HIGH,target,"استجابة عالية متوافقة مع "+target,delta,fallback);
-        if(delta>=ELEVATED_DELTA)return new Result(Level.ELEVATED,target,"استجابة مرتفعة متوافقة مع "+target,delta,fallback);
+        if(reaches(delta,HIGH_DELTA))return new Result(Level.HIGH,target,"استجابة عالية متوافقة مع "+target,delta,fallback);
+        if(reaches(delta,ELEVATED_DELTA))return new Result(Level.ELEVATED,target,"استجابة مرتفعة متوافقة مع "+target,delta,fallback);
         double noise=health==null?Double.NaN:health.noiseCv;double responseThreshold=Double.isFinite(noise)?Math.max(RESPONSE_MIN_DELTA,Math.min(RESPONSE_MAX_DELTA,3.0*Math.abs(noise))):RESPONSE_MIN_DELTA;
-        if(delta>=responseThreshold)return new Result(Level.RESPONSE,target,"استجابة أولية مرصودة",delta,fallback);
+        if(reaches(delta,responseThreshold))return new Result(Level.RESPONSE,target,"استجابة أولية مرصودة",delta,fallback);
         return new Result(Level.NORMAL,target,"",delta,fallback);
     }
 
