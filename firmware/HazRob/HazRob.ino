@@ -5,14 +5,15 @@
 #include "RemoteMqtt.h"
 #include "SafetyInterlock.h"
 
-// HR-0101-056 connection authority:
-// DIRECT = AP-only + HTTP control/telemetry + local camera network.
-// REMOTE = AP+STA + MQTT/Render gateway. Local drive is rejected to prevent dual authority.
+// HR-0101-057 connection authority:
+// DIRECT = AP-only + HTTP control/telemetry + local camera network (runtime session only).
+// REMOTE = AP+STA + MQTT/Render gateway. Saved WAN is retried on every reboot until explicitly cleared.
 WebServer web(80);
 
 enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1};
 RadioProfile radioProfile=RadioProfile::DIRECT;
 int8_t pendingProfile=-1;
+bool pendingPersistMode=false;
 uint32_t pendingProfileAt=0,wifiAt=0;
 bool naptEnabled=false;
 
@@ -47,11 +48,11 @@ void applyRadioProfile(RadioProfile next,bool persistMode){
     remoteSetTransportEnabled(true,persistMode);
   }
 }
-void requestRadioProfile(RadioProfile next){pendingProfile=(int8_t)next;pendingProfileAt=millis();}
+void requestRadioProfile(RadioProfile next,bool persistMode){pendingProfile=(int8_t)next;pendingPersistMode=persistMode;pendingProfileAt=millis();}
 void profileUpdate(){
   if(pendingProfile<0||millis()-pendingProfileAt<180)return;
-  RadioProfile next=(RadioProfile)pendingProfile;pendingProfile=-1;
-  applyRadioProfile(next,true);
+  RadioProfile next=(RadioProfile)pendingProfile;bool persist=pendingPersistMode;pendingProfile=-1;pendingPersistMode=false;
+  applyRadioProfile(next,persist);
 }
 
 void gatewayUpdate(){
@@ -101,10 +102,11 @@ void setup(){
   web.on("/sensor/off",[]{sensorPowerOff();reply(200,"OK");});
   web.on("/heartbeat",[]{if(web.hasArg("arm")&&web.arg("arm")=="0"){linkSetArmed(false);return reply(200,"DISARMED");}linkHeartbeat();reply(200,"OK");});
 
-  web.on("/connection/direct",HTTP_POST,[]{reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\"}");requestRadioProfile(RadioProfile::DIRECT);});
+  // Direct is deliberately temporary: it must not disarm saved WAN for the next reboot.
+  web.on("/connection/direct",HTTP_POST,[]{reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\"}");requestRadioProfile(RadioProfile::DIRECT,false);});
   web.on("/connection/remote",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE);
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE,true);
   });
 
   web.on("/remote/status",[]{
@@ -115,17 +117,17 @@ void setup(){
   web.on("/remote/scan",[]{if(radioProfile!=RadioProfile::REMOTE)return reply(409,"application/json",scanJson());reply(200,"application/json",scanJson());});
   web.on("/remote/provision",HTTP_POST,[]{
     motionStop();String s=web.arg("ssid"),p=web.arg("password");bool ok=s.length()&&remoteProvision(s,p);
-    reply(ok?200:400,"application/json",ok?"{\"ok\":true,\"switching_to\":\"remote\"}":"{\"ok\":false}");if(ok)requestRadioProfile(RadioProfile::REMOTE);
+    reply(ok?200:400,"application/json",ok?"{\"ok\":true,\"switching_to\":\"remote\"}":"{\"ok\":false}");if(ok)requestRadioProfile(RadioProfile::REMOTE,true);
   });
   web.on("/remote/retry",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
     if(radioProfile==RadioProfile::REMOTE){motionStop();bool ok=remoteRetry();return reply(ok?200:409,"application/json",ok?"{\"ok\":true}":"{\"ok\":false}");}
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE);
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE,true);
   });
   web.on("/remote/clear",HTTP_POST,[]{
     if(web.arg("confirm")!="1")return reply(400,"application/json","{\"ok\":false}");
     motionStop();remoteMqttDisconnect();if(naptEnabled)WiFi.AP.enableNAPT(false);naptEnabled=false;remoteClear();
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\"}");requestRadioProfile(RadioProfile::DIRECT);
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\"}");requestRadioProfile(RadioProfile::DIRECT,false);
   });
 
   web.on("/relay",[]{if(!web.hasArg("mask"))return reply(400,"BAD");int mask=web.arg("mask").toInt();if(mask!=0&&mask!=1)return reply(409,"MQ POWER MUST BE 0 OR 1");linkHeartbeat();if(!relaySetMask((uint8_t)mask))return reply(409,"RELAY REJECTED");reply(200,"OK");});
