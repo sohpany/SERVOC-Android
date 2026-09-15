@@ -100,7 +100,6 @@ def main() -> int:
     ]:
         require(src, needle, label)
 
-    # Critical active artifacts must not silently regress to retired release names.
     stale_checks = [
         ("v0.10.0-source", fw_workflow, "firmware workflow"),
         ("HazRob-v0.10.0-firmware", fw_workflow, "firmware workflow"),
@@ -131,13 +130,14 @@ def main() -> int:
     require(connection_gate, 'listener.onReady(Mode.DIRECT)', "Direct non-blocking admission")
     forbid(connection_gate, 'diagnosticsRaw()', "Direct admission gate")
 
-    # 3) Canonical GPIO contract. HR-0101-048 corrected logical side association at the L298N boundary.
+    # 3) Canonical GPIO contract. HR048 fixed drive side association; HR050 split ENV from ADS.
     gpio_needles = [
-        'HW_PROFILE[]="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1"',
+        'HW_PROFILE[]="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2"',
         'DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32',
         'DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27',
         'DRIVE_L_INVERT=false,DRIVE_R_INVERT=false',
         'SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49',
+        'ENV_SDA=13,ENV_SCL=14',
         'RELAY_MQ=25',
         'ALERT_PIN=26',
         'SOUND_PIN=36',
@@ -146,21 +146,23 @@ def main() -> int:
         'BATTERY_PIN=33',
         'ULTRA_TRIG_PIN=23',
         'ULTRA_ECHO_PIN=39',
-        'INTERNAL_TEMP_RESERVED_PIN=14',
     ]
     for needle in gpio_needles:
         require(master_cfg, needle, "master GPIO contract")
+    forbid(master_cfg, 'INTERNAL_TEMP_RESERVED_PIN=14', "GPIO14 is ENV SCL under HR050")
 
     for needle in [
         "ENA=GPIO16", "ENB=GPIO17", "IN1=18", "IN2=27", "IN3=19", "IN4=32",
         "GPIO25", "GPIO36", "GPIO35", "GPIO34", "GPIO33", "GPIO23", "GPIO39",
-        "GPIO21", "GPIO22",
+        "GPIO21", "GPIO22", "GPIO13", "GPIO14",
     ]:
         require(gpio_doc, needle, "GPIO authority document")
     require(gpio_doc, "LEFT → channel B", "GPIO authority HR048 left association")
     require(gpio_doc, "RIGHT → channel A", "GPIO authority HR048 right association")
     require(gpio_doc, "Remove the ENA jumper", "GPIO authority ENA rule")
     require(gpio_doc, "Remove the ENB jumper", "GPIO authority ENB rule")
+    require(gpio_doc, "ENV I2C", "GPIO authority HR050 ENV bus")
+    require(gpio_doc, "cliff", "GPIO authority HR050 IR semantics")
 
     # 4) Android-issued MQTT commands must all be handled by the master.
     android_remote = robot_api + "\n" + remote_conn
@@ -178,7 +180,6 @@ def main() -> int:
     if missing_fw:
         raise AssertionError(f"ESP32 RemoteMqtt lacks Android-issued commands: {sorted(missing_fw)}")
 
-    # E-stop is a latched cross-layer contract, including explicit reset and UI inhibition.
     require(master, 'path=="/estop/reset"', "Direct E-stop reset endpoint")
     require(mqtt, 't=="estop_reset"', "Remote E-stop reset handler")
     require(remote_conn, 'command("estop_reset"', "Android Remote E-stop reset command")
@@ -187,7 +188,6 @@ def main() -> int:
     require(control_tab, 'if(estopLatched){host.setDriveCommand(0,0);return;}', "E-stop joystick inhibition")
     require(control_tab, 'host.robotApi().emergencyReset()', "E-stop UI reset path")
 
-    # Local and Remote configuration must share one validation/persistence implementation.
     require(hardware_h, "struct SettingsPatch", "shared settings patch")
     require(hardware_h, "applySettings", "shared settings application")
     require(master, "applySettings(patch,true)", "local /cfg shared settings path")
@@ -195,7 +195,6 @@ def main() -> int:
     require(mqtt, 't=="config_get"', "remote config_get")
     require(mqtt, 't=="config_set"', "remote config_set")
 
-    # 5) Direct HTTP API core parity.
     direct_required = {
         "/drive", "/motion/stop", "/stop", "/estop", "/estop/reset", "/sensor/off", "/heartbeat",
         "/diag", "/data", "/cfg", "/remote/status", "/remote/scan",
@@ -227,8 +226,6 @@ def main() -> int:
     require(relay, 'mqtt_user:c.robotUser,mqtt_password:c.robotPass', "robot MQTT response")
     require(relay, 'mqtt_user:c.appUser,mqtt_password:c.appPass', "operator MQTT response")
 
-    # Render publisher status is the sole remote-camera status authority; WSS first-frame remains
-    # the full video diagnostic. Master MQTT/status must not pretend to know CAM publisher state.
     require(service_profile, 'VIDEO_STATUS_HTTPS=', "Render camera status coordinate")
     require(video_readiness, 'public static Result probeStatus(SharedPreferences prefs)', "lightweight Render camera status probe")
     require(video_readiness, 'RemoteServiceProfile.VIDEO_STATUS_HTTPS', "Render camera status endpoint use")
@@ -239,8 +236,6 @@ def main() -> int:
     forbid(connection_gate, 'r.camera', "ConnectionGate obsolete MQTT camera status")
     forbid(remote_link, '\\"camera\\":', "master remote status false camera authority")
 
-    # 7) Scientific workflow authority: active generators target 0.10.1, while public Stable
-    # publication remains release-gated and cannot accept arbitrary payload/count declarations.
     stable_wf = text(".github/workflows/chemcore-library-publish.yml")
     molecular_wf = text(".github/workflows/chemcore-molecular-seed.yml")
     curation_wf = text(".github/workflows/chemcore-unresolved-curation.yml")
@@ -275,15 +270,11 @@ def main() -> int:
     require(pin_wf, "rm -rf app/src/main/assets/generated/niosh app/src/main/assets/generated/exposure", "scientific pin isolation")
     require(pin_wf, "git add app/src/main/assets/generated/niosh app/src/main/assets/generated/exposure", "scientific pin commit isolation")
 
-    # 8) Manifest compatibility is fail-closed for the schema and Stable transport actually
-    # consumed by the 0.10.1 runtime.
     manifest_src = text("app/src/main/java/com/servoc/app/chemcore/library/ChemCoreLibraryManifest.java")
     require(manifest_src, "schemaVersion != MANIFEST_SCHEMA", "ChemCore manifest schema gate")
     require(manifest_src, 'stable payload_format must be json', "ChemCore Stable JSON gate")
     require(manifest_src, 'SHA256withRSA', "ChemCore Stable signature gate")
 
-    # 9) Priority analytical catalogue and research model catalogue must be real arrays, not
-    # descriptive constants. Formula/name rows remain positionally aligned.
     chemical_catalog = text("app/src/main/java/com/servoc/app/chemical/ChemicalCatalog.java")
     model_catalog = text("app/src/main/java/com/servoc/app/models/MqDataScience76Catalog.java")
     chemical_names = java_string_array_count(chemical_catalog, "NAMES", "ChemicalCatalog")
@@ -298,7 +289,6 @@ def main() -> int:
     require(chemical_catalog, "COUNT = NAMES.length", "ChemicalCatalog derived count")
     require(model_catalog, "COUNT=NAMES.length", "MqDataScience76Catalog derived count")
 
-    # 10) Pinned scientific data: exact release-baseline counts, provenance and payload hashes.
     niosh = json_file("app/src/main/assets/generated/niosh/niosh_chemicals.json")
     niosh_m = json_file("app/src/main/assets/generated/niosh/manifest.json")
     idlh = json_file("app/src/main/assets/generated/exposure/niosh_idlh.json")
@@ -321,7 +311,6 @@ def main() -> int:
     if osha_m.get("substance_rows") != 432:
         raise AssertionError(f"OSHA Z-1: expected 432 substance_rows, got {osha_m.get('substance_rows')}")
 
-    # 11) ChemCore molecular identity layer remains 652 = 615 resolved + 37 curated unresolved.
     molecular = json_file("app/src/main/assets/generated/chemcore/molecular_descriptors.json")
     molecular_m = json_file("app/src/main/assets/generated/chemcore/manifest.json")
     curation = json_file("app/src/main/assets/generated/chemcore/unresolved_curation.json")
