@@ -13,6 +13,7 @@ import java.nio.charset.StandardCharsets;
 
 /** Owns the Android side of the secure remote cloud session. */
 public final class RemoteSessionManager {
+    public interface Progress{void onStage(String detail,int stage);}
     private static final Object CONNECT_LOCK=new Object();
     private static final String BOOTSTRAP_TOKEN="hazrob-prototype-bootstrap-v1";
     private static final String BOOTSTRAP_CLIENT="android";
@@ -20,18 +21,20 @@ public final class RemoteSessionManager {
     private static final int BOOTSTRAP_PROTOCOL=RemoteServiceProfile.PROTOCOL;
     private static final String CONTRACT_PREF="remote_bootstrap_contract";
     private static final String CONTRACT_ID="hazrob-0.10.1-protocol-2";
-    private static final int BOOTSTRAP_CONNECT_TIMEOUT_MS=15000;
-    private static final int BOOTSTRAP_READ_TIMEOUT_MS=70000;
+    // HR050: entry must fail visibly and promptly instead of inheriting a 15s/70s cold-start wait.
+    private static final int BOOTSTRAP_CONNECT_TIMEOUT_MS=5000;
+    private static final int BOOTSTRAP_READ_TIMEOUT_MS=8000;
     private final Context context;private final SharedPreferences prefs;
     public RemoteSessionManager(Context context,SharedPreferences prefs){this.context=context.getApplicationContext();this.prefs=prefs;RemoteServiceProfile.ensureDefaults(prefs);}
 
+    /** Control readiness intentionally excludes the independent video token/path. */
     public boolean serviceProfileConfigured(){
         RemoteServiceProfile.ensureDefaults(prefs);
         if(!CONTRACT_ID.equals(prefs.getString(CONTRACT_PREF,"")))return false;
         if(prefs.getString("remote_broker_host","").trim().isEmpty()||prefs.getString("remote_robot_id","").trim().isEmpty())return false;
-        RemoteCredentialStore.Credentials mqtt=new RemoteCredentialStore(context,prefs).load();String video=new RemoteVideoCredentialStore(prefs).load();
-        return mqtt.present()&&!video.trim().isEmpty();
+        return new RemoteCredentialStore(context,prefs).load().present();
     }
+    public boolean videoProfileConfigured(){return !new RemoteVideoCredentialStore(prefs).load().trim().isEmpty();}
 
     private void bootstrapIfNeeded()throws Exception{bootstrap(false);}
     private void bootstrap(boolean force)throws Exception{
@@ -47,8 +50,9 @@ public final class RemoteSessionManager {
             if(!BOOTSTRAP_SERVICE_VERSION.equals(version)||protocol!=BOOTSTRAP_PROTOCOL)throw new IOException("bootstrap contract mismatch");
             String role=j.optString("client","").trim();if(!role.isEmpty()&&!BOOTSTRAP_CLIENT.equals(role))throw new IOException("bootstrap role mismatch");
             String robot=j.optString("robot","").trim(),user=j.optString("mqtt_user","").trim(),pass=compact(j.optString("mqtt_password","")),view=compact(j.optString("video_view_token",""));
-            if(!RemoteServiceProfile.ROBOT_ID.equals(robot)||user.isEmpty()||pass.length()<8||view.length()<8)throw new IOException("bootstrap incomplete");
-            new RemoteCredentialStore(context,prefs).save(user,pass);new RemoteVideoCredentialStore(prefs).save(view);
+            // MQTT/control is the admission authority. Video credentials are optional and saved only when present.
+            if(!RemoteServiceProfile.ROBOT_ID.equals(robot)||user.isEmpty()||pass.length()<8)throw new IOException("bootstrap control profile incomplete");
+            new RemoteCredentialStore(context,prefs).save(user,pass);if(view.length()>=8)new RemoteVideoCredentialStore(prefs).save(view);
             prefs.edit().putString(CONTRACT_PREF,CONTRACT_ID).apply();
         }finally{c.disconnect();}
     }
@@ -58,6 +62,7 @@ public final class RemoteSessionManager {
     private static String read(InputStream in,int max)throws Exception{
         if(in==null)return"";try(InputStream x=in;ByteArrayOutputStream o=new ByteArrayOutputStream()){byte[] b=new byte[1024];int n,total=0;while((n=x.read(b))!=-1){total+=n;if(total>max)throw new IOException("bootstrap response too large");o.write(b,0,n);}return o.toString(StandardCharsets.UTF_8.name());}
     }
+    private static void progress(Progress p,String text,int stage){if(p!=null)try{p.onStage(text,stage);}catch(Exception ignored){}}
 
     private RemoteConnection connectOnce()throws Exception{
         RemoteConnection live=RemoteConnection.active();if(live!=null)return live;
@@ -67,7 +72,7 @@ public final class RemoteSessionManager {
 
     /** Returns one accepted remote session. Existing live sessions are reused. If cached credentials are stale, refresh once from Render. */
     public RemoteConnection ensureConnected()throws Exception{
-        bootstrapIfNeeded();if(!serviceProfileConfigured())throw new IllegalStateException("remote service profile not configured");
+        bootstrapIfNeeded();if(!serviceProfileConfigured())throw new IllegalStateException("remote control profile not configured");
         synchronized(CONNECT_LOCK){
             Exception first=null;
             for(int attempt=0;attempt<2;attempt++){
@@ -81,16 +86,21 @@ public final class RemoteSessionManager {
         }
     }
 
-    /** Entry/readiness check performs one probe; stale cached credentials trigger one forced bootstrap refresh. */
-    public RemoteReadiness probe(){
-        try{bootstrapIfNeeded();}catch(Exception e){return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"automatic remote setup failed: "+detail(e));}
-        if(!serviceProfileConfigured())return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,"remote service profile not configured");
+    /** Entry/readiness check. Control readiness does not depend on Render video readiness. */
+    public RemoteReadiness probe(){return probe(null);}
+    public RemoteReadiness probe(Progress observer){
+        progress(observer,"تهيئة ملف الاتصال البعيد",1);
+        try{bootstrapIfNeeded();}catch(Exception e){return new RemoteReadiness(false,false,false,false,false,false,false,false,false,false,false,false,"automatic remote setup failed: "+detail(e));}
+        if(!serviceProfileConfigured())return new RemoteReadiness(false,false,false,false,false,false,false,false,false,false,false,false,"remote control profile not configured");
         synchronized(CONNECT_LOCK){
             for(int attempt=0;attempt<2;attempt++){
                 RemoteConnection r=null;
                 try{
-                    if(attempt==1)bootstrap(true);
-                    r=connectOnce();RemoteReadiness h=r.probe(2800);if(h.commandAck)return h;
+                    if(attempt==1){progress(observer,"تحديث بيانات التحكم من الخدمة",2);bootstrap(true);}
+                    progress(observer,"فتح TLS/MQTT والاشتراك بالقنوات",6);
+                    r=connectOnce();
+                    progress(observer,"انتظار ACK وTelemetry من الروبوت",8);
+                    RemoteReadiness h=r.probe(2800);progress(observer,h.ready?"قناة التحكم البعيد جاهزة":"اكتملت القناة جزئيًا: "+h.detail,h.ready?10:9);if(h.commandAck)return h;
                     try{r.close();}catch(Exception ignored){}
                 }catch(Exception e){if(r!=null)try{r.close();}catch(Exception ignored){}if(attempt==1)return new RemoteReadiness(true,false,false,false,false,false,false,false,false,false,false,false,detail(e));}
             }
