@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Fail-closed HazRob 0.10.1 HR-0101-056 connection integration contract.
+"""Fail-closed HazRob 0.10.1 HR-0101-057 connection integration contract.
 
-The contract deliberately separates the two radio/control authorities:
-DIRECT = AP-only + HTTP drive + local MJPEG.
+The contract separates runtime Direct from persistent WAN intent:
+DIRECT = AP-only + HTTP drive + local MJPEG for the current session.
 REMOTE = AP+STA + MQTT control + Render/WSS video through NAPT.
+Saved WAN credentials must auto-arm Remote on every reboot until explicit WAN clear.
 Current GPIO/ENV authority must not regress.
 """
 from pathlib import Path
@@ -63,14 +64,20 @@ def main() -> int:
     require(master, 'web.on("/drive"', "Direct HTTP drive endpoint")
     require(master, 'radioProfile!=RadioProfile::DIRECT', "local drive authority guard")
     require(master, 'web.on("/connection/direct"', "Direct mode endpoint")
-    require(master, 'web.on("/connection/remote"', "Remote mode endpoint")
+    require(master, 'requestRadioProfile(RadioProfile::DIRECT,false)', "Direct must be runtime-only")
+    require(master, 'requestRadioProfile(RadioProfile::REMOTE,true)', "Remote must arm persisted WAN")
     require(master, 'drive_udp', "Direct capability field")
     require(master, 'installed', "UDP explicitly absent")
     forbid(master, '#include <WiFiUdp.h>', "Direct must not compile UDP transport")
     forbid(master, 'driveUdp.begin(', "Direct must not start UDP drive")
 
     require(remote_h, 'remoteSetTransportEnabled', "remote transport switch API")
-    require(remote, 'transportEnabled=wan.getBool("enabled",false)', "remote mode persistence")
+    require(remote, 'transportEnabled=configured;', "saved WAN auto-arms Remote on boot")
+    require(remote, 'wan.putBool("enabled",configured);', "boot persistence normalization")
+    require(remote, 'if(persistMode&&enabled)wan.putBool("enabled",true);', "Direct must not persistently disarm WAN")
+    require(remote, 'wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",true);', "provision persists WAN boot intent")
+    require(remote, 'wan.remove("ssid");wan.remove("pass");wan.putBool("enabled",false);', "clear WAN is explicit persistent opt-out")
+    forbid(remote, 'transportEnabled=wan.getBool("enabled",false)', "legacy boot flag must not override saved WAN")
     require(remote, 'if(!transportEnabled){dnsOk=timeOk=false;return;}', "remote loop disabled in Direct")
     require(remote, 'remoteInternetReady(){return transportEnabled&&configured', "remote readiness gate")
     forbid(remote, 'WiFi.mode(', "RemoteLink must not change global radio mode")
@@ -95,6 +102,7 @@ def main() -> int:
     require(gate, 'WifiRoute.waitForRobotWifi(a,30000)', "Direct acquisition gate")
     require(gate, 'local.postForm("/connection/direct"', "Direct radio switch")
     require(gate, 'local.postForm("/connection/remote"', "Remote radio switch")
+    require(gate, 'WifiRoute.releaseRobotWifi(a);', "Remote releases phone from HazRob local-only route")
     require(link_service, 'WifiRoute.maintainRobotWifi(this)', "Direct network maintenance")
     require(link_service, 'RobotApi.setOperatorForeground(foreground)', "background motion interlock")
     require(link_service, 'failStopForBackground', "background fail-stop")
@@ -119,16 +127,18 @@ def main() -> int:
     require(cam_remote, 'if(localActive&&!connected)', "remote connection attempt blocked during local view")
 
     state = {
-        "DIRECT": {"radio":"AP", "http_drive":True, "mqtt":False, "napt":False, "wss":False},
-        "REMOTE": {"radio":"AP_STA", "http_drive":False, "mqtt":True, "napt":"internet_ready", "wss":"gateway_ready"},
+        "DIRECT": {"radio":"AP", "http_drive":True, "mqtt":False, "napt":False, "wss":False, "boot_intent":"unchanged"},
+        "REMOTE": {"radio":"AP_STA", "http_drive":False, "mqtt":True, "napt":"internet_ready", "wss":"gateway_ready", "boot_intent":"armed"},
+        "WAN_CLEAR": {"boot_intent":"direct"},
     }
     assert state["DIRECT"]["radio"] == "AP" and state["DIRECT"]["http_drive"] and not state["DIRECT"]["mqtt"]
     assert state["REMOTE"]["radio"] == "AP_STA" and not state["REMOTE"]["http_drive"] and state["REMOTE"]["mqtt"]
+    assert state["DIRECT"]["boot_intent"] == "unchanged" and state["WAN_CLEAR"]["boot_intent"] == "direct"
 
-    print("HazRob 0.10.1 HR-0101-056 connection contract: PASS")
-    print("DIRECT: AP-only + HTTP drive + requested local-only Android Wi-Fi + local MJPEG")
-    print("REMOTE: AP+STA + bounded WAN + MQTT + NAPT-gated Render/WSS")
-    print("SAFETY: no local UDP drive; background drive inhibited until neutral re-arm")
+    print("HazRob 0.10.1 HR-0101-057 connection contract: PASS")
+    print("DIRECT: AP-only + HTTP + local MJPEG; temporary runtime profile")
+    print("REMOTE: saved WAN auto-arms AP+STA/MQTT/Render on every reboot")
+    print("WAN CLEAR: only persistent opt-out; SAFETY: no local UDP and neutral re-arm after background")
     return 0
 
 if __name__ == "__main__":
