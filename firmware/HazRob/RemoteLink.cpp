@@ -45,13 +45,18 @@ String esc(const String& s){String o;o.reserve(s.length()+8);for(size_t i=0;i<s.
 void remoteBegin(){
   wan.begin("hazwan",false);
   ssid=wan.getString("ssid","");password=wan.getString("pass","");configured=!ssid.isEmpty();
-  transportEnabled=wan.getBool("enabled",false);
+  // HR057 boot authority: saved WAN credentials mean "attempt Remote on every boot".
+  // A temporary Direct session must never disarm the next reboot; only remoteClear() does that.
+  transportEnabled=configured;
+  wan.putBool("enabled",configured);
   WiFi.setSleep(false);WiFi.setAutoReconnect(false);
-  resetRuntime(transportEnabled?(configured?"remote_waiting":"wifi_not_configured"):"direct_local");
+  resetRuntime(transportEnabled?"remote_waiting":"direct_local");
 }
 void remoteSetTransportEnabled(bool enabled,bool persistMode){
   transportEnabled=enabled;
-  if(persistMode)wan.putBool("enabled",enabled);
+  // Persist only the armed Remote state. Direct is runtime-only; clearing WAN is the explicit
+  // persistent opt-out and is handled by remoteClear().
+  if(persistMode&&enabled)wan.putBool("enabled",true);
   if(!enabled){
     WiFi.disconnect(false,false);
     resetRuntime("direct_local");
@@ -85,7 +90,7 @@ void remoteUpdate(){
 
 bool remoteProvision(const String& newSsid,const String& newPassword){
   String s=newSsid;s.trim();if(s.isEmpty()||s.length()>32||newPassword.length()>63)return false;
-  ssid=s;password=newPassword;configured=true;wan.putString("ssid",ssid);wan.putString("pass",password);
+  ssid=s;password=newPassword;configured=true;wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",true);
   retryHold=false;everConnected=false;connectAttempts=0;dnsOk=timeOk=false;
   if(transportEnabled){WiFi.disconnect(false,false);startSta();}else cloudDetail="remote_configured_direct_local";
   return true;
