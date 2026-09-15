@@ -4,6 +4,7 @@
 void remoteBegin();
 void remoteUpdate();
 bool remoteProvision(const String& ssid,const String& password);
+bool remoteRetry();
 void remoteClear();
 String remoteStatusJson();
 String remoteSsid();
