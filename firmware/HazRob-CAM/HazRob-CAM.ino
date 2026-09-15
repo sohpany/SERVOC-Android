@@ -7,7 +7,7 @@
 // HR-0101-055 / Baseline A
 // Local camera authority only: HazRob STA -> 192.168.4.2, HTTP :80, MJPEG :81.
 // No Render/WSS/bootstrap/TLS runtime is started in this diagnostic baseline.
-constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.1 Baseline-A";
+constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.1";
 constexpr uint8_t LED=4,JQ=35;
 constexpr size_t JPG_CAP=160*1024;
 constexpr int PWDN=32,RST=-1,XCLK=0,SIOD=26,SIOC=27,Y9=35,Y8=34,Y7=39,Y6=36,Y5=21,Y4=19,Y3=18,Y2=5,VS=25,HR=23,PC=22;
