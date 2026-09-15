@@ -20,7 +20,7 @@ public class RobotProtocolV4AlertTest {
     }
 
     @Test public void profilePinContractMatchesFirmware010(){
-        assertEquals("hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1",HazRobHardwareProfile.ID);
+        assertEquals("hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2",HazRobHardwareProfile.ID);
         assertEquals("L298N",HazRobHardwareProfile.DRIVE_DRIVER);
         // HR-0101-048: logical LEFT is physical L298N channel B; RIGHT is channel A.
         assertEquals(17,HazRobHardwareProfile.DRIVE_L_EN);
@@ -37,6 +37,10 @@ public class RobotProtocolV4AlertTest {
         assertEquals(33,HazRobHardwareProfile.BATTERY_ADC_GPIO);
         assertEquals(23,HazRobHardwareProfile.ULTRASONIC_TRIG_GPIO);
         assertEquals(39,HazRobHardwareProfile.ULTRASONIC_ECHO_GPIO);
+        assertEquals(21,HazRobHardwareProfile.I2C_SDA_GPIO);
+        assertEquals(22,HazRobHardwareProfile.I2C_SCL_GPIO);
+        assertEquals(13,HazRobHardwareProfile.ENV_I2C_SDA_GPIO);
+        assertEquals(14,HazRobHardwareProfile.ENV_I2C_SCL_GPIO);
         assertFalse(HazRobHardwareProfile.INTERNAL_TEMP_INSTALLED);
         assertFalse(HazRobHardwareProfile.LDR_QUANTITATIVE_LUX);
     }
