@@ -14,7 +14,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/** Keeps the selected HazRob transport alive while the app is backgrounded or a system picker is open. */
+/** Keeps the selected HazRob transport alive. Direct keeps the requested local-only Wi-Fi network;
+ * Remote releases that request and owns the Internet transport. */
 public final class RobotLinkService extends Service {
     private static final String CHANNEL="hazrob_link";
     private static final int NOTIFICATION_ID=9001;
@@ -38,16 +39,13 @@ public final class RobotLinkService extends Service {
                 resetBackoff();
                 RobotApi a=api;if(a==null)return;
                 a.setRobotHost(LocalNetworkContract.ROBOT_HOST);
+                WifiRoute.maintainRobotWifi(this);
                 try{a.heartbeat();}
-                catch(Exception first){
-                    // Android may keep cellular/default routing when HazRob is a local-only AP.
-                    // Re-pin the process to the actual 192.168.4.x Wi-Fi network and retry once.
-                    WifiRoute.bindRobotWifi(this);
-                    try{a.heartbeat();}catch(Exception ignored){}
-                }
+                catch(Exception first){WifiRoute.maintainRobotWifi(this);try{a.heartbeat();}catch(Exception ignored){}}
+                updateNotification("HazRob Direct connected");
                 return;
             }
-            WifiRoute.unbind(this);
+            WifiRoute.releaseRobotWifi(this);
             RemoteConnection live=RemoteConnection.active();if(live!=null){live.heartbeat();resetBackoff();return;}
             long now=SystemClock.elapsedRealtime();if(now<reconnectAt)return;
             try{RemoteConnection r=remoteSessions.ensureConnected();r.heartbeat();resetBackoff();updateNotification("HazRob Remote connected");}
