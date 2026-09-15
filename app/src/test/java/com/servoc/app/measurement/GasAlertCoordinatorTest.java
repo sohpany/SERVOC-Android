@@ -35,11 +35,12 @@ public class GasAlertCoordinatorTest {
         assertTrue(r.usedFallbackBaseline);
     }
 
-    @Test public void capturedBaselineOverridesR0NormalizedFallback()throws Exception{
+    @Test public void capturedBaselineOverridesFallbackAndKeepsTwentyPercentBoundaryElevated()throws Exception{
         SensorHealthEngine health=new SensorHealthEngine();health.setBaseline("mq2",1.50);
         InstantMqWarningEngine.Result r=InstantMqWarningEngine.evaluate("mq2",snapshot(1.80,60000).getJSONObject("mq").getJSONObject("mq2"),health.snapshot("mq2"));
         assertFalse(r.usedFallbackBaseline);
-        assertEquals(InstantMqWarningEngine.Level.NORMAL,r.level);
+        assertEquals(0.20,r.delta,1e-9);
+        assertEquals(InstantMqWarningEngine.Level.ELEVATED,r.level);
     }
 
     @Test public void mqPowerOffClearsImmediately()throws Exception{
