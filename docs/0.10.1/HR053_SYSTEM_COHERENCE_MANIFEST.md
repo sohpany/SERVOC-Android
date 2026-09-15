@@ -1,7 +1,8 @@
 # HR-0101-053 — Camera Baseline Restore + ENV Coherence Release
 
-Status: IN PROGRESS — source/build validation required; physical field acceptance required.
-Version remains: HazRob 0.10.1 / Android versionCode 21.
+Status: **SOFTWARE / RELEASE-GATE / APK / FIRMWARE BUILD PASS — PHYSICAL FIELD ACCEPTANCE PENDING**  
+Version: HazRob 0.10.1 / Android versionCode 21.  
+Validated artifact source commit: `f720b56ac68a06f682efe72f18c2915f086653e7`.
 
 ## Trigger
 Field test on 2026-09-15 reported two independent symptoms after recent controlled changes:
@@ -22,7 +23,7 @@ Per operator instruction, direct ESP32-CAM behavior is restored to the last fiel
 - local flash compatibility endpoints retained.
 - no native-JPEG-first path and no DRAM fallback are authoritative under HR053.
 
-HR053 supersedes the experimental local-camera recovery behavior introduced under HR051/HR052 where it conflicts with this restored baseline. Remote-video code remains present but must not redefine the direct/local endpoint contract.
+HR053 supersedes the experimental local-camera recovery behavior introduced under HR051/HR052 where it conflicts with this restored baseline. Remote-video code remains present but does not redefine the direct/local endpoint contract.
 
 ## ENV / pressure authority
 The environmental sensor is directly wired to the main ESP32 and remains intentionally isolated from the analytical ADS bus:
@@ -32,7 +33,7 @@ The environmental sensor is directly wired to the main ESP32 and remains intenti
 - probe addresses: 0x76 and 0x77.
 - firmware raw telemetry keys remain `t`, `h`, `p`, `type`, `addr`, `chip_id`, `status`, ACK flags and read-failure metadata.
 - Android `RobotProtocolV4` remains the normalization authority to `temperature`, `humidity`, `pressure`, `type`, `address`, `chip_id`, `status_code`.
-- Settings UI must display `status_code`, sensor type, address, chip ID and ACK state instead of hiding failures behind `NOT READY`.
+- Settings UI now displays `status_code`, sensor type, address, chip ID and ACK state instead of hiding failures behind `NOT READY`.
 
 No software claim is made that a physically connected module has ACKed until field telemetry proves it. A valid software/build result is separate from physical acceptance.
 
@@ -44,14 +45,56 @@ No software claim is made that a physically connected module has ACKed until fie
 - ADS acquisition authority remains unchanged.
 - cliff/IR semantics remain unchanged.
 
-## Required validation before package handoff
-1. consolidated HR048/49/50/53 source gate PASS from one exact commit;
-2. Android unit tests PASS and signed release APK PASS from that commit;
-3. ESP32 master compile PASS with pinned ESP32 core 3.3.11;
-4. ESP32-CAM compile PASS with pinned ESP32 core 3.3.11;
-5. APK, ESP32 source ZIP and ESP32-CAM source ZIP all trace to the same commit;
-6. SHA-256 manifests captured;
-7. field acceptance still required for ENV ACK/pressure and direct camera stream.
+## Validation record — artifact source `f720b56ac68a06f682efe72f18c2915f086653e7`
 
-## Field acceptance
-ENV: with direct 3.3 V wiring, verify `/data` or normalized telemetry reports either a valid BME/BMP pressure or an explicit ACK/chip/status reason. Direct camera: verify port 80 status/root and MJPEG frames on port 81 before evaluating Remote video.
+### Release gate
+- Cross-component integration contract: PASS.
+- HR048: PASS.
+- HR049: PASS.
+- HR050: PASS.
+- HR053 camera/ENV coherence contract: PASS.
+- HR047 consolidated gas-safety integration gate: PASS.
+- accepted R0 authority synchronized.
+
+The historical aggregator filename still invokes `audit_hr051_camera_contract.py`; under HR053 that compatibility entrypoint contains the HR053 camera/ENV contract and prints `HR-0101-053 camera/ENV coherence contract: PASS`. This naming alias does not restore the superseded HR051 local-camera behavior.
+
+### Android
+- `:app:testDebugUnitTest`: PASS.
+- `:app:assembleRelease`: PASS.
+- flammability seed SHA-256 verified: `457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434`.
+- APK SHA-256: `90a831df8460c65ac9f8da5efad3412023dd2693cc76d812b5d76f8b0628d881`.
+- signing certificate SHA-256: `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
+
+### ESP32 main firmware
+- ESP32 Arduino platform actually installed by builder: 3.3.11.
+- FQBN: `esp32:esp32:esp32:PartitionScheme=huge_app`.
+- compile: PASS.
+- program storage: 1,097,621 bytes (34%).
+- dynamic globals: 50,764 bytes (15%); 276,916 bytes remain for local variables.
+
+### ESP32-CAM firmware
+- ESP32 Arduino platform actually installed by builder: 3.3.11.
+- FQBN: `esp32:esp32:esp32cam`.
+- compile: PASS.
+- program storage: 1,140,717 bytes (36%).
+- dynamic globals: 67,904 bytes (20%); 259,776 bytes remain for local variables.
+- builder produced normal, bootloader, partition and merged BIN artifacts.
+
+### Packaging
+- Android service status: LIVE from the validated artifact source commit.
+- Firmware service status: LIVE from the validated artifact source commit.
+- source ZIPs generated for ESP32 and ESP32-CAM after removal of runtime secret files.
+- firmware `SHA256SUMS.txt` generated by the builder for published firmware artifacts.
+- firmware `build-info.txt` records source `f720b56ac68a06f682efe72f18c2915f086653e7`.
+
+## Review conclusion
+The validated software package is coherent at source, protocol, GPIO-authority, Android-normalization and compile/package levels. The latest functional delta relative to the previous published package is deliberately restricted to:
+1. restoring the proven direct ESP32-CAM local baseline; and
+2. exposing authoritative ENV failure detail in Android Settings.
+
+Main ESP32 acquisition logic, L298N mapping, MQ/R0 authority, ADS topology, M4 gate and cliff semantics were not changed by HR053.
+
+## Physical field acceptance still required
+1. **ENV** — direct 3.3 V wiring: VCC→3V3, GND→GND, SDA→GPIO13, SCL→GPIO14. Verify normalized telemetry reports either a valid pressure or an explicit ACK/chip/status reason. Confirm the actual module ACKs on 0x76 or 0x77 and that chip ID is supported.
+2. **Direct camera** — after flashing the HR053 ESP32-CAM firmware, verify port 80 responds and MJPEG frames are delivered on `192.168.4.2:81/stream` before evaluating Remote video.
+3. Physical success of the two devices must be recorded separately; build PASS does not substitute for hardware field acceptance.
