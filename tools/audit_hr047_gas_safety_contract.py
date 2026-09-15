@@ -4,7 +4,8 @@
 This supplements audit_0101_integration_contract.py. It deliberately checks the
 cross-file scientific contract introduced by HR047 rather than re-testing numerical
 unit behaviour already covered by JUnit. On the consolidated 0.10.1 branch it also
-invokes the HR048 drive contract so the release gate cannot pass with drive drift.
+invokes the HR048 drive contract and HR049 control/remote contract so the release
+gate cannot pass with steering, latency or Remote transport drift.
 """
 from pathlib import Path
 import os
@@ -128,11 +129,18 @@ def main() -> int:
         else:
             os.environ["HR048_SKIP_INTEGRATION"] = old_skip
 
+    # 10) HR049 is mandatory for the consolidated release gate: Direct fast lane, bounded local
+    # stalls, latest-command Remote transport, critical ACK policy, and TLS latency controls.
+    from audit_hr049_control_remote_contract import main as control_remote_main
+    hr049_rc = control_remote_main()
+    if hr049_rc not in (None, 0):
+        raise AssertionError(f"HR049 control/remote contract returned {hr049_rc}")
+
     print("HazRob HR-0101-047 gas-safety integration gate: PASS")
     print("Policy: reportable M4 ppm -> ppm-only health refs + pinned LFL/UFL -> relative hazard")
     print("Sort modes: hazard_priority_ratio_desc (default), ppm_desc (operator view)")
     print("R0 authority: FIELD-R0-3SESSION-20260913 synchronized app <-> ESP32 source")
-    print("Consolidated release gate: HR048 drive contract PASS")
+    print("Consolidated release gate: HR048 drive contract PASS; HR049 control/remote contract PASS")
     return 0
 
 
@@ -140,5 +148,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HazRob HR-0101-047/048 release gate: FAIL: {exc}")
+        print(f"HazRob HR-0101-047/048/049 release gate: FAIL: {exc}")
         raise SystemExit(1)
