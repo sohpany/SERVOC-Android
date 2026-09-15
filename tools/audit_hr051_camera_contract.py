@@ -18,7 +18,6 @@ manifest = text("app/src/main/AndroidManifest.xml")
 config = text("firmware/HazRob/Config.h")
 change = text("docs/0.10.1/HR051_CAMERA_RECOVERY_MANIFEST.md")
 
-# AI-Thinker physical camera authority must not drift.
 for needle, label in [
     ('PWDN=32,RST=-1,XCLK=0,SIOD=26,SIOC=27', 'AI-Thinker control pins'),
     ('Y9=35,Y8=34,Y7=39,Y6=36,Y5=21,Y4=19,Y3=18,Y2=5', 'AI-Thinker data pins'),
@@ -29,26 +28,23 @@ for needle, label in [
 ]:
     require(cam, needle, label)
 
-# Recovery/diagnostic requirements.
 for needle, label in [
     ('Serial.begin(115200)', 'serial boot diagnostics'),
     ('psramFound()', 'PSRAM detection'),
     ('CAMERA_FB_IN_DRAM', 'DRAM framebuffer fallback'),
     ('JPG_CAP_DRAM', 'DRAM JPEG buffer'),
-    ('"fb_memory"', 'framebuffer memory status'),
-    ('"wifi_connected"', 'Wi-Fi status'),
-    ('"camera_error"', 'camera error status'),
-    ('"sensor"', 'sensor identity status'),
+    ('fb_memory', 'framebuffer memory status'),
+    ('wifi_connected', 'Wi-Fi status'),
+    ('camera_error', 'camera error status'),
+    ('sensor', 'sensor identity status'),
     ('http://192.168.4.2:81/stream', 'serial stream endpoint'),
 ]:
     require(cam, needle, label)
 
-# Android local viewer and cleartext local-network authority.
 require(control, '"http://"+h+":81/stream"', 'Android canonical MJPEG URL')
 require(control, '"http://"+h+"/stream"', 'Android port-80 redirect fallback')
 require(manifest, 'android:usesCleartextTraffic="true"', 'local HTTP cleartext allowance')
 
-# Remote WSS must have bounded TCP connect while retaining verified TLS.
 for needle, label in [
     ('CONNECT_TIMEOUT_MS=4000', 'remote-video TCP timeout'),
     ('plain.connect(new InetSocketAddress(host,port),CONNECT_TIMEOUT_MS)', 'bounded TCP connect'),
@@ -57,7 +53,6 @@ for needle, label in [
 ]:
     require(remote, needle, label)
 
-# Operator-visible diagnostics and safe camera-host fallback.
 for needle, label in [
     ('"camera_error"', 'app camera error detail'),
     ('"fb_memory"', 'app memory detail'),
@@ -68,7 +63,6 @@ for needle, label in [
 ]:
     require(settings, needle, label)
 
-# HR051 may not alter protected motor authority.
 for needle, label in [
     ('DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32', 'left drive authority'),
     ('DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27', 'right drive authority'),
