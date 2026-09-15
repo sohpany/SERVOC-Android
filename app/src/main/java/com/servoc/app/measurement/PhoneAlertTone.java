@@ -22,6 +22,8 @@ public final class PhoneAlertTone implements AutoCloseable {
         level=next;
     }
 
+    /** Independent UI/field verification; bypasses MQ warm-up and warning thresholds. */
+    public synchronized void test(){tone.startTone(ToneGenerator.TONE_PROP_BEEP2,600);}
     public synchronized void clear(){level=GasAlertCoordinator.NONE;}
     @Override public synchronized void close(){tone.release();}
 }
