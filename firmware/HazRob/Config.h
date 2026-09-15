@@ -4,43 +4,46 @@
 namespace Cfg{
 constexpr char FW[]="HazRob 0.10.1";
 constexpr uint8_t API=4;
-constexpr char HW_PROFILE[]="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1";
+constexpr char HW_PROFILE[]="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2";
 constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 
 // L298N 4WD differential drive: two motors per physical side in parallel.
 // 2026-09-14 field behavior confirmed reversed steering handedness while straight forward/reverse
 // remained correct. HR048 therefore applies the controlled remediation at the hardware boundary:
 // logical LEFT -> L298N channel B and logical RIGHT -> channel A, while keeping canonical joystick
-// math and both direction inversions false. This mapping is a remediation candidate until the
-// post-flash wheels-up side-isolation/arc/pivot field gate passes; it is not yet physical acceptance.
+// math and both direction inversions false. This mapping remains subject to the HR049 physical gate.
 constexpr uint8_t DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32;
 constexpr uint8_t DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27;
 constexpr bool DRIVE_L_INVERT=false,DRIVE_R_INVERT=false;
-// Commands are applied immediately with no acceleration shaping. At the normal 20 Hz hold-refresh,
-// a 500 ms watchdog tolerates ten consecutive missed refreshes while limiting uncontrolled travel
-// after a complete command-stream loss. Joystick release still sends an explicit immediate zero.
 constexpr uint32_t CONTROL_COMMAND_TIMEOUT_MS=500,ADS_REPROBE_MS=3000;
 
-// Shared analytical I2C bus: ADS1 + ADS2 + chamber BME/BMP.
+// HR050: split the analytical ADC bus from the environmental bus so BME/BMP faults cannot
+// electrically or logically share the ADS1/ADS2 I2C path. Both are ESP32 hardware I2C controllers.
 constexpr uint8_t SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49;
+constexpr uint8_t ENV_SDA=13,ENV_SCL=14;
+constexpr uint32_t ADS_I2C_HZ=400000,ENV_I2C_HZ=100000;
 constexpr uint8_t RELAY_MQ=25,RELAY_ON=LOW,RELAY_OFF=HIGH;
 
 // Discrete / device-health channels.
 // ALERT_PIN is a logic-level control output only. Never connect an 8-ohm speaker directly to ESP32.
-// Keep false until an external transistor/MOSFET/amplifier or active-buzzer interface is physically installed.
 constexpr uint8_t ALERT_PIN=26;
 constexpr bool ALERT_OUTPUT_INSTALLED=false;
 constexpr uint8_t ALERT_ACTIVE=HIGH,ALERT_INACTIVE=LOW;
 constexpr uint8_t SOUND_PIN=36;          // MAX4466 ADC1
-constexpr uint8_t IR_PIN=35;             // lower-front fall-edge warning
+constexpr uint8_t IR_PIN=35;             // downward-looking lower-front ground/cliff sensor
 constexpr uint8_t LDR_PIN=34;            // LM393 digital light-threshold output; NOT quantitative lux
 constexpr uint8_t BATTERY_PIN=33;        // ADC1, divider required
 constexpr uint8_t ULTRA_TRIG_PIN=23;      // front ultrasonic trigger
 constexpr uint8_t ULTRA_ECHO_PIN=39;      // input only; reduce 5 V echo to <=3.3 V
-constexpr uint8_t INTERNAL_TEMP_RESERVED_PIN=14; // reserved only; no sensor/driver assumed until hardware is selected
-constexpr uint8_t IR_ACTIVE=LOW;
 
-// Future quantitative illuminance: prefer BH1750 on this same I2C bus (0x23/0x5C) after installation.
+// HR050 cliff semantics: the module's prior active level is retained as the candidate
+// ground-detected level, but physical polarity must be confirmed by the field gate after flashing.
+// A cliff warning means the sensor has persistently LOST ground detection.
+constexpr uint8_t IR_GROUND_ACTIVE=LOW;
+constexpr uint8_t IR_CLIFF_ASSERT_SAMPLES=3;
+constexpr uint8_t IR_CLIFF_CLEAR_SAMPLES=2;
+
+// Future quantitative illuminance: prefer BH1750 on an explicitly assigned bus after installation.
 constexpr bool LUX_SENSOR_INSTALLED=false;
 
 // Device-specific field clean-air normalization baseline accepted from three independent
