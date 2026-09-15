@@ -4,9 +4,9 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 def text(p): return (ROOT/p).read_text(encoding="utf-8")
 def req(src,needle,label):
-    if needle not in src: raise AssertionError(f"HR056 missing {label}: {needle}")
+    if needle not in src: raise AssertionError(f"HR058 missing {label}: {needle}")
 def ban(src,needle,label):
-    if needle in src: raise AssertionError(f"HR056 forbidden {label}: {needle}")
+    if needle in src: raise AssertionError(f"HR058 forbidden {label}: {needle}")
 
 def main():
     cam=text("firmware/HazRob-CAM/HazRob-CAM.ino")
@@ -36,7 +36,7 @@ def main():
     ban(cam,'PIXFORMAT_JPEG','native JPEG path');ban(cam,'CAMERA_FB_IN_DRAM','DRAM fallback')
     req(control,'"http://"+h+":81/stream"','Android local stream URL')
 
-    # HR056 split radio authority: Direct is AP-only; Remote alone owns STA/WAN/MQTT/NAPT.
+    # HR058 split radio authority: Direct is AP-only; Remote alone owns STA/WAN/MQTT/NAPT.
     for n,l in [
         ('enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1}','radio state machine'),
         ('configureSoftAp(WIFI_AP);','Direct AP-only'),('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),
@@ -50,7 +50,10 @@ def main():
     ban(rlink,'WiFi.mode(','RemoteLink radio ownership')
     req(wifi,'WifiNetworkSpecifier.Builder().setSsid(LocalNetworkContract.ROBOT_SSID)','Android local-only HazRob request')
     req(connui,'لا يتم استكشاف الشبكات من ESP32 في Direct','Direct no-scan developer UX')
-    req(connui,'مسح WAN والعودة إلى Direct ثابت','Direct recovery UI')
+    req(connui,'فصل Remote مع الاحتفاظ بـ WAN','non-destructive Direct recovery UI')
+    req(connui,'إعادة الاتصال بـ WAN المحفوظ','saved-WAN reconnect UI')
+    req(connui,'مسح WAN نهائيًا','destructive WAN reset UI')
+    req(connui,'new AlertDialog.Builder','destructive WAN reset confirmation')
     ban(connui,'scanNetworks()','stale Direct Wi-Fi scan action')
 
     # Remote video is gated by the main gateway and cannot start or capture against a local viewer.
@@ -77,11 +80,11 @@ def main():
     for n,l in [('finiteAny(e,"p","pressure")','pressure normalization'),('x.put("status_code",status)','status normalization'),('x.put("ack_0x76",ack76)','ACK76 normalization'),('x.put("ack_0x77",ack77)','ACK77 normalization')]: req(proto,n,l)
     for n,l in [('optString("status_code",env.optString("status","NOT READY"))','ENV status UI'),('optString("address","—")','address UI'),('optString("chip_id","—")','chip UI')]: req(settings,n,l)
 
-    print('HR-0101-056 local-WiFi/camera/ENV/Render/Hive/app coherence contract: PASS')
+    print('HR-0101-058 local-WiFi/camera/ENV/Render/Hive/app coherence contract: PASS')
     return 0
 
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HR-0101-056 local-WiFi/camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
+        print(f"HR-0101-058 local-WiFi/camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
         raise SystemExit(1)
