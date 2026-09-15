@@ -1,7 +1,8 @@
 # HR-0101-054 — Local Wi-Fi Stability Remediation
 
-Status: **SOURCE CHANGE / BUILD VALIDATION PENDING — PHYSICAL FIELD ACCEPTANCE PENDING**  
-Version: HazRob 0.10.1 / Android versionCode 21.
+Status: **SOFTWARE / RELEASE-GATE / APK / FIRMWARE BUILD PASS — PHYSICAL FIELD ACCEPTANCE PENDING**  
+Version: HazRob 0.10.1 / Android versionCode 21.  
+Validated executable artifact source: `480cf7a4f2b0dc0b4eea12f073706c8dce33ef09`.
 
 ## Field trigger
 On 2026-09-15 the operator reported that both direct robot driving and ESP32-CAM video failed in the same field test. Because both functions depend on the main ESP32 `HazRob` SoftAP, the shared Wi-Fi layer became the primary common-cause suspect.
@@ -32,15 +33,31 @@ The prioritized UDP direct-drive receiver added later under HR048 did not introd
 - HR053 camera baseline and local/remote capture arbitration remain unchanged.
 - GPIO, L298N, ADS, MQ/R0, ENV, and M4 quantitative-gate authorities are unchanged.
 
-## Required validation
-Software/build acceptance requires the consolidated release gate, Android unit/release build, main ESP32 compile, and ESP32-CAM compile to pass from one executable source commit.
+## Software validation — artifact source `480cf7a4f2b0dc0b4eea12f073706c8dce33ef09`
+- Cross-component integration contract: PASS.
+- `HR-0101-054 local-WiFi/camera/ENV/Render/Hive/app coherence contract`: PASS.
+- Consolidated HR047 gas-safety integration gate: PASS.
+- Android unit tests: PASS.
+- Android release build: PASS and LIVE.
+- Android APK SHA-256: `333eb068dcf5eca17b9e35218c4fcd552c3b363a458c83777f95e5cba65f5c87`.
+- Android signing certificate SHA-256 remains `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
+- ESP32 Arduino platform: 3.3.11.
+- Main ESP32 compile: PASS; program 1,099,101 bytes (34%); globals 50,764 bytes (15%), 276,916 bytes remaining.
+- ESP32-CAM compile: PASS; program 1,140,753 bytes (36%); globals 67,904 bytes (20%), 259,776 bytes remaining.
+- Firmware artifact service: LIVE.
 
+Warnings reported by the compiler are pre-existing warning classes (`ROOT_CA` address comparison, unused helper functions, and volatile increment deprecations) and are not compile failures. HR054 introduced no new build-stopping error.
+
+## Physical field acceptance still required
 Physical field acceptance remains mandatory and must be performed with the robot mechanically safe (wheels lifted or drive power isolated initially):
-1. Boot with an unavailable saved WAN and confirm retries stop at the bounded limit and status enters `wifi_local_safe`.
-2. Confirm the phone remains associated to HazRob and direct diagnostics remain reachable.
-3. Confirm ESP32-CAM associates to HazRob and local MJPEG is reachable.
-4. Confirm direct drive commands are received consistently after safe bench verification.
-5. Provision an available WAN and verify remote MQTT control and Render video still become ready.
-6. Verify WAN loss eventually enters local-safe hold rather than producing an indefinite seven-second reconnect loop.
+1. Install the HR054 APK and flash the HR054 main ESP32 and ESP32-CAM artifacts built from the validated source commit above.
+2. Connect the phone directly to `HazRob`, open Developer → Connection, and use **مسح WAN والعودة لشبكة محلية ثابتة**. This intentionally removes saved external-WAN settings for the isolation test.
+3. Reboot the main ESP32 and ESP32-CAM. Confirm the phone remains associated to HazRob and direct diagnostics remain reachable.
+4. Confirm ESP32-CAM associates to HazRob and local `/status` plus MJPEG `192.168.4.2:81/stream` are reachable.
+5. Confirm direct drive commands are received consistently with the wheels lifted. Inspect UDP packet counters before placing the robot on the floor.
+6. Only after local camera and driving pass, provision an available WAN and verify remote MQTT control and Render video.
+7. With an unavailable WAN, verify the robot stops after the bounded attempts and reports `wifi_local_safe`, instead of running the former indefinite seven-second reconnect loop.
 
-Build results and physical results must be recorded separately. No build result is a substitute for the operator field test.
+If direct camera and driving still fail while WAN is cleared and no reconnect loop is active, HR054 is not sufficient. The next controlled diagnostic shall separate radio modes explicitly: Direct=`WIFI_AP` only; Remote=`WIFI_AP_STA`. This escalation is intentionally deferred until the field isolation test proves AP+STA itself, rather than the retry churn, is the remaining cause.
+
+Build results and physical results are separate authorities. The package is software/build accepted, not physically field accepted.
