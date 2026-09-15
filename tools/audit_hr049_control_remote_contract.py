@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""HR-0101-049 fail-closed contract: smooth Direct drive + responsive Remote control.
+"""HR-0101-049 control/remote contract carried forward under HR-0101-056.
 
-Static gate only. It verifies that Android, ESP32 and transport timing policies agree.
-Physical steering/latency and WAN tests remain separate field gates.
+Direct is deliberately restored to HTTP over an AP-only profile. Remote retains the HR049
+latest-command MQTT architecture and latency policy. Physical latency/WAN tests remain field gates.
 """
 from pathlib import Path
 
@@ -16,8 +16,7 @@ def forbid(src,s,label):
 
 def main():
     api=txt("app/src/main/java/com/servoc/app/communication/RobotApi.java")
-    udp=txt("app/src/main/java/com/servoc/app/communication/DirectDriveDatagram.java")
-    udp_test=txt("app/src/test/java/com/servoc/app/communication/DirectDriveDatagramTest.java")
+    wifi=txt("app/src/main/java/com/servoc/app/communication/WifiRoute.java")
     remote=txt("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
     policy=txt("app/src/main/java/com/servoc/app/communication/RemoteDrivePolicy.java")
     policy_test=txt("app/src/test/java/com/servoc/app/communication/RemoteDrivePolicyTest.java")
@@ -27,27 +26,20 @@ def main():
     mqtt=txt("firmware/HazRob/RemoteMqtt.cpp")
     joy=txt("app/src/main/java/com/servoc/app/control/JoystickView.java")
 
-    # Canonical differential mixer and full-power maneuver authority remain unchanged.
     req(joy,"double l = y + x, r = y - x;","joystick mixer")
     req(joy,"Math.round(l / q * 100)","left full-scale output")
     req(joy,"Math.round(r / q * 100)","right full-scale output")
 
-    # Direct fast lane: capability-gated binary UDP with checksum/sequence and HTTP fallback.
-    for s in ("PORT = 4210","VERSION = 1","SIZE = 8","b[7]=(byte)x"):
-        req(udp,s,"Android Direct UDP contract")
-    req(udp_test,"packetLayoutAndChecksumAreStable","Direct UDP unit test")
-    req(api,"observeDirectCapabilities","Direct capability negotiation")
-    req(api,"DatagramSocket","Direct UDP sender")
-    req(api,"DirectDriveDatagram.encode","Direct UDP encoder binding")
-    req(api,"sendStopBurst()","Direct stop redundancy")
-    req(api,'getText("/drive?l="+left+"&r="+right,450)',"legacy Direct HTTP fallback")
-    req(ino,"WiFiUDP driveUdp","ESP32 UDP listener")
-    req(ino,"DRIVE_UDP_PORT=4210","ESP32 UDP port")
-    req(ino,"DRIVE_UDP_VERSION=1","ESP32 UDP version")
-    req(ino,"driveUdpNewer","ESP32 stale/out-of-order rejection")
-    req(ino,"check!=b[7]","ESP32 checksum validation")
-    req(ino,"c.setTimeout(80)","bounded local HTTP stall")
-    req(ino,"driveUdpUpdate();hwUpdate();delay(5)","drive service during Wi-Fi scan")
+    # HR056 Direct: AP-only + HTTP drive, OS-requested local-only network, bounded command cadence.
+    req(ino,'configureSoftAp(WIFI_AP);',"Direct AP-only profile")
+    req(ino,'web.on("/drive"',"Direct HTTP drive endpoint")
+    req(ino,'radioProfile!=RadioProfile::DIRECT',"dual-authority drive rejection")
+    req(ino,'\\"drive_udp\\":{\\"installed\\":false',"UDP disabled capability")
+    forbid(ino,'#include <WiFiUdp.h>',"active local UDP transport")
+    req(api,'DIRECT_KEEPALIVE_MS=250L',"Direct HTTP keepalive cadence")
+    req(api,'getText("/drive?l="+left+"&r="+right,450)',"Direct HTTP sender")
+    forbid(api,'DatagramSocket',"Android active local UDP")
+    req(wifi,'WifiNetworkSpecifier.Builder().setSsid(LocalNetworkContract.ROBOT_SSID)',"Direct local-only Wi-Fi request")
     req(cfg,"CONTROL_COMMAND_TIMEOUT_MS=500","lost-command motor watchdog")
 
     # Remote latest-command architecture: no command backlog, bounded publish rate, hold refresh.
@@ -63,7 +55,6 @@ def main():
     req(remote,'command("estop",new JSONObject(),3000,true,2500)',"confirmed Remote E-stop")
     req(remote,"lastAckRttMs","Remote ACK RTT instrumentation")
 
-    # TLS/MQTT control path is latency-prioritized while preserving security and critical ACKs.
     req(mqtt_client,"s.setTcpNoDelay(true)","Android TLS TCP_NODELAY")
     req(mqtt_client,"s.setKeepAlive(true)","Android TLS keepalive")
     req(mqtt,"tls.setNoDelay(true)","ESP32 TLS TCP_NODELAY")
@@ -73,8 +64,8 @@ def main():
     req(mqtt,"while(tls.available())processPacket()","incoming commands before telemetry")
     forbid(remote,'command("drive",p,700,false,0)',"retired synchronous Remote drive path")
 
-    print("HazRob 0.10.1 HR-0101-049 control/remote contract: PASS")
-    print("Direct=UDP/4210 v1 + HTTP fallback; Remote=latest-command 25Hz max / 120ms hold refresh; telemetry=2Hz; watchdog=500ms")
+    print("HazRob 0.10.1 HR-0101-049 control/remote contract under HR056: PASS")
+    print("Direct=AP-only HTTP/250ms keepalive; Remote=latest-command 25Hz max / 120ms hold refresh; telemetry=2Hz; watchdog=500ms")
     return 0
 
 if __name__=="__main__":
