@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: ['dev/**','fix/**',main]
-    paths: ['firmware/**','tools/audit_0101_integration_contract.py','tools/audit_0101_motion_contract.py','.github/workflows/build-firmware.yml']
+    paths: ['firmware/**','tools/audit_0101_integration_contract.py','tools/audit_0101_motion_contract.py','tools/audit_hr047_gas_safety_contract.py','tools/audit_hr048_drive_contract.py','tools/audit_hr049_control_remote_contract.py','tools/audit_hr050_field_operability_contract.py','.github/workflows/build-firmware.yml','.github/workflows/build-apk.yml','app/src/main/java/com/servoc/app/**']
 
 permissions: { contents: write }
 
@@ -21,13 +21,16 @@ jobs:
       - name: Validate HR-0101-034 motion contract
         run: python3 tools/audit_0101_motion_contract.py
 
+      - name: Validate consolidated HR047-HR050 release gate
+        run: python3 tools/audit_hr047_gas_safety_contract.py
+
       - uses: arduino/setup-arduino-cli@v2
-      - name: Install ESP32 core
+      - name: Install pinned ESP32 core 3.3.11
         run: |
           arduino-cli config init
           arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
-          arduino-cli core install esp32:esp32
+          arduino-cli core install esp32:esp32@3.3.11
 
       - name: Compile master ESP32
         shell: bash
