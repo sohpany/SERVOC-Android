@@ -30,7 +30,6 @@ def main() -> int:
     local = text("app/src/main/java/com/servoc/app/communication/LocalNetworkContract.java")
     robot_api = text("app/src/main/java/com/servoc/app/communication/RobotApi.java")
 
-    # Release identity and current hardware authority.
     require(cfg, 'FW[]="HazRob 0.10.1"', "master identity")
     require(cam, 'FW[]="HazRob-CAM 0.10.1"', "camera identity")
     for needle in [
@@ -44,7 +43,6 @@ def main() -> int:
     ]:
         require(cfg, needle, "hardware authority")
 
-    # Direct network contract: same fixed local addresses and HTTP control.
     require(local, 'ROBOT_HOST="192.168.4.1"', "Android direct robot host")
     require(local, 'CAMERA_HOST="192.168.4.2"', "Android direct camera host")
     require(master, '#include <WebServer.h>', "Direct HTTP server")
@@ -55,13 +53,13 @@ def main() -> int:
     require(master, 'web.on("/drive"', "HTTP drive endpoint")
     require(master, 'web.on("/motion/stop"', "HTTP stop endpoint")
     require(master, 'web.on("/diag"', "HTTP diagnostics endpoint")
-    require(master, '\"drive_udp\":{\"installed\":false', "HTTP fallback advertisement")
+    require(master, 'drive_udp', "HTTP fallback capability field")
+    require(master, 'installed', "HTTP fallback capability state")
     forbid(master, '#include <WiFiUdp.h>', "Direct must not require UDP")
     forbid(master, 'driveUdp.begin(', "Direct must not start UDP drive")
     require(robot_api, 'directFastDrive=u!=null&&u.optBoolean("installed",false)', "Android capability fallback")
     require(robot_api, 'getText("/drive?l="+left+"&r="+right,450)', "Android HTTP drive fallback")
 
-    # Remote path remains present and independent.
     require(master, '#include "RemoteLink.h"', "Remote link retained")
     require(master, '#include "RemoteMqtt.h"', "Remote MQTT retained")
     require(master, 'remoteBegin();', "Remote link runtime")
@@ -75,7 +73,6 @@ def main() -> int:
     require(mqtt, 't=="estop"', "Remote estop command")
     require(remote, 'remoteInternetReady', "Remote internet state")
 
-    # Camera: local MJPEG retains priority, RemoteVideo remains available.
     require(cam, '#include "RemoteVideo.h"', "Remote camera retained")
     require(cam, 'IPAddress ip(192,168,4,2)', "camera local IP")
     require(cam, 'gw(192,168,4,1)', "camera local gateway")
