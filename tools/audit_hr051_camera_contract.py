@@ -4,9 +4,9 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 def text(p): return (ROOT/p).read_text(encoding="utf-8")
 def req(src,needle,label):
-    if needle not in src: raise AssertionError(f"HR058 missing {label}: {needle}")
+    if needle not in src: raise AssertionError(f"HR059 missing {label}: {needle}")
 def ban(src,needle,label):
-    if needle in src: raise AssertionError(f"HR058 forbidden {label}: {needle}")
+    if needle in src: raise AssertionError(f"HR059 forbidden {label}: {needle}")
 
 def main():
     cam=text("firmware/HazRob-CAM/HazRob-CAM.ino")
@@ -36,7 +36,7 @@ def main():
     ban(cam,'PIXFORMAT_JPEG','native JPEG path');ban(cam,'CAMERA_FB_IN_DRAM','DRAM fallback')
     req(control,'"http://"+h+":81/stream"','Android local stream URL')
 
-    # HR058 split radio authority: Direct is AP-only; Remote alone owns STA/WAN/MQTT/NAPT.
+    # Split radio authority: Direct is AP-only; Remote alone owns STA/WAN/MQTT/NAPT.
     for n,l in [
         ('enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1}','radio state machine'),
         ('configureSoftAp(WIFI_AP);','Direct AP-only'),('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),
@@ -56,17 +56,22 @@ def main():
     req(connui,'new AlertDialog.Builder','destructive WAN reset confirmation')
     ban(connui,'scanNetworks()','stale Direct Wi-Fi scan action')
 
-    # Remote video is gated by the main gateway and cannot start or capture against a local viewer.
-    for n,l in [('HOST[]="hazrob-video-relay.onrender.com"','camera Render host'),('BASE_PATH[]="/hazrob/video"','video base path'),('ROBOT_ID[]="hazrob-001"','camera robot id'),('BOOTSTRAP_PATH[]="/hazrob/bootstrap"','bootstrap path'),('PORT=443','TLS port')]: req(rvcfg,n,l)
+    # Remote video is gated by the main gateway, by CAM time readiness, and by local-view arbitration.
+    for n,l in [('HOST[]="hazrob-video-relay.onrender.com"','camera Render host'),('BASE_PATH[]="/hazrob/video"','video base path'),('ROBOT_ID[]="hazrob-001"','camera robot id'),('BOOTSTRAP_PATH[]="/hazrob/bootstrap"','bootstrap path'),('BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','bootstrap service version'),('BOOTSTRAP_PROTOCOL=2','bootstrap protocol'),('PORT=443','TLS port')]: req(rvcfg,n,l)
     for n,l in [
         ('String path=String(RemoteVideoCfg::BASE_PATH)+"/publish/"+RemoteVideoCfg::ROBOT_ID','publisher path'),
         ('X-HazRob-Client: esp32-cam','camera role'),('if(localActive||!RemoteVideoCfg::configured()','no WSS handshake during local view'),
-        ('if(localActive&&!connected)','no WSS connection attempt during local view')]: req(rvcpp,n,l)
+        ('if(localActive&&!connected)','no WSS connection attempt during local view'),
+        ('version!=RemoteVideoCfg::BOOTSTRAP_SERVICE_VERSION||protocol!=RemoteVideoCfg::BOOTSTRAP_PROTOCOL||role!="esp32-cam"||robot!=RemoteVideoCfg::ROBOT_ID','strict CAM bootstrap contract')]: req(rvcpp,n,l)
     req(cam,'gatewayRemoteReady()','gateway gate')
     req(cam,'\\"radio_profile\\":\\"remote\\"','Remote profile requirement')
     req(cam,'\\"internet\\":true','Internet requirement')
     req(cam,'\\"napt\\":true','NAPT requirement')
     req(cam,'if(clients)return;','no gateway polling during local MJPEG')
+    req(cam,'TLS_TIME_MIN=1700000000','TLS time floor')
+    req(cam,'configTime(0,0,"pool.ntp.org","time.cloudflare.com")','CAM NTP sync')
+    req(cam,'gateway&&camTimeReady()','remote video requires gateway and valid CAM time')
+    req(cam,'\\"time_ready\\":','CAM time diagnostics')
 
     # Cloud coordinates remain identical across camera, Android and Render.
     for n,l in [('ROBOT_ID="hazrob-001"','Android robot id'),('MQTT_HOST="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud"','Android Hive host'),('VIDEO_HOST="hazrob-video-relay.onrender.com"','Android Render host'),('VIDEO_VIEW_WSS="wss://"+VIDEO_HOST+"/hazrob/video/view/"+ROBOT_ID','viewer path'),('BOOTSTRAP_HTTPS="https://"+VIDEO_HOST+"/hazrob/bootstrap"','Android bootstrap')]: req(service,n,l)
@@ -80,11 +85,11 @@ def main():
     for n,l in [('finiteAny(e,"p","pressure")','pressure normalization'),('x.put("status_code",status)','status normalization'),('x.put("ack_0x76",ack76)','ACK76 normalization'),('x.put("ack_0x77",ack77)','ACK77 normalization')]: req(proto,n,l)
     for n,l in [('optString("status_code",env.optString("status","NOT READY"))','ENV status UI'),('optString("address","—")','address UI'),('optString("chip_id","—")','chip UI')]: req(settings,n,l)
 
-    print('HR-0101-058 local-WiFi/camera/ENV/Render/Hive/app coherence contract: PASS')
+    print('HR-0101-059 local-WiFi/camera/ENV/Render/Hive/app coherence contract: PASS')
     return 0
 
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HR-0101-058 local-WiFi/camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
+        print(f"HR-0101-059 local-WiFi/camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
         raise SystemExit(1)
