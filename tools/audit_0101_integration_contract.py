@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed HazRob 0.10.1 HR-0101-058 connection integration contract.
+"""Fail-closed HazRob 0.10.1 HR-0101-059 connection integration contract.
 
 The contract separates runtime Direct from persistent WAN intent:
 DIRECT = AP-only + HTTP drive + local MJPEG for the current session.
@@ -8,6 +8,7 @@ Saved WAN credentials must auto-arm Remote on every reboot until explicit WAN cl
 REMOTE DISCONNECT is local/runtime-only and must retain WAN credentials.
 REMOTE RECONNECT reuses the saved WAN without reprovisioning.
 WAN CLEAR is the only destructive/persistent opt-out.
+HR059 additionally runs the five-layer ESP32/CAM/Android/Render/Hive coherence gate.
 Current GPIO/ENV authority must not regress.
 """
 from pathlib import Path
@@ -80,7 +81,6 @@ def main() -> int:
     forbid(master, '#include <WiFiUdp.h>', "Direct must not compile UDP transport")
     forbid(master, 'driveUdp.begin(', "Direct must not start UDP drive")
 
-    # HR058 explicit runtime WAN controls: disconnect cannot erase saved credentials.
     require(master, 'web.on("/remote/disconnect"', "runtime remote disconnect endpoint")
     require(master, 'web.on("/remote/connect"', "saved-WAN reconnect endpoint")
     disconnect_block = between(master, 'web.on("/remote/disconnect"', 'web.on("/remote/connect"', "remote disconnect block")
@@ -139,6 +139,7 @@ def main() -> int:
     require(link_service, 'WifiRoute.maintainRobotWifi(this)', "Direct network maintenance")
     require(link_service, 'RobotApi.setOperatorForeground(foreground)', "background motion interlock")
     require(link_service, 'failStopForBackground', "background fail-stop")
+    require(link_service, 'remoteSessions.close()', "remote drive pump teardown")
 
     require(cam, 'IPAddress ip(192,168,4,2)', "camera local IP")
     require(cam, 'gw(192,168,4,1)', "camera gateway")
@@ -155,13 +156,21 @@ def main() -> int:
     require(cam, '\\"radio_profile\\":\\"remote\\"', "camera requires Remote radio profile")
     require(cam, '\\"internet\\":true', "camera requires gateway Internet")
     require(cam, '\\"napt\\":true', "camera requires NAPT")
+    require(cam, 'gateway&&camTimeReady()', "camera requires its own valid TLS clock")
+    require(cam, 'configTime(0,0,"pool.ntp.org","time.cloudflare.com")', "camera NTP synchronization")
     require(cam, 'if(clients)return;', "camera does not poll gateway during local stream")
     require(cam_remote, 'if(localActive||!RemoteVideoCfg::configured()', "remote handshake blocked during local view")
     require(cam_remote, 'if(localActive&&!connected)', "remote connection attempt blocked during local view")
+    require(cam_remote, 'version!=RemoteVideoCfg::BOOTSTRAP_SERVICE_VERSION||protocol!=RemoteVideoCfg::BOOTSTRAP_PROTOCOL||role!="esp32-cam"||robot!=RemoteVideoCfg::ROBOT_ID', "strict CAM bootstrap compatibility")
+
+    from audit_hr059_system_coherence import main as coherence_main
+    rc=coherence_main()
+    if rc not in (None,0):
+        raise AssertionError(f"HR059 five-layer coherence returned {rc}")
 
     state = {
         "DIRECT": {"radio":"AP", "http_drive":True, "mqtt":False, "napt":False, "wss":False, "boot_intent":"unchanged"},
-        "REMOTE": {"radio":"AP_STA", "http_drive":False, "mqtt":True, "napt":"internet_ready", "wss":"gateway_ready", "boot_intent":"armed"},
+        "REMOTE": {"radio":"AP_STA", "http_drive":False, "mqtt":True, "napt":"internet_ready", "wss":"gateway_and_cam_time_ready", "boot_intent":"armed"},
         "REMOTE_DISCONNECT": {"radio":"AP", "wan_retained":True, "next_boot":"REMOTE"},
         "REMOTE_RECONNECT": {"radio":"AP_STA", "uses_saved_wan":True},
         "WAN_CLEAR": {"wan_retained":False, "next_boot":"DIRECT"},
@@ -171,11 +180,11 @@ def main() -> int:
     assert state["REMOTE_DISCONNECT"]["wan_retained"] and state["REMOTE_DISCONNECT"]["next_boot"] == "REMOTE"
     assert state["REMOTE_RECONNECT"]["uses_saved_wan"] and state["WAN_CLEAR"]["next_boot"] == "DIRECT"
 
-    print("HazRob 0.10.1 HR-0101-058 connection contract: PASS")
+    print("HazRob 0.10.1 HR-0101-059 connection contract: PASS")
     print("DIRECT: AP-only + HTTP + local MJPEG; temporary runtime profile")
-    print("REMOTE: saved WAN auto-arms AP+STA/MQTT/Render on every reboot")
+    print("REMOTE: saved WAN auto-arms AP+STA/MQTT/Render; CAM WSS additionally requires CAM NTP readiness")
     print("REMOTE DISCONNECT: local runtime AP-only, WAN retained; REMOTE RECONNECT: saved WAN reused")
-    print("WAN CLEAR: only destructive persistent opt-out; SAFETY: motion stop before profile transitions")
+    print("WAN CLEAR: only destructive persistent opt-out; SAFETY: motion stop before transitions/service teardown")
     return 0
 
 if __name__ == "__main__":
