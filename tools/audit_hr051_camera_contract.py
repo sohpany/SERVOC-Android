@@ -10,6 +10,10 @@ def require(haystack: str, needle: str, label: str) -> None:
     if needle not in haystack:
         raise AssertionError(f"HR051 missing {label}: {needle}")
 
+def forbid(haystack: str, needle: str, label: str) -> None:
+    if needle in haystack:
+        raise AssertionError(f"HR052 forbidden {label}: {needle}")
+
 def main() -> int:
     cam = text("firmware/HazRob-CAM/HazRob-CAM.ino")
     remote = text("app/src/main/java/com/servoc/app/camera/RemoteJpegWebSocketClient.java")
@@ -41,6 +45,18 @@ def main() -> int:
         ('http://192.168.4.2:81/stream', 'serial stream endpoint'),
     ]:
         require(cam, needle, label)
+
+    # HR-0101-052: direct/local camera compatibility must retain the field-proven
+    # HazRob 0.10.0 acquisition contract. GC2145 is captured as RGB565 and every
+    # frame is converted to a complete JPEG in software before MJPEG delivery.
+    for needle, label in [
+        ('cameraInit(PIXFORMAT_RGB565)', 'RGB565 compatibility initialization'),
+        ('frame2jpg_cb(f,JQ,outJpg,&s)', 'software JPEG conversion'),
+        ('capture_format\\\":\\\"RGB565', 'RGB565 status declaration'),
+        ('jpeg_encoder\\\":\\\"software_frame2jpg', 'software encoder status declaration'),
+    ]:
+        require(cam, needle, label)
+    forbid(cam, 'cameraInit(PIXFORMAT_JPEG)', 'native-JPEG-first initialization')
 
     require(control, '"http://"+h+":81/stream"', 'Android canonical MJPEG URL')
     require(control, '"http://"+h+"/stream"', 'Android port-80 redirect fallback')
@@ -74,12 +90,12 @@ def main() -> int:
         require(config, needle, label)
 
     require(change, 'HR-0101-051', 'controlled change manifest')
-    print('HR-0101-051 camera recovery contract: PASS')
+    print('HR-0101-051/052 camera recovery contract: PASS')
     return 0
 
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HR-0101-051 camera recovery contract: FAIL: {exc}")
+        print(f"HR-0101-051/052 camera recovery contract: FAIL: {exc}")
         raise SystemExit(1)
