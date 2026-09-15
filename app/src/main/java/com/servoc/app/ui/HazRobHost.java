@@ -27,6 +27,7 @@ public interface HazRobHost {
     JSONObject cameraDiagnostics();
     void setFlashMode(String mode);
     String flashMode();
+    void testPhoneAlert();
     SensorHealthEngine.Snapshot sensorHealth(String key);
     int captureCleanAirBaseline();
     int evaluateCleanAirDrift();
