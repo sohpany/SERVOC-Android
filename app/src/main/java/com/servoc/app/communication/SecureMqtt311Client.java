@@ -7,6 +7,8 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.SocketTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ConcurrentHashMap;
@@ -23,6 +25,8 @@ import javax.net.ssl.SSLSocketFactory;
 /** Minimal MQTT 3.1.1 QoS0 client over verified TLS. No external dependency and no insecure fallback. */
 public final class SecureMqtt311Client implements AutoCloseable {
     public interface Listener { void onMessage(String topic,String payload); void onDisconnected(Exception error); }
+    private static final int CONNECT_TIMEOUT_MS=5000;
+    private static final int IO_TIMEOUT_MS=1200;
     private final String host,clientId,username,password;private final int port,keepAliveSeconds;
     private SSLSocket socket;private InputStream in;private OutputStream out;private Thread reader;private volatile Listener listener;private final AtomicBoolean running=new AtomicBoolean(false);private int packetId=1;private long lastWriteMs;
     private final ConcurrentHashMap<Integer,PendingSub> pendingSubs=new ConcurrentHashMap<>();
@@ -35,8 +39,14 @@ public final class SecureMqtt311Client implements AutoCloseable {
 
     public synchronized void connect(Listener listener)throws Exception{
         close();this.listener=listener;
-        SSLSocket s=(SSLSocket)SSLSocketFactory.getDefault().createSocket(host,port);s.setTcpNoDelay(true);s.setKeepAlive(true);s.setSoTimeout(1200);s.startHandshake();SSLSession session=s.getSession();if(!HttpsURLConnection.getDefaultHostnameVerifier().verify(host,session)){try{s.close();}catch(Exception ignored){}throw new SSLHandshakeException("broker hostname verification failed");}
-        socket=s;in=s.getInputStream();out=s.getOutputStream();sendConnect();Packet p=readPacket();int code=p.type==2&&p.body.length>=2?p.body[1]&255:-1;if(code!=0){close();throw new IOException("MQTT CONNACK rejected: "+connackText(code)+" ("+code+")");}running.set(true);reader=new Thread(this::readerLoop,"HazRob-MQTT");reader.setDaemon(true);reader.start();
+        // Do not let DNS/TCP socket establishment inherit platform-default multi-minute waits.
+        Socket tcp=new Socket();SSLSocket s=null;
+        try{
+            tcp.connect(new InetSocketAddress(host,port),CONNECT_TIMEOUT_MS);tcp.setTcpNoDelay(true);tcp.setKeepAlive(true);tcp.setSoTimeout(IO_TIMEOUT_MS);
+            s=(SSLSocket)SSLSocketFactory.getDefault().createSocket(tcp,host,port,true);s.setTcpNoDelay(true);s.setKeepAlive(true);s.setSoTimeout(IO_TIMEOUT_MS);s.startHandshake();
+            SSLSession session=s.getSession();if(!HttpsURLConnection.getDefaultHostnameVerifier().verify(host,session))throw new SSLHandshakeException("broker hostname verification failed");
+            socket=s;in=s.getInputStream();out=s.getOutputStream();sendConnect();Packet p=readPacket();int code=p.type==2&&p.body.length>=2?p.body[1]&255:-1;if(code!=0){close();throw new IOException("MQTT CONNACK rejected: "+connackText(code)+" ("+code+")");}running.set(true);reader=new Thread(this::readerLoop,"HazRob-MQTT");reader.setDaemon(true);reader.start();
+        }catch(Exception e){try{if(s!=null)s.close();else tcp.close();}catch(Exception ignored){}throw e;}
     }
 
     public boolean isConnected(){return running.get()&&socket!=null&&socket.isConnected()&&!socket.isClosed();}
