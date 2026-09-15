@@ -66,7 +66,9 @@ def main() -> int:
     req(mqtt, "tcp.connect(new InetSocketAddress(host,port),CONNECT_TIMEOUT_MS)", "bounded MQTT TCP connect")
     req(mqtt, "broker hostname verification failed", "verified MQTT TLS")
     req(entry, "إلغاء الاتصال", "cancellable remote entry")
-    req(entry, "اتصال الروبوت بنقطة Wi-Fi وحده لا يعني", "remote diagnostic UX")
+    req(entry, 'local.postForm("/connection/remote"', "explicit Direct-to-Remote handoff")
+    req(entry, 'WifiRoute.releaseRobotWifi(a)', "release local-only network for Remote")
+    req(entry, "إذا كان الروبوت في Direct", "remote mode diagnostic UX")
 
     req(instant, "RESPONSE_MIN_DELTA = 0.05", "response visibility floor")
     req(instant, "Level{UNAVAILABLE,NORMAL,RESPONSE,ELEVATED,HIGH}", "response state")
@@ -83,7 +85,6 @@ def main() -> int:
     req(video, '\\"frame_interval_ms\\"', "video pacing diagnostics")
     forbid(video, "std::queue", "remote video backlog")
 
-    # HR050 release reproducibility: normal build must never regenerate from live NIOSH pages.
     req(gradle, "HAZROB_FLAMMABILITY_SHA256 = '457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434'", "controlled flammability digest")
     req(gradle, "HAZROB_ACCEPTED_APK_URL", "content-addressed accepted artifact source")
     req(gradle, "HAZROB_ACCEPTED_APK_ASSET", "accepted artifact seed path")
@@ -100,7 +101,7 @@ def main() -> int:
     print("HazRob HR-0101-050 field-operability contract: PASS")
     print("ENV: dedicated GPIO13/14 I2C; ADS remains GPIO21/22")
     print("IR: persistent loss-of-ground cliff warning with explicit drive-screen semantics")
-    print("Remote: bounded verified TLS/MQTT; control admission independent from video")
+    print("Remote: bounded verified TLS/MQTT; explicit profile handoff; control admission independent from video")
     print("MQ: RESPONSE visibility remains below warning/quantitative authority")
     print("Video: adaptive 55..120 ms pacing; nominal good-link target ~18.2 fps")
     print("Build reproducibility: controlled flammability bytes recovered only from accepted APK and SHA-256 verified; no live regeneration")
