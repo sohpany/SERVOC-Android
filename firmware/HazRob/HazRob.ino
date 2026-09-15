@@ -5,9 +5,10 @@
 #include "RemoteMqtt.h"
 #include "SafetyInterlock.h"
 
-// HR-0101-057 connection authority:
+// HR-0101-058 connection authority:
 // DIRECT = AP-only + HTTP control/telemetry + local camera network (runtime session only).
 // REMOTE = AP+STA + MQTT/Render gateway. Saved WAN is retried on every reboot until explicitly cleared.
+// DISCONNECT REMOTE = runtime AP-only without deleting WAN. RESET WAN = destructive credential clear.
 WebServer web(80);
 
 enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1};
@@ -109,6 +110,19 @@ void setup(){
     reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE,true);
   });
 
+  // Explicit local WAN runtime controls. Disconnect preserves credentials and reboot intent.
+  web.on("/remote/disconnect",HTTP_POST,[]{
+    motionStop();
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\",\"wan_retained\":true}");
+    requestRadioProfile(RadioProfile::DIRECT,false);
+  });
+  web.on("/remote/connect",HTTP_POST,[]{
+    if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
+    motionStop();
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\",\"wan_retained\":true}");
+    requestRadioProfile(RadioProfile::REMOTE,false);
+  });
+
   web.on("/remote/status",[]{
     String j=remoteStatusJson();
     if(j.endsWith("}")){j.remove(j.length()-1);j+=",\"napt\":";j+=naptEnabled?"true":"false";j+=",\"radio_profile\":\""+String(profileName())+"\"";j+=",\"estop_latched\":";j+=safetyEstopLatched()?"true":"false";j+=",\"direct_protocol\":\"HTTP\"}";}
@@ -122,7 +136,7 @@ void setup(){
   web.on("/remote/retry",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
     if(radioProfile==RadioProfile::REMOTE){motionStop();bool ok=remoteRetry();return reply(ok?200:409,"application/json",ok?"{\"ok\":true}":"{\"ok\":false}");}
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE,true);
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE,false);
   });
   web.on("/remote/clear",HTTP_POST,[]{
     if(web.arg("confirm")!="1")return reply(400,"application/json","{\"ok\":false}");
