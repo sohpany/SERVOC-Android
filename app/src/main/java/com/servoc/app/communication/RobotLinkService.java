@@ -83,7 +83,15 @@ public final class RobotLinkService extends Service {
     private void resetBackoff(){reconnectAttempt=0;reconnectAt=0;}
 
     @Override public int onStartCommand(Intent intent,int flags,int startId){RobotApi a=api;if(a!=null)a.setRobotHost(prefs.getString("robot",LocalNetworkContract.ROBOT_HOST));return START_STICKY;}
-    @Override public void onDestroy(){RobotApi.setOperatorForeground(false);worker.shutdownNow();super.onDestroy();}
+    @Override public void onDestroy(){
+        RobotApi.setOperatorForeground(false);
+        boolean remote=prefs!=null&&"remote".equalsIgnoreCase(prefs.getString("connection_mode","direct"));
+        failStopForBackground(remote);
+        try{if(remoteSessions!=null)remoteSessions.close();}catch(Exception ignored){}
+        try{WifiRoute.releaseRobotWifi(this);}catch(Exception ignored){}
+        worker.shutdownNow();
+        super.onDestroy();
+    }
     @Override public IBinder onBind(Intent intent){return null;}
 
     private void ensureChannel(){if(android.os.Build.VERSION.SDK_INT<26)return;NotificationManager n=(NotificationManager)getSystemService(NOTIFICATION_SERVICE);if(n==null)return;NotificationChannel c=new NotificationChannel(CHANNEL,"HazRob Link",NotificationManager.IMPORTANCE_LOW);c.setDescription("اتصال التحكم والقياس بالمركبة");n.createNotificationChannel(c);}
