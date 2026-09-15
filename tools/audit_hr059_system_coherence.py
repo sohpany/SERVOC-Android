@@ -1,193 +1,92 @@
 #!/usr/bin/env python3
 """Fail-closed HR-0101-059 five-layer HazRob coherence gate.
-
-Checks Main ESP32, ESP32-CAM, Android, Render relay and HiveMQ-facing contracts as
-one system. This is source/integration qualification; physical RF/motor/camera
-acceptance remains a separate field test.
+Checks Main ESP32, ESP32-CAM, Android, Render and HiveMQ-facing contracts together.
+Physical RF/motor/camera acceptance remains a separate field test.
 """
 from pathlib import Path
 import re
-
 ROOT=Path(__file__).resolve().parents[1]
 def text(p): return (ROOT/p).read_text(encoding="utf-8")
-def req(src,needle,label):
-    if needle not in src: raise AssertionError(f"{label}: missing {needle!r}")
-def ban(src,needle,label):
-    if needle in src: raise AssertionError(f"{label}: forbidden {needle!r}")
-def one(pattern,src,label):
-    m=re.search(pattern,src,re.S)
+def req(src,n,label):
+    if n not in src: raise AssertionError(f"{label}: missing {n!r}")
+def ban(src,n,label):
+    if n in src: raise AssertionError(f"{label}: forbidden {n!r}")
+def one(p,src,label):
+    m=re.search(p,src,re.S)
     if not m: raise AssertionError(f"{label}: pattern not found")
     return m.group(1)
 
 def main():
-    master=text("firmware/HazRob/HazRob.ino")
-    cfg=text("firmware/HazRob/Config.h")
-    rlink=text("firmware/HazRob/RemoteLink.cpp")
-    rmqtt=text("firmware/HazRob/RemoteMqtt.cpp")
-    rcfg=text("firmware/HazRob/RemoteCloudConfig.h")
-    cam=text("firmware/HazRob-CAM/HazRob-CAM.ino")
-    rvcfg=text("firmware/HazRob-CAM/RemoteVideoConfig.h")
-    rvideo=text("firmware/HazRob-CAM/RemoteVideo.cpp")
-    local=text("app/src/main/java/com/servoc/app/communication/LocalNetworkContract.java")
-    service=text("app/src/main/java/com/servoc/app/communication/RemoteServiceProfile.java")
-    session=text("app/src/main/java/com/servoc/app/communication/RemoteSessionManager.java")
-    conn=text("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
-    policy=text("app/src/main/java/com/servoc/app/communication/RemoteDrivePolicy.java")
-    api=text("app/src/main/java/com/servoc/app/communication/RobotApi.java")
-    mqtt_client=text("app/src/main/java/com/servoc/app/communication/SecureMqtt311Client.java")
-    wss_client=text("app/src/main/java/com/servoc/app/camera/RemoteJpegWebSocketClient.java")
-    link_service=text("app/src/main/java/com/servoc/app/communication/RobotLinkService.java")
-    relay=text("remote/video-relay/src/index.js")
-    relay_test=text("remote/video-relay/test/contract.mjs")
-    gradle=text("app/build.gradle")
+    master=text("firmware/HazRob/HazRob.ino"); cfg=text("firmware/HazRob/Config.h")
+    rlink=text("firmware/HazRob/RemoteLink.cpp"); rmqtt=text("firmware/HazRob/RemoteMqtt.cpp"); rcfg=text("firmware/HazRob/RemoteCloudConfig.h")
+    cam=text("firmware/HazRob-CAM/HazRob-CAM.ino"); rvcfg=text("firmware/HazRob-CAM/RemoteVideoConfig.h"); rvideo=text("firmware/HazRob-CAM/RemoteVideo.cpp")
+    local=text("app/src/main/java/com/servoc/app/communication/LocalNetworkContract.java"); service=text("app/src/main/java/com/servoc/app/communication/RemoteServiceProfile.java")
+    session=text("app/src/main/java/com/servoc/app/communication/RemoteSessionManager.java"); conn=text("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
+    policy=text("app/src/main/java/com/servoc/app/communication/RemoteDrivePolicy.java"); api=text("app/src/main/java/com/servoc/app/communication/RobotApi.java")
+    mqttc=text("app/src/main/java/com/servoc/app/communication/SecureMqtt311Client.java"); wssc=text("app/src/main/java/com/servoc/app/camera/RemoteJpegWebSocketClient.java")
+    links=text("app/src/main/java/com/servoc/app/communication/RobotLinkService.java"); relay=text("remote/video-relay/src/index.js"); rtest=text("remote/video-relay/test/contract.mjs"); gradle=text("app/build.gradle")
 
-    # One version/protocol/robot identity across all layers.
-    req(cfg,'FW[]="HazRob 0.10.1"',"main firmware version")
-    req(cam,'FW[]="HazRob-CAM 0.10.1"',"camera firmware version")
-    req(service,'SERVICE_VERSION="0.10.1"',"Android service version")
-    req(service,'PROTOCOL=2',"Android protocol")
-    req(rcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"',"main bootstrap version")
-    req(rcfg,'BOOTSTRAP_PROTOCOL=2',"main bootstrap protocol")
-    req(rvcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"',"CAM bootstrap version")
-    req(rvcfg,'BOOTSTRAP_PROTOCOL=2',"CAM bootstrap protocol")
-    req(relay,'SERVICE_VERSION="0.10.1",PROTOCOL=2',"Render version/protocol")
-    req(gradle,"versionName '0.10.1'","APK version")
-    req(gradle,'versionCode 21',"APK versionCode")
-    for src,label in [(rcfg,"main"),(rvcfg,"CAM")]: req(src,'ROBOT_ID[]="hazrob-001"',label+" robot id")
-    req(service,'ROBOT_ID="hazrob-001"',"Android robot id")
-    req(relay,'ROBOT_ID="hazrob-001"',"Render robot id")
+    # Shared identity and cloud coordinates.
+    for src,n,label in [(cfg,'FW[]="HazRob 0.10.1"','main version'),(cam,'FW[]="HazRob-CAM 0.10.1"','CAM version'),(service,'SERVICE_VERSION="0.10.1"','Android service version'),(rcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','main bootstrap version'),(rvcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','CAM bootstrap version'),(relay,'SERVICE_VERSION="0.10.1",PROTOCOL=2','Render version/protocol'),(gradle,"versionName '0.10.1'",'APK version'),(gradle,'versionCode 21','APK versionCode')]: req(src,n,label)
+    for src,n,label in [(service,'PROTOCOL=2','Android protocol'),(rcfg,'BOOTSTRAP_PROTOCOL=2','main protocol'),(rvcfg,'BOOTSTRAP_PROTOCOL=2','CAM protocol')]: req(src,n,label)
+    for src,n,label in [(rcfg,'ROBOT_ID[]="hazrob-001"','main id'),(rvcfg,'ROBOT_ID[]="hazrob-001"','CAM id'),(service,'ROBOT_ID="hazrob-001"','Android id'),(relay,'ROBOT_ID="hazrob-001"','Render id')]: req(src,n,label)
+    hive='e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud'; render='hazrob-video-relay.onrender.com'
+    for src,n,label in [(rcfg,f'BROKER_HOST[]="{hive}"','main Hive'),(service,f'MQTT_HOST="{hive}"','Android Hive'),(relay,f'MQTT_HOST="{hive}",MQTT_PORT=8883','Render Hive'),(rcfg,'BROKER_PORT=8883','main MQTT port'),(service,'MQTT_PORT=8883','Android MQTT port'),(rcfg,f'BOOTSTRAP_HOST[]="{render}"','main Render'),(rvcfg,f'HOST[]="{render}"','CAM Render'),(service,f'VIDEO_HOST="{render}"','Android Render')]: req(src,n,label)
+    for src,label in [(rcfg,'main'),(rvcfg,'CAM')]: req(src,'BOOTSTRAP_PATH[]="/hazrob/bootstrap"',label+' bootstrap'); req(src,'BOOTSTRAP_TOKEN[]="hazrob-prototype-bootstrap-v1"',label+' token')
+    req(session,'BOOTSTRAP_TOKEN="hazrob-prototype-bootstrap-v1"','Android bootstrap token'); req(relay,'url.pathname==="/hazrob/bootstrap"','Render bootstrap')
 
-    # Cloud coordinates must be literal-identical.
-    hive='e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud'
-    render='hazrob-video-relay.onrender.com'
-    req(rcfg,f'BROKER_HOST[]="{hive}"',"main HiveMQ host")
-    req(rcfg,'BROKER_PORT=8883',"main HiveMQ TLS port")
-    req(service,f'MQTT_HOST="{hive}"',"Android HiveMQ host")
-    req(service,'MQTT_PORT=8883',"Android HiveMQ TLS port")
-    req(relay,f'MQTT_HOST="{hive}",MQTT_PORT=8883',"Render HiveMQ coordinates")
-    req(rcfg,f'BOOTSTRAP_HOST[]="{render}"',"main Render host")
-    req(rvcfg,f'HOST[]="{render}"',"CAM Render host")
-    req(service,f'VIDEO_HOST="{render}"',"Android Render host")
-    for src,label in [(rcfg,"main"),(rvcfg,"CAM")]:
-        req(src,'BOOTSTRAP_PATH[]="/hazrob/bootstrap"',label+" bootstrap path")
-        req(src,'BOOTSTRAP_TOKEN[]="hazrob-prototype-bootstrap-v1"',label+" bootstrap token contract")
-    req(session,'BOOTSTRAP_TOKEN="hazrob-prototype-bootstrap-v1"',"Android bootstrap token contract")
-    req(relay,'url.pathname==="/hazrob/bootstrap"',"Render bootstrap endpoint")
+    # Strict role/version/protocol compatibility.
+    req(rmqtt,'X-HazRob-Client: esp32','main role'); req(rmqtt,'version!=RemoteCfg::BOOTSTRAP_SERVICE_VERSION||protocol!=RemoteCfg::BOOTSTRAP_PROTOCOL||role!="esp32"||robot!=RemoteCfg::ROBOT_ID','main strict bootstrap')
+    req(rvideo,'X-HazRob-Client: esp32-cam','CAM role'); req(rvideo,'version!=RemoteVideoCfg::BOOTSTRAP_SERVICE_VERSION||protocol!=RemoteVideoCfg::BOOTSTRAP_PROTOCOL||role!="esp32-cam"||robot!=RemoteVideoCfg::ROBOT_ID','CAM strict bootstrap')
+    req(session,'BOOTSTRAP_CLIENT="android"','Android role'); req(session,'bootstrap contract mismatch','Android contract reject'); req(session,'bootstrap role mismatch','Android role reject')
+    for n in ['role==="android"','role==="esp32"','role==="esp32-cam"','video_view_token','video_publish_token']: req(relay,n,'Render scoped bootstrap')
 
-    # Role-scoped bootstrap contract: no component may silently consume another role.
-    req(rmqtt,'X-HazRob-Client: esp32',"main bootstrap role")
-    req(rmqtt,'version!=RemoteCfg::BOOTSTRAP_SERVICE_VERSION||protocol!=RemoteCfg::BOOTSTRAP_PROTOCOL||role!="esp32"||robot!=RemoteCfg::ROBOT_ID',"main strict bootstrap validation")
-    req(rvideo,'X-HazRob-Client: esp32-cam',"CAM bootstrap role")
-    req(rvideo,'version!=RemoteVideoCfg::BOOTSTRAP_SERVICE_VERSION||protocol!=RemoteVideoCfg::BOOTSTRAP_PROTOCOL||role!="esp32-cam"||robot!=RemoteVideoCfg::ROBOT_ID',"CAM strict bootstrap validation")
-    req(session,'BOOTSTRAP_CLIENT="android"',"Android bootstrap role")
-    req(session,'bootstrap contract mismatch',"Android version/protocol rejection")
-    req(session,'bootstrap role mismatch',"Android role rejection")
-    for needle in ['role==="android"','role==="esp32"','role==="esp32-cam"','video_view_token','video_publish_token']:
-        req(relay,needle,"Render scoped bootstrap")
+    # Local radio/network authority and WAN lifecycle.
+    for n,label in [('ROBOT_SSID="HazRob"','SSID'),('ROBOT_HOST="192.168.4.1"','robot IP'),('CAMERA_HOST="192.168.4.2"','CAM IP')]: req(local,n,label)
+    for n,label in [('configureSoftAp(WIFI_AP);','Direct AP'),('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),('radioProfile!=RadioProfile::DIRECT','Direct HTTP guard'),('if(radioProfile==RadioProfile::REMOTE){remoteUpdate();gatewayUpdate();remoteMqttUpdate();}','Remote runtime guard')]: req(master,n,label)
+    ban(rlink,'WiFi.mode(','RemoteLink radio ownership')
+    for n,label in [('transportEnabled=configured;','saved WAN boot'),('wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",true);','WAN persist'),('wan.remove("ssid");wan.remove("pass");wan.putBool("enabled",false);','WAN clear')]: req(rlink,n,label)
+    for n,label in [('web.on("/remote/disconnect"','disconnect endpoint'),('\\"wan_retained\\":true','WAN retained'),('web.on("/remote/connect"','reconnect endpoint')]: req(master,n,label)
+    req(api,'remoteDisconnect()','Android disconnect'); req(api,'remoteReconnect()','Android reconnect')
 
-    # Local network authority and radio ownership.
-    req(local,'ROBOT_SSID="HazRob"',"local SSID")
-    req(local,'ROBOT_HOST="192.168.4.1"',"local robot IP")
-    req(local,'CAMERA_HOST="192.168.4.2"',"local CAM IP")
-    req(master,'configureSoftAp(WIFI_AP);',"Direct AP-only")
-    req(master,'configureSoftAp(WIFI_AP_STA);',"Remote AP+STA")
-    req(master,'radioProfile!=RadioProfile::DIRECT',"Direct-only HTTP drive")
-    req(master,'if(radioProfile==RadioProfile::REMOTE){remoteUpdate();gatewayUpdate();remoteMqttUpdate();}',"Remote-only WAN/MQTT loop")
-    ban(rlink,'WiFi.mode(',"RemoteLink global radio ownership")
-
-    # WAN lifecycle must be non-destructive except explicit clear.
-    req(rlink,'transportEnabled=configured;',"saved WAN boot intent")
-    req(rlink,'wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",true);',"persist provisioned WAN")
-    req(rlink,'wan.remove("ssid");wan.remove("pass");wan.putBool("enabled",false);',"explicit WAN clear")
-    req(master,'web.on("/remote/disconnect"',"non-destructive disconnect endpoint")
-    req(master,'\\"wan_retained\\":true',"WAN retained declaration")
-    req(master,'web.on("/remote/connect"',"saved WAN reconnect endpoint")
-    req(api,'remoteDisconnect()',"Android disconnect facade")
-    req(api,'remoteReconnect()',"Android reconnect facade")
-
-    # Remote command parity. Every operational Android command has a firmware handler.
-    expected={
-        "probe","drive","motion_stop","estop","estop_reset","sensor_off","heartbeat","heartbeat_disarm",
-        "relay","measure_start","measure_cancel","alert","alert_test","camera_flash","config_get","config_set"
-    }
+    # Remote command parity across Android facade+transport and main firmware.
+    expected={"probe","drive","motion_stop","estop","estop_reset","sensor_off","heartbeat","heartbeat_disarm","relay","measure_start","measure_cancel","alert","alert_test","camera_flash","config_get","config_set"}
     fw=set(re.findall(r't=="([a-z0-9_]+)"',rmqtt))
-    app=set(re.findall(r'command\("([a-z0-9_]+)"',conn))
+    android_src=conn+'\n'+api
+    app=set(re.findall(r'command\("([a-z0-9_]+)"',android_src))
     app |= {"drive","motion_stop","estop","estop_reset","sensor_off","heartbeat","relay","measure_start","measure_cancel","alert","alert_test","camera_flash"}
-    missing_fw=expected-fw
-    missing_app=expected-app
-    if missing_fw: raise AssertionError(f"firmware missing remote command handlers: {sorted(missing_fw)}")
-    if missing_app: raise AssertionError(f"Android missing remote command emitters: {sorted(missing_app)}")
-    unknown_fw=fw-expected
-    if unknown_fw: raise AssertionError(f"unreviewed firmware remote commands: {sorted(unknown_fw)}")
+    if expected-fw: raise AssertionError(f"firmware missing remote handlers: {sorted(expected-fw)}")
+    if expected-app: raise AssertionError(f"Android missing remote emitters: {sorted(expected-app)}")
+    if fw-expected: raise AssertionError(f"unreviewed firmware remote commands: {sorted(fw-expected)}")
 
-    # Direct API parity for operator functions that exist in Direct.
-    direct_paths=["/drive","/motion/stop","/estop","/estop/reset","/sensor/off","/heartbeat","/diag","/data","/cfg","/relay","/measure","/alert"]
-    for path in direct_paths: req(master,f'web.on("{path}"',f"firmware Direct endpoint {path}")
-    for needle,label in [
-        ('getText("/drive?l="+left+"&r="+right,450)',"Android Direct drive"),
-        ('getText("/estop",650)',"Android Direct estop"),
-        ('getText("/estop/reset",650)',"Android Direct estop reset"),
-        ('getText("/heartbeat",500)',"Android Direct heartbeat"),
-        ('getJson("/diag",1000)',"Android Direct diagnostics"),
-        ('getJson("/data",1200)',"Android Direct data"),
-        ('getText("/relay?mask="+mask,800)',"Android Direct relay"),
-        ('getText("/measure?cmd=start",800)',"Android Direct measure start"),
-        ('getText("/alert?severity="+severity+"&ttl="+ttl,800)',"Android Direct alert")]: req(api,needle,label)
+    # Direct operator endpoint parity.
+    for p in ["/drive","/motion/stop","/estop","/estop/reset","/sensor/off","/heartbeat","/diag","/data","/cfg","/relay","/measure","/alert"]: req(master,f'web.on("{p}"','firmware Direct '+p)
+    for n,label in [('getText("/drive?l="+left+"&r="+right,450)','Direct drive'),('getText("/estop",650)','Direct estop'),('getText("/estop/reset",650)','Direct estop reset'),('getText("/heartbeat",500)','Direct heartbeat'),('getJson("/diag",1000)','Direct diag'),('getJson("/data",1200)','Direct data'),('getText("/relay?mask="+mask,800)','Direct relay'),('getText("/measure?cmd=start",800)','Direct measure'),('getText("/alert?severity="+severity+"&ttl="+ttl,800)','Direct alert')]: req(api,n,label)
 
-    # Timing/safety invariants: refreshes must beat the 500 ms firmware watchdog.
-    watchdog=int(one(r'CONTROL_COMMAND_TIMEOUT_MS=(\d+)',cfg,"firmware watchdog"))
-    direct=int(one(r'DIRECT_KEEPALIVE_MS=(\d+)L',api,"Direct keepalive"))
-    pump=int(one(r'PUMP_MS=(\d+)',policy,"Remote pump"))
-    minpub=int(one(r'MIN_PUBLISH_MS=(\d+)',policy,"Remote minimum publish"))
-    hold=int(one(r'HOLD_REFRESH_MS=(\d+)',policy,"Remote hold refresh"))
-    ttl=int(one(r'COMMAND_TTL_MS=(\d+)',policy,"Remote command TTL"))
-    if not (direct < watchdog and hold < watchdog and minpub <= hold and pump <= minpub and ttl >= watchdog):
-        raise AssertionError(f"timing invariant failed direct={direct} hold={hold} minpub={minpub} pump={pump} ttl={ttl} watchdog={watchdog}")
-    req(master,'motionStop();',"profile transition stop")
-    req(conn,'public void motionStop()throws Exception{setDesiredDrive(0,0);command("motion_stop"',"remote explicit stop")
-    req(link_service,'failStopForBackground(remote);',"service destroy/background stop")
-    req(link_service,'remoteSessions.close()',"service destroys remote drive pump")
-    req(api,'requireNeutralAfterBackground',"neutral re-arm")
+    # Safety timing and teardown.
+    watchdog=int(one(r'CONTROL_COMMAND_TIMEOUT_MS=(\d+)',cfg,'watchdog')); direct=int(one(r'DIRECT_KEEPALIVE_MS=(\d+)L',api,'Direct keepalive')); pump=int(one(r'PUMP_MS=(\d+)',policy,'pump')); minpub=int(one(r'MIN_PUBLISH_MS=(\d+)',policy,'min publish')); hold=int(one(r'HOLD_REFRESH_MS=(\d+)',policy,'hold')); ttl=int(one(r'COMMAND_TTL_MS=(\d+)',policy,'TTL'))
+    if not(direct<watchdog and hold<watchdog and pump<=minpub<=hold and ttl>=watchdog): raise AssertionError(f"timing invariant direct={direct} pump={pump} minpub={minpub} hold={hold} watchdog={watchdog} ttl={ttl}")
+    req(conn,'public void motionStop()throws Exception{setDesiredDrive(0,0);command("motion_stop"','Remote explicit stop'); req(links,'failStopForBackground(remote);','service safe stop'); req(links,'remoteSessions.close()','remote pump teardown'); req(api,'requireNeutralAfterBackground','neutral re-arm')
 
-    # Camera path: local gets capture priority; remote requires gateway + its own valid clock.
-    req(cam,'if(clients)return;',"CAM local-view gate")
-    req(cam,'gateway&&camTimeReady()',"CAM gateway plus NTP gate")
-    req(cam,'TLS_TIME_MIN=1700000000',"CAM minimum TLS epoch")
-    req(cam,'configTime(0,0,"pool.ntp.org","time.cloudflare.com")',"CAM NTP configuration")
-    req(cam,'\\"time_ready\\":',"CAM clock diagnostics")
-    for needle in ['\\"radio_profile\\":\\"remote\\"','\\"internet\\":true','\\"napt\\":true']:
-        req(cam,needle,"CAM gateway readiness")
-    req(rvideo,'if(localActive||!RemoteVideoCfg::configured()',"CAM no WSS handshake while local viewer")
-    req(rvideo,'if(localActive&&!connected)',"CAM no remote connect while local viewer")
-    req(rvcfg,'BASE_PATH[]="/hazrob/video"',"CAM video base path")
-    req(service,'VIDEO_VIEW_WSS="wss://"+VIDEO_HOST+"/hazrob/video/view/"+ROBOT_ID',"Android WSS viewer path")
-    req(relay,'/^\\/hazrob\\/video\\/(publish|view)\\/([^/]+)$/',"Render WSS routes")
+    # Camera arbitration, NTP/TLS readiness and WSS paths.
+    for n,label in [('if(clients)return;','local viewer priority'),('gateway&&camTimeReady()','CAM gateway+time gate'),('TLS_TIME_MIN=1700000000','CAM TLS epoch'),('configTime(0,0,"pool.ntp.org","time.cloudflare.com")','CAM NTP'),('\\"time_ready\\":','CAM time diagnostics'),('\\"radio_profile\\":\\"remote\\"','CAM remote profile'),('\\"internet\\":true','CAM internet'),('\\"napt\\":true','CAM NAPT')]: req(cam,n,label)
+    req(rvideo,'if(localActive||!RemoteVideoCfg::configured()','no WSS handshake during local'); req(rvideo,'if(localActive&&!connected)','no remote connect during local')
+    req(rvcfg,'BASE_PATH[]="/hazrob/video"','CAM video base'); req(service,'VIDEO_VIEW_WSS="wss://"+VIDEO_HOST+"/hazrob/video/view/"+ROBOT_ID','Android viewer path'); req(relay,'/^\\/hazrob\\/video\\/(publish|view)\\/([^/]+)$/','Render WSS routes')
 
-    # TLS must be authenticated end to end; no insecure fallback.
-    req(mqtt_client,'HttpsURLConnection.getDefaultHostnameVerifier().verify(host,session)',"Android MQTT hostname verification")
-    req(wss_client,'p.setEndpointIdentificationAlgorithm("HTTPS")',"Android WSS hostname verification")
-    req(rcfg,'ROOT_CA[]=HAZROB_MQTT_ROOT_CA',"main CA pin")
-    req(rvcfg,'ROOT_CA[]=HAZROB_VIDEO_ROOT_CA',"CAM CA pin")
-    ban(mqtt_client,'TrustAll',"Android MQTT insecure TLS")
-    ban(wss_client,'TrustAll',"Android WSS insecure TLS")
+    # Authenticated TLS everywhere.
+    req(mqttc,'HttpsURLConnection.getDefaultHostnameVerifier().verify(host,session)','Android MQTT hostname verify'); req(wssc,'p.setEndpointIdentificationAlgorithm("HTTPS")','Android WSS hostname verify'); req(rcfg,'ROOT_CA[]=HAZROB_MQTT_ROOT_CA','main CA'); req(rvcfg,'ROOT_CA[]=HAZROB_VIDEO_ROOT_CA','CAM CA'); ban(mqttc,'TrustAll','MQTT insecure TLS'); ban(wssc,'TrustAll','WSS insecure TLS')
 
-    # Relay must isolate roles and exercise local + live production health in its contract.
-    req(relay,'expected=role==="publisher"?c.publish:c.view',"Render publisher/viewer token isolation")
-    req(relay_test,'openWs("/hazrob/video/view/hazrob-001",PUBLISH)',"wrong publisher token viewer rejection test")
-    req(relay_test,'openWs("/hazrob/video/publish/hazrob-001",VIEW)',"wrong viewer token publisher rejection test")
-    req(relay_test,'liveProductionHealth()',"live Render/Hive health test")
-    req(relay_test,'mqttDiagnostic?.state,"pass"',"live HiveMQ diagnostic assertion")
+    # Relay role isolation plus local and live production contract coverage.
+    req(relay,'expected=role==="publisher"?c.publish:c.view','relay token isolation'); req(rtest,'openWs("/hazrob/video/view/hazrob-001",PUBLISH)','publisher token rejection'); req(rtest,'openWs("/hazrob/video/publish/hazrob-001",VIEW)','viewer token rejection'); req(rtest,'liveProductionHealth()','live health test'); req(rtest,'mqttDiagnostic?.state,"pass"','live Hive diagnostic')
 
     print("HazRob HR-0101-059 five-layer system coherence: PASS")
     print(f"Identity: 0.10.1 / protocol 2 / hazrob-001; cloud={hive}:8883 + {render}")
     print(f"Safety timing: Direct {direct}ms; Remote hold {hold}ms; watchdog {watchdog}ms; command TTL {ttl}ms")
     print("Control parity: Direct HTTP + Remote MQTT command families aligned")
-    print("Camera parity: local MJPEG priority + gateway/NAPT + CAM NTP + strict bootstrap + WSS role isolation")
+    print("Camera parity: local priority + gateway/NAPT + CAM NTP + strict bootstrap + WSS role isolation")
     print("Scope: source/integration qualified; physical RF/motor/camera acceptance remains PENDING")
     return 0
-
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HazRob HR-0101-059 five-layer system coherence: FAIL: {exc}")
-        raise SystemExit(1)
+        print(f"HazRob HR-0101-059 five-layer system coherence: FAIL: {exc}"); raise SystemExit(1)
