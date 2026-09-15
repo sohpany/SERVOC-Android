@@ -11,18 +11,27 @@ import java.security.SecureRandom;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /** One active bidirectional remote HazRob session. Commands and telemetry share the same RobotApi contract as Direct mode. */
 public final class RemoteConnection implements SecureMqtt311Client.Listener,AutoCloseable {
+    private static final long DRIVE_PUMP_MS=20,DRIVE_MIN_PUBLISH_MS=40,DRIVE_HOLD_REFRESH_MS=120;
     private static volatile RemoteConnection active;private static volatile boolean transportOwned=false;
     private final SecureMqtt311Client mqtt;private final String robotId,root,sessionId;private final AtomicLong sequence=new AtomicLong();private final SecureRandom random=new SecureRandom();
     private final ConcurrentHashMap<String,Pending> pending=new ConcurrentHashMap<>();
+    private final ScheduledExecutorService drivePump=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"HazRob-RemoteDrive");t.setDaemon(true);return t;});
+    private final AtomicLong driveRevision=new AtomicLong();
     private volatile JSONObject latestTelemetry,latestStatus;private volatile long telemetryAt;private volatile boolean disconnected;
+    private volatile int desiredDriveLeft=0,desiredDriveRight=0;private volatile long publishedDriveRevision=-1,lastDrivePublishAt=0,lastAckRttMs=-1;
     private static final class Pending{final CountDownLatch latch=new CountDownLatch(1);volatile JSONObject ack;}
 
-    private RemoteConnection(SecureMqtt311Client mqtt,String robotId){this.mqtt=mqtt;this.robotId=robotId;this.root="hazrob/"+robotId+"/";this.sessionId=UUID.randomUUID().toString();}
+    private RemoteConnection(SecureMqtt311Client mqtt,String robotId){
+        this.mqtt=mqtt;this.robotId=robotId;this.root="hazrob/"+robotId+"/";this.sessionId=UUID.randomUUID().toString();
+        drivePump.scheduleAtFixedRate(this::pumpDrive,0,DRIVE_PUMP_MS,TimeUnit.MILLISECONDS);
+    }
 
     public static synchronized RemoteConnection connect(Context context,SharedPreferences prefs)throws Exception{
         transportOwned=true;RemoteConnection previous=active;
@@ -38,25 +47,35 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     public static boolean transportOwned(){return transportOwned;}
     public static synchronized void releaseTransport(){transportOwned=false;RemoteConnection r=active;active=null;if(r!=null)r.close();}
     public boolean isConnected(){return mqtt.isConnected()&&!disconnected;}
-    public String robotId(){return robotId;}public String sessionId(){return sessionId;}public String operatorRole(){return "operator";}
+    public String robotId(){return robotId;}public String sessionId(){return sessionId;}public String operatorRole(){return "operator";}public long lastAckRttMs(){return lastAckRttMs;}
 
     public RemoteReadiness probe(long timeoutMs){
         boolean tls=isConnected(),mqttOk=tls,ack=false,telemetry=false;JSONObject status=latestStatus;
         try{JSONObject a=command("probe",new JSONObject(),2500,true,Math.max(1000,timeoutMs));ack=a!=null&&a.optBoolean("ok",false);}catch(Exception ignored){}
         long until=SystemClock.elapsedRealtime()+Math.max(500,timeoutMs);while(SystemClock.elapsedRealtime()<until){telemetry=latestTelemetry!=null&&SystemClock.elapsedRealtime()-telemetryAt<5000;status=latestStatus;if(ack&&telemetry)break;try{Thread.sleep(50);}catch(InterruptedException e){Thread.currentThread().interrupt();break;}}
-        boolean configured=true,wifi=status!=null&&status.optBoolean("wifi",ack),ip=status!=null&&status.optBoolean("ip_ok",wifi),dns=status!=null&&status.optBoolean("dns",ack),time=status!=null&&status.optBoolean("time",ack),internet=status!=null&&status.optBoolean("internet",ack);boolean ready=tls&&mqttOk&&ack&&telemetry;
-        return new RemoteReadiness(configured,wifi,ip,dns,time,internet,tls,mqttOk,ack,telemetry,false,ready,ready?"remote control/telemetry ready":"remote handshake incomplete");
+        boolean configured=true,wifi=status!=null&&status.optBoolean("wifi",ack),ip=status!=null&&status.optBoolean("ip_ok",wifi),dns=status!=null&&status.optBoolean("dns",ack),time=status!=null&&status.optBoolean("time",ack),internet=status!=null&&status.optBoolean("internet",ack);boolean ready=tls&&mqttOk&&ack&&telemetry;long age=telemetryAt==0?-1:SystemClock.elapsedRealtime()-telemetryAt;
+        String detail=ready?"remote ready • ack "+lastAckRttMs+" ms • telemetry age "+age+" ms":"remote handshake incomplete";
+        return new RemoteReadiness(configured,wifi,ip,dns,time,internet,tls,mqttOk,ack,telemetry,false,ready,detail);
     }
 
     public JSONObject command(String type,JSONObject payload,int ttlMs,boolean waitAck,long timeoutMs)throws Exception{
         if(!isConnected())throw new IllegalStateException("remote MQTT disconnected");
         long seq=sequence.incrementAndGet();String nonce=Long.toHexString(random.nextLong())+Long.toHexString(System.nanoTime());JSONObject cmd=RemoteCommandEnvelope.build(sessionId,seq,nonce,type,ttlMs,System.currentTimeMillis(),payload);
-        Pending p=null;if(waitAck){p=new Pending();pending.put(nonce,p);}try{mqtt.publish(root+"cmd",cmd.toString(),false);if(!waitAck)return null;if(!p.latch.await(Math.max(250,timeoutMs),TimeUnit.MILLISECONDS))throw new IOException("remote ACK timeout");JSONObject a=p.ack;if(a==null)throw new IOException("remote disconnected before ACK");if(!a.optBoolean("ok",false))throw new IOException("remote command rejected: "+a.optString("error","unknown"));return a;}finally{if(waitAck)pending.remove(nonce);}
+        Pending p=null;long started=SystemClock.elapsedRealtime();if(waitAck){p=new Pending();pending.put(nonce,p);}try{mqtt.publish(root+"cmd",cmd.toString(),false);if(!waitAck)return null;if(!p.latch.await(Math.max(250,timeoutMs),TimeUnit.MILLISECONDS))throw new IOException("remote ACK timeout");JSONObject a=p.ack;if(a==null)throw new IOException("remote disconnected before ACK");if(!a.optBoolean("ok",false))throw new IOException("remote command rejected: "+a.optString("error","unknown"));lastAckRttMs=Math.max(0,SystemClock.elapsedRealtime()-started);return a;}finally{if(waitAck)pending.remove(nonce);}
     }
 
-    public void drive(int left,int right)throws Exception{JSONObject p=new JSONObject();p.put("left",left);p.put("right",right);command("drive",p,700,false,0);}
-    public void motionStop()throws Exception{command("motion_stop",new JSONObject(),1500,false,0);}
-    public void emergencyStop()throws Exception{command("estop",new JSONObject(),3000,true,2500);}
+    private void setDesiredDrive(int left,int right){desiredDriveLeft=Math.max(-100,Math.min(100,left));desiredDriveRight=Math.max(-100,Math.min(100,right));driveRevision.incrementAndGet();}
+    private void pumpDrive(){
+        if(!isConnected())return;long now=SystemClock.elapsedRealtime(),revision=driveRevision.get();int left=desiredDriveLeft,right=desiredDriveRight;boolean changed=revision!=publishedDriveRevision,moving=left!=0||right!=0;
+        if(!changed&&(!moving||now-lastDrivePublishAt<DRIVE_HOLD_REFRESH_MS))return;
+        boolean stopTransition=changed&&left==0&&right==0;if(!stopTransition&&now-lastDrivePublishAt<DRIVE_MIN_PUBLISH_MS)return;
+        try{JSONObject p=new JSONObject();p.put("left",left);p.put("right",right);command("drive",p,900,false,0);publishedDriveRevision=revision;lastDrivePublishAt=SystemClock.elapsedRealtime();}catch(Exception ignored){}
+    }
+
+    /** Updates the desired remote command immediately; the dedicated pump publishes only the newest value, never a backlog. */
+    public void drive(int left,int right)throws Exception{if(!isConnected())throw new IllegalStateException("remote MQTT disconnected");setDesiredDrive(left,right);}
+    public void motionStop()throws Exception{setDesiredDrive(0,0);command("motion_stop",new JSONObject(),1500,true,1500);}
+    public void emergencyStop()throws Exception{setDesiredDrive(0,0);command("estop",new JSONObject(),3000,true,2500);}
     public void emergencyReset()throws Exception{command("estop_reset",new JSONObject(),3000,true,2500);}
     public void sensorOff()throws Exception{command("sensor_off",new JSONObject(),3000,true,2500);}
     public void heartbeat()throws Exception{command("heartbeat",new JSONObject(),2500,false,0);}
@@ -74,5 +93,5 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     @Override public void onMessage(String topic,String payload){try{JSONObject j=new JSONObject(payload);if(topic.equals(root+"ack")){String nonce=j.optString("nonce","");Pending p=pending.get(nonce);if(p!=null){p.ack=j;p.latch.countDown();}}else if(topic.equals(root+"telemetry")){latestTelemetry=j;telemetryAt=SystemClock.elapsedRealtime();}else if(topic.equals(root+"status")){latestStatus=j;}}catch(Exception ignored){}}
     @Override public void onDisconnected(Exception error){disconnected=true;for(Pending p:pending.values())p.latch.countDown();}
 
-    @Override public synchronized void close(){if(active==this)active=null;disconnected=true;mqtt.close();for(Pending p:pending.values())p.latch.countDown();pending.clear();}
+    @Override public synchronized void close(){if(active==this)active=null;disconnected=true;drivePump.shutdownNow();mqtt.close();for(Pending p:pending.values())p.latch.countDown();pending.clear();}
 }
