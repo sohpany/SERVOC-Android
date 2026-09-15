@@ -18,7 +18,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /** One active bidirectional remote HazRob session. Commands and telemetry share the same RobotApi contract as Direct mode. */
 public final class RemoteConnection implements SecureMqtt311Client.Listener,AutoCloseable {
-    private static final long DRIVE_PUMP_MS=20,DRIVE_MIN_PUBLISH_MS=40,DRIVE_HOLD_REFRESH_MS=120;
     private static volatile RemoteConnection active;private static volatile boolean transportOwned=false;
     private final SecureMqtt311Client mqtt;private final String robotId,root,sessionId;private final AtomicLong sequence=new AtomicLong();private final SecureRandom random=new SecureRandom();
     private final ConcurrentHashMap<String,Pending> pending=new ConcurrentHashMap<>();
@@ -30,7 +29,7 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
 
     private RemoteConnection(SecureMqtt311Client mqtt,String robotId){
         this.mqtt=mqtt;this.robotId=robotId;this.root="hazrob/"+robotId+"/";this.sessionId=UUID.randomUUID().toString();
-        drivePump.scheduleAtFixedRate(this::pumpDrive,0,DRIVE_PUMP_MS,TimeUnit.MILLISECONDS);
+        drivePump.scheduleAtFixedRate(this::pumpDrive,0,RemoteDrivePolicy.PUMP_MS,TimeUnit.MILLISECONDS);
     }
 
     public static synchronized RemoteConnection connect(Context context,SharedPreferences prefs)throws Exception{
@@ -66,10 +65,9 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
 
     private void setDesiredDrive(int left,int right){desiredDriveLeft=Math.max(-100,Math.min(100,left));desiredDriveRight=Math.max(-100,Math.min(100,right));driveRevision.incrementAndGet();}
     private void pumpDrive(){
-        if(!isConnected())return;long now=SystemClock.elapsedRealtime(),revision=driveRevision.get();int left=desiredDriveLeft,right=desiredDriveRight;boolean changed=revision!=publishedDriveRevision,moving=left!=0||right!=0;
-        if(!changed&&(!moving||now-lastDrivePublishAt<DRIVE_HOLD_REFRESH_MS))return;
-        boolean stopTransition=changed&&left==0&&right==0;if(!stopTransition&&now-lastDrivePublishAt<DRIVE_MIN_PUBLISH_MS)return;
-        try{JSONObject p=new JSONObject();p.put("left",left);p.put("right",right);command("drive",p,900,false,0);publishedDriveRevision=revision;lastDrivePublishAt=SystemClock.elapsedRealtime();}catch(Exception ignored){}
+        if(!isConnected())return;long now=SystemClock.elapsedRealtime(),revision=driveRevision.get();int left=desiredDriveLeft,right=desiredDriveRight;boolean changed=revision!=publishedDriveRevision;
+        if(!RemoteDrivePolicy.due(now,lastDrivePublishAt,changed,left,right))return;
+        try{JSONObject p=new JSONObject();p.put("left",left);p.put("right",right);command("drive",p,RemoteDrivePolicy.COMMAND_TTL_MS,false,0);publishedDriveRevision=revision;lastDrivePublishAt=SystemClock.elapsedRealtime();}catch(Exception ignored){}
     }
 
     /** Updates the desired remote command immediately; the dedicated pump publishes only the newest value, never a backlog. */
