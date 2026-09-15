@@ -4,9 +4,9 @@
 This supplements audit_0101_integration_contract.py. It deliberately checks the
 cross-file scientific contract introduced by HR047 rather than re-testing numerical
 unit behaviour already covered by JUnit. On the consolidated 0.10.1 branch it also
-invokes HR048 drive, HR049 control/remote and HR050 field-operability contracts so
-the release gate cannot pass with steering, latency, Remote, sensor-visibility or
-reproducibility drift.
+invokes HR048 drive, HR049 control/remote, HR050 field-operability and HR051 camera
+recovery contracts so the release gate cannot pass with steering, latency, Remote,
+sensor-visibility, reproducibility or camera-path drift.
 """
 from pathlib import Path
 import os
@@ -48,7 +48,6 @@ def main() -> int:
     r0_app = txt("app/src/main/java/com/servoc/app/calibration/FieldR0Baseline.java")
     r0_fw = txt("firmware/HazRob/Config.h")
 
-    # 1) Controlled offline flammability seed must be pinned and fail-closed in the build.
     seed_sha = "457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434"
     req(gradle, seed_sha, "Gradle flammability pin")
     req(gradle, "HazRob flammability seed SHA-256 mismatch", "Gradle fail-closed seed verification")
@@ -57,13 +56,11 @@ def main() -> int:
     req(fl_import, '"LFL"', "flammability importer LFL")
     req(fl_import, '"UFL"', "flammability importer UFL")
 
-    # 2) Toxicological interpretation is gas/ppm-only; no implicit mass-unit conversion.
     req(gas, 'SCHEMA="hazrob-gas-exposure-ppm/2"', "gas safety schema")
     req(gas, 'unit_policy","TOXICOLOGY_PPM_ONLY_NO_MASS_CONCENTRATION_CONVERSION', "ppm-only policy")
     req(gas, 'if(!isPpmUnit(l.unit)){nonPpm++;continue;}', "non-ppm exclusion")
     req(gas_test, "massConcentrationLimitsAreExcludedWithoutConversion", "ppm-only regression")
 
-    # 3) Quantitative safety is impossible before the complete M4/reportable identity gate.
     for needle in [
         'ppm_reportable',
         'quantitative_occupational_interpretation_permitted',
@@ -74,7 +71,6 @@ def main() -> int:
         req(gas, needle, "M4/reportability gate")
     req(decision_repo, "GasPpmExposureAssessment.evaluate", "session-bound gas safety enrichment")
 
-    # 4) Flammability ratio and markers retain the exact HR047 semantics.
     req(gas, "PPM_PER_VOL_PERCENT=10_000.0", "vol-percent conversion")
     req(gas, 'lfl_threshold_crossed', "LFL threshold state")
     req(gas, 'symbols(toxicReferenceCrossed,flame)', "hazard symbols")
@@ -82,7 +78,6 @@ def main() -> int:
     req(gas, 'if(flame)s.append("🔥")', "flame marker")
     req(gas_test, "lflUsesVolPercentToPpmAndFlameOnlyAtFullLfl", "LFL marker regression")
 
-    # 5) Relative hazard is the default safety order; absolute ppm remains an operator view only.
     req(priority, "enum Mode { HAZARD, CONCENTRATION }", "sort modes")
     req(priority, 'return mode==Mode.CONCENTRATION?"التركيز":"الخطر"', "Arabic sort labels")
     req(priority, 'hazard_priority_ratio', "hazard sort key")
@@ -90,20 +85,17 @@ def main() -> int:
     req(priority_test, "hazardSortPrioritizesSixPpmAtFivePpmLimitOverThreeHundredPpmAtOneThousandPpmLimit", "relative-hazard regression")
     req(priority_test, "concentrationSortIsAvailableWithoutChangingHazardScores", "concentration-view regression")
 
-    # 6) Identity ranking remains separate; safety list has an explicit UI sort control.
     req(panel, "GasHazardPriority.Mode.HAZARD", "default hazard UI")
     req(panel, "Mode.CONCENTRATION", "concentration UI option")
     req(analysis_tab, "GasSafetyFindingsPanel", "analysis-tab safety panel")
     forbid(priority, "posterior", "safety sorter must not mutate identity ranking")
 
-    # 7) The same session-bound enriched payload reaches both report formats.
     req(pdf, "GasPpmExposureAssessment.KEY", "PDF gas payload")
     req(pdf, "gasSafety(c,gas)", "PDF gas safety page")
     req(xlsx, '"سلامة الغاز"', "XLSX gas safety worksheet")
     req(xlsx, "gasSafetySheet(chemcore)", "XLSX session-bound gas safety")
     req(xlsx, 'sheet7.xml', "XLSX 7-sheet contract")
 
-    # 8) App and main firmware carry the same accepted HR045 R0 campaign/value set.
     req(r0_app, 'SESSION="FIELD-R0-3SESSION-20260913"', "app R0 campaign")
     req(r0_fw, 'R0_SESSION[]="FIELD-R0-3SESSION-20260913"', "firmware R0 campaign")
     app_vals = dict(re.findall(r'case "(mq\d+)": return ([0-9.]+);', r0_app))
@@ -115,7 +107,6 @@ def main() -> int:
         if abs(a-b) > max(1e-5, abs(a)*1e-6):
             raise AssertionError(f"R0 mismatch {key}: app={a} fw={b}")
 
-    # 9) Consolidated-branch release gate also executes HR048 drive invariants.
     old_skip = os.environ.get("HR048_SKIP_INTEGRATION")
     os.environ["HR048_SKIP_INTEGRATION"] = "1"
     try:
@@ -129,24 +120,26 @@ def main() -> int:
         else:
             os.environ["HR048_SKIP_INTEGRATION"] = old_skip
 
-    # 10) HR049 remains mandatory for Direct/Remote control behaviour.
     from audit_hr049_control_remote_contract import main as control_remote_main
     hr049_rc = control_remote_main()
     if hr049_rc not in (None, 0):
         raise AssertionError(f"HR049 control/remote contract returned {hr049_rc}")
 
-    # 11) HR050 is mandatory for field operability, split ENV I2C, bounded Remote admission,
-    # practical sensor visibility, reports/phone alert access, adaptive video and reproducibility.
     from audit_hr050_field_operability_contract import main as field_operability_main
     hr050_rc = field_operability_main()
     if hr050_rc not in (None, 0):
         raise AssertionError(f"HR050 field-operability contract returned {hr050_rc}")
 
+    from audit_hr051_camera_contract import main as camera_main
+    hr051_rc = camera_main()
+    if hr051_rc not in (None, 0):
+        raise AssertionError(f"HR051 camera recovery contract returned {hr051_rc}")
+
     print("HazRob HR-0101-047 gas-safety integration gate: PASS")
     print("Policy: reportable M4 ppm -> ppm-only health refs + pinned LFL/UFL -> relative hazard")
     print("Sort modes: hazard_priority_ratio_desc (default), ppm_desc (operator view)")
     print("R0 authority: FIELD-R0-3SESSION-20260913 synchronized app <-> ESP32 source")
-    print("Consolidated release gate: HR048 PASS; HR049 PASS; HR050 PASS")
+    print("Consolidated release gate: HR048 PASS; HR049 PASS; HR050 PASS; HR051 PASS")
     return 0
 
 
@@ -154,5 +147,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HazRob HR-0101-047/048/049/050 release gate: FAIL: {exc}")
+        print(f"HazRob HR-0101-047/048/049/050/051 release gate: FAIL: {exc}")
         raise SystemExit(1)
