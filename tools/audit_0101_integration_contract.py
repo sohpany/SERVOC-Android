@@ -36,7 +36,6 @@ def main() -> int:
     link_service = text("app/src/main/java/com/servoc/app/communication/RobotLinkService.java")
     manifest = text("app/src/main/AndroidManifest.xml")
 
-    # Release + current hardware authority.
     require(cfg, 'FW[]="HazRob 0.10.1"', "master identity")
     require(cam, 'FW[]="HazRob-CAM 0.10.1"', "camera identity")
     for needle in [
@@ -52,7 +51,6 @@ def main() -> int:
     ]:
         require(cfg, needle, "hardware authority")
 
-    # Canonical Direct network and protocol.
     require(local, 'ROBOT_SSID="HazRob"', "Android direct SSID")
     require(local, 'ROBOT_HOST="192.168.4.1"', "Android direct robot host")
     require(local, 'CAMERA_HOST="192.168.4.2"', "Android direct camera host")
@@ -71,7 +69,6 @@ def main() -> int:
     forbid(master, '#include <WiFiUdp.h>', "Direct must not compile UDP transport")
     forbid(master, 'driveUdp.begin(', "Direct must not start UDP drive")
 
-    # RemoteLink may manage STA association only; it must not own the global radio mode.
     require(remote_h, 'remoteSetTransportEnabled', "remote transport switch API")
     require(remote, 'transportEnabled=wan.getBool("enabled",false)', "remote mode persistence")
     require(remote, 'if(!transportEnabled){dnsOk=timeOk=false;return;}', "remote loop disabled in Direct")
@@ -82,7 +79,6 @@ def main() -> int:
     require(mqtt, 't=="drive"', "Remote MQTT drive")
     require(mqtt, 't=="estop"', "Remote MQTT estop")
 
-    # Direct HTTP is the only Android local drive authority; 20 Hz UDP remnants must not execute.
     require(robot_api, 'HTTP for Direct control/telemetry, MQTT for Remote', "Android transport authority")
     require(robot_api, 'DIRECT_KEEPALIVE_MS=250L', "Direct HTTP keepalive cadence")
     require(robot_api, 'getText("/drive?l="+left+"&r="+right,450)', "Direct HTTP drive")
@@ -90,8 +86,6 @@ def main() -> int:
     forbid(robot_api, 'DatagramSocket', "Android Direct UDP removed")
     forbid(robot_api, 'sendDriveDatagram', "Android Direct UDP removed")
 
-    # Android must explicitly request/hold the local-only HazRob network instead of relying on an
-    # already-associated network that the OS may abandon for lack of Internet.
     require(manifest, 'android.permission.NEARBY_WIFI_DEVICES', "Android 13+ Wi-Fi permission")
     require(manifest, 'android.permission.ACCESS_FINE_LOCATION', "Android 10-12 Wi-Fi permission")
     require(wifi_route, 'WifiNetworkSpecifier.Builder().setSsid(LocalNetworkContract.ROBOT_SSID)', "HazRob local-only request")
@@ -105,8 +99,6 @@ def main() -> int:
     require(link_service, 'RobotApi.setOperatorForeground(foreground)', "background motion interlock")
     require(link_service, 'failStopForBackground', "background fail-stop")
 
-    # Camera: keep proven local path and only allow WSS when the gateway explicitly reports that
-    # Remote + Internet + NAPT are ready. A local MJPEG viewer owns capture priority.
     require(cam, 'IPAddress ip(192,168,4,2)', "camera local IP")
     require(cam, 'gw(192,168,4,1)', "camera gateway")
     require(cam, 'WebServer web(80)', "camera status server")
@@ -119,14 +111,13 @@ def main() -> int:
     require(cam, 'remoteVideoSetLocalActive(true)', "local viewer capture priority")
     require(cam, 'remoteVideoSetLocalActive(false)', "local viewer release")
     require(cam, 'gatewayRemoteReady()', "camera gateway remote gate")
-    require(cam, '\"radio_profile\":\"remote\"', "camera requires Remote radio profile")
-    require(cam, '\"internet\":true', "camera requires gateway Internet")
-    require(cam, '\"napt\":true', "camera requires NAPT")
+    require(cam, '\\"radio_profile\\":\\"remote\\"', "camera requires Remote radio profile")
+    require(cam, '\\"internet\\":true', "camera requires gateway Internet")
+    require(cam, '\\"napt\\":true', "camera requires NAPT")
     require(cam, 'if(clients)return;', "camera does not poll gateway during local stream")
     require(cam_remote, 'if(localActive||!RemoteVideoCfg::configured()', "remote handshake blocked during local view")
     require(cam_remote, 'if(localActive&&!connected)', "remote connection attempt blocked during local view")
 
-    # Deterministic state-table sanity checks for the intended authority split.
     state = {
         "DIRECT": {"radio":"AP", "http_drive":True, "mqtt":False, "napt":False, "wss":False},
         "REMOTE": {"radio":"AP_STA", "http_drive":False, "mqtt":True, "napt":"internet_ready", "wss":"gateway_ready"},
