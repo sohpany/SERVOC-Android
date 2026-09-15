@@ -28,7 +28,7 @@ String expectedAccept(const String& key){String in=key+WS_GUID;uint8_t digest[20
 
 bool bootstrapPublishToken(bool force=false){
   if(!force&&credentialReady&&publishToken.length()>=8)return true;
-  if(WiFi.status()!=WL_CONNECTED||!RemoteVideoCfg::configured())return false;
+  if(WiFi.status()!=WL_CONNECTED||!RemoteVideoCfg::configured()||localActive)return false;
   WiFiClientSecure c;c.setCACert(RemoteVideoCfg::ROOT_CA);c.setTimeout(4);
   if(!c.connect(RemoteVideoCfg::HOST,RemoteVideoCfg::PORT))return publishToken.length()>=8;
   c.print("GET "+String(RemoteVideoCfg::BOOTSTRAP_PATH)+" HTTP/1.1\r\nHost: "+RemoteVideoCfg::HOST+"\r\nAuthorization: Bearer "+RemoteVideoCfg::BOOTSTRAP_TOKEN+"\r\nX-HazRob-Client: esp32-cam\r\nAccept: application/json\r\nConnection: close\r\n\r\n");
@@ -44,7 +44,7 @@ bool bootstrapPublishToken(bool force=false){
 bool readLine(String& line,uint32_t timeoutMs){line="";uint32_t until=millis()+timeoutMs;while((int32_t)(until-millis())>0&&ws.connected()){while(ws.available()){char c=(char)ws.read();if(c=='\n'){line.trim();return true;}if(c!='\r')line+=c;if(line.length()>2048)return false;}delay(1);}return false;}
 
 bool handshake(){
-  if(!RemoteVideoCfg::configured()||WiFi.status()!=WL_CONNECTED||!bootstrapPublishToken(false))return false;
+  if(localActive||!RemoteVideoCfg::configured()||WiFi.status()!=WL_CONNECTED||!bootstrapPublishToken(false))return false;
   ws.stop();ws.setCACert(RemoteVideoCfg::ROOT_CA);ws.setTimeout(5);
   if(!ws.connect(RemoteVideoCfg::HOST,RemoteVideoCfg::PORT)){connectErrors++;return false;}
   uint8_t nonce[16];esp_fill_random(nonce,sizeof(nonce));String key=b64(nonce,sizeof(nonce));if(key.isEmpty()){ws.stop();connectErrors++;return false;}
@@ -57,38 +57,23 @@ bool handshake(){
 
 void scheduleRetry(){uint32_t now=millis(),wait=retryDelayMs;nextConnectAt=now+wait;uint64_t doubled=(uint64_t)retryDelayMs*2ULL;retryDelayMs=(uint32_t)min((uint64_t)RemoteVideoCfg::RETRY_MAX_MS,doubled);}
 void resetRetry(){retryDelayMs=RemoteVideoCfg::RETRY_MIN_MS;nextConnectAt=0;}
-
 void writeLength(size_t len){if(len<=125)ws.write((uint8_t)(0x80|len));else if(len<=65535){ws.write((uint8_t)(0x80|126));ws.write((uint8_t)(len>>8));ws.write((uint8_t)len);}else{ws.write((uint8_t)(0x80|127));for(int i=7;i>=0;i--)ws.write((uint8_t)(((uint64_t)len>>(8*i))&0xFF));}}
-
-bool sendMaskedFrame(uint8_t opcode,const uint8_t* data,size_t len){
-  if(!ws.connected())return false;ws.write((uint8_t)(0x80|(opcode&0x0F)));writeLength(len);uint8_t mask[4];esp_fill_random(mask,4);ws.write(mask,4);uint8_t temp[768];size_t pos=0;while(pos<len){size_t n=min(sizeof(temp),len-pos);for(size_t i=0;i<n;i++)temp[i]=data[pos+i]^mask[(pos+i)&3];size_t w=ws.write(temp,n);if(w!=n)return false;pos+=n;}ws.flush();return ws.connected();
-}
-
-bool readServerFrame(){
-  if(!ws.available())return true;int b0=ws.read();if(b0<0)return false;uint32_t until=millis()+250;while(!ws.available()&&(int32_t)(until-millis())>0)delay(1);if(!ws.available())return false;int b1=ws.read();uint8_t opcode=b0&0x0F;uint64_t len=b1&0x7F;if(len==126){int a=ws.read(),b=ws.read();if(a<0||b<0)return false;len=((uint16_t)a<<8)|(uint16_t)b;}else if(len==127){len=0;for(int i=0;i<8;i++){int x=ws.read();if(x<0)return false;len=(len<<8)|(uint8_t)x;}}if(len>125&&opcode>=8)return false;uint8_t payload[125];size_t got=0;while(got<len){if(!ws.available()){if((int32_t)(until-millis())<=0)return false;delay(1);continue;}payload[got++]=(uint8_t)ws.read();}
-  if(opcode==8)return false;if(opcode==9)return sendMaskedFrame(10,payload,(size_t)len);return true;
-}
-
-void adaptPacing(uint32_t workMs){
-  lastFrameWorkMs=workMs;uint32_t cur=frameIntervalMs;
-  // If capture+send consumes nearly the entire interval, back off. If there is sustained headroom,
-  // move back toward the 55 ms target. No frame queue is introduced.
-  if(workMs+6>=cur){frameIntervalMs=min(RemoteVideoCfg::FRAME_INTERVAL_MAX_MS,cur+RemoteVideoCfg::FRAME_INTERVAL_STEP_MS);}
-  else if(cur>RemoteVideoCfg::FRAME_INTERVAL_MIN_MS&&workMs+20<cur){uint32_t step=min(RemoteVideoCfg::FRAME_INTERVAL_STEP_MS,cur-RemoteVideoCfg::FRAME_INTERVAL_MIN_MS);frameIntervalMs=cur-step;}
-}
+bool sendMaskedFrame(uint8_t opcode,const uint8_t* data,size_t len){if(!ws.connected())return false;ws.write((uint8_t)(0x80|(opcode&0x0F)));writeLength(len);uint8_t mask[4];esp_fill_random(mask,4);ws.write(mask,4);uint8_t temp[768];size_t pos=0;while(pos<len){size_t n=min(sizeof(temp),len-pos);for(size_t i=0;i<n;i++)temp[i]=data[pos+i]^mask[(pos+i)&3];size_t w=ws.write(temp,n);if(w!=n)return false;pos+=n;}ws.flush();return ws.connected();}
+bool readServerFrame(){if(!ws.available())return true;int b0=ws.read();if(b0<0)return false;uint32_t until=millis()+250;while(!ws.available()&&(int32_t)(until-millis())>0)delay(1);if(!ws.available())return false;int b1=ws.read();uint8_t opcode=b0&0x0F;uint64_t len=b1&0x7F;if(len==126){int a=ws.read(),b=ws.read();if(a<0||b<0)return false;len=((uint16_t)a<<8)|(uint16_t)b;}else if(len==127){len=0;for(int i=0;i<8;i++){int x=ws.read();if(x<0)return false;len=(len<<8)|(uint8_t)x;}}if(len>125&&opcode>=8)return false;uint8_t payload[125];size_t got=0;while(got<len){if(!ws.available()){if((int32_t)(until-millis())<=0)return false;delay(1);continue;}payload[got++]=(uint8_t)ws.read();}if(opcode==8)return false;if(opcode==9)return sendMaskedFrame(10,payload,(size_t)len);return true;}
+void adaptPacing(uint32_t workMs){lastFrameWorkMs=workMs;uint32_t cur=frameIntervalMs;if(workMs+6>=cur)frameIntervalMs=min(RemoteVideoCfg::FRAME_INTERVAL_MAX_MS,cur+RemoteVideoCfg::FRAME_INTERVAL_STEP_MS);else if(cur>RemoteVideoCfg::FRAME_INTERVAL_MIN_MS&&workMs+20<cur){uint32_t step=min(RemoteVideoCfg::FRAME_INTERVAL_STEP_MS,cur-RemoteVideoCfg::FRAME_INTERVAL_MIN_MS);frameIntervalMs=cur-step;}}
 
 void remoteTask(void*){
   uint32_t nextFrame=0;
   while(running){
     if(!RemoteVideoCfg::configured()||WiFi.status()!=WL_CONNECTED){if(ws.connected())ws.stop();connected=false;vTaskDelay(pdMS_TO_TICKS(500));continue;}
+    if(localActive&&!connected){vTaskDelay(pdMS_TO_TICKS(50));continue;}
     if(!ws.connected()||!connected){
       connected=false;uint32_t now=millis();if(nextConnectAt&&(int32_t)(now-nextConnectAt)<0){vTaskDelay(pdMS_TO_TICKS(100));continue;}
+      if(localActive){vTaskDelay(pdMS_TO_TICKS(50));continue;}
       if(!handshake()){scheduleRetry();vTaskDelay(pdMS_TO_TICKS(100));continue;}resetRetry();frameIntervalMs=RemoteVideoCfg::FRAME_INTERVAL_MIN_MS;nextFrame=millis();
     }
     while(ws.available()){if(!readServerFrame()){ws.stop();connected=false;scheduleRetry();break;}}
     if(!connected)continue;
-    // Local MJPEG is latency-critical. Keep the WSS session alive, but do not contend for the
-    // camera mutex or JPEG encoder while a direct viewer is connected.
     if(localActive){vTaskDelay(pdMS_TO_TICKS(20));continue;}
     uint32_t now=millis();if((int32_t)(now-nextFrame)<0){vTaskDelay(pdMS_TO_TICKS(3));continue;}uint32_t interval=frameIntervalMs;nextFrame=now+interval;
     uint32_t workStart=millis();size_t len=0;if(!captureFn||!captureFn(frameBuf,RemoteVideoCfg::MAX_JPEG,len)||!len){vTaskDelay(pdMS_TO_TICKS(5));continue;}
