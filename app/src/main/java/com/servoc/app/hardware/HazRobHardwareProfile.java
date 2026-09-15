@@ -6,7 +6,7 @@ import com.servoc.app.chemical.GasEngine;
 public final class HazRobHardwareProfile {
     private HazRobHardwareProfile(){}
 
-    public static final String ID="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1";
+    public static final String ID="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2";
     public static final String DRIVE_DRIVER="L298N";
     /** HR048 remediation candidate: logical LEFT -> L298N channel B; post-flash physical acceptance is still required. */
     public static final int DRIVE_L_EN=17;
@@ -28,17 +28,20 @@ public final class HazRobHardwareProfile {
     public static final int LDR_GPIO=34;
     public static final boolean LDR_QUANTITATIVE_LUX=false;
     public static final int IR_GPIO=35;
+    public static final int IR_GROUND_ACTIVE_LEVEL=0;
     public static final int SOUND_GPIO=36;
     public static final int BATTERY_ADC_GPIO=33;
     public static final int ULTRASONIC_TRIG_GPIO=23;
     public static final int ULTRASONIC_ECHO_GPIO=39;
-    /** Reserved only. No temperature-sensor model/driver is assumed until hardware is purchased. */
-    public static final int INTERNAL_TEMP_RESERVED_GPIO=14;
     public static final boolean INTERNAL_TEMP_INSTALLED=false;
 
+    /** Analytical I2C bus: ADS1115 #1/#2 only after HR050. */
     public static final int I2C_SDA_GPIO=21;
     public static final int I2C_SCL_GPIO=22;
-    /** Future BH1750-style quantitative illuminance may share I2C; no lux sensor is installed in 0.10.1. */
+    /** Dedicated environmental I2C bus: BME280/BMP280 only. */
+    public static final int ENV_I2C_SDA_GPIO=13;
+    public static final int ENV_I2C_SCL_GPIO=14;
+    /** Future BH1750-style quantitative illuminance requires an explicit bus assignment; no lux sensor is installed in 0.10.1. */
     public static final boolean LUX_SENSOR_INSTALLED=false;
 
     /** Software acquisition contract assumes ADS1115 VDD=5 V; HR048 physical acceptance must confirm the assembled supply domain. */
