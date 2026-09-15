@@ -5,6 +5,7 @@ import { WebSocket } from "ws";
 
 const PORT=31941;
 const BASE=`http://127.0.0.1:${PORT}`;
+const LIVE_HEALTH=process.env.HAZROB_LIVE_HEALTH_URL||"https://hazrob-video-relay.onrender.com/health";
 const BOOT="bootstrap-token-01",APP_PASS="app-password-01",ROBOT_PASS="robot-password-01",VIEW="view-token-01",PUBLISH="publish-token-01";
 const child=spawn(process.execPath,["src/index.js"],{
   cwd:new URL("..",import.meta.url),
@@ -17,8 +18,16 @@ function request(path,headers={}){return new Promise((resolve,reject)=>{const re
 async function waitHealth(){for(let i=0;i<50;i++){try{const r=await request("/health");if(r.status===200)return r.body;}catch{}await new Promise(r=>setTimeout(r,100));}throw new Error("relay did not start: "+stderr);}
 function auth(token){return{Authorization:`Bearer ${token}`};}
 function bootstrap(role){return request("/hazrob/bootstrap",{...auth(BOOT),"X-HazRob-Client":role});}
-function openWs(path,token){return new Promise((resolve,reject)=>{const ws=new WebSocket(`ws://127.0.0.1:${PORT}${path}`,{headers:auth(token)});const timer=setTimeout(()=>{try{ws.terminate();}catch{}reject(new Error("WebSocket open timeout"));},3000);ws.once("open",()=>{clearTimeout(timer);resolve(ws);});ws.once("error",e=>{clearTimeout(timer);reject(e);});});}
+function openWs(path,token){return new Promise((resolve,reject)=>{const ws=new WebSocket(`ws://127.0.0.1:${PORT}${path}`,{headers:auth(token)});const timer=setTimeout(()=>{try{ws.terminate();}catch{}reject(new Error("WebSocket open timeout"));},3000);ws.once("open",()=>{clearTimeout(timer);resolve(ws);});ws.once("error",e=>{clearTimeout(timer);reject(e);});ws.once("unexpected-response",(_req,res)=>{clearTimeout(timer);reject(new Error(`unexpected HTTP ${res.statusCode}`));});});}
 function oneMessage(ws){return new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error("frame timeout")),3000);ws.once("message",(data,isBinary)=>{clearTimeout(timer);resolve({data:Buffer.from(data),isBinary});});});}
+async function liveProductionHealth(){
+  const response=await fetch(LIVE_HEALTH,{headers:{"User-Agent":"hazrob-contract-0.10.1","Cache-Control":"no-store"},signal:AbortSignal.timeout(10000)});
+  assert.equal(response.status,200);const h=await response.json();
+  assert.equal(h.ok,true);assert.equal(h.service,"hazrob-video-relay");assert.equal(h.version,"0.10.1");assert.equal(h.protocol,2);
+  assert.equal(h.videoAuthConfigured,true);assert.equal(h.mqttAppConfigured,true);assert.equal(h.mqttRobotConfigured,true);assert.equal(h.bootstrapConfigured,true);
+  assert.equal(h.mqttDiagnostic?.state,"pass");
+  return h;
+}
 
 try{
   const health=await waitHealth();
@@ -29,6 +38,11 @@ try{
   r=await bootstrap("esp32-cam");assert.equal(r.status,200);assert.equal(r.body.client,"esp32-cam");assert.equal(r.body.video_publish_token,PUBLISH);assert.equal("mqtt_password" in r.body,false);assert.equal("video_view_token" in r.body,false);
   r=await request("/hazrob/bootstrap",auth(BOOT));assert.equal(r.status,200);assert.equal(r.body.client,"legacy");assert.equal(r.body.video_publish_token,PUBLISH);assert.equal(r.body.video_view_token,VIEW);
   r=await request("/hazrob/bootstrap",auth("wrong-token"));assert.equal(r.status,401);
+  r=await bootstrap("unknown-client");assert.equal(r.status,400);
+
+  await assert.rejects(openWs("/hazrob/video/view/hazrob-001",PUBLISH));
+  await assert.rejects(openWs("/hazrob/video/publish/hazrob-001",VIEW));
+  r=await request("/hazrob/video/status/hazrob-001");assert.equal(r.status,401);
 
   const viewer=await openWs("/hazrob/video/view/hazrob-001",VIEW);
   const publisher=await openWs("/hazrob/video/publish/hazrob-001",PUBLISH);
@@ -36,7 +50,10 @@ try{
   const incoming=oneMessage(viewer);publisher.send(jpeg,{binary:true});const msg=await incoming;assert.equal(msg.isBinary,true);assert.deepEqual(msg.data,jpeg);
   r=await request("/hazrob/video/status/hazrob-001",auth(VIEW));assert.equal(r.status,200);assert.equal(r.body.publisher_online,true);assert.ok(r.body.frames>=1);assert.equal(r.body.last_frame_bytes,jpeg.length);
   viewer.close();publisher.close();
-  console.log("HazRob 0.10.1 relay contract: PASS");
+  console.log("HazRob 0.10.1 relay local contract: PASS");
+
+  const live=await liveProductionHealth();
+  console.log("HazRob 0.10.1 live Render/HiveMQ health: PASS "+JSON.stringify({version:live.version,protocol:live.protocol,videoAuthConfigured:live.videoAuthConfigured,mqttAppConfigured:live.mqttAppConfigured,mqttRobotConfigured:live.mqttRobotConfigured,bootstrapConfigured:live.bootstrapConfigured,mqttDiagnostic:live.mqttDiagnostic?.state}));
 } finally {
   child.kill("SIGTERM");
 }
