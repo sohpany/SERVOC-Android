@@ -51,7 +51,7 @@ def main():
     req(rvcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"',"CAM bootstrap version")
     req(rvcfg,'BOOTSTRAP_PROTOCOL=2',"CAM bootstrap protocol")
     req(relay,'SERVICE_VERSION="0.10.1",PROTOCOL=2',"Render version/protocol")
-    req(gradle,'versionName "0.10.1"',"APK version")
+    req(gradle,"versionName '0.10.1'","APK version")
     req(gradle,'versionCode 21',"APK versionCode")
     for src,label in [(rcfg,"main"),(rvcfg,"CAM")]: req(src,'ROBOT_ID[]="hazrob-001"',label+" robot id")
     req(service,'ROBOT_ID="hazrob-001"',"Android robot id")
