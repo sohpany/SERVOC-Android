@@ -42,12 +42,13 @@ public final class RobotConnectionSetupTab {
         root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
 
         root.addView(UiKit.title(c,"تهيئة اتصال الروبوت"),UiKit.full(c));
-        TextView note=UiKit.small(c,"تهيئة الشبكة الخارجية واستكشافها تتم عبر اتصال مؤقت بشبكة HazRob المحلية. بعد حفظ الشبكة يستطيع الروبوت استخدام الإنترنت والاتصال البعيد، بينما تبقى شبكة HazRob متاحة للاتصال المباشر.");
+        TextView note=UiKit.small(c,"تهيئة الشبكة الخارجية واستكشافها تتم عبر اتصال مؤقت بشبكة HazRob المحلية. بعد حفظ الشبكة يستطيع الروبوت استخدام الإنترنت والاتصال البعيد، بينما تبقى شبكة HazRob متاحة للاتصال المباشر. HR054 يوقف محاولات WAN المتكررة تلقائيًا إذا فشلت كي لا تزعزع القيادة والكاميرا المحليتين.");
         note.setTextColor(0xFFB0BEC5);root.addView(note,UiKit.full(c));
 
         LinearLayout current=UiKit.card(c);current.addView(UiKit.title(c,"حالة الشبكة والاتصال البعيد"),UiKit.full(c));
         status=UiKit.text(c,"اضغط تحديث الحالة");status.setTextColor(Color.WHITE);status.setBackgroundColor(0xFF151A20);current.addView(status,UiKit.full(c));
-        LinearLayout stateButtons=UiKit.hbox(c);Button refresh=UiKit.button(c,"تشخيص الاتصال");refresh.setOnClickListener(v->refreshStatus());stateButtons.addView(refresh,UiKit.weight(1));Button useSaved=UiKit.button(c,"استخدام الإعداد الحالي");useSaved.setOnClickListener(v->loadRemembered());stateButtons.addView(useSaved,UiKit.weight(1));current.addView(stateButtons,UiKit.full(c));root.addView(current,UiKit.full(c));
+        LinearLayout stateButtons=UiKit.hbox(c);Button refresh=UiKit.button(c,"تشخيص الاتصال");refresh.setOnClickListener(v->refreshStatus());stateButtons.addView(refresh,UiKit.weight(1));Button useSaved=UiKit.button(c,"استخدام الإعداد الحالي");useSaved.setOnClickListener(v->loadRemembered());stateButtons.addView(useSaved,UiKit.weight(1));current.addView(stateButtons,UiKit.full(c));
+        Button localSafe=UiKit.button(c,"مسح WAN والعودة لشبكة محلية ثابتة");localSafe.setOnClickListener(v->clearRobotWan());current.addView(localSafe,UiKit.full(c));root.addView(current,UiKit.full(c));
 
         LinearLayout discovery=UiKit.card(c);discovery.addView(UiKit.title(c,"استكشاف الشبكات"),UiKit.full(c));
         Button scan=UiKit.button(c,"استكشاف الشبكات");scan.setOnClickListener(v->scanNetworks());discovery.addView(scan,UiKit.full(c));
@@ -87,11 +88,12 @@ public final class RobotConnectionSetupTab {
         host.io().execute(()->{
             try{
                 JSONObject j=host.robotApi().remoteStatus();
-                boolean configured=j.optBoolean("configured",false),wifi=j.optBoolean("wifi",false),ip=j.optBoolean("ip_ok",false),dns=j.optBoolean("dns",false),time=j.optBoolean("time",false),internet=j.optBoolean("internet",false),tls=j.optBoolean("tls",false),mqtt=j.optBoolean("mqtt",false),ack=j.optBoolean("command_ack",false),telemetry=j.optBoolean("telemetry",false),ready=j.optBoolean("remote_ready",false);
+                boolean configured=j.optBoolean("configured",false),wifi=j.optBoolean("wifi",false),ip=j.optBoolean("ip_ok",false),dns=j.optBoolean("dns",false),time=j.optBoolean("time",false),internet=j.optBoolean("internet",false),tls=j.optBoolean("tls",false),mqtt=j.optBoolean("mqtt",false),ack=j.optBoolean("command_ack",false),telemetry=j.optBoolean("telemetry",false),ready=j.optBoolean("remote_ready",false),retryHold=j.optBoolean("retry_hold",false);
                 String first=firstFailure(configured,wifi,ip,dns,time,internet,tls,mqtt,ack,telemetry);
                 String detail=dash(j.optString("detail",""));
                 String text="SSID: "+dash(j.optString("ssid",""))+"   •   IP: "+dash(j.optString("ip",""))+"\n"+
-                        "RSSI: "+j.optInt("rssi",0)+" dBm\n\n"+
+                        "RSSI: "+j.optInt("rssi",0)+" dBm   •   قناة Wi-Fi: "+j.optInt("wifi_channel",0)+"   •   عملاء HazRob: "+j.optInt("ap_clients",0)+"\n"+
+                        "محاولات WAN الحالية: "+j.optInt("connect_attempts",0)+"   •   Local-safe hold: "+yes(retryHold)+"\n\n"+
                         stage("1. Config",configured)+"   "+stage("2. Wi-Fi",wifi)+"   "+stage("3. IP",ip)+"\n"+
                         stage("4. DNS",dns)+"   "+stage("5. Time",time)+"   "+stage("6. Internet",internet)+"\n"+
                         stage("7. TLS",tls)+"   "+stage("8. MQTT",mqtt)+"\n"+
@@ -99,7 +101,7 @@ public final class RobotConnectionSetupTab {
                         "Remote ready: "+yes(ready)+"\n"+
                         "أول مرحلة غير مكتملة: "+first+"\n"+
                         "Firmware detail: "+detail;
-                root.post(()->{status.setText(text);status.setTextColor(ready?0xFF81C784:0xFFFFB74D);});
+                root.post(()->{status.setText(text);status.setTextColor(ready?0xFF81C784:retryHold?0xFF80CBC4:0xFFFFB74D);});
             }catch(Exception e){root.post(()->{status.setText("تعذر قراءة /remote/status من الروبوت. اتصل بشبكة HazRob المحلية ثم أعد التشخيص.\n"+e.getClass().getSimpleName()+": "+dash(e.getMessage()));status.setTextColor(0xFFFF7043);});}
             finally{statusBusy.set(false);}
         });
@@ -114,7 +116,7 @@ public final class RobotConnectionSetupTab {
                 List<String> labels=new ArrayList<>(),ssids=new ArrayList<>();
                 if(a!=null)for(int i=0;i<a.length();i++){JSONObject n=a.optJSONObject(i);if(n==null)continue;String s=n.optString("ssid","").trim();if(s.isEmpty()||ssids.contains(s))continue;ssids.add(s);labels.add((n.optBoolean("secure",true)?"🔒 ":"○ ")+s+"   "+n.optInt("rssi",0)+" dBm");}
                 root.post(()->{networkSsids.clear();networkSsids.addAll(ssids);networkAdapter.clear();networkAdapter.addAll(labels);networkAdapter.notifyDataSetChanged();status.setText(labels.isEmpty()?"لم يعثر الروبوت على شبكات":"تم العثور على "+labels.size()+" شبكة");status.setTextColor(labels.isEmpty()?0xFFFFB74D:0xFF81C784);});
-            }catch(Exception e){root.post(()->{status.setText("تعذر استكشاف الشبكات. يجب الاتصال أولًا بشبكة HazRob المحلية.");status.setTextColor(0xFFFF7043);});}
+            }catch(Exception e){root.post(()->{status.setText("تعذر استكشاف الشبكات. يجب الاتصال أولًا بشبكة HazRob المحلية، ولا يسمح HR054 بالمسح أثناء قيادة UDP نشطة.");status.setTextColor(0xFFFF7043);});}
             finally{scanBusy.set(false);}
         });
     }
@@ -129,8 +131,18 @@ public final class RobotConnectionSetupTab {
             try{
                 host.robotApi().remoteProvision(s,p);
                 RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(context,host.preferences());if(save)store.save(s,p);else store.clear();
-                root.post(()->{status.setText("تم إرسال إعداد الشبكة. سيحاول الروبوت الاتصال بها الآن. أبقِ شبكة HazRob متاحة كقناة مباشرة ثم شغّل «تشخيص الاتصال» لمعرفة أول مرحلة متوقفة.");status.setTextColor(0xFF81C784);});
+                root.post(()->{status.setText("تم إرسال إعداد الشبكة. سيجري الروبوت عددًا محدودًا من محاولات WAN؛ إذا فشلت سيعود تلقائيًا إلى Local-safe hold لحماية القيادة والكاميرا المحليتين. شغّل «تشخيص الاتصال» لمراجعة الحالة.");status.setTextColor(0xFF81C784);});
             }catch(Exception e){root.post(()->{status.setText("فشل إرسال إعداد الشبكة. تأكد من اتصال الهاتف بشبكة HazRob.");status.setTextColor(0xFFFF7043);});}
+        });
+    }
+
+    private void clearRobotWan(){
+        status.setText("جارٍ مسح إعداد WAN من الروبوت وإيقاف محاولات STA...");
+        host.io().execute(()->{
+            try{
+                host.robotApi().remoteClear();new RemoteWifiCredentialStore(context,host.preferences()).clear();
+                root.post(()->{ssid.setText("");password.setText("");remember.setChecked(false);status.setText("تم مسح WAN. شبكة HazRob الآن في وضع محلي ثابت بلا محاولات اتصال خارجي. اختبر القيادة والكاميرا محليًا أولًا.");status.setTextColor(0xFF80CBC4);});
+            }catch(Exception e){root.post(()->{status.setText("تعذر مسح WAN. تأكد من اتصال الهاتف مباشرة بشبكة HazRob ثم أعد المحاولة.");status.setTextColor(0xFFFF7043);});}
         });
     }
 
