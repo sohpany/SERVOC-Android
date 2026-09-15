@@ -14,6 +14,7 @@ TaskHandle_t taskHandle=nullptr;
 uint8_t* frameBuf=nullptr;
 volatile bool running=false,connected=false,localActive=false;
 volatile uint32_t sentFrames=0,connectErrors=0,sendErrors=0,lastFrameBytes=0,retryDelayMs=RemoteVideoCfg::RETRY_MIN_MS;
+volatile uint32_t frameIntervalMs=RemoteVideoCfg::FRAME_INTERVAL_MIN_MS,lastFrameWorkMs=0;
 uint32_t nextConnectAt=0;
 String publishToken=RemoteVideoCfg::PUBLISH_TOKEN;
 bool credentialReady=false;
@@ -68,29 +69,37 @@ bool readServerFrame(){
   if(opcode==8)return false;if(opcode==9)return sendMaskedFrame(10,payload,(size_t)len);return true;
 }
 
+void adaptPacing(uint32_t workMs){
+  lastFrameWorkMs=workMs;uint32_t cur=frameIntervalMs;
+  // If capture+send consumes nearly the entire interval, back off. If there is sustained headroom,
+  // move back toward the 55 ms target. No frame queue is introduced.
+  if(workMs+6>=cur){frameIntervalMs=min(RemoteVideoCfg::FRAME_INTERVAL_MAX_MS,cur+RemoteVideoCfg::FRAME_INTERVAL_STEP_MS);}
+  else if(cur>RemoteVideoCfg::FRAME_INTERVAL_MIN_MS&&workMs+20<cur){uint32_t step=min(RemoteVideoCfg::FRAME_INTERVAL_STEP_MS,cur-RemoteVideoCfg::FRAME_INTERVAL_MIN_MS);frameIntervalMs=cur-step;}
+}
+
 void remoteTask(void*){
   uint32_t nextFrame=0;
   while(running){
     if(!RemoteVideoCfg::configured()||WiFi.status()!=WL_CONNECTED){if(ws.connected())ws.stop();connected=false;vTaskDelay(pdMS_TO_TICKS(500));continue;}
     if(!ws.connected()||!connected){
       connected=false;uint32_t now=millis();if(nextConnectAt&&(int32_t)(now-nextConnectAt)<0){vTaskDelay(pdMS_TO_TICKS(100));continue;}
-      if(!handshake()){scheduleRetry();vTaskDelay(pdMS_TO_TICKS(100));continue;}resetRetry();nextFrame=millis();
+      if(!handshake()){scheduleRetry();vTaskDelay(pdMS_TO_TICKS(100));continue;}resetRetry();frameIntervalMs=RemoteVideoCfg::FRAME_INTERVAL_MIN_MS;nextFrame=millis();
     }
     while(ws.available()){if(!readServerFrame()){ws.stop();connected=false;scheduleRetry();break;}}
     if(!connected)continue;
     // Local MJPEG is latency-critical. Keep the WSS session alive, but do not contend for the
     // camera mutex or JPEG encoder while a direct viewer is connected.
     if(localActive){vTaskDelay(pdMS_TO_TICKS(20));continue;}
-    uint32_t now=millis();if((int32_t)(now-nextFrame)<0){vTaskDelay(pdMS_TO_TICKS(5));continue;}nextFrame=now+RemoteVideoCfg::FRAME_INTERVAL_MS;
-    size_t len=0;if(!captureFn||!captureFn(frameBuf,RemoteVideoCfg::MAX_JPEG,len)||!len){vTaskDelay(pdMS_TO_TICKS(10));continue;}
-    lastFrameBytes=(uint32_t)len;if(!sendMaskedFrame(2,frameBuf,len)){sendErrors++;ws.stop();connected=false;scheduleRetry();continue;}sentFrames++;
+    uint32_t now=millis();if((int32_t)(now-nextFrame)<0){vTaskDelay(pdMS_TO_TICKS(3));continue;}uint32_t interval=frameIntervalMs;nextFrame=now+interval;
+    uint32_t workStart=millis();size_t len=0;if(!captureFn||!captureFn(frameBuf,RemoteVideoCfg::MAX_JPEG,len)||!len){vTaskDelay(pdMS_TO_TICKS(5));continue;}
+    lastFrameBytes=(uint32_t)len;if(!sendMaskedFrame(2,frameBuf,len)){sendErrors++;ws.stop();connected=false;scheduleRetry();continue;}sentFrames++;adaptPacing(millis()-workStart);
   }
   ws.stop();connected=false;taskHandle=nullptr;vTaskDelete(nullptr);
 }
 }
 
-void remoteVideoBegin(RemoteCaptureFn capture){captureFn=capture;if(!RemoteVideoCfg::configured()||taskHandle)return;if(!frameBuf)frameBuf=(uint8_t*)ps_malloc(RemoteVideoCfg::MAX_JPEG);if(!frameBuf)return;running=true;resetRetry();xTaskCreatePinnedToCore(remoteTask,"remote-video",8192,nullptr,1,&taskHandle,0);}
+void remoteVideoBegin(RemoteCaptureFn capture){captureFn=capture;if(!RemoteVideoCfg::configured()||taskHandle)return;if(!frameBuf)frameBuf=(uint8_t*)ps_malloc(RemoteVideoCfg::MAX_JPEG);if(!frameBuf)return;running=true;frameIntervalMs=RemoteVideoCfg::FRAME_INTERVAL_MIN_MS;resetRetry();xTaskCreatePinnedToCore(remoteTask,"remote-video",8192,nullptr,1,&taskHandle,0);}
 void remoteVideoStop(){running=false;ws.stop();connected=false;}
 void remoteVideoSetLocalActive(bool active){localActive=active;}
 bool remoteVideoConnected(){return connected&&ws.connected();}
-String remoteVideoJson(){String j="{\"configured\":"+String(RemoteVideoCfg::configured()?"true":"false")+",\"credential_ready\":"+String(credentialReady||publishToken.length()>=8?"true":"false")+",\"connected\":"+String(remoteVideoConnected()?"true":"false")+",\"paused_local\":"+String(localActive?"true":"false")+",\"frames\":"+String(sentFrames)+",\"last_jpeg_bytes\":"+String(lastFrameBytes)+",\"connect_errors\":"+String(connectErrors)+",\"send_errors\":"+String(sendErrors)+",\"retry_backoff_ms\":"+String(retryDelayMs)+"}";return j;}
+String remoteVideoJson(){String j="{\"configured\":"+String(RemoteVideoCfg::configured()?"true":"false")+",\"credential_ready\":"+String(credentialReady||publishToken.length()>=8?"true":"false")+",\"connected\":"+String(remoteVideoConnected()?"true":"false")+",\"paused_local\":"+String(localActive?"true":"false")+",\"frames\":"+String(sentFrames)+",\"last_jpeg_bytes\":"+String(lastFrameBytes)+",\"connect_errors\":"+String(connectErrors)+",\"send_errors\":"+String(sendErrors)+",\"frame_interval_ms\":"+String(frameIntervalMs)+",\"target_fps\":"+String(1000.0f/(float)frameIntervalMs,1)+",\"last_frame_work_ms\":"+String(lastFrameWorkMs)+",\"retry_backoff_ms\":"+String(retryDelayMs)+"}";return j;}
