@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Fail-closed HR-0101-050 field-operability/reproducibility contract gate."""
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def txt(path: str) -> str:
+    p = ROOT / path
+    if not p.is_file():
+        raise AssertionError(f"missing HR050 file: {path}")
+    return p.read_text(encoding="utf-8")
+
+
+def req(src: str, needle: str, label: str) -> None:
+    if needle not in src:
+        raise AssertionError(f"{label}: missing {needle!r}")
+
+
+def forbid(src: str, needle: str, label: str) -> None:
+    if needle in src:
+        raise AssertionError(f"{label}: forbidden {needle!r}")
+
+
+def main() -> int:
+    cfg = txt("firmware/HazRob/Config.h")
+    hw = txt("firmware/HazRob/Hardware.cpp")
+    profile = txt("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
+    remote = txt("app/src/main/java/com/servoc/app/communication/RemoteSessionManager.java")
+    mqtt = txt("app/src/main/java/com/servoc/app/communication/SecureMqtt311Client.java")
+    entry = txt("app/src/main/java/com/servoc/app/auth/ConnectionGate.java")
+    instant = txt("app/src/main/java/com/servoc/app/measurement/InstantMqWarningEngine.java")
+    gas_alert = txt("app/src/main/java/com/servoc/app/measurement/GasAlertCoordinator.java")
+    main_activity = txt("app/src/main/java/com/servoc/app/MainActivity.java")
+    host = txt("app/src/main/java/com/servoc/app/ui/HazRobHost.java")
+    settings = txt("app/src/main/java/com/servoc/app/ui/SettingsTab.java")
+    video_cfg = txt("firmware/HazRob-CAM/RemoteVideoConfig.h")
+    video = txt("firmware/HazRob-CAM/RemoteVideo.cpp")
+    fw_flow = txt(".github/workflows/build-firmware.yml")
+    apk_flow = txt(".github/workflows/build-apk.yml")
+
+    # 1) Dedicated environmental hardware I2C must not share the analytical ADS bus.
+    for needle in ["ENV_SDA=13", "ENV_SCL=14", "SDA=21,SCL=22", "ENV_I2C_HZ=100000"]:
+        req(cfg, needle, "ENV/ADS GPIO authority")
+    req(hw, "TwoWire EnvWire(1)", "second ESP32 I2C controller")
+    req(hw, "EnvWire.begin(Cfg::ENV_SDA,Cfg::ENV_SCL)", "ENV bus startup")
+    req(hw, "envAck76=envProbe(0x76)", "ENV bus probe")
+    req(profile, "ENV_I2C_SDA_GPIO=13", "Android ENV SDA")
+    req(profile, "ENV_I2C_SCL_GPIO=14", "Android ENV SCL")
+
+    # 2) IR is a downward ground-presence detector; warning means persistent loss of ground.
+    req(cfg, "IR_GROUND_ACTIVE=LOW", "IR ground polarity candidate")
+    req(cfg, "IR_CLIFF_ASSERT_SAMPLES=3", "IR persistence")
+    req(hw, "groundNow=irLevel==Cfg::IR_GROUND_ACTIVE", "IR ground semantics")
+    req(hw, "irWarning=true", "IR cliff assertion")
+    req(hw, '\"cliff_warning\"', "IR telemetry cliff state")
+    req(hw, '\"ground_detected\"', "IR telemetry ground state")
+
+    # 3) Remote control admission is bounded and independent from the video path.
+    req(remote, "BOOTSTRAP_CONNECT_TIMEOUT_MS=5000", "bootstrap connect bound")
+    req(remote, "BOOTSTRAP_READ_TIMEOUT_MS=8000", "bootstrap read bound")
+    req(remote, "public boolean videoProfileConfigured()", "video readiness separation")
+    # serviceProfileConfigured must not require a video token.
+    service_body = remote.split("public boolean serviceProfileConfigured(){",1)[1].split("}\n",1)[0]
+    forbid(service_body, "RemoteVideoCredentialStore", "control readiness video coupling")
+    req(mqtt, "tcp.connect(new InetSocketAddress(host,port),CONNECT_TIMEOUT_MS)", "bounded MQTT TCP connect")
+    req(mqtt, "broker hostname verification failed", "verified MQTT TLS")
+    req(entry, "إلغاء الاتصال", "cancellable remote entry")
+    req(entry, "اتصال الروبوت بنقطة Wi-Fi وحده لا يعني", "remote diagnostic UX")
+
+    # 4) Small MQ responses are visible but do not become warning/ppm claims.
+    req(instant, "RESPONSE_MIN_DELTA = 0.05", "response visibility floor")
+    req(instant, "Level{UNAVAILABLE,NORMAL,RESPONSE,ELEVATED,HIGH}", "response state")
+    req(instant, "3.0*Math.abs(noise)", "noise-aware response threshold")
+    forbid(gas_alert, "Level.RESPONSE", "RESPONSE must not escalate gas alarm")
+    req(main_activity, 'String[] names={"القيادة","القياسات","التقارير","الحالة","الإعدادات","المطور"}', "reports navigation")
+    req(main_activity, "new ReportsTab(this,this)", "reports integration")
+    req(host, "void testPhoneAlert();", "phone alert host contract")
+    req(settings, "اختبار صوت الهاتف", "phone alert UI test")
+
+    # 5) Remote video targets >=17 fps without creating a historical frame queue.
+    req(video_cfg, "FRAME_INTERVAL_MIN_MS=55", "remote video fast target")
+    req(video_cfg, "FRAME_INTERVAL_MAX_MS=120", "remote video backoff ceiling")
+    req(video, "adaptPacing", "adaptive video pacing")
+    req(video, '"frame_interval_ms"', "video pacing diagnostics")
+    forbid(video, "std::queue", "remote video backlog")
+
+    # 6) Reproducible release/build governance.
+    req(fw_flow, "esp32:esp32@3.3.11", "pinned ESP32 Arduino core")
+    req(fw_flow, "audit_hr047_gas_safety_contract.py", "firmware consolidated release gate")
+    req(apk_flow, "audit_hr047_gas_safety_contract.py", "APK consolidated release gate")
+
+    print("HazRob HR-0101-050 field-operability contract: PASS")
+    print("ENV: dedicated GPIO13/14 I2C; ADS remains GPIO21/22")
+    print("IR: persistent loss-of-ground cliff warning")
+    print("Remote: bounded verified TLS/MQTT; control admission independent from video")
+    print("MQ: RESPONSE visibility remains below warning/quantitative authority")
+    print("Video: adaptive 55..120 ms pacing; nominal good-link target ~18.2 fps")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except AssertionError as exc:
+        print(f"HazRob HR-0101-050 field-operability gate: FAIL: {exc}")
+        raise SystemExit(1)
