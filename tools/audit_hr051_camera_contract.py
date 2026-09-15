@@ -8,16 +8,18 @@ def text(path):
 
 def req(src, needle, label):
     if needle not in src:
-        raise AssertionError(f"HR053 missing {label}: {needle}")
+        raise AssertionError(f"HR054 missing {label}: {needle}")
 
 def ban(src, needle, label):
     if needle in src:
-        raise AssertionError(f"HR053 forbidden {label}: {needle}")
+        raise AssertionError(f"HR054 forbidden {label}: {needle}")
 
 def main():
     cam=text("firmware/HazRob-CAM/HazRob-CAM.ino")
     remote_cfg=text("firmware/HazRob-CAM/RemoteVideoConfig.h")
     remote_cpp=text("firmware/HazRob-CAM/RemoteVideo.cpp")
+    master=text("firmware/HazRob/HazRob.ino")
+    remote_link=text("firmware/HazRob/RemoteLink.cpp")
     cfg=text("firmware/HazRob/Config.h")
     hw=text("firmware/HazRob/Hardware.cpp")
     proto=text("app/src/main/java/com/servoc/app/communication/RobotProtocolV4.java")
@@ -25,9 +27,11 @@ def main():
     remote_session=text("app/src/main/java/com/servoc/app/communication/RemoteSessionManager.java")
     viewer=text("app/src/main/java/com/servoc/app/camera/RemoteJpegWebSocketClient.java")
     settings=text("app/src/main/java/com/servoc/app/ui/SettingsTab.java")
+    connection_setup=text("app/src/main/java/com/servoc/app/ui/RobotConnectionSetupTab.java")
     control=text("app/src/main/java/com/servoc/app/ui/ControlTab.java")
     relay=text("remote/video-relay/src/index.js")
     change=text("docs/0.10.1/HR053_SYSTEM_COHERENCE_MANIFEST.md")
+    wifi_change=text("docs/0.10.1/HR054_WIFI_STABILITY_MANIFEST.md")
 
     # Restored direct/local camera baseline.
     for n,l in [
@@ -48,6 +52,28 @@ def main():
     ban(cam,'PIXFORMAT_JPEG','native JPEG path')
     ban(cam,'CAMERA_FB_IN_DRAM','DRAM fallback')
     req(control,'"http://"+h+":81/stream"','Android stream URL')
+
+    # HR054: local AP must not be destabilized by an unbounded WAN retry loop.
+    for n,l in [
+        ('MAX_CONNECT_ATTEMPTS=2','bounded WAN attempts'),
+        ('WiFi.setAutoReconnect(false)','disable hidden STA autoreconnect'),
+        ('enterLocalSafeHold()','local-safe hold'),
+        ('cloudDetail="wifi_local_safe"','visible local-safe state'),
+        ('bool remoteRetry()','explicit retry only'),
+        ('\\"retry_hold\\"','retry hold telemetry'),
+        ('\\"connect_attempts\\"','attempt telemetry'),
+        ('\\"ap_clients\\"','AP client telemetry'),
+        ('\\"wifi_channel\\"','radio channel telemetry')]: req(remote_link,n,l)
+    ban(remote_link,'if(configured&&WiFi.status()!=WL_CONNECTED&&now-connectAt>=RETRY_MS)startSta();','unbounded seven-second reconnect loop')
+    for n,l in [
+        ('WiFi.setAutoReconnect(false)','master AP deterministic reconnect policy'),
+        ('path=="/remote/retry"','explicit WAN retry endpoint'),
+        ('\"error\":\"drive_active\"','block radio scan during active UDP drive')]: req(master,n,l)
+    for n,l in [
+        ('مسح WAN والعودة لشبكة محلية ثابتة','operator local-safe action'),
+        ('retry_hold','retry hold visibility'),
+        ('wifi_channel','channel visibility'),
+        ('ap_clients','AP client visibility')]: req(connection_setup,n,l)
 
     # Render video contract must match firmware, relay, and Android exactly.
     for n,l in [
@@ -106,12 +132,13 @@ def main():
         ('optBoolean("ack_0x76",false)','ACK76 visibility'),
         ('optBoolean("ack_0x77",false)','ACK77 visibility')]: req(settings,n,l)
 
-    req(change,'HR-0101-053','manifest')
-    print('HR-0101-053 camera/ENV/Render/Hive/app coherence contract: PASS')
+    req(change,'HR-0101-053','HR053 manifest')
+    req(wifi_change,'HR-0101-054','HR054 manifest')
+    print('HR-0101-054 local-WiFi/camera/ENV/Render/Hive/app coherence contract: PASS')
     return 0
 
 if __name__ == "__main__":
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HR-0101-053 camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
+        print(f"HR-0101-054 local-WiFi/camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
         raise SystemExit(1)
