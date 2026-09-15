@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Fail-closed HazRob 0.10.1 HR-0101-057 connection integration contract.
+"""Fail-closed HazRob 0.10.1 HR-0101-058 connection integration contract.
 
 The contract separates runtime Direct from persistent WAN intent:
 DIRECT = AP-only + HTTP drive + local MJPEG for the current session.
 REMOTE = AP+STA + MQTT control + Render/WSS video through NAPT.
 Saved WAN credentials must auto-arm Remote on every reboot until explicit WAN clear.
+REMOTE DISCONNECT is local/runtime-only and must retain WAN credentials.
+REMOTE RECONNECT reuses the saved WAN without reprovisioning.
+WAN CLEAR is the only destructive/persistent opt-out.
 Current GPIO/ENV authority must not regress.
 """
 from pathlib import Path
@@ -22,6 +25,11 @@ def forbid(src: str, needle: str, label: str) -> None:
     if needle in src:
         raise AssertionError(f"{label}: forbidden {needle!r}")
 
+def between(src: str, start: str, end: str, label: str) -> str:
+    if start not in src or end not in src:
+        raise AssertionError(f"{label}: missing boundary")
+    return src.split(start,1)[1].split(end,1)[0]
+
 def main() -> int:
     master = text("firmware/HazRob/HazRob.ino")
     cfg = text("firmware/HazRob/Config.h")
@@ -32,6 +40,7 @@ def main() -> int:
     cam_remote = text("firmware/HazRob-CAM/RemoteVideo.cpp")
     local = text("app/src/main/java/com/servoc/app/communication/LocalNetworkContract.java")
     robot_api = text("app/src/main/java/com/servoc/app/communication/RobotApi.java")
+    setup_ui = text("app/src/main/java/com/servoc/app/ui/RobotConnectionSetupTab.java")
     wifi_route = text("app/src/main/java/com/servoc/app/communication/WifiRoute.java")
     gate = text("app/src/main/java/com/servoc/app/auth/ConnectionGate.java")
     link_service = text("app/src/main/java/com/servoc/app/communication/RobotLinkService.java")
@@ -65,11 +74,24 @@ def main() -> int:
     require(master, 'radioProfile!=RadioProfile::DIRECT', "local drive authority guard")
     require(master, 'web.on("/connection/direct"', "Direct mode endpoint")
     require(master, 'requestRadioProfile(RadioProfile::DIRECT,false)', "Direct must be runtime-only")
-    require(master, 'requestRadioProfile(RadioProfile::REMOTE,true)', "Remote must arm persisted WAN")
+    require(master, 'requestRadioProfile(RadioProfile::REMOTE,true)', "provision/remote selection must arm saved WAN")
     require(master, 'drive_udp', "Direct capability field")
     require(master, 'installed', "UDP explicitly absent")
     forbid(master, '#include <WiFiUdp.h>', "Direct must not compile UDP transport")
     forbid(master, 'driveUdp.begin(', "Direct must not start UDP drive")
+
+    # HR058 explicit runtime WAN controls: disconnect cannot erase saved credentials.
+    require(master, 'web.on("/remote/disconnect"', "runtime remote disconnect endpoint")
+    require(master, 'web.on("/remote/connect"', "saved-WAN reconnect endpoint")
+    disconnect_block = between(master, 'web.on("/remote/disconnect"', 'web.on("/remote/connect"', "remote disconnect block")
+    require(disconnect_block, 'motionStop();', "disconnect immediate motion stop")
+    require(disconnect_block, '\\"wan_retained\\":true', "disconnect declares retained WAN")
+    require(disconnect_block, 'requestRadioProfile(RadioProfile::DIRECT,false)', "disconnect runtime Direct switch")
+    forbid(disconnect_block, 'remoteClear()', "disconnect must never clear WAN")
+    connect_block = between(master, 'web.on("/remote/connect"', 'web.on("/remote/status"', "remote reconnect block")
+    require(connect_block, 'remoteConfigured()', "reconnect requires saved WAN")
+    require(connect_block, 'motionStop();', "reconnect transition motion stop")
+    require(connect_block, 'requestRadioProfile(RadioProfile::REMOTE,false)', "reconnect reuses saved WAN without reprovisioning")
 
     require(remote_h, 'remoteSetTransportEnabled', "remote transport switch API")
     require(remote, 'transportEnabled=configured;', "saved WAN auto-arms Remote on boot")
@@ -90,8 +112,19 @@ def main() -> int:
     require(robot_api, 'DIRECT_KEEPALIVE_MS=250L', "Direct HTTP keepalive cadence")
     require(robot_api, 'getText("/drive?l="+left+"&r="+right,450)', "Direct HTTP drive")
     require(robot_api, 'requireNeutralAfterBackground', "background re-arm interlock")
+    require(robot_api, 'postForm("/remote/disconnect","",1500)', "Android disconnect API")
+    require(robot_api, 'postForm("/remote/connect","",1800)', "Android reconnect API")
+    require(robot_api, 'postForm("/remote/clear","confirm=1",1500)', "Android destructive WAN clear API")
     forbid(robot_api, 'DatagramSocket', "Android Direct UDP removed")
     forbid(robot_api, 'sendDriveDatagram', "Android Direct UDP removed")
+
+    require(setup_ui, '"فصل Remote مع الاحتفاظ بـ WAN"', "disconnect UI")
+    require(setup_ui, '"إعادة الاتصال بـ WAN المحفوظ"', "reconnect UI")
+    require(setup_ui, '"مسح WAN نهائيًا"', "destructive WAN reset UI")
+    require(setup_ui, 'host.robotApi().remoteDisconnect()', "disconnect UI action")
+    require(setup_ui, 'host.robotApi().remoteReconnect()', "reconnect UI action")
+    require(setup_ui, 'host.robotApi().remoteClear()', "WAN clear UI action")
+    require(setup_ui, 'new AlertDialog.Builder', "WAN clear confirmation")
 
     require(manifest, 'android.permission.NEARBY_WIFI_DEVICES', "Android 13+ Wi-Fi permission")
     require(manifest, 'android.permission.ACCESS_FINE_LOCATION', "Android 10-12 Wi-Fi permission")
@@ -129,16 +162,20 @@ def main() -> int:
     state = {
         "DIRECT": {"radio":"AP", "http_drive":True, "mqtt":False, "napt":False, "wss":False, "boot_intent":"unchanged"},
         "REMOTE": {"radio":"AP_STA", "http_drive":False, "mqtt":True, "napt":"internet_ready", "wss":"gateway_ready", "boot_intent":"armed"},
-        "WAN_CLEAR": {"boot_intent":"direct"},
+        "REMOTE_DISCONNECT": {"radio":"AP", "wan_retained":True, "next_boot":"REMOTE"},
+        "REMOTE_RECONNECT": {"radio":"AP_STA", "uses_saved_wan":True},
+        "WAN_CLEAR": {"wan_retained":False, "next_boot":"DIRECT"},
     }
     assert state["DIRECT"]["radio"] == "AP" and state["DIRECT"]["http_drive"] and not state["DIRECT"]["mqtt"]
     assert state["REMOTE"]["radio"] == "AP_STA" and not state["REMOTE"]["http_drive"] and state["REMOTE"]["mqtt"]
-    assert state["DIRECT"]["boot_intent"] == "unchanged" and state["WAN_CLEAR"]["boot_intent"] == "direct"
+    assert state["REMOTE_DISCONNECT"]["wan_retained"] and state["REMOTE_DISCONNECT"]["next_boot"] == "REMOTE"
+    assert state["REMOTE_RECONNECT"]["uses_saved_wan"] and state["WAN_CLEAR"]["next_boot"] == "DIRECT"
 
-    print("HazRob 0.10.1 HR-0101-057 connection contract: PASS")
+    print("HazRob 0.10.1 HR-0101-058 connection contract: PASS")
     print("DIRECT: AP-only + HTTP + local MJPEG; temporary runtime profile")
     print("REMOTE: saved WAN auto-arms AP+STA/MQTT/Render on every reboot")
-    print("WAN CLEAR: only persistent opt-out; SAFETY: no local UDP and neutral re-arm after background")
+    print("REMOTE DISCONNECT: local runtime AP-only, WAN retained; REMOTE RECONNECT: saved WAN reused")
+    print("WAN CLEAR: only destructive persistent opt-out; SAFETY: motion stop before profile transitions")
     return 0
 
 if __name__ == "__main__":
