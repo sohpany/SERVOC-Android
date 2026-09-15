@@ -35,7 +35,7 @@ public final class SecureMqtt311Client implements AutoCloseable {
 
     public synchronized void connect(Listener listener)throws Exception{
         close();this.listener=listener;
-        SSLSocket s=(SSLSocket)SSLSocketFactory.getDefault().createSocket(host,port);s.setSoTimeout(1200);s.startHandshake();SSLSession session=s.getSession();if(!HttpsURLConnection.getDefaultHostnameVerifier().verify(host,session)){try{s.close();}catch(Exception ignored){}throw new SSLHandshakeException("broker hostname verification failed");}
+        SSLSocket s=(SSLSocket)SSLSocketFactory.getDefault().createSocket(host,port);s.setTcpNoDelay(true);s.setKeepAlive(true);s.setSoTimeout(1200);s.startHandshake();SSLSession session=s.getSession();if(!HttpsURLConnection.getDefaultHostnameVerifier().verify(host,session)){try{s.close();}catch(Exception ignored){}throw new SSLHandshakeException("broker hostname verification failed");}
         socket=s;in=s.getInputStream();out=s.getOutputStream();sendConnect();Packet p=readPacket();int code=p.type==2&&p.body.length>=2?p.body[1]&255:-1;if(code!=0){close();throw new IOException("MQTT CONNACK rejected: "+connackText(code)+" ("+code+")");}running.set(true);reader=new Thread(this::readerLoop,"HazRob-MQTT");reader.setDaemon(true);reader.start();
     }
 
