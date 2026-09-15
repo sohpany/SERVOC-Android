@@ -2,7 +2,10 @@
 
 **Change:** Smooth / low-latency drive and Remote control integration  
 **Branch:** `dev/hazrob-0.10.1` only — no new development branch  
-**Status:** IN PROGRESS — source changes implemented; software/build and field acceptance must be recorded below before PASS.
+**Status:** **SOFTWARE / BUILD PASS — DIRECT AND REMOTE PHYSICAL FIELD ACCEPTANCE PENDING**  
+**Artifact source commit:** `42dc0568f8afb3fa96175b149007ac079b98f643`
+
+> This document update is documentation-only and was committed after the validated binaries. The authoritative application and firmware artifacts below were all built from the artifact source commit above.
 
 ## 1. Trigger
 
@@ -97,21 +100,36 @@ ESP32:
 Verification:
 - `tools/audit_hr048_drive_contract.py`
 - `tools/audit_hr049_control_remote_contract.py`
+- consolidated `audit_hr047_gas_safety_contract.py` now makes HR048 and HR049 mandatory release gates
 
-## 6. Acceptance gates
+## 6. Software/build verification record
 
-### Software gates
+All accepted build results below came from artifact source commit `42dc0568f8afb3fa96175b149007ac079b98f643`.
 
-- [ ] HR048 drive regression gate PASS
-- [ ] HR049 control/remote static gate PASS
-- [ ] Android unit tests PASS
-- [ ] Android release APK build PASS
-- [ ] APK signing fingerprint verified
-- [ ] ESP32 main firmware compile PASS
-- [ ] ESP32-CAM compile PASS (regression)
-- [ ] application and both firmware artifacts built from the same final source commit
+- [x] Baseline 0.10.1 cross-component integration contract PASS
+- [x] HR048 drive regression gate PASS
+- [x] HR049 control/remote static gate PASS
+- [x] HR047 gas-safety regression gate PASS
+- [x] Android unit tests PASS (`:app:testDebugUnitTest`, Gradle BUILD SUCCESSFUL)
+- [x] Android release APK build PASS (`:app:assembleRelease`, Gradle BUILD SUCCESSFUL)
+- [x] Controlled LFL/UFL seed SHA-256 verified: `457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434`
+- [x] APK SHA-256: `b00e4c906e3cc96793559fdc931fb5355d2c44dd0f7941016cedcf6a429e48d0`
+- [x] APK signer SHA-256 verified: `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`
+- [x] ESP32 main firmware compile PASS using ESP32 core 3.3.11
+  - program: `1,096,381 bytes (34%)`
+  - globals: `50,660 bytes (15%)`; `277,020 bytes` remaining
+- [x] ESP32-CAM compile PASS using ESP32 core 3.3.11
+  - program: `1,118,803 bytes (35%)`
+  - globals: `67,836 bytes (20%)`; `259,844 bytes` remaining
+- [x] application, ESP32 main and ESP32-CAM artifacts were all built from the same artifact source commit
 
-### Direct physical gate
+### Build notes
+
+The first Android build attempt stopped before Java compilation because the controlled flammability-seed service was waking from a cold start. No source or scientific data were changed. The second build retrieved the same pinned seed and verified its required SHA-256 before compilation, after which unit tests and release assembly passed. This infrastructure retry is not classified as a source-code failure.
+
+Compiler warnings remain in pre-existing areas (unused helper / constant CA check in the main firmware and volatile-counter deprecation warnings in ESP32-CAM). They are not build errors and HR049 did not suppress them. They remain cleanup items rather than field-acceptance evidence.
+
+## 7. Direct physical gate — PENDING
 
 Wheels-up first, then floor test:
 
@@ -125,7 +143,7 @@ Wheels-up first, then floor test:
 - [ ] `/diag.drive_udp.packets` increases during Direct control and rejected count does not climb abnormally
 - [ ] loss of command stream produces watchdog neutral within the 500 ms contract
 
-### Remote field gate
+## 8. Remote field gate — PENDING
 
 - [ ] robot `/remote/status`: wifi -> ip -> dns -> time -> internet -> tls -> mqtt ready
 - [ ] Android Remote probe receives ACK and fresh telemetry
@@ -135,10 +153,10 @@ Wheels-up first, then floor test:
 - [ ] temporary WAN interruption results in safe drive neutralization, followed by automatic session recovery
 - [ ] Remote readiness reports plausible ACK RTT and telemetry age
 
-## 7. Safety / scientific non-regression
+## 9. Safety / scientific non-regression
 
 HR049 does not change MQ R0 values, exposure limits, ChemCore/M4 rules, sensor calibration authority, GPIO mapping, or gas-warning thresholds. It changes control transport scheduling and network load only.
 
-## 8. Approval rule
+## 10. Approval rule
 
 Do **not** mark HR049 `PHYSICAL PASS` from compilation, unit tests, or static audits. Final acceptance requires the Direct and Remote field gates above on the assembled robot.
