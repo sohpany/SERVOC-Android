@@ -6,7 +6,7 @@ BOOT/DIRECT = AP-only + HTTP drive/telemetry + local MJPEG. Every reboot starts 
 REMOTE = AP+STA + MQTT control + Render/WSS video through NAPT, entered only by explicit operator action.
 Saved WAN credentials are configuration data only and must never auto-arm Remote on boot.
 WAN provisioning must remain local/Direct and must not disconnect HazRob or ESP32-CAM.
-Direct readiness requires the main ESP32 plus ESP32-CAM identity/status and a real local MJPEG frame.
+Direct readiness requires the main ESP32 plus ESP32-CAM identity/status and a complete local JPEG frame.
 REMOTE DISCONNECT returns to Direct while retaining WAN credentials.
 REMOTE RECONNECT reuses saved WAN for the current runtime only.
 WAN CLEAR is the only destructive credential operation.
@@ -139,8 +139,9 @@ def main() -> int:
     forbid(robot_api, 'sendDriveDatagram', "Android Direct UDP removed")
 
     require(setup_ui, '"فصل Remote مع الاحتفاظ بـ WAN"', "disconnect UI")
-    require(setup_ui, '"إعادة الاتصال بـ WAN المحفوظ"', "reconnect UI")
+    require(setup_ui, '"تفعيل Remote باستخدام WAN المحفوظ"', "explicit Remote reconnect UI")
     require(setup_ui, '"مسح WAN نهائيًا"', "destructive WAN reset UI")
+    require(setup_ui, '"حفظ إعدادات WAN فقط"', "provision-only WAN UI")
     require(setup_ui, 'host.robotApi().remoteDisconnect()', "disconnect UI action")
     require(setup_ui, 'host.robotApi().remoteReconnect()', "reconnect UI action")
     require(setup_ui, 'host.robotApi().remoteClear()', "WAN clear UI action")
@@ -163,7 +164,7 @@ def main() -> int:
     require(gate, 'SystemClock.elapsedRealtime()+12000L', "Direct main verification window")
     require(gate, 'CameraApi directCamera=new CameraApi(LocalNetworkContract.CAMERA_HOST)', "Direct camera gate")
     require(gate, 'SystemClock.elapsedRealtime()+20000L', "Direct camera readiness window")
-    require(gate, 'directCamera.directReady()', "Direct requires CAM status plus a real JPEG")
+    require(gate, 'directCamera.directReady()', "Direct requires CAM status plus a complete JPEG")
     require(gate, 'local.postForm("/connection/remote"', "Remote explicit radio switch")
     require(gate, 'WifiRoute.releaseRobotWifi(a);', "Remote releases phone from HazRob local-only route")
 
@@ -175,11 +176,12 @@ def main() -> int:
     forbid(provision_app, 'pollRobotRemote()', "WAN save must not auto-enter Remote")
 
     require(camera_api, 'boolean directReady()', "camera Direct readiness API")
-    require(camera_api, 'HazRob-CAM 0.10.1', "camera Direct firmware identity")
-    require(camera_api, 'LocalNetworkContract.CAMERA_HOST', "camera Direct fixed IP")
-    require(camera_api, 'probeMjpegFrame()', "camera Direct first-frame requirement")
-    require(camera_api, '0xFF&&cur==0xD8', "camera JPEG SOI validation")
-    require(camera_api, 'prev==0xFF&&cur==0xD9', "camera JPEG EOI validation")
+    require(camera_api, 'String expectedFw="HazRob-CAM "+ReleaseAudit.VERSION', "camera controlled firmware identity")
+    require(camera_api, 'LocalNetworkContract.CAMERA_HOST.equals(host)', "camera canonical host gate")
+    require(camera_api, 'LocalNetworkContract.CAMERA_HOST.equals(ip)', "camera canonical reported IP gate")
+    require(camera_api, 'localStreamReady()', "camera Direct complete-frame requirement")
+    require(camera_api, 'prev==0xFF&&cur==0xD8', "camera JPEG SOI validation")
+    require(camera_api, 'prev==0xFF&&cur==0xD9&&jpegBytes>128', "camera JPEG EOI validation")
 
     require(link_service, 'WifiRoute.maintainRobotWifi(this)', "Direct network maintenance")
     require(link_service, 'RobotApi.setOperatorForeground(foreground)', "background motion interlock")
