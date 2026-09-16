@@ -33,6 +33,28 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Record controlled APK build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "release=HazRob-0.10.1"
+            echo "source_sha=${GITHUB_SHA}"
+            echo "source_ref=${GITHUB_REF}"
+            echo "source_repository=${GITHUB_REPOSITORY}"
+            echo "workflow_run=${GITHUB_RUN_ID}"
+            echo "network_contract=Direct-first"
+            echo "direct_ssid=HazRob"
+            echo "direct_robot_ip=192.168.4.1"
+            echo "direct_camera_mode=STA-only"
+            echo "direct_camera_ip=192.168.4.2"
+            echo "remote_activation=explicit-operator-only"
+          } > HazRob-app-build-identity.txt
+          cat HazRob-app-build-identity.txt
+
+      - name: Validate HR061 Direct-first release contract
+        run: python3 tools/audit_hr061_direct_first_contract.py
+
       - name: Validate HazRob 0.10.1 cross-component contract
         run: python3 tools/audit_0101_integration_contract.py
 
@@ -48,7 +70,6 @@ jobs:
           import hashlib
           import json
           from pathlib import Path
-
           datasets = [
               (Path('app/src/main/assets/generated/niosh/niosh_chemicals.json'), Path('app/src/main/assets/generated/niosh/manifest.json'), 500, 'NIOSH'),
               (Path('app/src/main/assets/generated/exposure/niosh_idlh.json'), Path('app/src/main/assets/generated/exposure/manifest.json'), 300, 'NIOSH'),
@@ -59,36 +80,33 @@ jobs:
               manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
               count = payload.get('record_count', 0)
               assert count >= minimum, (payload_path, count)
-              assert manifest.get('record_count') == count, (payload_path, manifest.get('record_count'), count)
-              assert manifest.get('authoritative') is True, (manifest_path, manifest.get('authoritative'))
+              assert manifest.get('record_count') == count
+              assert manifest.get('authoritative') is True
               actual = hashlib.sha256(payload_path.read_bytes()).hexdigest()
-              assert actual == manifest.get('sha256'), (payload_path, actual, manifest.get('sha256'))
+              assert actual == manifest.get('sha256')
               provenance = payload.get('provenance')
               if provenance is not None:
-                  assert provenance.get('authoritative') is True, (payload_path, provenance)
-                  assert provenance.get('authority') == authority, (payload_path, provenance.get('authority'))
+                  assert provenance.get('authoritative') is True
+                  assert provenance.get('authority') == authority
               else:
-                  assert payload.get('authority') == authority, (payload_path, payload.get('authority'))
+                  assert payload.get('authority') == authority
               print(f'{authority}: {count} records, SHA-256 {actual}')
-
           osha_manifest = json.loads(Path('app/src/main/assets/generated/exposure/osha_z1/manifest.json').read_text(encoding='utf-8'))
-          assert 'ACGIH TLV' in osha_manifest.get('excluded_columns', []), osha_manifest
-
+          assert 'ACGIH TLV' in osha_manifest.get('excluded_columns', [])
           chem_payload = Path('app/src/main/assets/generated/chemcore/molecular_descriptors.json')
           chem_manifest = Path('app/src/main/assets/generated/chemcore/manifest.json')
           if chem_payload.exists() or chem_manifest.exists():
-              assert chem_payload.exists() and chem_manifest.exists(), 'ChemCore payload/manifest must be pinned together'
+              assert chem_payload.exists() and chem_manifest.exists()
               payload = json.loads(chem_payload.read_text(encoding='utf-8'))
               manifest = json.loads(chem_manifest.read_text(encoding='utf-8'))
-              assert payload.get('schema') == 'chemcore-molecular-seed-v1', payload.get('schema')
-              assert payload.get('record_count') == 652, payload.get('record_count')
-              assert manifest.get('record_count') == 652, manifest.get('record_count')
-              assert payload.get('error_count') == 0, payload.get('error_count')
+              assert payload.get('schema') == 'chemcore-molecular-seed-v1'
+              assert payload.get('record_count') == 652
+              assert manifest.get('record_count') == 652
+              assert payload.get('error_count') == 0
               assert payload.get('resolved_count', 0) + payload.get('unresolved_count', 0) == 652
-              interpretation = payload.get('interpretation', '')
-              assert 'do not imply MQ detectability' in interpretation, interpretation
+              assert 'do not imply MQ detectability' in payload.get('interpretation', '')
               actual = hashlib.sha256(chem_payload.read_bytes()).hexdigest()
-              assert actual == manifest.get('sha256'), (actual, manifest.get('sha256'))
+              assert actual == manifest.get('sha256')
               print(f"ChemCore molecular reference: 652 identities; resolved={payload.get('resolved_count')}; unresolved={payload.get('unresolved_count')}; SHA-256 {actual}")
           else:
               print('ChemCore molecular seed not yet pinned; application remains valid with molecular intelligence unavailable.')
@@ -219,12 +237,13 @@ jobs:
       - name: Upload HazRob release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-${{ env.VERSION_NAME }}-prototype
+          name: HazRob-${{ env.VERSION_NAME }}-${{ github.sha }}-prototype
           path: |
             app/build/outputs/apk/release/app-release.apk
             HazRob-app-update.json
             HazRob-app-sha256.txt
             HazRob-app-signing.txt
+            HazRob-app-build-identity.txt
             HazRob-chemcore-manifest.json
             app/src/main/assets/generated/niosh/manifest.json
             app/src/main/assets/generated/exposure/manifest.json
