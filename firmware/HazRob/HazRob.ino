@@ -5,9 +5,11 @@
 #include "RemoteMqtt.h"
 #include "SafetyInterlock.h"
 
-// HR-0101-058 connection authority:
+// HR-0101-060 connection authority:
 // DIRECT = AP-only + HTTP control/telemetry + local camera network (runtime session only).
 // REMOTE = AP+STA + MQTT/Render gateway. Saved WAN is retried on every reboot until explicitly cleared.
+// Entering DIRECT shuts down MQTT/NAPT/STA first. Direct->Direct is idempotent and must not bounce
+// the HazRob SoftAP or disconnect the phone/CAM merely because the operator pressed Direct again.
 // DISCONNECT REMOTE = runtime AP-only without deleting WAN. RESET WAN = destructive credential clear.
 WebServer web(80);
 
@@ -21,27 +23,44 @@ bool naptEnabled=false;
 void reply(int code,const char* type,const String& body){web.send(code,type,body);}
 void reply(int code,const char* body){reply(code,"text/plain",body);}
 const char* profileName(){return radioProfile==RadioProfile::DIRECT?"direct":"remote";}
+IPAddress directApIp(){return IPAddress(192,168,4,1);}
+bool directApStable(){return radioProfile==RadioProfile::DIRECT&&WiFi.getMode()==WIFI_AP&&WiFi.softAPIP()==directApIp();}
 
-void configureSoftAp(wifi_mode_t mode){
+void configureSoftAp(wifi_mode_t mode,bool forceApRestart=true){
   WiFi.persistent(false);
-  WiFi.mode(mode);
+  if(WiFi.getMode()!=mode)WiFi.mode(mode);
   WiFi.setSleep(false);
   WiFi.setAutoReconnect(false);
-  IPAddress ip(192,168,4,1),mask(255,255,255,0),dhcp(192,168,4,100);
-  WiFi.softAPConfig(ip,ip,mask,dhcp);
-  WiFi.softAP(Cfg::SSID);
+  IPAddress ip=directApIp(),mask(255,255,255,0),dhcp(192,168,4,100);
+  // AP+STA -> AP does not require re-creating an already healthy HazRob AP. Keeping the existing
+  // AP association avoids dropping the Android Direct route and ESP32-CAM during a profile switch.
+  if(forceApRestart||WiFi.softAPIP()!=ip){
+    WiFi.softAPConfig(ip,ip,mask,dhcp);
+    WiFi.softAP(Cfg::SSID);
+  }
   wifiAt=millis();
 }
 
 void applyRadioProfile(RadioProfile next,bool persistMode){
   motionStop();
   if(next==RadioProfile::DIRECT){
+    // A repeated Direct request is a no-op at the radio boundary. Do not bounce HazRob.
+    if(directApStable()){
+      remoteMqttDisconnect();
+      if(naptEnabled)WiFi.AP.enableNAPT(false);
+      naptEnabled=false;
+      radioProfile=RadioProfile::DIRECT;
+      wifiAt=millis();
+      return;
+    }
     remoteMqttDisconnect();
     if(naptEnabled)WiFi.AP.enableNAPT(false);
     naptEnabled=false;
+    // Stop the WAN transport first. This disconnects STA but does not erase saved credentials.
     remoteSetTransportEnabled(false,persistMode);
     delay(20);
-    configureSoftAp(WIFI_AP);
+    // Preserve the existing HazRob AP association whenever it is already healthy.
+    configureSoftAp(WIFI_AP,false);
     radioProfile=RadioProfile::DIRECT;
   }else{
     configureSoftAp(WIFI_AP_STA);
@@ -65,7 +84,7 @@ void gatewayUpdate(){
 void wifiWatch(){
   if(millis()-wifiAt<5000)return;wifiAt=millis();
   wifi_mode_t expected=radioProfile==RadioProfile::DIRECT?WIFI_AP:WIFI_AP_STA;
-  if(WiFi.getMode()!=expected||WiFi.softAPIP()!=IPAddress(192,168,4,1)){
+  if(WiFi.getMode()!=expected||WiFi.softAPIP()!=directApIp()){
     applyRadioProfile(radioProfile,false);
   }
 }
@@ -104,7 +123,12 @@ void setup(){
   web.on("/heartbeat",[]{if(web.hasArg("arm")&&web.arg("arm")=="0"){linkSetArmed(false);return reply(200,"DISARMED");}linkHeartbeat();reply(200,"OK");});
 
   // Direct is deliberately temporary: it must not disarm saved WAN for the next reboot.
-  web.on("/connection/direct",HTTP_POST,[]{reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\"}");requestRadioProfile(RadioProfile::DIRECT,false);});
+  // If Direct is already healthy, return success without restarting HazRob AP.
+  web.on("/connection/direct",HTTP_POST,[]{
+    motionStop();
+    if(directApStable())return reply(200,"application/json","{\"ok\":true,\"radio_profile\":\"direct\",\"already_direct\":true}");
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\"}");requestRadioProfile(RadioProfile::DIRECT,false);
+  });
   web.on("/connection/remote",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
     reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE,true);
@@ -113,6 +137,7 @@ void setup(){
   // Explicit local WAN runtime controls. Disconnect preserves credentials and reboot intent.
   web.on("/remote/disconnect",HTTP_POST,[]{
     motionStop();
+    if(directApStable())return reply(200,"application/json","{\"ok\":true,\"radio_profile\":\"direct\",\"already_direct\":true,\"wan_retained\":true}");
     reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\",\"wan_retained\":true}");
     requestRadioProfile(RadioProfile::DIRECT,false);
   });
