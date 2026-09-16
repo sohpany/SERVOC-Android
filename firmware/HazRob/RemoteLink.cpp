@@ -45,21 +45,22 @@ String esc(const String& s){String o;o.reserve(s.length()+8);for(size_t i=0;i<s.
 void remoteBegin(){
   wan.begin("hazwan",false);
   ssid=wan.getString("ssid","");password=wan.getString("pass","");configured=!ssid.isEmpty();
-  // HR057 boot authority: saved WAN credentials mean "attempt Remote on every boot".
-  // A temporary Direct session must never disarm the next reboot; only remoteClear() does that.
-  transportEnabled=configured;
-  wan.putBool("enabled",configured);
+  // HR061 boot authority: every power-up starts LOCAL/DIRECT. Saved WAN is configuration only;
+  // it is never permission to start STA/MQTT/Render automatically. Remote requires an explicit
+  // operator action after boot. Keep the legacy flag normalized false so older builds cannot
+  // accidentally reinterpret saved credentials as an auto-Remote boot request.
+  transportEnabled=false;
+  wan.putBool("enabled",false);
   WiFi.setSleep(false);WiFi.setAutoReconnect(false);
-  resetRuntime(transportEnabled?"remote_waiting":"direct_local");
+  resetRuntime(configured?"direct_saved_wan":"direct_local");
 }
 void remoteSetTransportEnabled(bool enabled,bool persistMode){
+  (void)persistMode; // Mode is deliberately runtime-only in HR061; credentials persist, mode does not.
   transportEnabled=enabled;
-  // Persist only the armed Remote state. Direct is runtime-only; clearing WAN is the explicit
-  // persistent opt-out and is handled by remoteClear().
-  if(persistMode&&enabled)wan.putBool("enabled",true);
+  wan.putBool("enabled",false);
   if(!enabled){
     WiFi.disconnect(false,false);
-    resetRuntime("direct_local");
+    resetRuntime(configured?"direct_saved_wan":"direct_local");
     return;
   }
   resetRuntime(configured?"wifi_connecting":"wifi_not_configured");
@@ -90,7 +91,7 @@ void remoteUpdate(){
 
 bool remoteProvision(const String& newSsid,const String& newPassword){
   String s=newSsid;s.trim();if(s.isEmpty()||s.length()>32||newPassword.length()>63)return false;
-  ssid=s;password=newPassword;configured=true;wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",true);
+  ssid=s;password=newPassword;configured=true;wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",false);
   retryHold=false;everConnected=false;connectAttempts=0;dnsOk=timeOk=false;
   if(transportEnabled){WiFi.disconnect(false,false);startSta();}else cloudDetail="remote_configured_direct_local";
   return true;
@@ -113,6 +114,7 @@ String remoteStatusJson(){
   bool ready=internet&&cloudTls&&cloudMqtt&&cloudAck&&cloudTelemetry;
   String j="{\"configured\":";j+=configured?"true":"false";
   j+=",\"transport_enabled\":";j+=transportEnabled?"true":"false";
+  j+=",\"boot_default\":\"direct\"";
   j+=",\"ssid\":\""+esc(ssid)+"\"";
   j+=",\"wifi\":";j+=connected?"true":"false";
   j+=",\"ip\":\""+ip+"\",\"ip_ok\":";j+=connected?"true":"false";
