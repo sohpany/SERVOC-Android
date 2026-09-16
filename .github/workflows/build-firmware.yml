@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: ['dev/**','fix/**',main]
-    paths: ['firmware/**','tools/audit_0101_integration_contract.py','tools/audit_0101_motion_contract.py','tools/audit_hr047_gas_safety_contract.py','tools/audit_hr048_drive_contract.py','tools/audit_hr049_control_remote_contract.py','tools/audit_hr050_field_operability_contract.py','.github/workflows/build-firmware.yml','.github/workflows/build-apk.yml','app/src/main/java/com/servoc/app/**']
+    paths: ['firmware/**','tools/audit_0101_integration_contract.py','tools/audit_0101_motion_contract.py','tools/audit_hr061_direct_first_contract.py','tools/audit_hr047_gas_safety_contract.py','tools/audit_hr048_drive_contract.py','tools/audit_hr049_control_remote_contract.py','tools/audit_hr050_field_operability_contract.py','.github/workflows/build-firmware.yml','.github/workflows/build-apk.yml','app/src/main/java/com/servoc/app/**']
 
 permissions: { contents: write }
 
@@ -36,6 +36,9 @@ jobs:
             echo "remote_activation=explicit-operator-only"
           } > firmware-build-identity.txt
           cat firmware-build-identity.txt
+
+      - name: Validate HR061 Direct-first release contract
+        run: python3 tools/audit_hr061_direct_first_contract.py
 
       - name: Validate HazRob 0.10.1 cross-component contract
         run: python3 tools/audit_0101_integration_contract.py
