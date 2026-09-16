@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""HR-0101-048 steering/safety contract, carried forward under HR-0101-056.
+"""HR-0101-048/060 steering/safety contract carried forward on HazRob 0.10.1.
 
-HR048 originally added a capability-gated UDP fast lane after the 2026-09-14 steering finding.
-HR056 deliberately retires that local UDP transport and restores the proven Direct HTTP authority
-while preserving the HR048 steering mapping, watchdog and Remote drive policy. Physical steering
-acceptance remains a post-flash gate.
+The gate locks the differential-drive geometry across the Android joystick, pure mixer,
+main firmware side mapping, Direct HTTP and Remote MQTT transports. It explicitly covers
+forward/reverse diagonals so steering handedness cannot silently regress.
+Physical wheel acceptance remains a post-flash gate.
 """
 from pathlib import Path
 import os
@@ -18,7 +18,8 @@ def forbid(src,s,label):
     if s in src: raise AssertionError(f"{label}: forbidden {s!r}")
 
 def mix(x,y):
-    l=y+x; r=y-x; q=max(1.0,abs(l),abs(r));
+    x=max(-1.0,min(1.0,x));y=max(-1.0,min(1.0,y))
+    l=y+x;r=y-x;q=max(1.0,abs(l),abs(r))
     return round(l/q*100),round(r/q*100)
 
 def main():
@@ -26,23 +27,51 @@ def main():
     hw=txt("firmware/HazRob/Hardware.cpp")
     ino=txt("firmware/HazRob/HazRob.ino")
     joy=txt("app/src/main/java/com/servoc/app/control/JoystickView.java")
+    mixer=txt("app/src/main/java/com/servoc/app/control/DriveMixer.java")
+    mixer_test=txt("app/src/test/java/com/servoc/app/control/DriveMixerTest.java")
+    limiter_test=txt("app/src/test/java/com/servoc/app/control/DriveSpeedLimiterTest.java")
     api=txt("app/src/main/java/com/servoc/app/communication/RobotApi.java")
     remote=txt("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
     remote_policy=txt("app/src/main/java/com/servoc/app/communication/RemoteDrivePolicy.java")
     profile=txt("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
 
-    req(joy,"double l = y + x, r = y - x;","joystick differential mixer")
-    l,r=mix(.25,.75)
-    if not (l>r>0): raise AssertionError(f"forward-right mix invalid: L={l}, R={r}")
-    l,r=mix(-.25,.75)
-    if not (r>l>0): raise AssertionError(f"forward-left mix invalid: L={l}, R={r}")
-    if mix(1.0,0.0)!=(100,-100): raise AssertionError("right pivot mix invalid")
-    if mix(-1.0,0.0)!=(-100,100): raise AssertionError("left pivot mix invalid")
+    # One executable mixer authority. X is yaw: +X always rotates nose/camera right.
+    req(joy,"DriveMixer.Command command=DriveMixer.mix(x,y);","joystick uses audited mixer")
+    req(mixer,"double left=y+x;","mixer logical left")
+    req(mixer,"double right=y-x;","mixer logical right")
+    req(mixer,"Math.max(1.0,Math.max(Math.abs(left),Math.abs(right)))","mixer normalization")
+
+    expected={
+        "stop":((0,0),(0,0)),
+        "forward":((0,1),(100,100)),
+        "reverse":((0,-1),(-100,-100)),
+        "right_pivot":((1,0),(100,-100)),
+        "left_pivot":((-1,0),(-100,100)),
+        "forward_right":((.25,.75),(100,50)),
+        "forward_left":((-.25,.75),(50,100)),
+        "reverse_right":((.25,-.75),(-50,-100)),
+        "reverse_left":((-.25,-.75),(-100,-50)),
+    }
+    for name,(xy,want) in expected.items():
+        got=mix(*xy)
+        if got!=want: raise AssertionError(f"{name} mix invalid: got={got} want={want}")
+    # Right yaw remains right yaw in reverse; left yaw remains left yaw in reverse.
+    if not (mix(.25,.75)[0]-mix(.25,.75)[1]>0 and mix(.25,-.75)[0]-mix(.25,-.75)[1]>0):
+        raise AssertionError("right-yaw handedness changes between forward/reverse")
+    if not (mix(-.25,.75)[0]-mix(-.25,.75)[1]<0 and mix(-.25,-.75)[0]-mix(-.25,-.75)[1]<0):
+        raise AssertionError("left-yaw handedness changes between forward/reverse")
+
+    for marker in ["forwardSteeringIsCorrect","reverseSteeringKeepsYawHandedness","rightAndLeftYawSignsAreConsistentAcrossForwardAndReverse","normalizationPreservesFullScaleWithoutClippingCurvature"]:
+        req(mixer_test,marker,"JUnit steering matrix")
+    req(limiter_test,"defaultIsFullScale","100-percent operator default")
+    req(limiter_test,"assertEquals(100,DriveSpeedLimiter.scale(100,100))","100-percent forward full scale")
+    req(limiter_test,"assertEquals(-100,DriveSpeedLimiter.scale(-100,100))","100-percent reverse full scale")
 
     req(cfg,"DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32","logical LEFT -> L298N B")
     req(cfg,"DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27","logical RIGHT -> L298N A")
     req(cfg,"DRIVE_L_INVERT=false,DRIVE_R_INVERT=false","no speculative direction inversion")
     req(cfg,"CONTROL_COMMAND_TIMEOUT_MS=500","lost-command watchdog")
+    req(cfg,"int speed=100","firmware full-scale default")
     req(profile,"DRIVE_L_EN=17","Android profile left EN")
     req(profile,"DRIVE_R_EN=16","Android profile right EN")
 
@@ -50,8 +79,7 @@ def main():
     req(hw,"motorWrite(Cfg::DRIVE_L_EN,Cfg::DRIVE_L_IN1,Cfg::DRIVE_L_IN2,curL,Cfg::DRIVE_L_INVERT)","left output")
     req(hw,"motorWrite(Cfg::DRIVE_R_EN,Cfg::DRIVE_R_IN1,Cfg::DRIVE_R_IN2,curR,Cfg::DRIVE_R_INVERT)","right output")
 
-    # HR056 Direct authority: HTTP only. UDP artifacts may remain as historical source files, but
-    # neither active firmware nor RobotApi may compile/use the transport.
+    # Direct authority is HTTP only; no local UDP competes with it.
     req(ino,'web.on("/drive"',"Direct HTTP drive endpoint")
     req(ino,'radioProfile!=RadioProfile::DIRECT',"Direct/Remote drive authority guard")
     req(ino,'\\"drive_udp\\":{\\"installed\\":false',"firmware advertises local UDP disabled")
@@ -67,8 +95,9 @@ def main():
     req(remote,"publishedDriveRevision","remote latest-command coalescing")
     req(remote_policy,"MIN_PUBLISH_MS=40","remote publish ceiling")
 
-    print("HazRob 0.10.1 HR-0101-048 steering contract under HR056: PASS")
-    print("right-pivot=(+100,-100); mapping LEFT=B RIGHT=A; Direct=HTTP; watchdog=500ms; Remote=MQTT; physical acceptance=PENDING")
+    print("HazRob 0.10.1 HR-0101-048/060 steering contract: PASS")
+    print("matrix: F=(100,100) R=(-100,-100) FR=(100,50) FL=(50,100) RR=(-50,-100) RL=(-100,-50) pivotR=(100,-100) pivotL=(-100,100)")
+    print("semantics: +X = right yaw of robot nose/camera in both forward and reverse; speed default=100%; physical acceptance=PENDING")
 
     if os.environ.get("HR048_SKIP_INTEGRATION") != "1":
         from audit_hr048_integration_contract import main as integration_main
@@ -79,5 +108,5 @@ def main():
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as e:
-        print("HazRob 0.10.1 HR-0101-048 steering/integration gate: FAIL:",e)
+        print("HazRob 0.10.1 HR-0101-048/060 steering/integration gate: FAIL:",e)
         raise SystemExit(1)
