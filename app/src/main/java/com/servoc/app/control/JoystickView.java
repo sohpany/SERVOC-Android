@@ -59,9 +59,8 @@ public final class JoystickView extends View {
 
     private void emit() {
         if (listener == null) return;
-        double l = y + x, r = y - x;
-        double q = Math.max(1, Math.max(Math.abs(l), Math.abs(r)));
-        listener.onDrive((int) Math.round(l / q * 100), (int) Math.round(r / q * 100), active);
+        DriveMixer.Command command=DriveMixer.mix(x,y);
+        listener.onDrive(command.left,command.right,active);
     }
 
     public void reset() { active = false; x = y = 0; invalidate(); emit(); }
