@@ -68,7 +68,8 @@ def main() -> int:
     req(entry, "إلغاء الاتصال", "cancellable remote entry")
     req(entry, 'local.postForm("/connection/remote"', "explicit Direct-to-Remote handoff")
     req(entry, 'WifiRoute.releaseRobotWifi(a)', "release local-only network for Remote")
-    req(entry, "إذا كان الروبوت في Direct", "remote mode diagnostic UX")
+    req(entry, "بعد إعادة تشغيل الروبوت يكون Direct افتراضيًا", "Direct-first remote diagnostic UX")
+    req(entry, "يجب تفعيل Remote محليًا", "explicit Remote activation diagnostic UX")
 
     req(instant, "RESPONSE_MIN_DELTA = 0.05", "response visibility floor")
     req(instant, "Level{UNAVAILABLE,NORMAL,RESPONSE,ELEVATED,HIGH}", "response state")
