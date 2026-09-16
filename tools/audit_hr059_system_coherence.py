@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Fail-closed HR-0101-059/060 five-layer HazRob coherence gate.
+"""Fail-closed HR-0101-059/061 five-layer HazRob coherence gate.
 Checks Main ESP32, ESP32-CAM, Android, Render and HiveMQ-facing contracts together.
+HR061 authority: every boot is Direct; saved WAN is configuration only; Remote requires explicit operator action.
 Physical RF/motor/camera acceptance remains a separate field test.
 """
 from pathlib import Path
@@ -24,6 +25,7 @@ def main():
     session=text("app/src/main/java/com/servoc/app/communication/RemoteSessionManager.java"); conn=text("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
     policy=text("app/src/main/java/com/servoc/app/communication/RemoteDrivePolicy.java"); api=text("app/src/main/java/com/servoc/app/communication/RobotApi.java")
     mqttc=text("app/src/main/java/com/servoc/app/communication/SecureMqtt311Client.java"); wssc=text("app/src/main/java/com/servoc/app/camera/RemoteJpegWebSocketClient.java")
+    camera_api=text("app/src/main/java/com/servoc/app/camera/CameraApi.java")
     links=text("app/src/main/java/com/servoc/app/communication/RobotLinkService.java"); relay=text("remote/video-relay/src/index.js"); rtest=text("remote/video-relay/test/contract.mjs"); gradle=text("app/build.gradle")
     wifi=text("app/src/main/java/com/servoc/app/communication/WifiRoute.java"); gate=text("app/src/main/java/com/servoc/app/auth/ConnectionGate.java")
 
@@ -42,14 +44,20 @@ def main():
     req(session,'BOOTSTRAP_CLIENT="android"','Android role'); req(session,'bootstrap contract mismatch','Android contract reject'); req(session,'bootstrap role mismatch','Android role reject')
     for n in ['role==="android"','role==="esp32"','role==="esp32-cam"','video_view_token','video_publish_token']: req(relay,n,'Render scoped bootstrap')
 
-    # Local radio/network authority and WAN lifecycle.
+    # Local radio/network authority and Direct-first WAN lifecycle.
     for n,label in [('ROBOT_SSID="HazRob"','SSID'),('ROBOT_HOST="192.168.4.1"','robot IP'),('CAMERA_HOST="192.168.4.2"','CAM IP')]: req(local,n,label)
-    for n,label in [('configureSoftAp(WIFI_AP,false);','Direct AP transition'),('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),('radioProfile!=RadioProfile::DIRECT','Direct HTTP guard'),('if(radioProfile==RadioProfile::REMOTE){remoteUpdate();gatewayUpdate();remoteMqttUpdate();}','Remote runtime guard'),('bool directApStable()','Direct stable detector'),('\\"already_direct\\":true','Direct idempotent response')]: req(master,n,label)
+    for n,label in [('applyRadioProfile(RadioProfile::DIRECT,false);','Direct boot'),('configureSoftAp(WIFI_AP,false);','Direct AP transition'),('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),('radioProfile!=RadioProfile::DIRECT','Direct HTTP guard'),('if(radioProfile==RadioProfile::REMOTE){remoteUpdate();gatewayUpdate();remoteMqttUpdate();}','Remote runtime guard'),('bool directApStable()','Direct stable detector'),('\\"already_direct\\":true','Direct idempotent response'),('\\"remote_activation_required\\":true','WAN provision remains Direct')]: req(master,n,label)
+    ban(master,'applyRadioProfile(remoteTransportEnabled()?RadioProfile::REMOTE:RadioProfile::DIRECT','saved WAN boot selection')
+    ban(master,'requestRadioProfile(RadioProfile::REMOTE,true)','persistent Remote mode')
     ban(rlink,'WiFi.mode(','RemoteLink radio ownership')
-    for n,label in [('transportEnabled=configured;','saved WAN boot'),('wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",true);','WAN persist'),('wan.remove("ssid");wan.remove("pass");wan.putBool("enabled",false);','WAN clear')]: req(rlink,n,label)
-    for n,label in [('web.on("/remote/disconnect"','disconnect endpoint'),('\\"wan_retained\\":true','WAN retained'),('web.on("/remote/connect"','reconnect endpoint')]: req(master,n,label)
+    for n,label in [('transportEnabled=false;','Direct boot transport'),('wan.putBool("enabled",false);','non-persistent mode'),('wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",false);','WAN credentials only'),('wan.remove("ssid");wan.remove("pass");wan.putBool("enabled",false);','WAN clear')]: req(rlink,n,label)
+    ban(rlink,'transportEnabled=configured;','saved WAN auto boot')
+    ban(rlink,'wan.putBool("enabled",configured);','saved WAN auto boot flag')
+    for n,label in [('web.on("/remote/disconnect"','disconnect endpoint'),('\\"wan_retained\\":true','WAN retained'),('web.on("/remote/connect"','reconnect endpoint'),('\\"explicit_operator_request\\":true','explicit Remote request')]: req(master,n,label)
     req(api,'remoteDisconnect()','Android disconnect'); req(api,'remoteReconnect()','Android reconnect')
     req(wifi,'restartRobotWifiRequest','Android Direct re-acquisition'); req(gate,'local.remoteStatus()','Android profile check'); req(gate,'switchNeeded=!"direct".equalsIgnoreCase','Android avoids Direct bounce')
+    req(gate,'CameraApi directCamera=new CameraApi(LocalNetworkContract.CAMERA_HOST)','Android local CAM gate'); req(gate,'directCamera.directReady()','Android requires CAM stream readiness')
+    req(camera_api,'String expectedFw="HazRob-CAM "+ReleaseAudit.VERSION','CAM identity gate'); req(camera_api,'prev==0xFF&&cur==0xD9&&jpegBytes>128','complete local JPEG gate')
 
     # Remote command parity across Android facade+transport and main firmware.
     expected={"probe","drive","motion_stop","estop","estop_reset","sensor_off","heartbeat","heartbeat_disarm","relay","measure_start","measure_cancel","alert","alert_test","camera_flash","config_get","config_set"}
@@ -70,8 +78,8 @@ def main():
     if not(direct<watchdog and hold<watchdog and pump<=minpub<=hold and ttl>=watchdog): raise AssertionError(f"timing invariant direct={direct} pump={pump} minpub={minpub} hold={hold} watchdog={watchdog} ttl={ttl}")
     req(conn,'public void motionStop()throws Exception{setDesiredDrive(0,0);command("motion_stop"','Remote explicit stop'); req(links,'failStopForBackground(remote);','service safe stop'); req(links,'remoteSessions.close()','remote pump teardown'); req(api,'requireNeutralAfterBackground','neutral re-arm')
 
-    # Camera arbitration, NTP/TLS readiness and WSS paths.
-    for n,label in [('if(clients)return;','local viewer priority'),('gateway&&camTimeReady()','CAM gateway+time gate'),('TLS_TIME_MIN=1700000000','CAM TLS epoch'),('configTime(0,0,"pool.ntp.org","time.cloudflare.com")','CAM NTP'),('\\"time_ready\\":','CAM time diagnostics'),('\\"radio_profile\\":\\"remote\\"','CAM remote profile'),('\\"internet\\":true','CAM internet'),('\\"napt\\":true','CAM NAPT')]: req(cam,n,label)
+    # Camera arbitration, local Direct path, NTP/TLS readiness and WSS paths.
+    for n,label in [('SSID[]="HazRob"','CAM local SSID'),('IPAddress ip(192,168,4,2)','CAM local IP'),('WiFiServer mjpeg(81)','CAM local MJPEG'),('if(clients)return;','local viewer priority'),('gateway&&camTimeReady()','CAM gateway+time gate'),('TLS_TIME_MIN=1700000000','CAM TLS epoch'),('configTime(0,0,"pool.ntp.org","time.cloudflare.com")','CAM NTP'),('\\"time_ready\\":','CAM time diagnostics'),('\\"radio_profile\\":\\"remote\\"','CAM remote profile'),('\\"internet\\":true','CAM internet'),('\\"napt\\":true','CAM NAPT')]: req(cam,n,label)
     req(rvideo,'if(localActive||!RemoteVideoCfg::configured()','no WSS handshake during local'); req(rvideo,'if(localActive&&!connected)','no remote connect during local')
     req(rvcfg,'BASE_PATH[]="/hazrob/video"','CAM video base'); req(service,'VIDEO_VIEW_WSS="wss://"+VIDEO_HOST+"/hazrob/video/view/"+ROBOT_ID','Android viewer path'); req(relay,'/^\\/hazrob\\/video\\/(publish|view)\\/([^/]+)$/','Render WSS routes')
 
@@ -81,15 +89,16 @@ def main():
     # Relay role isolation plus local and live production contract coverage.
     req(relay,'expected=role==="publisher"?c.publish:c.view','relay token isolation'); req(rtest,'openWs("/hazrob/video/view/hazrob-001",PUBLISH)','publisher token rejection'); req(rtest,'openWs("/hazrob/video/publish/hazrob-001",VIEW)','viewer token rejection'); req(rtest,'liveProductionContract()','live production contract test'); req(rtest,'mqttDiagnostic?.state,"pass"','live Hive diagnostic')
 
-    print("HazRob HR-0101-059/060 five-layer system coherence: PASS")
+    print("HazRob HR-0101-059/061 five-layer system coherence: PASS")
     print(f"Identity: 0.10.1 / protocol 2 / hazrob-001; cloud={hive}:8883 + {render}")
     print(f"Safety timing: Direct {direct}ms; Remote hold {hold}ms; watchdog {watchdog}ms; command TTL {ttl}ms")
+    print("Lifecycle: every boot Direct; WAN save stays local; Remote is explicit runtime activation")
     print("Control parity: Direct HTTP + Remote MQTT command families aligned")
-    print("Direct lock: AP-only idempotence + Android stale-route recovery enforced")
+    print("Direct lock: AP-only idempotence + Android stale-route recovery + CAM complete-JPEG gate")
     print("Camera parity: local priority + gateway/NAPT + CAM NTP + strict bootstrap + WSS role isolation")
     print("Scope: source/integration qualified; physical RF/motor/camera acceptance remains PENDING")
     return 0
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HazRob HR-0101-059/060 five-layer system coherence: FAIL: {exc}"); raise SystemExit(1)
+        print(f"HazRob HR-0101-059/061 five-layer system coherence: FAIL: {exc}"); raise SystemExit(1)
