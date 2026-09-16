@@ -5,12 +5,13 @@
 #include "RemoteMqtt.h"
 #include "SafetyInterlock.h"
 
-// HR-0101-060 connection authority:
-// DIRECT = AP-only + HTTP control/telemetry + local camera network (runtime session only).
-// REMOTE = AP+STA + MQTT/Render gateway. Saved WAN is retried on every reboot until explicitly cleared.
-// Entering DIRECT shuts down MQTT/NAPT/STA first. Direct->Direct is idempotent and must not bounce
+// HR-0101-061 connection authority:
+// BOOT/DIRECT = AP-only + HTTP control/telemetry + local camera network. This is always the default.
+// REMOTE = AP+STA + MQTT/Render gateway and is entered only by an explicit operator command.
+// Saved WAN credentials are configuration data only; they never auto-enable STA/MQTT/Render on boot.
+// Entering DIRECT shuts down MQTT/NAPT/STA first. Direct->Direct is radio-idempotent and must not bounce
 // the HazRob SoftAP or disconnect the phone/CAM merely because the operator pressed Direct again.
-// DISCONNECT REMOTE = runtime AP-only without deleting WAN. RESET WAN = destructive credential clear.
+// WAN provisioning stores credentials while remaining Direct. RESET WAN is the only destructive credential clear.
 WebServer web(80);
 
 enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1};
@@ -49,6 +50,7 @@ void applyRadioProfile(RadioProfile next,bool persistMode){
       remoteMqttDisconnect();
       if(naptEnabled)WiFi.AP.enableNAPT(false);
       naptEnabled=false;
+      remoteSetTransportEnabled(false,false);
       radioProfile=RadioProfile::DIRECT;
       wifiAt=millis();
       return;
@@ -56,7 +58,7 @@ void applyRadioProfile(RadioProfile next,bool persistMode){
     remoteMqttDisconnect();
     if(naptEnabled)WiFi.AP.enableNAPT(false);
     naptEnabled=false;
-    // Stop the WAN transport first. This disconnects STA but does not erase saved credentials.
+    // Stop WAN transport first; saved SSID/password remain untouched.
     remoteSetTransportEnabled(false,persistMode);
     delay(20);
     // Preserve the existing HazRob AP association whenever it is already healthy.
@@ -106,7 +108,8 @@ void setup(){
   relayBootSafeInit();hwBegin();
   WiFi.persistent(false);WiFi.setSleep(false);WiFi.setAutoReconnect(false);
   remoteBegin();remoteMqttBegin();
-  applyRadioProfile(remoteTransportEnabled()?RadioProfile::REMOTE:RadioProfile::DIRECT,false);
+  // HR061: every boot is deterministically local. Saved WAN is not consulted for mode selection.
+  applyRadioProfile(RadioProfile::DIRECT,false);
 
   web.on("/",[]{reply(200,Cfg::FW);});
   web.on("/drive",[]{
@@ -122,19 +125,19 @@ void setup(){
   web.on("/sensor/off",[]{sensorPowerOff();reply(200,"OK");});
   web.on("/heartbeat",[]{if(web.hasArg("arm")&&web.arg("arm")=="0"){linkSetArmed(false);return reply(200,"DISARMED");}linkHeartbeat();reply(200,"OK");});
 
-  // Direct is deliberately temporary: it must not disarm saved WAN for the next reboot.
-  // If Direct is already healthy, return success without restarting HazRob AP.
+  // Direct is the boot/default authority. Re-selecting it never restarts a healthy HazRob AP.
   web.on("/connection/direct",HTTP_POST,[]{
     motionStop();
-    if(directApStable())return reply(200,"application/json","{\"ok\":true,\"radio_profile\":\"direct\",\"already_direct\":true}");
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\"}");requestRadioProfile(RadioProfile::DIRECT,false);
+    if(directApStable())return reply(200,"application/json","{\"ok\":true,\"radio_profile\":\"direct\",\"already_direct\":true,\"wan_retained\":true}");
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\",\"wan_retained\":true}");requestRadioProfile(RadioProfile::DIRECT,false);
   });
   web.on("/connection/remote",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE,true);
+    motionStop();
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\",\"explicit_operator_request\":true}");requestRadioProfile(RadioProfile::REMOTE,false);
   });
 
-  // Explicit local WAN runtime controls. Disconnect preserves credentials and reboot intent.
+  // Explicit local WAN runtime controls. Disconnect preserves credentials; every reboot is Direct.
   web.on("/remote/disconnect",HTTP_POST,[]{
     motionStop();
     if(directApStable())return reply(200,"application/json","{\"ok\":true,\"radio_profile\":\"direct\",\"already_direct\":true,\"wan_retained\":true}");
@@ -144,7 +147,7 @@ void setup(){
   web.on("/remote/connect",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
     motionStop();
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\",\"wan_retained\":true}");
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\",\"wan_retained\":true,\"explicit_operator_request\":true}");
     requestRadioProfile(RadioProfile::REMOTE,false);
   });
 
@@ -156,17 +159,18 @@ void setup(){
   web.on("/remote/scan",[]{if(radioProfile!=RadioProfile::REMOTE)return reply(409,"application/json",scanJson());reply(200,"application/json",scanJson());});
   web.on("/remote/provision",HTTP_POST,[]{
     motionStop();String s=web.arg("ssid"),p=web.arg("password");bool ok=s.length()&&remoteProvision(s,p);
-    reply(ok?200:400,"application/json",ok?"{\"ok\":true,\"switching_to\":\"remote\"}":"{\"ok\":false}");if(ok)requestRadioProfile(RadioProfile::REMOTE,true);
+    // Provisioning is configuration only. Stay Direct until the operator explicitly selects Remote.
+    reply(ok?200:400,"application/json",ok?"{\"ok\":true,\"configured\":true,\"radio_profile\":\"direct\",\"remote_activation_required\":true}":"{\"ok\":false}");
   });
   web.on("/remote/retry",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
     if(radioProfile==RadioProfile::REMOTE){motionStop();bool ok=remoteRetry();return reply(ok?200:409,"application/json",ok?"{\"ok\":true}":"{\"ok\":false}");}
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\"}");requestRadioProfile(RadioProfile::REMOTE,false);
+    return reply(409,"application/json","{\"ok\":false,\"error\":\"direct_mode_select_remote_first\"}");
   });
   web.on("/remote/clear",HTTP_POST,[]{
     if(web.arg("confirm")!="1")return reply(400,"application/json","{\"ok\":false}");
     motionStop();remoteMqttDisconnect();if(naptEnabled)WiFi.AP.enableNAPT(false);naptEnabled=false;remoteClear();
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\"}");requestRadioProfile(RadioProfile::DIRECT,false);
+    reply(200,"application/json","{\"ok\":true,\"radio_profile\":\"direct\",\"wan_retained\":false}");requestRadioProfile(RadioProfile::DIRECT,false);
   });
 
   web.on("/relay",[]{if(!web.hasArg("mask"))return reply(400,"BAD");int mask=web.arg("mask").toInt();if(mask!=0&&mask!=1)return reply(409,"MQ POWER MUST BE 0 OR 1");linkHeartbeat();if(!relaySetMask((uint8_t)mask))return reply(409,"RELAY REJECTED");reply(200,"OK");});
@@ -175,7 +179,7 @@ void setup(){
   web.on("/data",[]{reply(200,"application/json",dataJson());});
   web.on("/diag",[]{
     String j=diagJson();
-    if(j.endsWith("}")){j.remove(j.length()-1);j+=",\"estop_latched\":";j+=safetyEstopLatched()?"true":"false";j+=",\"drive_udp\":{\"installed\":false,\"port\":4210,\"version\":1}";j+=",\"connection\":{\"radio_profile\":\""+String(profileName())+"\",\"direct_protocol\":\"HTTP\",\"ap_only\":"+(radioProfile==RadioProfile::DIRECT?String("true"):String("false"))+",\"ap_ip\":\"192.168.4.1\",\"camera_ip\":\"192.168.4.2\",\"ap_clients\":"+String(WiFi.softAPgetStationNum())+"}";j+='}';}
+    if(j.endsWith("}")){j.remove(j.length()-1);j+=",\"estop_latched\":";j+=safetyEstopLatched()?"true":"false";j+=",\"drive_udp\":{\"installed\":false,\"port\":4210,\"version\":1}";j+=",\"connection\":{\"radio_profile\":\""+String(profileName())+"\",\"boot_default\":\"direct\",\"direct_protocol\":\"HTTP\",\"ap_only\":"+(radioProfile==RadioProfile::DIRECT?String("true"):String("false"))+",\"ap_ip\":\"192.168.4.1\",\"camera_ip\":\"192.168.4.2\",\"ap_clients\":"+String(WiFi.softAPgetStationNum())+"}";j+='}';}
     reply(200,"application/json",j);
   });
   web.on("/cfg",[]{SettingsPatch patch;if(web.hasArg("cam")){patch.hasCam=true;patch.cam=web.arg("cam");}if(web.hasArg("speed")){patch.hasSpeed=true;patch.speed=web.arg("speed").toInt();}if(web.hasArg("warm")){patch.hasWarm=true;patch.warm=web.arg("warm").toInt();}if(web.hasArg("measure")){patch.hasMeasure=true;patch.measure=web.arg("measure").toInt();}if(patch.hasCam||patch.hasSpeed||patch.hasWarm||patch.hasMeasure)applySettings(patch,true);reply(200,"application/json",settingsJson());});
