@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
-"""HR-0101-049 control/remote contract carried forward under HR-0101-056.
+"""HR-0101-049/060 control/remote contract carried forward on HazRob 0.10.1.
 
-Direct is deliberately restored to HTTP over an AP-only profile. Remote retains the HR049
-latest-command MQTT architecture and latency policy. Physical latency/WAN tests remain field gates.
+Direct is AP-only + HTTP and now uses radio-idempotent Direct locking. Remote retains the
+latest-command MQTT architecture and latency policy. Steering geometry is delegated to the
+pure DriveMixer so forward/reverse handedness has one executable authority.
+Physical latency/RF tests remain field gates.
 """
 from pathlib import Path
 
@@ -25,13 +27,19 @@ def main():
     cfg=txt("firmware/HazRob/Config.h")
     mqtt=txt("firmware/HazRob/RemoteMqtt.cpp")
     joy=txt("app/src/main/java/com/servoc/app/control/JoystickView.java")
+    mixer=txt("app/src/main/java/com/servoc/app/control/DriveMixer.java")
+    mixer_test=txt("app/src/test/java/com/servoc/app/control/DriveMixerTest.java")
 
-    req(joy,"double l = y + x, r = y - x;","joystick mixer")
-    req(joy,"Math.round(l / q * 100)","left full-scale output")
-    req(joy,"Math.round(r / q * 100)","right full-scale output")
+    req(joy,"DriveMixer.Command command=DriveMixer.mix(x,y);","joystick mixer authority")
+    req(mixer,"double left=y+x;","left differential equation")
+    req(mixer,"double right=y-x;","right differential equation")
+    req(mixer_test,"reverseSteeringKeepsYawHandedness","reverse steering regression")
+    req(mixer_test,"rightAndLeftYawSignsAreConsistentAcrossForwardAndReverse","yaw handedness regression")
 
-    # HR056 Direct: AP-only + HTTP drive, OS-requested local-only network, bounded command cadence.
-    req(ino,'configureSoftAp(WIFI_AP);',"Direct AP-only profile")
+    # HR060 Direct: AP-only + HTTP drive, OS-requested local-only network, no AP bounce on repeat Direct.
+    req(ino,'directApStable(){return radioProfile==RadioProfile::DIRECT&&WiFi.getMode()==WIFI_AP',"Direct AP-only profile")
+    req(ino,'configureSoftAp(WIFI_AP,false);',"Remote-to-Direct AP-preserving transition")
+    req(ino,'if(directApStable())',"Direct idempotence")
     req(ino,'web.on("/drive"',"Direct HTTP drive endpoint")
     req(ino,'radioProfile!=RadioProfile::DIRECT',"dual-authority drive rejection")
     req(ino,'\\"drive_udp\\":{\\"installed\\":false',"UDP disabled capability")
@@ -40,6 +48,7 @@ def main():
     req(api,'getText("/drive?l="+left+"&r="+right,450)',"Direct HTTP sender")
     forbid(api,'DatagramSocket',"Android active local UDP")
     req(wifi,'WifiNetworkSpecifier.Builder().setSsid(LocalNetworkContract.ROBOT_SSID)',"Direct local-only Wi-Fi request")
+    req(wifi,'requestCallback=null;requestCm=null;requestedNetwork=null;requestUnavailable=false;',"stale Direct route reset")
     req(cfg,"CONTROL_COMMAND_TIMEOUT_MS=500","lost-command motor watchdog")
 
     # Remote latest-command architecture: no command backlog, bounded publish rate, hold refresh.
@@ -64,12 +73,12 @@ def main():
     req(mqtt,"while(tls.available())processPacket()","incoming commands before telemetry")
     forbid(remote,'command("drive",p,700,false,0)',"retired synchronous Remote drive path")
 
-    print("HazRob 0.10.1 HR-0101-049 control/remote contract under HR056: PASS")
-    print("Direct=AP-only HTTP/250ms keepalive; Remote=latest-command 25Hz max / 120ms hold refresh; telemetry=2Hz; watchdog=500ms")
+    print("HazRob 0.10.1 HR-0101-049/060 control/remote contract: PASS")
+    print("Direct=AP-only HTTP/250ms keepalive with idempotent AP lock; Remote=latest-command 25Hz max / 120ms hold refresh; telemetry=2Hz; watchdog=500ms")
     return 0
 
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as e:
-        print("HazRob 0.10.1 HR-0101-049 control/remote gate: FAIL:",e)
+        print("HazRob 0.10.1 HR-0101-049/060 control/remote gate: FAIL:",e)
         raise SystemExit(1)
