@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed HR-0101-059 five-layer HazRob coherence gate.
+"""Fail-closed HR-0101-059/060 five-layer HazRob coherence gate.
 Checks Main ESP32, ESP32-CAM, Android, Render and HiveMQ-facing contracts together.
 Physical RF/motor/camera acceptance remains a separate field test.
 """
@@ -25,6 +25,7 @@ def main():
     policy=text("app/src/main/java/com/servoc/app/communication/RemoteDrivePolicy.java"); api=text("app/src/main/java/com/servoc/app/communication/RobotApi.java")
     mqttc=text("app/src/main/java/com/servoc/app/communication/SecureMqtt311Client.java"); wssc=text("app/src/main/java/com/servoc/app/camera/RemoteJpegWebSocketClient.java")
     links=text("app/src/main/java/com/servoc/app/communication/RobotLinkService.java"); relay=text("remote/video-relay/src/index.js"); rtest=text("remote/video-relay/test/contract.mjs"); gradle=text("app/build.gradle")
+    wifi=text("app/src/main/java/com/servoc/app/communication/WifiRoute.java"); gate=text("app/src/main/java/com/servoc/app/auth/ConnectionGate.java")
 
     # Shared identity and cloud coordinates.
     for src,n,label in [(cfg,'FW[]="HazRob 0.10.1"','main version'),(cam,'FW[]="HazRob-CAM 0.10.1"','CAM version'),(service,'SERVICE_VERSION="0.10.1"','Android service version'),(rcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','main bootstrap version'),(rvcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','CAM bootstrap version'),(relay,'SERVICE_VERSION="0.10.1",PROTOCOL=2','Render version/protocol'),(gradle,"versionName '0.10.1'",'APK version'),(gradle,'versionCode 21','APK versionCode')]: req(src,n,label)
@@ -43,11 +44,12 @@ def main():
 
     # Local radio/network authority and WAN lifecycle.
     for n,label in [('ROBOT_SSID="HazRob"','SSID'),('ROBOT_HOST="192.168.4.1"','robot IP'),('CAMERA_HOST="192.168.4.2"','CAM IP')]: req(local,n,label)
-    for n,label in [('configureSoftAp(WIFI_AP);','Direct AP'),('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),('radioProfile!=RadioProfile::DIRECT','Direct HTTP guard'),('if(radioProfile==RadioProfile::REMOTE){remoteUpdate();gatewayUpdate();remoteMqttUpdate();}','Remote runtime guard')]: req(master,n,label)
+    for n,label in [('configureSoftAp(WIFI_AP,false);','Direct AP transition'),('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),('radioProfile!=RadioProfile::DIRECT','Direct HTTP guard'),('if(radioProfile==RadioProfile::REMOTE){remoteUpdate();gatewayUpdate();remoteMqttUpdate();}','Remote runtime guard'),('bool directApStable()','Direct stable detector'),('\\"already_direct\\":true','Direct idempotent response')]: req(master,n,label)
     ban(rlink,'WiFi.mode(','RemoteLink radio ownership')
     for n,label in [('transportEnabled=configured;','saved WAN boot'),('wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",true);','WAN persist'),('wan.remove("ssid");wan.remove("pass");wan.putBool("enabled",false);','WAN clear')]: req(rlink,n,label)
     for n,label in [('web.on("/remote/disconnect"','disconnect endpoint'),('\\"wan_retained\\":true','WAN retained'),('web.on("/remote/connect"','reconnect endpoint')]: req(master,n,label)
     req(api,'remoteDisconnect()','Android disconnect'); req(api,'remoteReconnect()','Android reconnect')
+    req(wifi,'restartRobotWifiRequest','Android Direct re-acquisition'); req(gate,'local.remoteStatus()','Android profile check'); req(gate,'switchNeeded=!"direct".equalsIgnoreCase','Android avoids Direct bounce')
 
     # Remote command parity across Android facade+transport and main firmware.
     expected={"probe","drive","motion_stop","estop","estop_reset","sensor_off","heartbeat","heartbeat_disarm","relay","measure_start","measure_cancel","alert","alert_test","camera_flash","config_get","config_set"}
@@ -79,14 +81,15 @@ def main():
     # Relay role isolation plus local and live production contract coverage.
     req(relay,'expected=role==="publisher"?c.publish:c.view','relay token isolation'); req(rtest,'openWs("/hazrob/video/view/hazrob-001",PUBLISH)','publisher token rejection'); req(rtest,'openWs("/hazrob/video/publish/hazrob-001",VIEW)','viewer token rejection'); req(rtest,'liveProductionContract()','live production contract test'); req(rtest,'mqttDiagnostic?.state,"pass"','live Hive diagnostic')
 
-    print("HazRob HR-0101-059 five-layer system coherence: PASS")
+    print("HazRob HR-0101-059/060 five-layer system coherence: PASS")
     print(f"Identity: 0.10.1 / protocol 2 / hazrob-001; cloud={hive}:8883 + {render}")
     print(f"Safety timing: Direct {direct}ms; Remote hold {hold}ms; watchdog {watchdog}ms; command TTL {ttl}ms")
     print("Control parity: Direct HTTP + Remote MQTT command families aligned")
+    print("Direct lock: AP-only idempotence + Android stale-route recovery enforced")
     print("Camera parity: local priority + gateway/NAPT + CAM NTP + strict bootstrap + WSS role isolation")
     print("Scope: source/integration qualified; physical RF/motor/camera acceptance remains PENDING")
     return 0
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HazRob HR-0101-059 five-layer system coherence: FAIL: {exc}"); raise SystemExit(1)
+        print(f"HazRob HR-0101-059/060 five-layer system coherence: FAIL: {exc}"); raise SystemExit(1)
