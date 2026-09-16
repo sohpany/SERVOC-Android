@@ -4,9 +4,9 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 def text(p): return (ROOT/p).read_text(encoding="utf-8")
 def req(src,needle,label):
-    if needle not in src: raise AssertionError(f"HR059 missing {label}: {needle}")
+    if needle not in src: raise AssertionError(f"HR060 missing {label}: {needle}")
 def ban(src,needle,label):
-    if needle in src: raise AssertionError(f"HR059 forbidden {label}: {needle}")
+    if needle in src: raise AssertionError(f"HR060 forbidden {label}: {needle}")
 
 def main():
     cam=text("firmware/HazRob-CAM/HazRob-CAM.ino")
@@ -37,9 +37,14 @@ def main():
     req(control,'"http://"+h+":81/stream"','Android local stream URL')
 
     # Split radio authority: Direct is AP-only; Remote alone owns STA/WAN/MQTT/NAPT.
+    # HR060 additionally requires repeat Direct to be radio-idempotent and Remote->Direct to preserve
+    # an already healthy HazRob AP association instead of bouncing phone/CAM clients.
     for n,l in [
         ('enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1}','radio state machine'),
-        ('configureSoftAp(WIFI_AP);','Direct AP-only'),('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),
+        ('directApStable(){return radioProfile==RadioProfile::DIRECT&&WiFi.getMode()==WIFI_AP','Direct AP-only'),
+        ('configureSoftAp(WIFI_AP,false);','Remote-to-Direct AP-preserving transition'),
+        ('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),
+        ('if(directApStable())','Direct radio idempotence'),
         ('remoteSetTransportEnabled(false,persistMode)','Direct WAN disable'),('remoteMqttDisconnect();','Direct MQTT stop'),
         ('WiFi.AP.enableNAPT(false)','Direct NAPT stop'),('WiFi.AP.enableNAPT(ready)','Remote NAPT readiness')]: req(master,n,l)
     for n,l in [
@@ -49,6 +54,7 @@ def main():
         ('\\"connect_attempts\\"','attempt telemetry'),('\\"ap_clients\\"','AP client telemetry'),('\\"wifi_channel\\"','channel telemetry')]: req(rlink,n,l)
     ban(rlink,'WiFi.mode(','RemoteLink radio ownership')
     req(wifi,'WifiNetworkSpecifier.Builder().setSsid(LocalNetworkContract.ROBOT_SSID)','Android local-only HazRob request')
+    req(wifi,'requestCallback=null;requestCm=null;requestedNetwork=null;requestUnavailable=false;','Android stale-route reset')
     req(connui,'لا يتم استكشاف الشبكات من ESP32 في Direct','Direct no-scan developer UX')
     req(connui,'فصل Remote مع الاحتفاظ بـ WAN','non-destructive Direct recovery UI')
     req(connui,'إعادة الاتصال بـ WAN المحفوظ','saved-WAN reconnect UI')
@@ -85,11 +91,11 @@ def main():
     for n,l in [('finiteAny(e,"p","pressure")','pressure normalization'),('x.put("status_code",status)','status normalization'),('x.put("ack_0x76",ack76)','ACK76 normalization'),('x.put("ack_0x77",ack77)','ACK77 normalization')]: req(proto,n,l)
     for n,l in [('optString("status_code",env.optString("status","NOT READY"))','ENV status UI'),('optString("address","—")','address UI'),('optString("chip_id","—")','chip UI')]: req(settings,n,l)
 
-    print('HR-0101-059 local-WiFi/camera/ENV/Render/Hive/app coherence contract: PASS')
+    print('HR-0101-060 local-WiFi/camera/ENV/Render/Hive/app coherence contract: PASS')
     return 0
 
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HR-0101-059 local-WiFi/camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
+        print(f"HR-0101-060 local-WiFi/camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
         raise SystemExit(1)
