@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
-"""Fail-closed cross-component integration gate for HazRob 0.10.1 HR-0101-048.
+"""Fail-closed cross-component integration gate for HazRob 0.10.1 HR-0101-048/060.
 
-The baseline 0.10.1 integration contract is executed unchanged for every contract except the one
-intentional HR048 delta: logical drive-side association. That legacy pin expectation is normalized
-in-memory only while the baseline audit runs. The real HR048 mapping is then checked independently
-against firmware, Android profile, joystick/Direct/Remote behavior and the controlled documentation.
-
-This avoids weakening the established integration gate while making the field-remediation delta
-explicit and auditable. It does not claim physical acceptance.
+The baseline 0.10.1 integration contract is executed for every contract except the intentional
+HR048 logical drive-side association. HR060 additionally makes the joystick mixer a pure tested
+component and hardens Direct radio ownership. Physical wheel/RF acceptance remains separate.
 """
 from pathlib import Path
 import importlib.util
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 BASELINE_AUDIT = ROOT / "tools/audit_0101_integration_contract.py"
@@ -71,6 +66,8 @@ def main() -> int:
     cfg = text("firmware/HazRob/Config.h")
     profile = text("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
     joy = text("app/src/main/java/com/servoc/app/control/JoystickView.java")
+    mixer = text("app/src/main/java/com/servoc/app/control/DriveMixer.java")
+    mixer_test = text("app/src/test/java/com/servoc/app/control/DriveMixerTest.java")
     api = text("app/src/main/java/com/servoc/app/communication/RobotApi.java")
     remote = text("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
     warning = text("app/src/main/java/com/servoc/app/measurement/InstantMqWarningEngine.java")
@@ -82,26 +79,32 @@ def main() -> int:
     doc = text("docs/0.10.1/FIELD_INTEGRATION_REMEDIATION_HR048.md")
     gpio_doc = text("docs/0.10.1/GPIO_AUTHORITY.md")
 
-    # Release identity remains 0.10.1. HR048 is a controlled change request, not 0.10.2.
+    # Release identity remains 0.10.1. HR048/060 are controlled changes, not 0.10.2.
     require(cfg, 'FW[]="HazRob 0.10.1"', "firmware release identity")
     forbid(cfg, "0.10.2", "firmware release identity")
     forbid(profile, "0.10.2", "Android hardware profile")
     require(doc, "no version bump", "HR048 documentation")
 
-    # Intentional steering remediation: canonical mixer + one hardware-boundary swap only.
-    require(joy, "double l = y + x, r = y - x;", "canonical joystick mixer")
+    # Canonical differential mixer + one hardware-boundary side swap only.
+    require(joy, "DriveMixer.Command command=DriveMixer.mix(x,y);", "joystick pure mixer binding")
+    require(mixer, "double left=y+x;", "canonical logical left equation")
+    require(mixer, "double right=y-x;", "canonical logical right equation")
+    require(mixer_test, "forwardSteeringIsCorrect", "forward steering regression")
+    require(mixer_test, "reverseSteeringKeepsYawHandedness", "reverse steering regression")
     require(cfg, "DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32", "firmware logical left")
     require(cfg, "DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27", "firmware logical right")
     require(cfg, "DRIVE_L_INVERT=false,DRIVE_R_INVERT=false", "drive inversion contract")
+    require(cfg, "int speed=100", "firmware full-scale default")
     require(profile, "DRIVE_L_EN=17", "Android logical left")
     require(profile, "DRIVE_R_EN=16", "Android logical right")
     require(gpio_doc, "LEFT → channel B", "GPIO authority logical left")
     require(gpio_doc, "RIGHT → channel A", "GPIO authority logical right")
-    require(remote, 'p.put("left",left);p.put("right",right);command("drive",p,700,false,0);', "Remote left/right parity")
+    require(remote, 'p.put("left",left);p.put("right",right);command("drive",p,RemoteDrivePolicy.COMMAND_TTL_MS,false,0);', "Remote left/right parity")
 
-    # Idle Android Direct transport must not continuously overwrite independent diagnostic commands.
-    require(api, "if(left==0&&right==0&&lastDirectDriveLeft==0&&lastDirectDriveRight==0)return;", "Direct idle-zero ownership")
-    require(api, "Non-zero commands still refresh at 20 Hz", "Direct ownership documentation")
+    # Idle Direct does not continuously overwrite independent commands; non-zero motion is refreshed.
+    require(api, "DIRECT_KEEPALIVE_MS=250L", "Direct keepalive policy")
+    require(api, "if(left==0&&right==0)return;", "Direct idle-zero ownership")
+    require(api, "if(now-lastDirectDriveAt<DIRECT_KEEPALIVE_MS)return;", "Direct non-zero refresh bound")
 
     # MQ operational warning remains separate from quantitative M4 claims.
     require(warning, "R0_NORMALIZED_FALLBACK = 1.0", "MQ fallback baseline")
@@ -114,7 +117,7 @@ def main() -> int:
     require(alerts, "Cfg::ALERT_OUTPUT_INSTALLED&&activeLevel!=NONE", "alert output gating")
     require(alerts, "output_asserted", "alert telemetry assertion state")
 
-    # Remote diagnostic UI and firmware must expose the same ordered readiness stages.
+    # Remote diagnostic UI and firmware expose the same ordered readiness stages.
     for key in ("configured", "wifi", "ip_ok", "dns", "time", "internet", "tls", "mqtt", "command_ack", "telemetry", "remote_ready", "detail"):
         require(remote_link, f'\\"{key}\\"', f"firmware remote status key {key}")
     for key in ("configured", "wifi", "ip_ok", "dns", "time", "internet", "tls", "mqtt", "command_ack", "telemetry", "remote_ready", "detail"):
@@ -125,13 +128,13 @@ def main() -> int:
     require(analysis_ui, "Quantitative PPM", "analysis quantitative label")
     require(analysis_ui, "WITHHELD", "analysis withheld state")
 
-    # Flammability seed retirement is explicitly blocked until the pinned bundle exists offline.
+    # Flammability seed retirement remains blocked until the pinned bundle exists offline.
     require(bootstrap, 'ASSET="generated/flammability/niosh_npg_flammability.json"', "flammability bundled asset contract")
     require(bootstrap, 'PINNED_SHA256="457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434"', "flammability pinned hash")
     require(doc, "primary `hazrob-0101-flammability-seed` service must not be deleted yet", "flammability retirement gate")
 
-    print("HazRob 0.10.1 HR-0101-048 cross-component integration contract: PASS")
-    print("Baseline integration coverage preserved; intentional drive-map delta verified separately.")
+    print("HazRob 0.10.1 HR-0101-048/060 cross-component integration contract: PASS")
+    print("Baseline integration preserved; drive map + pure mixer + forward/reverse steering verified separately.")
     print("Physical field acceptance: PENDING")
     return 0
 
@@ -140,5 +143,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except AssertionError as exc:
-        print("HazRob 0.10.1 HR-0101-048 integration contract: FAIL:", exc)
+        print("HazRob 0.10.1 HR-0101-048/060 integration contract: FAIL:", exc)
         raise SystemExit(1)
