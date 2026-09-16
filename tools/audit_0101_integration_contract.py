@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed HazRob 0.10.1 HR-0101-059 connection integration contract.
+"""Fail-closed HazRob 0.10.1 HR-0101-060 connection integration contract.
 
 The contract separates runtime Direct from persistent WAN intent:
 DIRECT = AP-only + HTTP drive + local MJPEG for the current session.
@@ -8,7 +8,7 @@ Saved WAN credentials must auto-arm Remote on every reboot until explicit WAN cl
 REMOTE DISCONNECT is local/runtime-only and must retain WAN credentials.
 REMOTE RECONNECT reuses the saved WAN without reprovisioning.
 WAN CLEAR is the only destructive/persistent opt-out.
-HR059 additionally runs the five-layer ESP32/CAM/Android/Render/Hive coherence gate.
+HR060 additionally requires Direct->Direct radio idempotence and Android re-acquisition after an actual Remote->Direct AP transition.
 Current GPIO/ENV authority must not regress.
 """
 from pathlib import Path
@@ -66,8 +66,11 @@ def main() -> int:
     require(local, 'ROBOT_HOST="192.168.4.1"', "Android direct robot host")
     require(local, 'CAMERA_HOST="192.168.4.2"', "Android direct camera host")
     require(master, 'enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1}', "radio state authority")
-    require(master, 'configureSoftAp(WIFI_AP);', "Direct AP-only radio")
+    require(master, 'configureSoftAp(WIFI_AP,false);', "Direct AP-only transition without forced AP restart")
     require(master, 'configureSoftAp(WIFI_AP_STA);', "Remote AP+STA radio")
+    require(master, 'bool directApStable()', "Direct stable-state detector")
+    require(master, 'if(directApStable())', "Direct idempotence gate")
+    require(master, '\\"already_direct\\":true', "Direct no-op response")
     require(master, 'remoteSetTransportEnabled(false,persistMode)', "Direct disables WAN transport")
     require(master, 'remoteMqttDisconnect();', "Direct disconnects MQTT")
     require(master, 'WiFi.AP.enableNAPT(false)', "Direct disables NAPT")
@@ -132,8 +135,15 @@ def main() -> int:
     require(wifi_route, '.removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)', "local-only network semantics")
     require(wifi_route, 'cm.requestNetwork(req,requestCallback)', "persistent Direct network request")
     require(wifi_route, 'unregisterNetworkCallback', "Direct network release")
+    require(wifi_route, 'restartRobotWifiRequest', "Direct request explicit re-acquisition")
+    require(wifi_route, 'requestLostAt', "Direct lost-network recovery state")
     require(gate, 'WifiRoute.waitForRobotWifi(a,30000)', "Direct acquisition gate")
+    require(gate, 'local.remoteStatus()', "Direct checks current radio profile before switching")
+    require(gate, 'switchNeeded=!"direct".equalsIgnoreCase', "Direct avoids needless Direct->Direct radio bounce")
     require(gate, 'local.postForm("/connection/direct"', "Direct radio switch")
+    require(gate, 'WifiRoute.restartRobotWifiRequest(a)', "Android re-acquires HazRob after real profile switch")
+    require(gate, 'WifiRoute.waitForRobotWifi(a,15000)', "Direct re-acquisition window")
+    require(gate, 'SystemClock.elapsedRealtime()+12000L', "Direct post-switch verification window")
     require(gate, 'local.postForm("/connection/remote"', "Remote radio switch")
     require(gate, 'WifiRoute.releaseRobotWifi(a);', "Remote releases phone from HazRob local-only route")
     require(link_service, 'WifiRoute.maintainRobotWifi(this)', "Direct network maintenance")
@@ -169,19 +179,20 @@ def main() -> int:
         raise AssertionError(f"HR059 five-layer coherence returned {rc}")
 
     state = {
-        "DIRECT": {"radio":"AP", "http_drive":True, "mqtt":False, "napt":False, "wss":False, "boot_intent":"unchanged"},
+        "DIRECT": {"radio":"AP", "http_drive":True, "mqtt":False, "napt":False, "wss":False, "boot_intent":"unchanged", "idempotent":True},
         "REMOTE": {"radio":"AP_STA", "http_drive":False, "mqtt":True, "napt":"internet_ready", "wss":"gateway_and_cam_time_ready", "boot_intent":"armed"},
         "REMOTE_DISCONNECT": {"radio":"AP", "wan_retained":True, "next_boot":"REMOTE"},
         "REMOTE_RECONNECT": {"radio":"AP_STA", "uses_saved_wan":True},
         "WAN_CLEAR": {"wan_retained":False, "next_boot":"DIRECT"},
     }
-    assert state["DIRECT"]["radio"] == "AP" and state["DIRECT"]["http_drive"] and not state["DIRECT"]["mqtt"]
+    assert state["DIRECT"]["radio"] == "AP" and state["DIRECT"]["http_drive"] and not state["DIRECT"]["mqtt"] and state["DIRECT"]["idempotent"]
     assert state["REMOTE"]["radio"] == "AP_STA" and not state["REMOTE"]["http_drive"] and state["REMOTE"]["mqtt"]
     assert state["REMOTE_DISCONNECT"]["wan_retained"] and state["REMOTE_DISCONNECT"]["next_boot"] == "REMOTE"
     assert state["REMOTE_RECONNECT"]["uses_saved_wan"] and state["WAN_CLEAR"]["next_boot"] == "DIRECT"
 
-    print("HazRob 0.10.1 HR-0101-059 connection contract: PASS")
-    print("DIRECT: AP-only + HTTP + local MJPEG; temporary runtime profile")
+    print("HazRob 0.10.1 HR-0101-060 connection contract: PASS")
+    print("DIRECT: AP-only + HTTP + local MJPEG; repeated Direct is radio-idempotent")
+    print("ANDROID DIRECT: checks current profile; after real AP transition releases stale route and re-acquires HazRob")
     print("REMOTE: saved WAN auto-arms AP+STA/MQTT/Render; CAM WSS additionally requires CAM NTP readiness")
     print("REMOTE DISCONNECT: local runtime AP-only, WAN retained; REMOTE RECONNECT: saved WAN reused")
     print("WAN CLEAR: only destructive persistent opt-out; SAFETY: motion stop before transitions/service teardown")
