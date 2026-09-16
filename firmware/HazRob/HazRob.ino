@@ -158,6 +158,7 @@ void setup(){
   });
   web.on("/remote/scan",[]{if(radioProfile!=RadioProfile::REMOTE)return reply(409,"application/json",scanJson());reply(200,"application/json",scanJson());});
   web.on("/remote/provision",HTTP_POST,[]{
+    if(radioProfile!=RadioProfile::DIRECT)return reply(409,"application/json","{\"ok\":false,\"error\":\"select_direct_first\"}");
     motionStop();String s=web.arg("ssid"),p=web.arg("password");bool ok=s.length()&&remoteProvision(s,p);
     // Provisioning is configuration only. Stay Direct until the operator explicitly selects Remote.
     reply(ok?200:400,"application/json",ok?"{\"ok\":true,\"configured\":true,\"radio_profile\":\"direct\",\"remote_activation_required\":true}":"{\"ok\":false}");
