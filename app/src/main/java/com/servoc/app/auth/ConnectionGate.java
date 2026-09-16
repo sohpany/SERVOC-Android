@@ -84,21 +84,35 @@ public final class ConnectionGate {
 
     private void enterDirect(){
         if(!ensureWifiPermission())return;
-        remoteAttempt++;busy("طلب شبكة HazRob المحلية وتثبيت وضع Direct...",1);
+        remoteAttempt++;busy("طلب شبكة HazRob المحلية والتحقق من وضع Direct...",1);
         io.execute(()->{
             prefs.edit().putString("robot",LocalNetworkContract.ROBOT_HOST).putString("camera",LocalNetworkContract.CAMERA_HOST).putString("connection_mode","direct").apply();
             local.setRobotHost(LocalNetworkContract.ROBOT_HOST);try{new RemoteSessionManager(a,prefs).close();}catch(Exception ignored){}
             boolean network=WifiRoute.waitForRobotWifi(a,30000);boolean accepted=false;String detail="";
             if(!network)detail="لم يمنح Android التطبيق شبكة HazRob المحلية";
             else{
-                try{local.postForm("/connection/direct","",1500);}catch(Exception e){detail="تم الوصول إلى الشبكة لكن تعذر تثبيت وضع Direct في الروبوت";}
-                for(int attempt=0;attempt<6&&!accepted;attempt++){
+                boolean switchNeeded=true;
+                try{switchNeeded=!"direct".equalsIgnoreCase(local.remoteStatus().optString("radio_profile",""));}catch(Exception ignored){}
+                if(switchNeeded){
                     try{
-                        WifiRoute.maintainRobotWifi(a);
-                        String banner=local.getText("/",1000);
-                        if(LocalNetworkContract.isExpectedFirmwareBanner(banner,ReleaseAudit.VERSION)){accepted=true;detail="تم تثبيت HazRob في وضع Direct AP-only والتحقق من الإصدار "+ReleaseAudit.VERSION;}
-                        else{String got=banner==null?"":banner.trim();detail=got.isEmpty()?"وصل رد فارغ من 192.168.4.1":"تم الوصول إلى 192.168.4.1 لكن هوية البرنامج هي: "+got;break;}
-                    }catch(Exception e){detail="تعذر الوصول إلى HazRob على 192.168.4.1";try{Thread.sleep(300);}catch(InterruptedException x){Thread.currentThread().interrupt();break;}}
+                        local.postForm("/connection/direct","",1500);
+                        detail="تم طلب التحويل إلى Direct؛ إعادة امتلاك شبكة HazRob...";
+                        WifiRoute.releaseRobotWifi(a);
+                        try{Thread.sleep(450);}catch(InterruptedException x){Thread.currentThread().interrupt();}
+                        WifiRoute.restartRobotWifiRequest(a);
+                        network=WifiRoute.waitForRobotWifi(a,15000);
+                    }catch(Exception e){network=false;detail="تم الوصول إلى الشبكة لكن تعذر تثبيت وضع Direct في الروبوت";}
+                }
+                if(network){
+                    long deadline=SystemClock.elapsedRealtime()+12000L;
+                    while(SystemClock.elapsedRealtime()<deadline&&!accepted){
+                        try{
+                            WifiRoute.maintainRobotWifi(a);
+                            String banner=local.getText("/",1200);
+                            if(LocalNetworkContract.isExpectedFirmwareBanner(banner,ReleaseAudit.VERSION)){accepted=true;detail="تم تثبيت HazRob في وضع Direct والتحقق من الإصدار "+ReleaseAudit.VERSION;break;}
+                            String got=banner==null?"":banner.trim();detail=got.isEmpty()?"وصل رد فارغ من 192.168.4.1":"تم الوصول إلى 192.168.4.1 لكن هوية البرنامج هي: "+got;break;
+                        }catch(Exception e){detail="إعادة انتظار HazRob على 192.168.4.1 بعد استقرار نقطة الوصول...";try{Thread.sleep(500);}catch(InterruptedException x){Thread.currentThread().interrupt();break;}}
+                    }
                 }
             }
             final boolean ready=accepted;final String result=detail;ui.post(()->{if(ready){status.setText(result);status.setTextColor(0xFF2E7D32);listener.onReady(Mode.DIRECT);}else showDirectRecovery(result);});
