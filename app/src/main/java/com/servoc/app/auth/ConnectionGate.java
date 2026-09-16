@@ -21,6 +21,7 @@ import android.widget.TextView;
 
 import com.servoc.app.R;
 import com.servoc.app.ReleaseAudit;
+import com.servoc.app.camera.CameraApi;
 import com.servoc.app.communication.LocalNetworkContract;
 import com.servoc.app.communication.RemoteReadiness;
 import com.servoc.app.communication.RemoteServiceProfile;
@@ -84,11 +85,12 @@ public final class ConnectionGate {
 
     private void enterDirect(){
         if(!ensureWifiPermission())return;
-        remoteAttempt++;busy("طلب شبكة HazRob المحلية والتحقق من وضع Direct...",1);
+        remoteAttempt++;busy("طلب شبكة HazRob المحلية والتحقق من ESP32 والكاميرا...",1);
         io.execute(()->{
             prefs.edit().putString("robot",LocalNetworkContract.ROBOT_HOST).putString("camera",LocalNetworkContract.CAMERA_HOST).putString("connection_mode","direct").apply();
             local.setRobotHost(LocalNetworkContract.ROBOT_HOST);try{new RemoteSessionManager(a,prefs).close();}catch(Exception ignored){}
-            boolean network=WifiRoute.waitForRobotWifi(a,30000);boolean accepted=false;String detail="";
+            CameraApi directCamera=new CameraApi(LocalNetworkContract.CAMERA_HOST);
+            boolean network=WifiRoute.waitForRobotWifi(a,30000);boolean robotReady=false,accepted=false;String detail="";
             if(!network)detail="لم يمنح Android التطبيق شبكة HazRob المحلية";
             else{
                 boolean switchNeeded=true;
@@ -104,15 +106,27 @@ public final class ConnectionGate {
                     }catch(Exception e){network=false;detail="تم الوصول إلى الشبكة لكن تعذر تثبيت وضع Direct في الروبوت";}
                 }
                 if(network){
-                    long deadline=SystemClock.elapsedRealtime()+12000L;
-                    while(SystemClock.elapsedRealtime()<deadline&&!accepted){
+                    long robotDeadline=SystemClock.elapsedRealtime()+12000L;
+                    while(SystemClock.elapsedRealtime()<robotDeadline&&!robotReady){
                         try{
                             WifiRoute.maintainRobotWifi(a);
                             String banner=local.getText("/",1200);
-                            if(LocalNetworkContract.isExpectedFirmwareBanner(banner,ReleaseAudit.VERSION)){accepted=true;detail="تم تثبيت HazRob في وضع Direct والتحقق من الإصدار "+ReleaseAudit.VERSION;break;}
+                            if(LocalNetworkContract.isExpectedFirmwareBanner(banner,ReleaseAudit.VERSION)){robotReady=true;detail="ESP32 الرئيسي Direct؛ انتظار ESP32-CAM على 192.168.4.2...";break;}
                             String got=banner==null?"":banner.trim();detail=got.isEmpty()?"وصل رد فارغ من 192.168.4.1":"تم الوصول إلى 192.168.4.1 لكن هوية البرنامج هي: "+got;break;
                         }catch(Exception e){detail="إعادة انتظار HazRob على 192.168.4.1 بعد استقرار نقطة الوصول...";try{Thread.sleep(500);}catch(InterruptedException x){Thread.currentThread().interrupt();break;}}
                     }
+                }
+                if(network&&robotReady){
+                    long cameraDeadline=SystemClock.elapsedRealtime()+20000L;
+                    while(SystemClock.elapsedRealtime()<cameraDeadline&&!accepted){
+                        WifiRoute.maintainRobotWifi(a);
+                        if(directCamera.directReady()){
+                            accepted=true;detail="Direct جاهز: ESP32 192.168.4.1 + ESP32-CAM 192.168.4.2 + MJPEG :81";break;
+                        }
+                        detail="ESP32 الرئيسي جاهز؛ انتظار الكاميرا المحلية: "+directCamera.lastProbe();
+                        try{Thread.sleep(650);}catch(InterruptedException x){Thread.currentThread().interrupt();break;}
+                    }
+                    if(!accepted)detail="ESP32 الرئيسي Direct لكن ESP32-CAM لم تصبح جاهزة للبث المحلي: "+directCamera.lastProbe();
                 }
             }
             final boolean ready=accepted;final String result=detail;ui.post(()->{if(ready){status.setText(result);status.setTextColor(0xFF2E7D32);listener.onReady(Mode.DIRECT);}else showDirectRecovery(result);});
@@ -121,7 +135,7 @@ public final class ConnectionGate {
 
     private void showDirectRecovery(String detail){
         content.removeAllViews();progress.setVisibility(View.GONE);String reason=detail==null||detail.trim().isEmpty()?"تعذر التحقق من الاتصال المباشر":detail.trim();
-        status.setText(reason+"\nوافق على طلب Android للاتصال بشبكة HazRob. إذا لم يظهر الطلب، افتح إعدادات Wi-Fi واختر HazRob ثم أعد الاختبار.");status.setTextColor(0xFFD84315);
+        status.setText(reason+"\nوافق على طلب Android للاتصال بشبكة HazRob. يجب أن يستجيب ESP32 على 192.168.4.1 والكاميرا على 192.168.4.2 قبل فتح القيادة.");status.setTextColor(0xFFD84315);
         Button wifi=UiKit.button(a,"فتح إعدادات Wi-Fi");wifi.setOnClickListener(v->openWifiSettings());content.addView(wifi,UiKit.full(a));Button retry=UiKit.button(a,"إعادة الاختبار");retry.setOnClickListener(v->enterDirect());content.addView(retry,UiKit.full(a));Button back=UiKit.button(a,"رجوع");back.setOnClickListener(v->showChoice());content.addView(back,UiKit.full(a));
     }
 
