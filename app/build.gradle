@@ -16,6 +16,14 @@ def sha256File = { File f ->
     md.digest().collect { String.format('%02x', it & 0xff) }.join()
 }
 
+tasks.register('applyHazRobBranding', Exec) {
+    workingDir rootProject.projectDir
+    commandLine 'python3', 'tools/apply_hr062_branding.py'
+    inputs.file rootProject.file('branding/hazrob_sensing_logo_96.webp.b64')
+    inputs.file rootProject.file('tools/apply_hr062_branding.py')
+    outputs.file file('src/main/res/drawable/ic_hazrob_app.webp')
+}
+
 tasks.register('prepareHazRobFlammabilitySeed') {
     outputs.file(generatedFlammability)
     doLast {
@@ -96,7 +104,7 @@ android {
     }
 }
 
-tasks.named('preBuild').configure { dependsOn tasks.named('prepareHazRobFlammabilitySeed') }
+tasks.named('preBuild').configure { dependsOn tasks.named('applyHazRobBranding'); dependsOn tasks.named('prepareHazRobFlammabilitySeed') }
 
 dependencies {
     implementation 'androidx.core:core:1.15.0'
