@@ -16,7 +16,7 @@ import com.servoc.app.communication.RemoteWifiCredentialStore;
 import org.json.JSONObject;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Developer-only WAN provisioning panel. HR058 keeps runtime disconnect separate from destructive WAN reset. */
+/** Developer-only WAN panel. HR061: boot/configuration stay Direct; Remote activation is explicit. */
 public final class RobotConnectionSetupTab {
     private final Context context;
     private final HazRobHost host;
@@ -33,7 +33,7 @@ public final class RobotConnectionSetupTab {
         root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
 
         root.addView(UiKit.title(c,"تهيئة اتصال الروبوت"),UiKit.full(c));
-        TextView note=UiKit.small(c,"HR058 يفصل بين ثلاثة أوامر: فصل Remote مؤقتًا مع الاحتفاظ ببيانات WAN، إعادة الاتصال بالشبكة المحفوظة، ومسح WAN نهائيًا. Direct يحافظ على HazRob كـ AP ثابت ويستخدم HTTP؛ Remote يستخدم AP+STA ثم MQTT/Render. وجود WAN محفوظ يعني أن الروبوت سيحاول Remote تلقائيًا بعد إعادة التشغيل.");
+        TextView note=UiKit.small(c,"HR061: كل تشغيل يبدأ Direct على شبكة HazRob. حفظ WAN لا يفعّل الاتصال البعيد ولا يقطع الهاتف أو ESP32-CAM. Remote يبدأ فقط بأمر صريح، والعودة إلى Direct توقف MQTT/NAPT/STA مع إبقاء بيانات WAN محفوظة.");
         note.setTextColor(0xFFB0BEC5);root.addView(note,UiKit.full(c));
 
         LinearLayout current=UiKit.card(c);current.addView(UiKit.title(c,"حالة الشبكة والاتصال البعيد"),UiKit.full(c));
@@ -43,16 +43,16 @@ public final class RobotConnectionSetupTab {
         Button useSaved=UiKit.button(c,"استخدام الإعداد الحالي");useSaved.setOnClickListener(v->loadRemembered());stateButtons.addView(useSaved,UiKit.weight(1));current.addView(stateButtons,UiKit.full(c));
 
         Button disconnect=UiKit.button(c,"فصل Remote مع الاحتفاظ بـ WAN");disconnect.setOnClickListener(v->disconnectRemote());current.addView(disconnect,UiKit.full(c));
-        Button reconnect=UiKit.button(c,"إعادة الاتصال بـ WAN المحفوظ");reconnect.setOnClickListener(v->reconnectRemote());current.addView(reconnect,UiKit.full(c));
+        Button reconnect=UiKit.button(c,"تفعيل Remote باستخدام WAN المحفوظ");reconnect.setOnClickListener(v->reconnectRemote());current.addView(reconnect,UiKit.full(c));
         Button resetWan=UiKit.button(c,"مسح WAN نهائيًا");resetWan.setOnClickListener(v->confirmClearRobotWan());current.addView(resetWan,UiKit.full(c));
         root.addView(current,UiKit.full(c));
 
         LinearLayout form=UiKit.card(c);form.addView(UiKit.title(c,"إعداد شبكة WAN يدويًا"),UiKit.full(c));
-        TextView scanNote=UiKit.small(c,"لا يتم استكشاف الشبكات من ESP32 في Direct. أدخل SSID وكلمة المرور يدويًا؛ هذا يمنع scan/re-channel من التأثير على الهاتف أو ESP32-CAM أثناء التشغيل المحلي.");scanNote.setTextColor(0xFF80CBC4);form.addView(scanNote,UiKit.full(c));
+        TextView scanNote=UiKit.small(c,"لا يتم استكشاف الشبكات من ESP32 في Direct. أدخل SSID وكلمة المرور يدويًا؛ سيتم حفظهما فقط، وسيظل HazRob وESP32-CAM والقيادة المحلية Direct حتى تفعّل Remote صراحة.");scanNote.setTextColor(0xFF80CBC4);form.addView(scanNote,UiKit.full(c));
         ssid=field(c,form,"اسم الشبكة / SSID","");
         password=field(c,form,"كلمة المرور","");password.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
         remember=new CheckBox(c);remember.setText("تذكرني");remember.setTextColor(Color.WHITE);form.addView(remember,UiKit.full(c));
-        Button connect=UiKit.button(c,"حفظ WAN والتحويل إلى Remote");connect.setOnClickListener(v->provision());form.addView(connect,UiKit.full(c));root.addView(form,UiKit.full(c));
+        Button connect=UiKit.button(c,"حفظ إعدادات WAN فقط");connect.setOnClickListener(v->provision());form.addView(connect,UiKit.full(c));root.addView(form,UiKit.full(c));
 
         loadRemembered();
     }
@@ -75,7 +75,7 @@ public final class RobotConnectionSetupTab {
                 JSONObject j=host.robotApi().remoteStatus();
                 boolean configured=j.optBoolean("configured",false),transport=j.optBoolean("transport_enabled",false),wifi=j.optBoolean("wifi",false),ip=j.optBoolean("ip_ok",false),dns=j.optBoolean("dns",false),time=j.optBoolean("time",false),internet=j.optBoolean("internet",false),tls=j.optBoolean("tls",false),mqtt=j.optBoolean("mqtt",false),ack=j.optBoolean("command_ack",false),telemetry=j.optBoolean("telemetry",false),ready=j.optBoolean("remote_ready",false),retryHold=j.optBoolean("retry_hold",false),napt=j.optBoolean("napt",false);
                 String profile=j.optString("radio_profile","—");String first=firstFailure(configured,transport,wifi,ip,dns,time,internet,tls,mqtt,ack,telemetry);String detail=dash(j.optString("detail",""));
-                String text="Profile: "+profile+"   •   Transport: "+yes(transport)+"   •   NAPT: "+yes(napt)+"\n"+
+                String text="Profile: "+profile+"   •   Boot: "+j.optString("boot_default","direct")+"   •   Transport: "+yes(transport)+"   •   NAPT: "+yes(napt)+"\n"+
                         "SSID: "+dash(j.optString("ssid",""))+"   •   IP: "+dash(j.optString("ip",""))+"\n"+
                         "RSSI: "+j.optInt("rssi",0)+" dBm   •   قناة Wi-Fi: "+j.optInt("wifi_channel",0)+"   •   عملاء HazRob: "+j.optInt("ap_clients",0)+"\n"+
                         "محاولات WAN: "+j.optInt("connect_attempts",0)+"   •   Retry hold: "+yes(retryHold)+"\n\n"+
@@ -92,13 +92,14 @@ public final class RobotConnectionSetupTab {
     private void provision(){
         final String s=ssid.getText().toString().trim(),p=password.getText().toString();final boolean save=remember.isChecked();
         if(s.isEmpty()){host.showToast("أدخل اسم الشبكة");return;}
-        status.setText("جارٍ حفظ WAN وتحويل الروبوت إلى Remote...");
+        status.setText("جارٍ حفظ إعدادات WAN مع إبقاء Direct فعالًا...");
         host.io().execute(()->{
             try{
                 host.robotApi().remoteProvision(s,p);
                 RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(context,host.preferences());if(save)store.save(s,p);else store.clear();
-                root.post(()->{status.setText("تم حفظ WAN. الروبوت سيحوّل الراديو إلى Remote (AP+STA) ويستخدم محاولات WAN محدودة. ستبقى البيانات محفوظة لمحاولة Remote تلقائيًا بعد إعادة التشغيل.");status.setTextColor(0xFF81C784);});
-            }catch(Exception e){root.post(()->{status.setText("فشل إرسال إعداد WAN. يجب أن يكون الهاتف متصلًا بـ HazRob أثناء التهيئة.");status.setTextColor(0xFFFF7043);});}
+                host.preferences().edit().putString("connection_mode","direct").apply();
+                root.post(()->{status.setText("تم حفظ WAN فقط. الروبوت ما زال Direct وHazRob/ESP32-CAM لم تُقطع. لتشغيل الاتصال البعيد اضغط «تفعيل Remote باستخدام WAN المحفوظ» أو اختر «التحكم عبر الإنترنت».");status.setTextColor(0xFF81C784);});
+            }catch(Exception e){root.post(()->{status.setText("فشل حفظ إعداد WAN. يجب أن يكون الهاتف متصلًا بـ HazRob أثناء التهيئة.");status.setTextColor(0xFFFF7043);});}
         });
     }
 
@@ -106,37 +107,37 @@ public final class RobotConnectionSetupTab {
         status.setText("جارٍ إيقاف الاتصال البعيد والعودة إلى Direct AP-only دون حذف WAN...");
         host.io().execute(()->{
             try{
-                host.robotApi().remoteDisconnect();
-                root.post(()->{status.setText("تم طلب فصل Remote. ستتوقف الحركة أولًا ثم MQTT/NAPT/STA، وتبقى بيانات WAN محفوظة. عند إعادة تشغيل الروبوت سيحاول WAN المحفوظ تلقائيًا.");status.setTextColor(0xFF80CBC4);});
+                host.robotApi().remoteDisconnect();host.preferences().edit().putString("connection_mode","direct").apply();
+                root.post(()->{status.setText("تم طلب Direct: تتوقف الحركة أولًا ثم MQTT/NAPT/STA، وتبقى بيانات WAN محفوظة. أي إعادة تشغيل لاحقة تبدأ Direct أيضًا.");status.setTextColor(0xFF80CBC4);});
             }catch(Exception e){root.post(()->{status.setText("تعذر فصل Remote. اتصل محليًا بشبكة HazRob ثم أعد المحاولة.");status.setTextColor(0xFFFF7043);});}
         });
     }
 
     private void reconnectRemote(){
-        status.setText("جارٍ إعادة الاتصال باستخدام WAN المحفوظ...");
+        status.setText("جارٍ تفعيل Remote صراحة باستخدام WAN المحفوظ...");
         host.io().execute(()->{
             try{
                 host.robotApi().remoteReconnect();
-                root.post(()->{status.setText("تم طلب إعادة Remote. الروبوت سيستخدم بيانات WAN المحفوظة ويحوّل الراديو إلى AP+STA ثم يعيد MQTT/NAPT/Render عند جاهزية الإنترنت.");status.setTextColor(0xFF81C784);});
-            }catch(Exception e){root.post(()->{status.setText("تعذر إعادة Remote. تأكد من وجود WAN محفوظ ومن الاتصال المحلي بشبكة HazRob.");status.setTextColor(0xFFFF7043);});}
+                root.post(()->{status.setText("تم طلب Remote لهذه الجلسة. الروبوت سيستخدم WAN المحفوظ ويحوّل الراديو إلى AP+STA ثم يعيد MQTT/NAPT/Render عند جاهزية الإنترنت. بعد إعادة التشغيل سيعود Direct تلقائيًا.");status.setTextColor(0xFF81C784);});
+            }catch(Exception e){root.post(()->{status.setText("تعذر تفعيل Remote. تأكد من وجود WAN محفوظ ومن الاتصال المحلي بشبكة HazRob.");status.setTextColor(0xFFFF7043);});}
         });
     }
 
     private void confirmClearRobotWan(){
         new AlertDialog.Builder(scroll.getContext())
                 .setTitle("مسح WAN نهائيًا")
-                .setMessage("سيتم حذف اسم شبكة المودم وكلمة المرور من الروبوت. بعد ذلك لن يحاول Remote عند إعادة التشغيل حتى تعيد إدخال بيانات WAN. هل تريد المتابعة؟")
+                .setMessage("سيتم حذف اسم شبكة المودم وكلمة المرور من الروبوت. سيبقى الروبوت Direct، ولن يمكن تفعيل Remote حتى تعيد إدخال بيانات WAN. هل تريد المتابعة؟")
                 .setNegativeButton("إلغاء",null)
                 .setPositiveButton("مسح WAN",(d,w)->clearRobotWan())
                 .show();
     }
 
     private void clearRobotWan(){
-        status.setText("جارٍ مسح WAN نهائيًا وإعادة الراديو إلى Direct AP-only...");
+        status.setText("جارٍ مسح WAN نهائيًا وإبقاء الراديو Direct AP-only...");
         host.io().execute(()->{
             try{
-                host.robotApi().remoteClear();new RemoteWifiCredentialStore(context,host.preferences()).clear();
-                root.post(()->{ssid.setText("");password.setText("");remember.setChecked(false);status.setText("تم مسح WAN نهائيًا. الروبوت سيبقى Direct: AP-only + HTTP، ولن يحاول الاتصال البعيد بعد إعادة التشغيل حتى تحفظ WAN جديدًا.");status.setTextColor(0xFF80CBC4);});
+                host.robotApi().remoteClear();new RemoteWifiCredentialStore(context,host.preferences()).clear();host.preferences().edit().putString("connection_mode","direct").apply();
+                root.post(()->{ssid.setText("");password.setText("");remember.setChecked(false);status.setText("تم مسح WAN نهائيًا. الروبوت Direct: AP-only + HTTP + كاميرا محلية، ولن يمكن تشغيل Remote حتى تحفظ WAN جديدًا وتفعّله صراحة.");status.setTextColor(0xFF80CBC4);});
             }catch(Exception e){root.post(()->{status.setText("تعذر مسح WAN. تأكد من الاتصال المباشر بشبكة HazRob ثم أعد المحاولة.");status.setTextColor(0xFFFF7043);});}
         });
     }
