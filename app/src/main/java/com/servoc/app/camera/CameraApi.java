@@ -44,6 +44,32 @@ public final class CameraApi {
         lastProbe="unreachable at "+host+" (80/81)";return false;
     }
 
+    /**
+     * Direct-mode acceptance is intentionally stronger than ping(): it proves the camera firmware
+     * is healthy at the canonical local IP and that port 81 actually produces a JPEG frame.
+     */
+    public boolean directReady(){
+        if(host==null||host.isEmpty()){lastProbe="camera host empty";return false;}
+        JSONObject j=status();
+        if(j==null||!j.optBoolean("camera_ok",false)){lastProbe="camera status not ready";return false;}
+        String ip=j.optString("ip","").trim();
+        if(!host.equals(ip)){lastProbe="camera IP mismatch: "+ip;return false;}
+        return localStreamReady();
+    }
+
+    public boolean localStreamReady(){
+        HttpURLConnection c=null;
+        try{
+            c=(HttpURLConnection)new URL("http://"+host+":81/stream").openConnection();
+            c.setConnectTimeout(1400);c.setReadTimeout(3500);c.setUseCaches(false);c.setInstanceFollowRedirects(true);c.setRequestMethod("GET");c.setRequestProperty("Connection","close");
+            int code=c.getResponseCode();if(code<200||code>=300){lastProbe="MJPEG HTTP "+code;return false;}
+            try(InputStream in=c.getInputStream()){
+                int prev=-1,cur,count=0;while(count++<65536&&(cur=in.read())!=-1){if(prev==0xFF&&cur==0xD8){lastProbe="HTTP 81 /stream JPEG";return true;}prev=cur;}
+            }
+        }catch(Exception ignored){}finally{if(c!=null)c.disconnect();}
+        lastProbe="MJPEG frame unavailable at "+host+":81";return false;
+    }
+
     public boolean flash(String mode){String m=normalizeMode(mode);return host!=null&&!host.isEmpty()&&probe(80,"/flash?mode="+m,true);}
 
     public static String normalizeMode(String mode){if(mode==null)return"off";String m=mode.trim().toLowerCase();return"on".equals(m)||"auto".equals(m)?m:"off";}
