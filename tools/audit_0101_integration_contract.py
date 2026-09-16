@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Fail-closed HazRob 0.10.1 HR-0101-060 connection integration contract.
+"""Fail-closed HazRob 0.10.1 HR-0101-061 connection integration contract.
 
-The contract separates runtime Direct from persistent WAN intent:
-DIRECT = AP-only + HTTP drive + local MJPEG for the current session.
-REMOTE = AP+STA + MQTT control + Render/WSS video through NAPT.
-Saved WAN credentials must auto-arm Remote on every reboot until explicit WAN clear.
-REMOTE DISCONNECT is local/runtime-only and must retain WAN credentials.
-REMOTE RECONNECT reuses the saved WAN without reprovisioning.
-WAN CLEAR is the only destructive/persistent opt-out.
-HR060 additionally requires Direct->Direct radio idempotence and Android re-acquisition after an actual Remote->Direct AP transition.
-Current GPIO/ENV authority must not regress.
+Authoritative lifecycle:
+BOOT/DIRECT = AP-only + HTTP drive/telemetry + local MJPEG. Every reboot starts here.
+REMOTE = AP+STA + MQTT control + Render/WSS video through NAPT, entered only by explicit operator action.
+Saved WAN credentials are configuration data only and must never auto-arm Remote on boot.
+WAN provisioning must remain local/Direct and must not disconnect HazRob or ESP32-CAM.
+Direct readiness requires the main ESP32 plus ESP32-CAM identity/status and a real local MJPEG frame.
+REMOTE DISCONNECT returns to Direct while retaining WAN credentials.
+REMOTE RECONNECT reuses saved WAN for the current runtime only.
+WAN CLEAR is the only destructive credential operation.
+Current GPIO/ENV, steering, safety and cloud contracts must not regress.
 """
 from pathlib import Path
 
@@ -41,6 +42,7 @@ def main() -> int:
     cam_remote = text("firmware/HazRob-CAM/RemoteVideo.cpp")
     local = text("app/src/main/java/com/servoc/app/communication/LocalNetworkContract.java")
     robot_api = text("app/src/main/java/com/servoc/app/communication/RobotApi.java")
+    camera_api = text("app/src/main/java/com/servoc/app/camera/CameraApi.java")
     setup_ui = text("app/src/main/java/com/servoc/app/ui/RobotConnectionSetupTab.java")
     wifi_route = text("app/src/main/java/com/servoc/app/communication/WifiRoute.java")
     gate = text("app/src/main/java/com/servoc/app/auth/ConnectionGate.java")
@@ -66,19 +68,24 @@ def main() -> int:
     require(local, 'ROBOT_HOST="192.168.4.1"', "Android direct robot host")
     require(local, 'CAMERA_HOST="192.168.4.2"', "Android direct camera host")
     require(master, 'enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1}', "radio state authority")
+    require(master, 'applyRadioProfile(RadioProfile::DIRECT,false);', "every boot must enter Direct")
+    forbid(master, 'applyRadioProfile(remoteTransportEnabled()?RadioProfile::REMOTE:RadioProfile::DIRECT', "saved WAN must not select boot mode")
     require(master, 'configureSoftAp(WIFI_AP,false);', "Direct AP-only transition without forced AP restart")
     require(master, 'configureSoftAp(WIFI_AP_STA);', "Remote AP+STA radio")
     require(master, 'bool directApStable()', "Direct stable-state detector")
     require(master, 'if(directApStable())', "Direct idempotence gate")
     require(master, '\\"already_direct\\":true', "Direct no-op response")
     require(master, 'remoteSetTransportEnabled(false,persistMode)', "Direct disables WAN transport")
+    require(master, 'remoteSetTransportEnabled(false,false)', "stable Direct explicitly keeps WAN transport off")
     require(master, 'remoteMqttDisconnect();', "Direct disconnects MQTT")
     require(master, 'WiFi.AP.enableNAPT(false)', "Direct disables NAPT")
     require(master, 'web.on("/drive"', "Direct HTTP drive endpoint")
     require(master, 'radioProfile!=RadioProfile::DIRECT', "local drive authority guard")
     require(master, 'web.on("/connection/direct"', "Direct mode endpoint")
-    require(master, 'requestRadioProfile(RadioProfile::DIRECT,false)', "Direct must be runtime-only")
-    require(master, 'requestRadioProfile(RadioProfile::REMOTE,true)', "provision/remote selection must arm saved WAN")
+    require(master, 'requestRadioProfile(RadioProfile::DIRECT,false)', "Direct runtime authority")
+    require(master, 'requestRadioProfile(RadioProfile::REMOTE,false)', "Remote must be explicit runtime activation")
+    forbid(master, 'requestRadioProfile(RadioProfile::REMOTE,true)', "Remote mode must never persist across reboot")
+    require(master, '\\"boot_default\\":\\"direct\\"', "diagnostic Direct boot authority")
     require(master, 'drive_udp', "Direct capability field")
     require(master, 'installed', "UDP explicitly absent")
     forbid(master, '#include <WiFiUdp.h>', "Direct must not compile UDP transport")
@@ -89,22 +96,32 @@ def main() -> int:
     disconnect_block = between(master, 'web.on("/remote/disconnect"', 'web.on("/remote/connect"', "remote disconnect block")
     require(disconnect_block, 'motionStop();', "disconnect immediate motion stop")
     require(disconnect_block, '\\"wan_retained\\":true', "disconnect declares retained WAN")
-    require(disconnect_block, 'requestRadioProfile(RadioProfile::DIRECT,false)', "disconnect runtime Direct switch")
+    require(disconnect_block, 'requestRadioProfile(RadioProfile::DIRECT,false)', "disconnect Direct switch")
     forbid(disconnect_block, 'remoteClear()', "disconnect must never clear WAN")
     connect_block = between(master, 'web.on("/remote/connect"', 'web.on("/remote/status"', "remote reconnect block")
     require(connect_block, 'remoteConfigured()', "reconnect requires saved WAN")
     require(connect_block, 'motionStop();', "reconnect transition motion stop")
-    require(connect_block, 'requestRadioProfile(RadioProfile::REMOTE,false)', "reconnect reuses saved WAN without reprovisioning")
+    require(connect_block, 'requestRadioProfile(RadioProfile::REMOTE,false)', "reconnect reuses saved WAN for runtime only")
+    require(connect_block, '\\"explicit_operator_request\\":true', "reconnect must be explicitly operator initiated")
+
+    provision_fw = between(master, 'web.on("/remote/provision"', 'web.on("/remote/retry"', "firmware WAN provision block")
+    require(provision_fw, 'remoteProvision(s,p)', "firmware stores WAN credentials")
+    require(provision_fw, '\\"radio_profile\\":\\"direct\\"', "WAN save must remain Direct")
+    require(provision_fw, '\\"remote_activation_required\\":true', "WAN save requires later explicit Remote")
+    forbid(provision_fw, 'requestRadioProfile(RadioProfile::REMOTE', "WAN save must not activate Remote")
 
     require(remote_h, 'remoteSetTransportEnabled', "remote transport switch API")
-    require(remote, 'transportEnabled=configured;', "saved WAN auto-arms Remote on boot")
-    require(remote, 'wan.putBool("enabled",configured);', "boot persistence normalization")
-    require(remote, 'if(persistMode&&enabled)wan.putBool("enabled",true);', "Direct must not persistently disarm WAN")
-    require(remote, 'wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",true);', "provision persists WAN boot intent")
-    require(remote, 'wan.remove("ssid");wan.remove("pass");wan.putBool("enabled",false);', "clear WAN is explicit persistent opt-out")
-    forbid(remote, 'transportEnabled=wan.getBool("enabled",false)', "legacy boot flag must not override saved WAN")
+    require(remote, 'transportEnabled=false;', "boot must keep WAN transport disabled")
+    require(remote, 'wan.putBool("enabled",false);', "legacy mode flag normalized Direct")
+    forbid(remote, 'transportEnabled=configured;', "saved WAN must not auto-arm Remote")
+    forbid(remote, 'wan.putBool("enabled",configured);', "saved WAN must not become boot mode")
+    forbid(remote, 'if(persistMode&&enabled)wan.putBool("enabled",true);', "runtime Remote must not persist")
+    require(remote, 'wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",false);', "provision persists credentials but not Remote mode")
+    require(remote, 'wan.remove("ssid");wan.remove("pass");wan.putBool("enabled",false);', "clear WAN is explicit credential destruction")
+    require(remote, '(void)persistMode', "mode persistence deliberately disabled")
     require(remote, 'if(!transportEnabled){dnsOk=timeOk=false;return;}', "remote loop disabled in Direct")
     require(remote, 'remoteInternetReady(){return transportEnabled&&configured', "remote readiness gate")
+    require(remote, '\\"boot_default\\":\\"direct\\"', "remote status Direct boot authority")
     forbid(remote, 'WiFi.mode(', "RemoteLink must not change global radio mode")
     require(master, 'if(radioProfile==RadioProfile::REMOTE){remoteUpdate();gatewayUpdate();remoteMqttUpdate();}', "remote runtime profile gate")
     require(master, 'WiFi.AP.enableNAPT(ready)', "remote camera Internet routing")
@@ -143,18 +160,40 @@ def main() -> int:
     require(gate, 'local.postForm("/connection/direct"', "Direct radio switch")
     require(gate, 'WifiRoute.restartRobotWifiRequest(a)', "Android re-acquires HazRob after real profile switch")
     require(gate, 'WifiRoute.waitForRobotWifi(a,15000)', "Direct re-acquisition window")
-    require(gate, 'SystemClock.elapsedRealtime()+12000L', "Direct post-switch verification window")
-    require(gate, 'local.postForm("/connection/remote"', "Remote radio switch")
+    require(gate, 'SystemClock.elapsedRealtime()+12000L', "Direct main verification window")
+    require(gate, 'CameraApi directCamera=new CameraApi(LocalNetworkContract.CAMERA_HOST)', "Direct camera gate")
+    require(gate, 'SystemClock.elapsedRealtime()+20000L', "Direct camera readiness window")
+    require(gate, 'directCamera.directReady()', "Direct requires CAM status plus a real JPEG")
+    require(gate, 'local.postForm("/connection/remote"', "Remote explicit radio switch")
     require(gate, 'WifiRoute.releaseRobotWifi(a);', "Remote releases phone from HazRob local-only route")
+
+    provision_app = between(gate, 'private void provision(', 'private void pollRobotRemote()', "Android WAN provision block")
+    require(provision_app, 'local.remoteProvision(ssid,password)', "Android saves WAN locally")
+    require(provision_app, 'putString("connection_mode","direct")', "WAN save keeps app in Direct")
+    require(provision_app, 'WifiRoute.maintainRobotWifi(a)', "WAN save retains HazRob route")
+    forbid(provision_app, 'WifiRoute.releaseRobotWifi(a)', "WAN save must not release HazRob")
+    forbid(provision_app, 'pollRobotRemote()', "WAN save must not auto-enter Remote")
+
+    require(camera_api, 'boolean directReady()', "camera Direct readiness API")
+    require(camera_api, 'HazRob-CAM 0.10.1', "camera Direct firmware identity")
+    require(camera_api, 'LocalNetworkContract.CAMERA_HOST', "camera Direct fixed IP")
+    require(camera_api, 'probeMjpegFrame()', "camera Direct first-frame requirement")
+    require(camera_api, '0xFF&&cur==0xD8', "camera JPEG SOI validation")
+    require(camera_api, 'prev==0xFF&&cur==0xD9', "camera JPEG EOI validation")
+
     require(link_service, 'WifiRoute.maintainRobotWifi(this)', "Direct network maintenance")
     require(link_service, 'RobotApi.setOperatorForeground(foreground)', "background motion interlock")
     require(link_service, 'failStopForBackground', "background fail-stop")
     require(link_service, 'remoteSessions.close()', "remote drive pump teardown")
 
+    require(cam, 'SSID[]="HazRob"', "camera joins main HazRob AP")
     require(cam, 'IPAddress ip(192,168,4,2)', "camera local IP")
     require(cam, 'gw(192,168,4,1)', "camera gateway")
     require(cam, 'WebServer web(80)', "camera status server")
     require(cam, 'WiFiServer mjpeg(81)', "local MJPEG server")
+    require(cam, 'WiFi.mode(WIFI_STA)', "camera is STA on HazRob")
+    require(cam, 'WiFi.begin(SSID)', "camera automatic HazRob association")
+    require(cam, 'millis()-wifiAt>4500', "camera local reconnect loop")
     require(cam, 'c.pixel_format=PIXFORMAT_RGB565', "proven camera capture format")
     require(cam, 'c.frame_size=FRAMESIZE_QVGA', "proven camera frame size")
     require(cam, 'c.fb_count=1', "proven single framebuffer")
@@ -179,23 +218,27 @@ def main() -> int:
         raise AssertionError(f"HR059 five-layer coherence returned {rc}")
 
     state = {
-        "DIRECT": {"radio":"AP", "http_drive":True, "mqtt":False, "napt":False, "wss":False, "boot_intent":"unchanged", "idempotent":True},
-        "REMOTE": {"radio":"AP_STA", "http_drive":False, "mqtt":True, "napt":"internet_ready", "wss":"gateway_and_cam_time_ready", "boot_intent":"armed"},
-        "REMOTE_DISCONNECT": {"radio":"AP", "wan_retained":True, "next_boot":"REMOTE"},
-        "REMOTE_RECONNECT": {"radio":"AP_STA", "uses_saved_wan":True},
+        "BOOT": {"radio":"AP", "profile":"DIRECT", "uses_saved_wan":False},
+        "DIRECT": {"radio":"AP", "http_drive":True, "mqtt":False, "napt":False, "local_camera":True, "next_boot":"DIRECT", "idempotent":True},
+        "WAN_PROVISION": {"radio":"AP", "credentials_saved":True, "remote_activated":False, "next_boot":"DIRECT"},
+        "REMOTE": {"radio":"AP_STA", "http_drive":False, "mqtt":True, "napt":"internet_ready", "wss":"gateway_and_cam_time_ready", "activation":"explicit", "next_boot":"DIRECT"},
+        "REMOTE_DISCONNECT": {"radio":"AP", "wan_retained":True, "next_boot":"DIRECT"},
+        "REMOTE_RECONNECT": {"radio":"AP_STA", "uses_saved_wan":True, "next_boot":"DIRECT"},
         "WAN_CLEAR": {"wan_retained":False, "next_boot":"DIRECT"},
     }
-    assert state["DIRECT"]["radio"] == "AP" and state["DIRECT"]["http_drive"] and not state["DIRECT"]["mqtt"] and state["DIRECT"]["idempotent"]
-    assert state["REMOTE"]["radio"] == "AP_STA" and not state["REMOTE"]["http_drive"] and state["REMOTE"]["mqtt"]
-    assert state["REMOTE_DISCONNECT"]["wan_retained"] and state["REMOTE_DISCONNECT"]["next_boot"] == "REMOTE"
-    assert state["REMOTE_RECONNECT"]["uses_saved_wan"] and state["WAN_CLEAR"]["next_boot"] == "DIRECT"
+    assert state["BOOT"]["profile"] == "DIRECT" and not state["BOOT"]["uses_saved_wan"]
+    assert state["DIRECT"]["radio"] == "AP" and state["DIRECT"]["http_drive"] and not state["DIRECT"]["mqtt"] and state["DIRECT"]["local_camera"] and state["DIRECT"]["idempotent"]
+    assert state["WAN_PROVISION"]["credentials_saved"] and not state["WAN_PROVISION"]["remote_activated"]
+    assert state["REMOTE"]["radio"] == "AP_STA" and not state["REMOTE"]["http_drive"] and state["REMOTE"]["mqtt"] and state["REMOTE"]["activation"] == "explicit"
+    assert state["REMOTE_DISCONNECT"]["wan_retained"] and state["REMOTE_DISCONNECT"]["next_boot"] == "DIRECT"
+    assert state["REMOTE_RECONNECT"]["uses_saved_wan"] and state["REMOTE_RECONNECT"]["next_boot"] == "DIRECT" and state["WAN_CLEAR"]["next_boot"] == "DIRECT"
 
-    print("HazRob 0.10.1 HR-0101-060 connection contract: PASS")
-    print("DIRECT: AP-only + HTTP + local MJPEG; repeated Direct is radio-idempotent")
-    print("ANDROID DIRECT: checks current profile; after real AP transition releases stale route and re-acquires HazRob")
-    print("REMOTE: saved WAN auto-arms AP+STA/MQTT/Render; CAM WSS additionally requires CAM NTP readiness")
-    print("REMOTE DISCONNECT: local runtime AP-only, WAN retained; REMOTE RECONNECT: saved WAN reused")
-    print("WAN CLEAR: only destructive persistent opt-out; SAFETY: motion stop before transitions/service teardown")
+    print("HazRob 0.10.1 HR-0101-061 Direct-first connection contract: PASS")
+    print("BOOT/DIRECT: AP-only + HTTP + verified local CAM/MJPEG; saved WAN never changes boot mode")
+    print("WAN PROVISION: credentials saved locally while HazRob and camera remain Direct")
+    print("REMOTE: explicit operator action only; AP+STA/MQTT/NAPT/Render enabled for current runtime")
+    print("RETURN DIRECT: MQTT/NAPT/STA off, WAN retained; every reboot returns Direct")
+    print("WAN CLEAR: only destructive credential action; SAFETY: motion stop before transitions/service teardown")
     return 0
 
 if __name__ == "__main__":
