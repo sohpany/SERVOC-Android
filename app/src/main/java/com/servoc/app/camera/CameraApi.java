@@ -1,5 +1,8 @@
 package com.servoc.app.camera;
 
+import com.servoc.app.ReleaseAudit;
+import com.servoc.app.communication.LocalNetworkContract;
+
 import org.json.JSONObject;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -45,29 +48,44 @@ public final class CameraApi {
     }
 
     /**
-     * Direct-mode acceptance is intentionally stronger than ping(): it proves the camera firmware
-     * is healthy at the canonical local IP and that port 81 actually produces a JPEG frame.
+     * Direct acceptance proves that the expected controlled CAM build is healthy at the canonical
+     * local IP and that port 81 has produced one complete JPEG frame, not merely accepted TCP.
      */
     public boolean directReady(){
         if(host==null||host.isEmpty()){lastProbe="camera host empty";return false;}
+        if(!LocalNetworkContract.CAMERA_HOST.equals(host)){lastProbe="camera host is not canonical: "+host;return false;}
         JSONObject j=status();
         if(j==null||!j.optBoolean("camera_ok",false)){lastProbe="camera status not ready";return false;}
+        String expectedFw="HazRob-CAM "+ReleaseAudit.VERSION;
+        String fw=j.optString("fw","").trim();
+        if(!expectedFw.equals(fw)){lastProbe="camera firmware mismatch: "+fw;return false;}
         String ip=j.optString("ip","").trim();
-        if(!host.equals(ip)){lastProbe="camera IP mismatch: "+ip;return false;}
+        if(!LocalNetworkContract.CAMERA_HOST.equals(ip)){lastProbe="camera IP mismatch: "+ip;return false;}
         return localStreamReady();
     }
 
+    /** Read enough of the local MJPEG stream to prove a complete SOI..EOI JPEG frame. */
     public boolean localStreamReady(){
         HttpURLConnection c=null;
         try{
             c=(HttpURLConnection)new URL("http://"+host+":81/stream").openConnection();
-            c.setConnectTimeout(1400);c.setReadTimeout(3500);c.setUseCaches(false);c.setInstanceFollowRedirects(true);c.setRequestMethod("GET");c.setRequestProperty("Connection","close");
+            c.setConnectTimeout(1600);c.setReadTimeout(4000);c.setUseCaches(false);c.setInstanceFollowRedirects(true);c.setRequestMethod("GET");c.setRequestProperty("Connection","close");
             int code=c.getResponseCode();if(code<200||code>=300){lastProbe="MJPEG HTTP "+code;return false;}
             try(InputStream in=c.getInputStream()){
-                int prev=-1,cur,count=0;while(count++<65536&&(cur=in.read())!=-1){if(prev==0xFF&&cur==0xD8){lastProbe="HTTP 81 /stream JPEG";return true;}prev=cur;}
+                int prev=-1,cur,scanned=0,jpegBytes=0;boolean sawSoi=false;
+                while(scanned++<196608&&(cur=in.read())!=-1){
+                    if(!sawSoi){
+                        if(prev==0xFF&&cur==0xD8){sawSoi=true;jpegBytes=2;}
+                    }else{
+                        jpegBytes++;
+                        if(prev==0xFF&&cur==0xD9&&jpegBytes>128){lastProbe="MJPEG 81 complete JPEG "+jpegBytes+" bytes";return true;}
+                    }
+                    prev=cur;
+                }
+                lastProbe=sawSoi?"MJPEG JPEG started but did not complete":"MJPEG stream opened without JPEG SOI";
             }
-        }catch(Exception ignored){}finally{if(c!=null)c.disconnect();}
-        lastProbe="MJPEG frame unavailable at "+host+":81";return false;
+        }catch(Exception e){lastProbe="MJPEG unavailable: "+e.getClass().getSimpleName();}finally{if(c!=null)c.disconnect();}
+        return false;
     }
 
     public boolean flash(String mode){String m=normalizeMode(mode);return host!=null&&!host.isEmpty()&&probe(80,"/flash?mode="+m,true);}
