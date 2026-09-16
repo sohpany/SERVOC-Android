@@ -4,9 +4,9 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[1]
 def text(p): return (ROOT/p).read_text(encoding="utf-8")
 def req(src,needle,label):
-    if needle not in src: raise AssertionError(f"HR060 missing {label}: {needle}")
+    if needle not in src: raise AssertionError(f"HR061 missing {label}: {needle}")
 def ban(src,needle,label):
-    if needle in src: raise AssertionError(f"HR060 forbidden {label}: {needle}")
+    if needle in src: raise AssertionError(f"HR061 forbidden {label}: {needle}")
 
 def main():
     cam=text("firmware/HazRob-CAM/HazRob-CAM.ino")
@@ -20,6 +20,8 @@ def main():
     service=text("app/src/main/java/com/servoc/app/communication/RemoteServiceProfile.java")
     session=text("app/src/main/java/com/servoc/app/communication/RemoteSessionManager.java")
     viewer=text("app/src/main/java/com/servoc/app/camera/RemoteJpegWebSocketClient.java")
+    camera_api=text("app/src/main/java/com/servoc/app/camera/CameraApi.java")
+    gate=text("app/src/main/java/com/servoc/app/auth/ConnectionGate.java")
     settings=text("app/src/main/java/com/servoc/app/ui/SettingsTab.java")
     connui=text("app/src/main/java/com/servoc/app/ui/RobotConnectionSetupTab.java")
     control=text("app/src/main/java/com/servoc/app/ui/ControlTab.java")
@@ -28,36 +30,45 @@ def main():
 
     # Proven local camera path.
     for n,l in [
-        ('WebServer web(80); WiFiServer mjpeg(81)','camera local ports'),('IPAddress ip(192,168,4,2)','camera IP'),
+        ('SSID[]="HazRob"','camera local SSID'),('WebServer web(80); WiFiServer mjpeg(81)','camera local ports'),('IPAddress ip(192,168,4,2)','camera IP'),
+        ('gw(192,168,4,1)','camera gateway'),('WiFi.mode(WIFI_STA)','camera STA mode'),('WiFi.begin(SSID)','camera automatic HazRob join'),('millis()-wifiAt>4500','camera reconnect loop'),
         ('c.pixel_format=PIXFORMAT_RGB565','RGB565'),('c.frame_size=FRAMESIZE_QVGA','QVGA'),('c.fb_count=1','single framebuffer'),
         ('c.grab_mode=CAMERA_GRAB_WHEN_EMPTY','grab mode'),('c.fb_location=CAMERA_FB_IN_PSRAM','PSRAM framebuffer'),
         ('frame2jpg_cb(f,JQ,outJpg,&s)','software JPEG'),('constexpr uint8_t LED=4,JQ=35','JPEG quality'),
         ('remoteVideoSetLocalActive(true)','local arbitration enter'),('remoteVideoSetLocalActive(false)','local arbitration exit')]: req(cam,n,l)
     ban(cam,'PIXFORMAT_JPEG','native JPEG path');ban(cam,'CAMERA_FB_IN_DRAM','DRAM fallback')
     req(control,'"http://"+h+":81/stream"','Android local stream URL')
+    for n,l in [('boolean directReady()','Android CAM readiness API'),('String expectedFw="HazRob-CAM "+ReleaseAudit.VERSION','controlled CAM identity'),('LocalNetworkContract.CAMERA_HOST.equals(ip)','CAM fixed-IP verification'),('localStreamReady()','local MJPEG verification'),('prev==0xFF&&cur==0xD8','JPEG SOI'),('prev==0xFF&&cur==0xD9&&jpegBytes>128','JPEG EOI')]: req(camera_api,n,l)
+    req(gate,'CameraApi directCamera=new CameraApi(LocalNetworkContract.CAMERA_HOST)','Direct CAM gate')
+    req(gate,'directCamera.directReady()','Direct waits for CAM complete frame')
 
-    # Split radio authority: Direct is AP-only; Remote alone owns STA/WAN/MQTT/NAPT.
-    # HR060 additionally requires repeat Direct to be radio-idempotent and Remote->Direct to preserve
-    # an already healthy HazRob AP association instead of bouncing phone/CAM clients.
+    # Split radio authority: every boot/Direct is AP-only; Remote alone owns STA/WAN/MQTT/NAPT.
     for n,l in [
         ('enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1}','radio state machine'),
+        ('applyRadioProfile(RadioProfile::DIRECT,false);','Direct boot authority'),
         ('directApStable(){return radioProfile==RadioProfile::DIRECT&&WiFi.getMode()==WIFI_AP','Direct AP-only'),
         ('configureSoftAp(WIFI_AP,false);','Remote-to-Direct AP-preserving transition'),
         ('configureSoftAp(WIFI_AP_STA);','Remote AP+STA'),
         ('if(directApStable())','Direct radio idempotence'),
         ('remoteSetTransportEnabled(false,persistMode)','Direct WAN disable'),('remoteMqttDisconnect();','Direct MQTT stop'),
-        ('WiFi.AP.enableNAPT(false)','Direct NAPT stop'),('WiFi.AP.enableNAPT(ready)','Remote NAPT readiness')]: req(master,n,l)
+        ('WiFi.AP.enableNAPT(false)','Direct NAPT stop'),('WiFi.AP.enableNAPT(ready)','Remote NAPT readiness'),
+        ('\\"remote_activation_required\\":true','WAN save remains Direct')]: req(master,n,l)
+    ban(master,'applyRadioProfile(remoteTransportEnabled()?RadioProfile::REMOTE:RadioProfile::DIRECT','saved-WAN boot selection')
+    ban(master,'requestRadioProfile(RadioProfile::REMOTE,true)','persistent Remote mode')
     for n,l in [
         ('MAX_CONNECT_ATTEMPTS=2','bounded WAN attempts'),('WiFi.setAutoReconnect(false)','STA autoreconnect disabled'),
         ('enterLocalSafeHold()','local-safe hold'),('cloudDetail="wifi_local_safe"','visible local-safe state'),
         ('bool remoteRetry()','explicit WAN retry'),('\\"retry_hold\\"','retry-hold telemetry'),
-        ('\\"connect_attempts\\"','attempt telemetry'),('\\"ap_clients\\"','AP client telemetry'),('\\"wifi_channel\\"','channel telemetry')]: req(rlink,n,l)
+        ('\\"connect_attempts\\"','attempt telemetry'),('\\"ap_clients\\"','AP client telemetry'),('\\"wifi_channel\\"','channel telemetry'),
+        ('transportEnabled=false;','Direct boot transport'),('wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",false);','credentials without mode persistence')]: req(rlink,n,l)
+    ban(rlink,'transportEnabled=configured;','saved WAN auto-Remote boot')
     ban(rlink,'WiFi.mode(','RemoteLink radio ownership')
     req(wifi,'WifiNetworkSpecifier.Builder().setSsid(LocalNetworkContract.ROBOT_SSID)','Android local-only HazRob request')
     req(wifi,'requestCallback=null;requestCm=null;requestedNetwork=null;requestUnavailable=false;','Android stale-route reset')
     req(connui,'لا يتم استكشاف الشبكات من ESP32 في Direct','Direct no-scan developer UX')
     req(connui,'فصل Remote مع الاحتفاظ بـ WAN','non-destructive Direct recovery UI')
-    req(connui,'إعادة الاتصال بـ WAN المحفوظ','saved-WAN reconnect UI')
+    req(connui,'تفعيل Remote باستخدام WAN المحفوظ','explicit saved-WAN Remote UI')
+    req(connui,'حفظ إعدادات WAN فقط','provision-only WAN UI')
     req(connui,'مسح WAN نهائيًا','destructive WAN reset UI')
     req(connui,'new AlertDialog.Builder','destructive WAN reset confirmation')
     ban(connui,'scanNetworks()','stale Direct Wi-Fi scan action')
@@ -91,11 +102,11 @@ def main():
     for n,l in [('finiteAny(e,"p","pressure")','pressure normalization'),('x.put("status_code",status)','status normalization'),('x.put("ack_0x76",ack76)','ACK76 normalization'),('x.put("ack_0x77",ack77)','ACK77 normalization')]: req(proto,n,l)
     for n,l in [('optString("status_code",env.optString("status","NOT READY"))','ENV status UI'),('optString("address","—")','address UI'),('optString("chip_id","—")','chip UI')]: req(settings,n,l)
 
-    print('HR-0101-060 local-WiFi/camera/ENV/Render/Hive/app coherence contract: PASS')
+    print('HR-0101-061 local-WiFi/camera/ENV/Render/Hive/app coherence contract: PASS')
     return 0
 
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HR-0101-060 local-WiFi/camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
+        print(f"HR-0101-061 local-WiFi/camera/ENV/Render/Hive/app coherence contract: FAIL: {exc}")
         raise SystemExit(1)
