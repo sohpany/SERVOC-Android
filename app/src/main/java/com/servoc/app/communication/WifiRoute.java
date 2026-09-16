@@ -11,19 +11,19 @@ import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
 import android.net.wifi.WifiNetworkSpecifier;
 import android.os.Build;
+import android.os.SystemClock;
 
 import java.net.Inet4Address;
 import java.net.InetAddress;
 
-/** Direct HazRob network ownership. On Android 10+ request the known SSID as local-only and keep the
- * NetworkCallback registered for the whole Direct session; bindProcessToNetwork remains a routing
- * safeguard rather than the connection-retention mechanism. */
+/** Keeps local robot/camera HTTP traffic on the Wi-Fi network even if cellular data is active. */
 public final class WifiRoute {
     private static final Object LOCK=new Object();
     private static ConnectivityManager requestCm;
     private static ConnectivityManager.NetworkCallback requestCallback;
     private static volatile Network requestedNetwork;
     private static volatile boolean requestUnavailable=false;
+    private static volatile long requestLostAt=0;
 
     private WifiRoute(){}
 
@@ -35,6 +35,11 @@ public final class WifiRoute {
     public static boolean hasRequiredPermission(Context context){
         String p=requiredRuntimePermission();
         return p.isEmpty()||context.checkSelfPermission(p)==PackageManager.PERMISSION_GRANTED;
+    }
+
+    private static void clearRequestLocked(){
+        if(requestCm!=null&&requestCallback!=null){try{requestCm.unregisterNetworkCallback(requestCallback);}catch(Exception ignored){}}
+        requestCallback=null;requestCm=null;requestedNetwork=null;requestUnavailable=false;requestLostAt=0;
     }
 
     public static void requestRobotWifi(Context context){
@@ -50,25 +55,32 @@ public final class WifiRoute {
                     .removeCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                     .setNetworkSpecifier(spec)
                     .build();
-            requestCm=cm;requestUnavailable=false;
+            requestCm=cm;requestUnavailable=false;requestLostAt=0;
             requestCallback=new ConnectivityManager.NetworkCallback(){
-                @Override public void onAvailable(Network network){requestedNetwork=network;requestUnavailable=false;try{cm.bindProcessToNetwork(network);}catch(Exception ignored){}}
-                @Override public void onLost(Network network){if(network.equals(requestedNetwork))requestedNetwork=null;}
-                @Override public void onUnavailable(){requestUnavailable=true;requestedNetwork=null;}
+                @Override public void onAvailable(Network network){requestedNetwork=network;requestUnavailable=false;requestLostAt=0;try{cm.bindProcessToNetwork(network);}catch(Exception ignored){}}
+                @Override public void onLost(Network network){if(network.equals(requestedNetwork)){requestedNetwork=null;requestLostAt=SystemClock.elapsedRealtime();}}
+                @Override public void onUnavailable(){requestUnavailable=true;requestedNetwork=null;requestLostAt=SystemClock.elapsedRealtime();}
             };
             cm.requestNetwork(req,requestCallback);
         }
     }
 
+    /** Forces a fresh WifiNetworkSpecifier request after the ESP32 AP has deliberately restarted. */
+    public static void restartRobotWifiRequest(Context context){
+        if(Build.VERSION.SDK_INT<29)return;
+        synchronized(LOCK){clearRequestLocked();}
+        try{requestRobotWifi(context);}catch(Exception ignored){}
+    }
+
     public static boolean waitForRobotWifi(Context context,long timeoutMs){
         try{requestRobotWifi(context);}catch(Exception ignored){}
-        long until=android.os.SystemClock.elapsedRealtime()+Math.max(0,timeoutMs);
+        long until=SystemClock.elapsedRealtime()+Math.max(0,timeoutMs);
         do{
             Network n=requestedNetwork;
             if(n!=null){try{ConnectivityManager cm=(ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);if(cm!=null&&cm.bindProcessToNetwork(n))return true;}catch(Exception ignored){}}
             if(bindRobotWifi(context))return true;
             if(requestUnavailable)return false;
-            if(android.os.SystemClock.elapsedRealtime()>=until)break;
+            if(SystemClock.elapsedRealtime()>=until)break;
             try{Thread.sleep(100);}catch(InterruptedException e){Thread.currentThread().interrupt();break;}
         }while(true);
         return bindRobotWifi(context);
@@ -98,7 +110,16 @@ public final class WifiRoute {
 
     /** Keeps an existing Direct request alive and re-pins routing after Android network changes. */
     public static boolean maintainRobotWifi(Context context){
-        if(Build.VERSION.SDK_INT>=29&&requestCallback==null){try{requestRobotWifi(context);}catch(Exception ignored){}}
+        if(bindRobotWifi(context))return true;
+        if(Build.VERSION.SDK_INT>=29){
+            boolean restart=false;
+            synchronized(LOCK){
+                long lost=requestLostAt;
+                restart=requestCallback==null||requestUnavailable||(requestedNetwork==null&&lost>0&&SystemClock.elapsedRealtime()-lost>=750);
+                if(restart)clearRequestLocked();
+            }
+            if(restart){try{requestRobotWifi(context);}catch(Exception ignored){}}
+        }
         return bindRobotWifi(context);
     }
 
@@ -106,10 +127,7 @@ public final class WifiRoute {
     public static boolean bindConnectedWifi(Context context){return maintainRobotWifi(context);}
 
     public static void releaseRobotWifi(Context context){
-        synchronized(LOCK){
-            if(requestCm!=null&&requestCallback!=null){try{requestCm.unregisterNetworkCallback(requestCallback);}catch(Exception ignored){}}
-            requestCallback=null;requestCm=null;requestedNetwork=null;requestUnavailable=false;
-        }
+        synchronized(LOCK){clearRequestLocked();}
         unbind(context);
     }
 
