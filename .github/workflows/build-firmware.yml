@@ -15,6 +15,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Record controlled build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "release=HazRob-0.10.1"
+            echo "source_sha=${GITHUB_SHA}"
+            echo "source_ref=${GITHUB_REF}"
+            echo "source_repository=${GITHUB_REPOSITORY}"
+            echo "workflow_run=${GITHUB_RUN_ID}"
+            echo "master_source=firmware/HazRob"
+            echo "camera_source=firmware/HazRob-CAM"
+            echo "network_authority=master-esp32"
+            echo "direct_ssid=HazRob"
+            echo "direct_robot_ip=192.168.4.1"
+            echo "direct_camera_mode=STA-only"
+            echo "direct_camera_ip=192.168.4.2"
+            echo "boot_profile=DIRECT"
+            echo "remote_activation=explicit-operator-only"
+          } > firmware-build-identity.txt
+          cat firmware-build-identity.txt
+
       - name: Validate HazRob 0.10.1 cross-component contract
         run: python3 tools/audit_0101_integration_contract.py
 
@@ -68,6 +90,13 @@ jobs:
               if size>byte_hard[k]: sys.exit(f'{k} exceeds 0.10.1 absolute binary ceiling')
           PY
 
+      - name: Hash exact flash binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          find build/master build/camera -maxdepth 1 -type f -name '*.bin' -print0 | sort -z | xargs -0 sha256sum > firmware-binary-sha256.txt
+          cat firmware-binary-sha256.txt
+
       - name: Remove optional local secret headers before source packaging
         run: rm -f firmware/HazRob/RemoteCloudSecrets.h firmware/HazRob-CAM/RemoteVideoSecrets.h
 
@@ -79,25 +108,28 @@ jobs:
           cd ..
           sha256sum HazRob-ESP32-v0.10.1-source.zip HazRob-ESP32-CAM-v0.10.1-source.zip > firmware-source-sha256.txt
 
-      - name: Upload firmware binaries and size logs
+      - name: Upload firmware binaries, provenance and size logs
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-v0.10.1-firmware
+          name: HazRob-v0.10.1-firmware-${{ github.sha }}
           path: |
             build/master/*.bin
             build/camera/*.bin
             build/*-size.log
+            firmware-build-identity.txt
+            firmware-binary-sha256.txt
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload source ZIPs
+      - name: Upload source ZIPs with provenance
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-v0.10.1-firmware-sources
+          name: HazRob-v0.10.1-firmware-sources-${{ github.sha }}
           path: |
             HazRob-ESP32-v0.10.1-source.zip
             HazRob-ESP32-CAM-v0.10.1-source.zip
             firmware-source-sha256.txt
+            firmware-build-identity.txt
           if-no-files-found: error
           retention-days: 90
 
@@ -110,7 +142,7 @@ jobs:
           rm -rf /tmp/hazrob-dist
           git worktree add -B app-update-distribution /tmp/hazrob-dist origin/app-update-distribution
           mkdir -p /tmp/hazrob-dist/public/firmware
-          cp HazRob-ESP32-v0.10.1-source.zip HazRob-ESP32-CAM-v0.10.1-source.zip firmware-source-sha256.txt /tmp/hazrob-dist/public/firmware/
+          cp HazRob-ESP32-v0.10.1-source.zip HazRob-ESP32-CAM-v0.10.1-source.zip firmware-source-sha256.txt firmware-build-identity.txt /tmp/hazrob-dist/public/firmware/
           git -C /tmp/hazrob-dist add public/firmware
           git -C /tmp/hazrob-dist diff --cached --quiet || {
             git -C /tmp/hazrob-dist commit -m 'dist(firmware): publish HazRob 0.10.1 source ZIPs'
