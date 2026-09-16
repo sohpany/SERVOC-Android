@@ -33,7 +33,7 @@ import com.servoc.app.ui.UiKit;
 
 import java.util.concurrent.ExecutorService;
 
-/** HazRob transport selector. Direct and Remote are mutually exclusive control authorities. */
+/** HazRob transport selector. Direct is the boot authority; Remote requires explicit operator action. */
 public final class ConnectionGate {
     public enum Mode{DIRECT,REMOTE}
     public interface Listener{void onReady(Mode mode);}
@@ -143,10 +143,10 @@ public final class ConnectionGate {
 
     private void openRemote(){
         prefs.edit().putString("remote_operator_role","operator").apply();
-        busy("تحويل سلطة الاتصال إلى Remote...",1);
+        busy("تحويل سلطة الاتصال إلى Remote بأمر صريح...",1);
         io.execute(()->{
-            // If the phone is currently on HazRob, explicitly switch the robot to REMOTE before
-            // releasing the local-only NetworkRequest. If it is already remote, this is harmless.
+            // After every reboot the robot is Direct. A nearby phone explicitly activates Remote
+            // over HazRob, then releases the local-only route and continues through the Internet.
             try{if(WifiRoute.bindRobotWifi(a))local.postForm("/connection/remote","",1500);}catch(Exception ignored){}
             WifiRoute.releaseRobotWifi(a);
             ui.post(()->connectRemote(new RemoteSessionManager(a,prefs)));
@@ -157,7 +157,7 @@ public final class ConnectionGate {
         final int ticket=++remoteAttempt;busyRemote(cloud,ticket,"بدء الاتصال البعيد...",1);
         io.execute(()->{
             RemoteReadiness r=cloud.probe((text,stage)->ui.post(()->{if(ticket==remoteAttempt){progress.setProgress(Math.max(0,Math.min(10,stage)));status.setText(text);status.setTextColor(0xFF245A7A);}}));
-            ui.post(()->{if(ticket!=remoteAttempt)return;render(r);if(r.ready)finishRemote(r);else{status.append("\n\nفشل اكتمال التحكم البعيد: "+r.detail+"\nإذا كان الروبوت في Direct، اتصل محليًا مرة واحدة واختر Remote أو أعد تهيئة WAN.");status.setTextColor(0xFFEF6C00);showBack();}});
+            ui.post(()->{if(ticket!=remoteAttempt)return;render(r);if(r.ready)finishRemote(r);else{status.append("\n\nفشل اكتمال التحكم البعيد: "+r.detail+"\nبعد إعادة تشغيل الروبوت يكون Direct افتراضيًا؛ يجب تفعيل Remote محليًا مرة واحدة عبر HazRob.");status.setTextColor(0xFFEF6C00);showBack();}});
         });
     }
 
@@ -170,26 +170,29 @@ public final class ConnectionGate {
     private void showProvision(){
         remoteAttempt++;content.removeAllViews();progress.setVisibility(View.GONE);status.setText("");TextView t=UiKit.title(a,"شبكة الإنترنت الخارجية للروبوت");t.setGravity(Gravity.CENTER);t.setTextColor(0xFF263238);t.setBackgroundColor(Color.TRANSPARENT);content.addView(t,UiKit.full(a));
         RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(a,prefs);RemoteWifiCredentialStore.Credentials saved=store.load();EditText ssid=UiKit.input(a,saved.ssid);ssid.setHint("اسم الشبكة / SSID");content.addView(ssid,UiKit.full(a));EditText pass=UiKit.input(a,saved.password);pass.setHint("كلمة السر");pass.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);content.addView(pass,UiKit.full(a));CheckBox remember=new CheckBox(a);remember.setText("تذكرني");remember.setChecked(saved.present());remember.setTextColor(0xFF263238);content.addView(remember,UiKit.full(a));
-        TextView note=UiKit.small(a,"أدخل SSID يدويًا. لا نجري Wi-Fi scan أثناء Direct حتى لا نهز قناة HazRob. بعد إرسال البيانات يتحول الروبوت إلى Remote.");note.setTextColor(0xFF546E7A);note.setBackgroundColor(Color.TRANSPARENT);content.addView(note,UiKit.full(a));
-        Button connect=UiKit.button(a,"دخول");connect.setOnClickListener(v->{String s=ssid.getText().toString().trim(),p=pass.getText().toString();if(s.isEmpty()){status.setText("أدخل اسم الشبكة");status.setTextColor(0xFFD84315);return;}provision(s,p,remember.isChecked());});content.addView(connect,UiKit.full(a));Button back=UiKit.button(a,"رجوع");back.setOnClickListener(v->showChoice());content.addView(back,UiKit.full(a));
+        TextView note=UiKit.small(a,"أدخل SSID يدويًا. الحفظ لا يغيّر وضع Direct ولا يقطع HazRob أو الكاميرا. لتفعيل WAN بعد الحفظ اضغط «التحكم عبر الإنترنت» صراحة.");note.setTextColor(0xFF546E7A);note.setBackgroundColor(Color.TRANSPARENT);content.addView(note,UiKit.full(a));
+        Button connect=UiKit.button(a,"حفظ إعدادات WAN");connect.setOnClickListener(v->{String s=ssid.getText().toString().trim(),p=pass.getText().toString();if(s.isEmpty()){status.setText("أدخل اسم الشبكة");status.setTextColor(0xFFD84315);return;}provision(s,p,remember.isChecked());});content.addView(connect,UiKit.full(a));Button back=UiKit.button(a,"رجوع");back.setOnClickListener(v->showChoice());content.addView(back,UiKit.full(a));
     }
 
     private void provision(String ssid,String password,boolean remember){
         if(!ensureWifiPermission())return;
-        busy("إرسال إعدادات الشبكة إلى الروبوت...",1);io.execute(()->{try{
+        busy("حفظ إعدادات WAN مع إبقاء Direct فعالًا...",1);io.execute(()->{try{
             local.setRobotHost(LocalNetworkContract.ROBOT_HOST);
             if(!WifiRoute.waitForRobotWifi(a,30000))throw new IllegalStateException("HazRob Wi-Fi unavailable");
             local.remoteProvision(ssid,password);
-            RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(a,prefs);if(remember)store.save(ssid,password);else store.clear();prefs.edit().putBoolean("remote_wan_provisioned",true).apply();
-            ui.post(()->{status.setText("تم إرسال الإعدادات وتحويل الروبوت إلى Remote. أعد الهاتف إلى الإنترنت المعتاد أو البيانات الخلوية.");status.setTextColor(0xFF245A7A);});
-            WifiRoute.releaseRobotWifi(a);pollRobotRemote();
-        }catch(Exception e){ui.post(()->{status.setText("تعذر إرسال الإعدادات. اتصل بشبكة HazRob واسمح للتطبيق باستخدام Wi-Fi القريب ثم حاول مرة أخرى.");status.setTextColor(0xFFD84315);showBack();});}});
+            RemoteWifiCredentialStore store=new RemoteWifiCredentialStore(a,prefs);if(remember)store.save(ssid,password);else store.clear();prefs.edit().putBoolean("remote_wan_provisioned",true).putString("connection_mode","direct").apply();
+            WifiRoute.maintainRobotWifi(a);
+            ui.post(()->{
+                status.setText("تم حفظ WAN. الروبوت ما زال Direct وHazRob/الكاميرا المحلية لم تُقطع. اضغط «التحكم عبر الإنترنت» عندما تريد تفعيل Remote.");
+                status.setTextColor(0xFF2E7D32);showBack();
+            });
+        }catch(Exception e){ui.post(()->{status.setText("تعذر حفظ الإعدادات. اتصل بشبكة HazRob واسمح للتطبيق باستخدام Wi-Fi القريب ثم حاول مرة أخرى.");status.setTextColor(0xFFD84315);showBack();});}});
     }
 
     private void pollRobotRemote(){
         RemoteSessionManager cloud=new RemoteSessionManager(a,prefs);long deadline=SystemClock.elapsedRealtime()+45000L;
         while(SystemClock.elapsedRealtime()<deadline){RemoteReadiness r=cloud.probe();ui.post(()->render(r));if(r.ready){ui.post(()->finishRemote(r));return;}try{Thread.sleep(1000);}catch(InterruptedException e){Thread.currentThread().interrupt();return;}}
-        ui.post(()->{status.setText("تم حفظ إعدادات الشبكة، لكن التحكم البعيد لم يصبح جاهزًا خلال دورة التحقق. راجع مرحلة الفشل في شاشة الحالة ثم أعد المحاولة.");status.setTextColor(0xFFEF6C00);showBack();});
+        ui.post(()->{status.setText("التحكم البعيد لم يصبح جاهزًا خلال دورة التحقق.");status.setTextColor(0xFFEF6C00);showBack();});
     }
 
     private void render(RemoteReadiness r){
