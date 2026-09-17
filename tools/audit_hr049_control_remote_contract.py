@@ -38,7 +38,11 @@ def main():
     req(mixer_test,"purePivotUsesCounterRotation","pivot regression")
 
     # Direct: AP-only + HTTP drive, persistent Android route, no local UDP authority.
-    req(ino,'directApStable(){return radioProfile==RadioProfile::DIRECT&&WiFi.getMode()==WIFI_AP',"Direct AP-only profile")
+    # Check semantic markers separately so harmless source formatting cannot break the release gate.
+    req(ino,'bool directApStable(){',"Direct AP health helper")
+    req(ino,'radioProfile==RadioProfile::DIRECT',"Direct profile authority")
+    req(ino,'WiFi.getMode()==WIFI_AP',"Direct AP-only mode")
+    req(ino,'WiFi.softAPSSID()==Cfg::SSID',"Direct exact SSID health")
     req(ino,'configureSoftAp(WIFI_AP,false);',"Remote-to-Direct AP-preserving transition")
     req(ino,'if(directApStable())',"Direct idempotence")
     req(ino,'web.on("/drive"',"Direct HTTP drive endpoint")
