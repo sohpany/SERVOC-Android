@@ -85,12 +85,12 @@ public final class ConnectionGate {
 
     private void enterDirect(){
         if(!ensureWifiPermission())return;
-        remoteAttempt++;busy("طلب شبكة HazRob المحلية والتحقق من ESP32 والكاميرا...",1);
+        remoteAttempt++;busy("طلب شبكة HazRob المحلية والتحقق من ESP32 الرئيسي...",1);
         io.execute(()->{
             prefs.edit().putString("robot",LocalNetworkContract.ROBOT_HOST).putString("camera",LocalNetworkContract.CAMERA_HOST).putString("connection_mode","direct").apply();
             local.setRobotHost(LocalNetworkContract.ROBOT_HOST);try{new RemoteSessionManager(a,prefs).close();}catch(Exception ignored){}
             CameraApi directCamera=new CameraApi(LocalNetworkContract.CAMERA_HOST);
-            boolean network=WifiRoute.waitForRobotWifi(a,30000);boolean robotReady=false,accepted=false;String detail="";
+            boolean network=WifiRoute.waitForRobotWifi(a,30000);boolean robotReady=false;String detail="";
             if(!network)detail="لم يمنح Android التطبيق شبكة HazRob المحلية";
             else{
                 boolean switchNeeded=true;
@@ -111,31 +111,44 @@ public final class ConnectionGate {
                         try{
                             WifiRoute.maintainRobotWifi(a);
                             String banner=local.getText("/",1200);
-                            if(LocalNetworkContract.isExpectedFirmwareBanner(banner,ReleaseAudit.VERSION)){robotReady=true;detail="ESP32 الرئيسي Direct؛ انتظار ESP32-CAM على 192.168.4.2...";break;}
+                            if(LocalNetworkContract.isExpectedFirmwareBanner(banner,ReleaseAudit.VERSION)){robotReady=true;detail="ESP32 الرئيسي Direct جاهز على 192.168.4.1";break;}
                             String got=banner==null?"":banner.trim();detail=got.isEmpty()?"وصل رد فارغ من 192.168.4.1":"تم الوصول إلى 192.168.4.1 لكن هوية البرنامج هي: "+got;break;
                         }catch(Exception e){detail="إعادة انتظار HazRob على 192.168.4.1 بعد استقرار نقطة الوصول...";try{Thread.sleep(500);}catch(InterruptedException x){Thread.currentThread().interrupt();break;}}
                     }
                 }
-                if(network&&robotReady){
-                    long cameraDeadline=SystemClock.elapsedRealtime()+20000L;
-                    while(SystemClock.elapsedRealtime()<cameraDeadline&&!accepted){
-                        WifiRoute.maintainRobotWifi(a);
-                        if(directCamera.directReady()){
-                            accepted=true;detail="Direct جاهز: ESP32 192.168.4.1 + ESP32-CAM 192.168.4.2 + MJPEG :81";break;
-                        }
-                        detail="ESP32 الرئيسي جاهز؛ انتظار الكاميرا المحلية: "+directCamera.lastProbe();
-                        try{Thread.sleep(650);}catch(InterruptedException x){Thread.currentThread().interrupt();break;}
-                    }
-                    if(!accepted)detail="ESP32 الرئيسي Direct لكن ESP32-CAM لم تصبح جاهزة للبث المحلي: "+directCamera.lastProbe();
-                }
             }
-            final boolean ready=accepted;final String result=detail;ui.post(()->{if(ready){status.setText(result);status.setTextColor(0xFF2E7D32);listener.onReady(Mode.DIRECT);}else showDirectRecovery(result);});
+
+            final boolean ready=network&&robotReady;final String result=detail;
+            if(!ready){ui.post(()->showDirectRecovery(result));return;}
+
+            // Main ESP32 is the Direct admission authority. ESP32-CAM is an independent capability:
+            // camera failure must never lock the operator out of drive, measurements, diagnostics or settings.
+            prefs.edit().putBoolean("camera_preflight_ready",false).putString("camera_preflight_detail","جارٍ التحقق من ESP32-CAM بصورة مستقلة").apply();
+            ui.post(()->{
+                status.setText(result+"\nسيتم فحص ESP32-CAM داخل التطبيق بصورة مستقلة ولن تمنع الدخول.");
+                status.setTextColor(0xFF2E7D32);
+                listener.onReady(Mode.DIRECT);
+            });
+
+            // Informational status-only probe. Do not open the MJPEG stream here because ControlTab owns it.
+            try{
+                WifiRoute.maintainRobotWifi(a);
+                org.json.JSONObject j=directCamera.status();
+                boolean cameraReady=j!=null&&j.optBoolean("camera_ok",false);
+                String cameraDetail;
+                if(j==null)cameraDetail=directCamera.lastProbe();
+                else if(!cameraReady)cameraDetail="camera_error="+j.optString("camera_error","unknown")+" • psram="+j.optBoolean("psram",false)+" • ip="+j.optString("ip","—");
+                else cameraDetail="CAM status OK • "+j.optString("sensor","camera")+" • "+j.optString("ip",LocalNetworkContract.CAMERA_HOST);
+                prefs.edit().putBoolean("camera_preflight_ready",cameraReady).putString("camera_preflight_detail",cameraDetail).apply();
+            }catch(Exception e){
+                prefs.edit().putBoolean("camera_preflight_ready",false).putString("camera_preflight_detail","CAM status probe failed: "+e.getClass().getSimpleName()).apply();
+            }
         });
     }
 
     private void showDirectRecovery(String detail){
         content.removeAllViews();progress.setVisibility(View.GONE);String reason=detail==null||detail.trim().isEmpty()?"تعذر التحقق من الاتصال المباشر":detail.trim();
-        status.setText(reason+"\nوافق على طلب Android للاتصال بشبكة HazRob. يجب أن يستجيب ESP32 على 192.168.4.1 والكاميرا على 192.168.4.2 قبل فتح القيادة.");status.setTextColor(0xFFD84315);
+        status.setText(reason+"\nوافق على طلب Android للاتصال بشبكة HazRob. شرط الدخول المباشر هو استجابة ESP32 الرئيسي على 192.168.4.1؛ حالة ESP32-CAM مستقلة ولا تمنع دخول التطبيق.");status.setTextColor(0xFFD84315);
         Button wifi=UiKit.button(a,"فتح إعدادات Wi-Fi");wifi.setOnClickListener(v->openWifiSettings());content.addView(wifi,UiKit.full(a));Button retry=UiKit.button(a,"إعادة الاختبار");retry.setOnClickListener(v->enterDirect());content.addView(retry,UiKit.full(a));Button back=UiKit.button(a,"رجوع");back.setOnClickListener(v->showChoice());content.addView(back,UiKit.full(a));
     }
 
