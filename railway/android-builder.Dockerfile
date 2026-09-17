@@ -48,6 +48,26 @@ RUN python3 tools/audit_0101_firmware_baseline.py && \
     arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all --output-dir /tmp/fw-main firmware/HazRob && \
     arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all --output-dir /tmp/fw-cam firmware/HazRob-CAM
 
+# Package the exact validated firmware sources together with the binaries produced by the pinned
+# esp32:esp32@3.3.11 toolchain so field flashing uses the same bytes/contracts as this APK build.
+RUN mkdir -p /out && python3 - <<'PY'
+from pathlib import Path
+import zipfile
+
+def pack(name, source_dir, compiled_dir):
+    out=Path('/out')/name
+    with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
+        for base,prefix in [(Path(source_dir),'source'),(Path(compiled_dir),'compiled')]:
+            for p in sorted(base.rglob('*')):
+                if p.is_file():
+                    z.write(p, Path(prefix)/p.relative_to(base))
+
+pack('HazRob-ESP32-Main-0.10.1-HR066.zip','firmware/HazRob','/tmp/fw-main')
+pack('HazRob-ESP32-CAM-0.10.1-HR066.zip','firmware/HazRob-CAM','/tmp/fw-cam')
+PY
+RUN sha256sum /out/HazRob-ESP32-Main-0.10.1-HR066.zip > /out/HazRob-ESP32-Main-0.10.1-HR066.sha256 && \
+    sha256sum /out/HazRob-ESP32-CAM-0.10.1-HR066.zip > /out/HazRob-ESP32-CAM-0.10.1-HR066.sha256
+
 RUN grep -q "versionCode 25" app/build.gradle && grep -q "versionName '0.10.1'" app/build.gradle
 RUN gradle --no-daemon :app:testDebugUnitTest
 RUN gradle --no-daemon :app:assembleRelease
@@ -71,7 +91,9 @@ RUN cat > /out/index.html <<'EOF'
 <h1>HazRob 0.10.1 — v25 TEST</h1>
 <p>بناء HR066 تجريبي: Direct مستقر، Remote بسماح المطور، قراءات حية محسّنة، وتحكم قيادة سريع.</p>
 <p><a href="/HazRob-0.10.1-v25-TEST.apk">تحميل APK</a></p>
-<p><a href="/HazRob-0.10.1-v25-TEST.sha256">SHA-256</a> · <a href="/HazRob-0.10.1-v25-signing.txt">Signing verification</a></p>
+<p><a href="/HazRob-0.10.1-v25-TEST.sha256">APK SHA-256</a> · <a href="/HazRob-0.10.1-v25-signing.txt">Signing verification</a></p>
+<p><a href="/HazRob-ESP32-Main-0.10.1-HR066.zip">Firmware Main ESP32</a> · <a href="/HazRob-ESP32-Main-0.10.1-HR066.sha256">SHA-256</a></p>
+<p><a href="/HazRob-ESP32-CAM-0.10.1-HR066.zip">Firmware ESP32-CAM</a> · <a href="/HazRob-ESP32-CAM-0.10.1-HR066.sha256">SHA-256</a></p>
 </body></html>
 EOF
 
