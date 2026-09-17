@@ -7,7 +7,7 @@
 namespace{
 Preferences wan;
 String ssid,password,cloudDetail="idle";
-bool configured=false,transportEnabled=false,dnsOk=false,timeOk=false;
+bool configured=false,developerAuthorized=false,transportEnabled=false,dnsOk=false,timeOk=false;
 bool cloudTls=false,cloudMqtt=false,cloudAck=false,cloudTelemetry=false,cloudCamera=false;
 bool retryHold=false,everConnected=false;
 uint8_t connectAttempts=0,dnsFailStreak=0;
@@ -66,7 +66,7 @@ String esc(const String& s){String o;o.reserve(s.length()+8);for(size_t i=0;i<s.
 
 void remoteBegin(){
   wan.begin("hazwan",false);
-  ssid=wan.getString("ssid","");password=wan.getString("pass","");configured=!ssid.isEmpty();
+  ssid=wan.getString("ssid","");password=wan.getString("pass","");configured=!ssid.isEmpty();developerAuthorized=wan.getBool("authorized",false);
   transportEnabled=false;
   wan.putBool("enabled",false);
   WiFi.setSleep(false);WiFi.setAutoReconnect(false);
@@ -75,8 +75,14 @@ void remoteBegin(){
 
 void remoteSetTransportEnabled(bool enabled,bool persistMode){
   (void)persistMode;
-  transportEnabled=enabled;
   wan.putBool("enabled",false);
+  if(enabled&&!developerAuthorized){
+    transportEnabled=false;
+    WiFi.disconnect(false,false);
+    resetRuntime("remote_not_developer_authorized");
+    return;
+  }
+  transportEnabled=enabled;
   if(!enabled){
     WiFi.disconnect(false,false);
     resetRuntime(configured?"direct_saved_wan":"direct_local");
@@ -88,6 +94,8 @@ void remoteSetTransportEnabled(bool enabled,bool persistMode){
 
 bool remoteTransportEnabled(){return transportEnabled;}
 bool remoteConfigured(){return configured;}
+bool remoteDeveloperAuthorized(){return developerAuthorized;}
+void remoteSetDeveloperAuthorized(bool enabled){developerAuthorized=enabled;wan.putBool("authorized",enabled);if(!enabled&&transportEnabled){transportEnabled=false;WiFi.disconnect(false,false);resetRuntime(configured?"direct_saved_wan":"direct_local");}}
 
 void remoteUpdate(){
   if(!transportEnabled){dnsOk=false;return;}
@@ -129,7 +137,7 @@ bool remoteRetry(){
 }
 
 void remoteClear(){
-  configured=false;transportEnabled=false;ssid="";password="";wan.remove("ssid");wan.remove("pass");wan.putBool("enabled",false);
+  configured=false;developerAuthorized=false;transportEnabled=false;ssid="";password="";wan.remove("ssid");wan.remove("pass");wan.putBool("authorized",false);wan.putBool("enabled",false);
   WiFi.disconnect(false,true);resetRuntime("wifi_not_configured");
 }
 
@@ -142,6 +150,7 @@ String remoteStatusJson(){
   bool internet=transportEnabled&&connected&&dnsOk&&timeOk;
   bool ready=internet&&cloudTls&&cloudMqtt&&cloudAck&&cloudTelemetry;
   String j="{\"configured\":";j+=configured?"true":"false";
+  j+=",\"developer_authorized\":";j+=developerAuthorized?"true":"false";
   j+=",\"transport_enabled\":";j+=transportEnabled?"true":"false";
   j+=",\"boot_default\":\"direct\"";
   j+=",\"ssid\":\""+esc(ssid)+"\"";

@@ -98,10 +98,10 @@ public final class ConnectionGate {
                 if(switchNeeded){
                     try{
                         local.postForm("/connection/direct","",1500);
-                        detail="تم طلب التحويل إلى Direct؛ إعادة امتلاك شبكة HazRob...";
-                        WifiRoute.releaseRobotWifi(a);
+                        detail="تم طلب التحويل إلى Direct؛ انتظار استقرار شبكة HazRob الحالية...";
+                        // Preserve the current local association. Do not release/recreate an Android
+                        // temporary network for the same SSID while Main transitions AP+STA -> AP.
                         try{Thread.sleep(450);}catch(InterruptedException x){Thread.currentThread().interrupt();}
-                        WifiRoute.restartRobotWifiRequest(a);
                         network=WifiRoute.waitForRobotWifi(a,15000);
                     }catch(Exception e){network=false;detail="تم الوصول إلى الشبكة لكن تعذر تثبيت وضع Direct في الروبوت";}
                 }
@@ -156,11 +156,28 @@ public final class ConnectionGate {
 
     private void openRemote(){
         prefs.edit().putString("remote_operator_role","operator").apply();
-        busy("تحويل سلطة الاتصال إلى Remote بأمر صريح...",1);
+        busy("التحقق من سماح المطور وتهيئة WAN قبل Remote...",1);
         io.execute(()->{
-            // After every reboot the robot is Direct. A nearby phone explicitly activates Remote
-            // over HazRob, then releases the local-only route and continues through the Internet.
-            try{if(WifiRoute.bindRobotWifi(a))local.postForm("/connection/remote","",1500);}catch(Exception ignored){}
+            // Remote activation is deliberately local-first: the robot must already have WAN
+            // credentials and a developer authorization flag, then the operator explicitly requests Remote.
+            try{
+                local.setRobotHost(LocalNetworkContract.ROBOT_HOST);
+                if(!WifiRoute.waitForRobotWifi(a,12000))throw new IllegalStateException("HazRob local link unavailable");
+                org.json.JSONObject rs=local.remoteStatus();
+                if(!rs.optBoolean("configured",false)){
+                    ui.post(()->{status.setText("الاتصال البعيد غير مهيأ: احفظ شبكة WAN من تبويب المطور أولًا.");status.setTextColor(0xFFD84315);showBack();});
+                    return;
+                }
+                if(!rs.optBoolean("developer_authorized",false)){
+                    ui.post(()->{status.setText("الاتصال البعيد غير مسموح: يجب على المطور تفعيله من تبويب «المطور ← الاتصال».");status.setTextColor(0xFFD84315);showBack();});
+                    return;
+                }
+                local.postForm("/connection/remote","",1800);
+                try{Thread.sleep(500);}catch(InterruptedException x){Thread.currentThread().interrupt();}
+            }catch(Exception e){
+                ui.post(()->{status.setText("تعذر تفعيل Remote محليًا. الاتصال المباشر يبقى هو الأساس؛ اتصل بـ HazRob ثم أعد المحاولة.");status.setTextColor(0xFFD84315);showBack();});
+                return;
+            }
             WifiRoute.releaseRobotWifi(a);
             ui.post(()->connectRemote(new RemoteSessionManager(a,prefs)));
         });

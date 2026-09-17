@@ -24,12 +24,14 @@ def main():
     ino=txt("firmware/HazRob/HazRob.ino")
     cfg=txt("firmware/HazRob/Config.h")
     mqtt=txt("firmware/HazRob/RemoteMqtt.cpp")
+    link=txt("firmware/HazRob/RemoteLink.cpp")
     joy=txt("app/src/main/java/com/servoc/app/control/JoystickView.java")
     mixer=txt("app/src/main/java/com/servoc/app/control/DriveMixer.java")
     mixer_test=txt("app/src/test/java/com/servoc/app/control/DriveMixerTest.java")
 
     req(joy,"DriveMixer.mix(x, y)","joystick mixer authority")
-    req(joy,"DEAD_ZONE = 0.025","joystick dead zone")
+    forbid(joy,"DEAD_ZONE","joystick software dead zone")
+    req(joy,"magnitude <= 1.0e-6","joystick center guard")
     req(mixer,"double steer=y<0?-x:x;","travel-relative steering")
     req(mixer,"double left=y+steer;","left differential equation")
     req(mixer,"double right=y-steer;","right differential equation")
@@ -57,9 +59,19 @@ def main():
     req(wifi,'WifiManager.WIFI_MODE_FULL_LOW_LATENCY',"Direct Wi-Fi performance lock")
     req(wifi,'wifiLock.acquire()',"Direct Wi-Fi lock acquisition")
     req(wifi,'onLost(Network network)',"Direct network-loss observer")
-    req(wifi,'SystemClock.elapsedRealtime()-lost>=250',"fast Direct request recovery")
+    req(wifi,'if(bindRobotWifi(context))return true;',"existing Direct route preference")
+    req(wifi,'only by the explicit Direct-entry flow in waitForRobotWifi()',"temporary request explicit fallback")
+    forbid(wifi,'SystemClock.elapsedRealtime()-lost>=250',"repeated temporary-network recreation")
     req(wifi,'LocalNetworkContract.isRobotSubnetAddress',"robot-subnet route validation")
     req(cfg,"CONTROL_COMMAND_TIMEOUT_MS=500","lost-command motor watchdog")
+    req(ino,'remoteDeveloperAuthorized()',"developer Remote authorization gate")
+    req(ino,'web.on("/remote/authorize"',"developer Remote authorization endpoint")
+    req(link,'wan.getBool("authorized",false)',"persisted developer authorization load")
+    req(link,'wan.putBool("authorized",enabled)',"persisted developer authorization save")
+    req(link,'if(enabled&&!developerAuthorized)',"transport-level developer authorization gate")
+    req(ino,'requestRadioProfile(RadioProfile::DIRECT,false)',"Direct priority transition")
+    req(ino,'\\\"remote_authority_revoked\\\":true',"Direct takeover acknowledgement")
+    req(ino,'remoteSetTransportEnabled(false,false);',"immediate Remote transport revocation")
 
     # Remote latest-command architecture: no backlog, bounded publish rate, hold refresh.
     for s in ("PUMP_MS=20","MIN_PUBLISH_MS=40","HOLD_REFRESH_MS=120","COMMAND_TTL_MS=900"):
@@ -83,7 +95,7 @@ def main():
     req(mqtt,"while(tls.available())processPacket()","incoming commands before telemetry")
 
     print("HazRob 0.10.1 control/remote contract: PASS")
-    print("Direct=persistent HazRob route + HTTP 150ms keepalive / 250ms timeout; Remote=latest-command 25Hz max / 120ms hold refresh; watchdog=500ms")
+    print("Direct=existing HazRob route + HTTP 150ms keepalive / 250ms timeout; Remote=developer-authorized + explicit request + latest-command 25Hz max; watchdog=500ms")
     return 0
 
 if __name__=="__main__":

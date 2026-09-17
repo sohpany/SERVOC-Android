@@ -45,7 +45,9 @@ def main():
         ('void radioGuard()','radio guard'),
         ('WiFi.config(ip,gw,sn,d1,d2)','static CAM network'),
         ('WiFi.begin(SSID)','HazRob join'),
-        ('IPAddress ip(192,168,4,2),gw(192,168,4,1)','CAM static IP/gateway')]: req(cam,n,l)
+        ('IPAddress ip(192,168,4,2),gw(192,168,4,1)','CAM static IP/gateway'),
+        ('digitalWrite(LED,LOW);flashMode=0','CAM flash deterministic boot-off'),
+        ('esp_reset_reason()','CAM reset diagnostics')]: req(cam,n,l)
     ban(cam,'WiFi.softAP(','CAM AP creation')
     ban(cam,'WIFI_AP_STA','CAM AP+STA mode')
 

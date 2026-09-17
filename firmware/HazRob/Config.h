@@ -40,6 +40,8 @@ constexpr uint8_t ULTRA_ECHO_PIN=39;      // input only; reduce 5 V echo to <=3.
 constexpr uint8_t IR_GROUND_ACTIVE=LOW;
 constexpr uint8_t IR_CLIFF_ASSERT_SAMPLES=3;
 constexpr uint8_t IR_CLIFF_CLEAR_SAMPLES=2;
+// Digital IR is calibrated physically at the installed downward reference height; it does not measure distance.
+constexpr float IR_REFERENCE_HEIGHT_CM=8.0f;
 
 // Future quantitative illuminance: prefer BH1750 on an explicitly assigned bus after installation.
 constexpr bool LUX_SENSOR_INSTALLED=false;

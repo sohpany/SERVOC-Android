@@ -67,7 +67,9 @@ def main() -> int:
     require(mqtt, 't=="estop_reset"', "Remote E-stop reset")
 
     require(limiter, "DEFAULT_PERCENT = 100", "operator default speed")
-    require(joystick, "DEAD_ZONE = 0.025", "joystick dead zone")
+    forbid(joystick, "DEAD_ZONE", "joystick software dead zone")
+    require(joystick, "magnitude <= 1.0e-6", "center numerical guard")
+    require(joystick, "requestDisallowInterceptTouchEvent(true)", "touch ownership")
     require(joystick, "DriveMixer.mix(x, y)", "joystick uses canonical mixer")
     require(joystick, "resetInternal(true)", "touch release/cancel neutral")
     forbid(joystick, "z *= z", "joystick quadratic shaping")
@@ -83,6 +85,7 @@ def main() -> int:
     ):
         require(mixer_test, marker, "drive steering regression")
     require(control, '"السرعة "+DriveSpeedLimiter.DEFAULT_PERCENT+"%"', "speed badge default")
+    require(control, "Math.round(baseJoystickDp*1.20f)", "20 percent larger joystick")
     forbid(control, '"السرعة 50%"', "retired 50-percent badge")
     forbid(control, '"RETRACE"', "retired retrace UI")
     forbid(control, '"LINK LOSS"', "retired link-hold UI")
@@ -93,6 +96,8 @@ def main() -> int:
     require(robot_api, "DIRECT_DRIVE_TIMEOUT_MS=250", "Direct request timeout")
     require(main_activity, "private void queueDriveSend()", "immediate drive dispatcher")
     require(main_activity, "queueDriveSend();", "drive-command immediate dispatch")
+    require(main_activity, "driveDirty.set(true)", "latest touch command retention")
+    require(main_activity, "while(entered&&driveDirty.get())", "no dropped touch update loop")
     require(main_activity, "0,50,TimeUnit.MILLISECONDS", "20 Hz drive refresh")
     forbid(main_activity, "private void stopOperatorMotion()", "retired automatic-stop helper")
     forbid(main_activity, "10 Hz operator command cadence", "retired 10 Hz scheduler")

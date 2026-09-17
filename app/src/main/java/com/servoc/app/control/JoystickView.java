@@ -17,7 +17,6 @@ import android.view.View;
 public final class JoystickView extends View {
     public interface Listener { void onDrive(int left, int right, boolean active); }
 
-    private static final double DEAD_ZONE = 0.025;
     private static final float KNOB_RADIUS_RATIO = 0.22f;
     private static final int INVALID_POINTER = -1;
 
@@ -60,6 +59,7 @@ public final class JoystickView extends View {
     @Override public boolean onTouchEvent(MotionEvent e) {
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);
                 pointerId = e.getPointerId(0);
                 active = true;
                 updateFromPointer(e, 0);
@@ -96,13 +96,11 @@ public final class JoystickView extends View {
             ny /= magnitude;
             magnitude = 1.0;
         }
-        if (magnitude < DEAD_ZONE) {
+        // No software dead-zone, acceleration ramp, reverse delay or steering smoothing:
+        // every measurable finger displacement maps linearly to a drive command.
+        if (magnitude <= 1.0e-6) {
             nx = 0f;
             ny = 0f;
-        } else {
-            double normalized = (magnitude - DEAD_ZONE) / (1.0 - DEAD_ZONE);
-            nx = (float) (nx / magnitude * normalized);
-            ny = (float) (ny / magnitude * normalized);
         }
         x = nx;
         y = ny;
@@ -111,6 +109,7 @@ public final class JoystickView extends View {
     }
 
     private void resetInternal(boolean emit) {
+        if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);
         pointerId = INVALID_POINTER;
         active = false;
         x = 0f;

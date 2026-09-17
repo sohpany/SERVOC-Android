@@ -50,8 +50,10 @@ def main():
     require(route, 'WifiManager.WIFI_MODE_FULL_LOW_LATENCY', 'Android Direct Wi-Fi lock')
     require(route, 'wifiLock.acquire()', 'Android Wi-Fi lock acquisition')
     require(route, 'onLost(Network network)', 'Android loss callback')
-    require(route, 'SystemClock.elapsedRealtime()-lost>=250', 'Android fast reconnect')
-    require(route, 'requestCallback==null', 'long-lived exact-SSID request guard')
+    require(route, 'if(bindRobotWifi(context))return true;', 'existing HazRob route preference')
+    require(route, 'only by the explicit Direct-entry flow in waitForRobotWifi()', 'temporary-network request scope')
+    forbid(route, 'SystemClock.elapsedRealtime()-lost>=250', 'repeated temporary-network recreation')
+    require(route, 'if(requestCallback!=null)return;', 'single active fallback request guard')
     require(route, 'LocalNetworkContract.isRobotSubnetAddress', 'Android robot-subnet validation')
     require(service, 'worker.scheduleAtFixedRate(this::linkTick,0,250,TimeUnit.MILLISECONDS)', 'foreground link keeper cadence')
     require(service, 'WifiRoute.maintainRobotWifi(this)', 'foreground Direct route maintenance')
@@ -72,7 +74,7 @@ def main():
     print('  robot: 192.168.4.1')
     print('  camera: STA-only / 192.168.4.2; capability state, not admission gate')
     print('  firmware: healthy Direct AP is not bounced by repeated Direct selection')
-    print('  Android: persistent exact-SSID request + Wi-Fi lock + 250 ms route maintenance/recovery')
+    print('  Android: existing HazRob route first + Wi-Fi lock; temporary exact-SSID request only as explicit fallback')
     return 0
 
 if __name__=='__main__':
