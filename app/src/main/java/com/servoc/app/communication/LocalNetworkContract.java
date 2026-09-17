@@ -23,10 +23,13 @@ public final class LocalNetworkContract {
         }catch(NumberFormatException e){return false;}
     }
 
-    /** Rejects unrelated 192.168.4.1 devices and requires the controlled HR065 main-firmware identity. */
+    /** Accepts the controlled 0.10.1 legacy banner and the HR065 banner; rejects unrelated devices/releases. */
     public static boolean isExpectedFirmwareBanner(String banner,String version){
         if(banner==null||version==null)return false;
         String v=version.trim();
-        return !v.isEmpty()&&(FIRMWARE_BANNER_PREFIX+v+MAIN_FIRMWARE_SUFFIX).equals(banner.trim());
+        if(v.isEmpty())return false;
+        String expected=FIRMWARE_BANNER_PREFIX+v;
+        String actual=banner.trim();
+        return expected.equals(actual)||(expected+MAIN_FIRMWARE_SUFFIX).equals(actual);
     }
 }
