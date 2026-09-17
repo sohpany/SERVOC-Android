@@ -113,7 +113,7 @@ def main() -> int:
     # Flammability seed retirement remains blocked until the pinned bundle exists offline.
     require(bootstrap, 'ASSET="generated/flammability/niosh_npg_flammability.json"', "flammability bundled asset contract")
     require(bootstrap, 'PINNED_SHA256="457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434"', "flammability pinned hash")
-    require(doc, "primary `hazrob-0101-flammability-seed` service must not be deleted yet", "flammability retirement gate")
+    require(doc, "the primary seed service is retained until then.", "flammability retirement gate")
 
     print("HazRob 0.10.1 HR-0101-048/060 -> HR065 cross-component integration contract: PASS")
     print("HR065 network authority preserved; HR048 drive map + pure mixer + forward/reverse steering verified.")
