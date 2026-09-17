@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Fail-closed cross-component integration gate for HazRob 0.10.1 HR-0101-048/060.
+"""Fail-closed cross-component integration gate for HazRob 0.10.1 HR048/060 carried into HR065.
 
-The baseline 0.10.1 integration contract is executed for every contract except the intentional
-HR048 logical drive-side association. HR060 additionally makes the joystick mixer a pure tested
-component and hardens Direct radio ownership. Physical wheel/RF acceptance remains separate.
+HR065's integration audit is now authoritative for the already-accepted HR048 drive map, so this
+legacy gate must not rewrite the drive mapping back to a pre-HR048 topology. It layers the original
+steering/operability checks on top of the current HR065 Direct-first / CAM STA-only contract.
+Physical wheel/RF acceptance remains separate.
 """
 from pathlib import Path
 import importlib.util
@@ -29,39 +30,19 @@ def forbid(src: str, needle: str, label: str) -> None:
         raise AssertionError(f"{label}: forbidden {needle!r}")
 
 
-def run_baseline_with_intentional_drive_delta() -> None:
-    spec = importlib.util.spec_from_file_location("hazrob_0101_baseline_audit", BASELINE_AUDIT)
+def run_hr065_baseline() -> None:
+    spec = importlib.util.spec_from_file_location("hazrob_0101_hr065_audit", BASELINE_AUDIT)
     if spec is None or spec.loader is None:
-        raise AssertionError("cannot load baseline integration audit")
+        raise AssertionError("cannot load HR065 integration audit")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    original_text = module.text
-
-    new_left = 'DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32'
-    new_right = 'DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27'
-    legacy_left = 'DRIVE_L_EN=16,DRIVE_L_IN1=18,DRIVE_L_IN2=27'
-    legacy_right = 'DRIVE_R_EN=17,DRIVE_R_IN1=19,DRIVE_R_IN2=32'
-
-    actual_cfg = original_text("firmware/HazRob/Config.h")
-    if actual_cfg.count(new_left) != 1 or actual_cfg.count(new_right) != 1:
-        raise AssertionError("HR048 drive map is not uniquely present before baseline compatibility audit")
-    forbid(actual_cfg, legacy_left, "actual HR048 Config left mapping")
-    forbid(actual_cfg, legacy_right, "actual HR048 Config right mapping")
-
-    def compatible_text(path: str) -> str:
-        src = original_text(path)
-        if path == "firmware/HazRob/Config.h":
-            src = src.replace(new_left, legacy_left).replace(new_right, legacy_right)
-        return src
-
-    module.text = compatible_text
     rc = module.main()
     if rc not in (None, 0):
-        raise AssertionError(f"baseline integration audit returned {rc}")
+        raise AssertionError(f"HR065 integration audit returned {rc}")
 
 
 def main() -> int:
-    run_baseline_with_intentional_drive_delta()
+    run_hr065_baseline()
 
     cfg = text("firmware/HazRob/Config.h")
     profile = text("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
@@ -79,13 +60,14 @@ def main() -> int:
     doc = text("docs/0.10.1/FIELD_INTEGRATION_REMEDIATION_HR048.md")
     gpio_doc = text("docs/0.10.1/GPIO_AUTHORITY.md")
 
-    # Release identity remains 0.10.1. HR048/060 are controlled changes, not 0.10.2.
-    require(cfg, 'FW[]="HazRob 0.10.1"', "firmware release identity")
+    # Product version remains 0.10.1; HR065 is a controlled build identity, not a 0.10.2 bump.
+    require(cfg, 'FW[]="HazRob 0.10.1 HR065"', "firmware HR065 identity")
+    require(cfg, 'BUILD_ID[]="HR-0101-065-MAIN"', "firmware HR065 build ID")
     forbid(cfg, "0.10.2", "firmware release identity")
     forbid(profile, "0.10.2", "Android hardware profile")
     require(doc, "no version bump", "HR048 documentation")
 
-    # Canonical differential mixer + one hardware-boundary side swap only.
+    # Canonical differential mixer + the controlled HR048 hardware-boundary side map.
     require(joy, "DriveMixer.Command command=DriveMixer.mix(x,y);", "joystick pure mixer binding")
     require(mixer, "double left=y+x;", "canonical logical left equation")
     require(mixer, "double right=y-x;", "canonical logical right equation")
@@ -133,8 +115,8 @@ def main() -> int:
     require(bootstrap, 'PINNED_SHA256="457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434"', "flammability pinned hash")
     require(doc, "primary `hazrob-0101-flammability-seed` service must not be deleted yet", "flammability retirement gate")
 
-    print("HazRob 0.10.1 HR-0101-048/060 cross-component integration contract: PASS")
-    print("Baseline integration preserved; drive map + pure mixer + forward/reverse steering verified separately.")
+    print("HazRob 0.10.1 HR-0101-048/060 -> HR065 cross-component integration contract: PASS")
+    print("HR065 network authority preserved; HR048 drive map + pure mixer + forward/reverse steering verified.")
     print("Physical field acceptance: PENDING")
     return 0
 
@@ -143,5 +125,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except AssertionError as exc:
-        print("HazRob 0.10.1 HR-0101-048/060 integration contract: FAIL:", exc)
+        print("HazRob 0.10.1 HR048/060 -> HR065 integration contract: FAIL:", exc)
         raise SystemExit(1)
