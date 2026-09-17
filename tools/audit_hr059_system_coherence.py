@@ -41,7 +41,7 @@ def main():
 
     # Strict role/version/protocol compatibility.
     req(rmqtt,'X-HazRob-Client: esp32','main role'); req(rmqtt,'version!=RemoteCfg::BOOTSTRAP_SERVICE_VERSION||protocol!=RemoteCfg::BOOTSTRAP_PROTOCOL||role!="esp32"||robot!=RemoteCfg::ROBOT_ID','main strict bootstrap')
-    req(rvideo,'X-HazRob-Client: esp32-cam','CAM role'); req(rvideo,'version!=RemoteVideoCfg::BOOTSTRAP_SERVICE_VERSION||protocol!=RemoteVideoCfg::BOOTSTRAP_PROTOCOL||role!="esp32-cam"||robot!=RemoteVideoCfg::ROBOT_ID','CAM strict bootstrap')
+    req(rvideo,'X-HazRob-Client: esp32-cam','CAM role'); req(rvideo,'js(r,"version")!=RemoteVideoCfg::BOOTSTRAP_SERVICE_VERSION||ji(r,"protocol")!=RemoteVideoCfg::BOOTSTRAP_PROTOCOL||js(r,"client")!="esp32-cam"||js(r,"robot")!=RemoteVideoCfg::ROBOT_ID','CAM strict bootstrap')
     req(session,'BOOTSTRAP_CLIENT="android"','Android role'); req(session,'bootstrap contract mismatch','Android contract reject'); req(session,'bootstrap role mismatch','Android role reject')
     for n in ['role==="android"','role==="esp32"','role==="esp32-cam"','video_view_token','video_publish_token']: req(relay,n,'Render scoped bootstrap')
 
