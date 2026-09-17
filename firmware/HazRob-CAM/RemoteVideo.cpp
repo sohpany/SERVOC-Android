@@ -17,6 +17,8 @@ uint32_t retry=RemoteVideoCfg::RETRY_MIN_MS,nextTry=0,interval=RemoteVideoCfg::F
 String token=RemoteVideoCfg::PUBLISH_TOKEN;
 bool cred=false;
 const char GUID[]="258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+constexpr uint32_t TLS_CONNECT_TIMEOUT_MS=5000;
+constexpr uint32_t TLS_RUNTIME_TIMEOUT_MS=1500;
 
 String b64(const uint8_t*d,size_t n){
   size_t l=0,c=((n+2)/3)*4+4;char*o=(char*)malloc(c);
@@ -48,7 +50,7 @@ bool bootstrap(){
   if(cred&&token.length()>=8)return true;
   if(local||WiFi.status()!=WL_CONNECTED||!RemoteVideoCfg::configured())return false;
 
-  WiFiClientSecure c;c.setCACert(RemoteVideoCfg::ROOT_CA);c.setTimeout(4);
+  WiFiClientSecure c;c.setCACert(RemoteVideoCfg::ROOT_CA);c.setTimeout(TLS_CONNECT_TIMEOUT_MS);
   if(!c.connect(RemoteVideoCfg::HOST,RemoteVideoCfg::PORT))return false;
 
   c.print("GET "+String(RemoteVideoCfg::BOOTSTRAP_PATH)+
@@ -56,7 +58,7 @@ bool bootstrap(){
     "\r\nAuthorization: Bearer "+RemoteVideoCfg::BOOTSTRAP_TOKEN+
     "\r\nX-HazRob-Client: esp32-cam\r\nConnection: close\r\n\r\n");
 
-  String r;uint32_t t=millis()+4000;
+  String r;uint32_t t=millis()+TLS_CONNECT_TIMEOUT_MS;
   while((int32_t)(t-millis())>0&&(c.connected()||c.available())){
     while(c.available()&&r.length()<2048)r+=(char)c.read();
     delay(1);
@@ -88,7 +90,7 @@ bool line(String&l,uint32_t ms){
 
 bool connectWS(){
   if(local||!bootstrap())return false;
-  ws.stop();ws.setCACert(RemoteVideoCfg::ROOT_CA);ws.setTimeout(5);
+  ws.stop();ws.setCACert(RemoteVideoCfg::ROOT_CA);ws.setTimeout(TLS_CONNECT_TIMEOUT_MS);
   if(!ws.connect(RemoteVideoCfg::HOST,RemoteVideoCfg::PORT))return false;
 
   uint8_t n[16];esp_fill_random(n,16);String key=b64(n,16);
@@ -110,6 +112,7 @@ bool connectWS(){
     if(k=="upgrade"){v.toLowerCase();u=v=="websocket";}
   }
   if(!u||a!=acceptKey(key)){ws.stop();return false;}
+  ws.setTimeout(TLS_RUNTIME_TIMEOUT_MS);
   return conn=true;
 }
 
