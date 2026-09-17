@@ -51,6 +51,7 @@ def main() -> int:
 
     req(cfg, "IR_GROUND_ACTIVE=LOW", "IR ground polarity candidate")
     req(cfg, "IR_CLIFF_ASSERT_SAMPLES=3", "IR persistence")
+    req(cfg, "IR_REFERENCE_HEIGHT_CM=8.0f", "IR 8 cm physical reference")
     req(hw, "groundNow=irLevel==Cfg::IR_GROUND_ACTIVE", "IR ground semantics")
     req(hw, "irWarning=true", "IR cliff assertion")
     req(hw, '\\"cliff_warning\\"', "IR telemetry cliff state")
@@ -70,6 +71,7 @@ def main() -> int:
     req(entry, 'WifiRoute.releaseRobotWifi(a)', "release local-only network for Remote")
     req(entry, "بعد إعادة تشغيل الروبوت يكون Direct افتراضيًا", "Direct-first remote diagnostic UX")
     req(entry, "يجب تفعيل Remote محليًا", "explicit Remote activation diagnostic UX")
+    req(entry, 'developer_authorized', "developer Remote authorization admission")
 
     req(instant, "RESPONSE_MIN_DELTA = 0.05", "response visibility floor")
     req(instant, "Level{UNAVAILABLE,NORMAL,RESPONSE,ELEVATED,HIGH}", "response state")
