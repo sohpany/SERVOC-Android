@@ -10,14 +10,27 @@ logo=B64.read_text(encoding='ascii').strip()
 DRAW.parent.mkdir(parents=True,exist_ok=True)
 DRAW.write_bytes(base64.b64decode(logo))
 JAVA.parent.mkdir(parents=True,exist_ok=True)
-JAVA.write_text('''package com.servoc.app.branding;\n\nimport android.graphics.Bitmap;\nimport android.graphics.BitmapFactory;\nimport android.graphics.Canvas;\nimport android.graphics.Color;\nimport android.graphics.Paint;\nimport android.graphics.RectF;\nimport android.util.Base64;\nimport java.io.ByteArrayOutputStream;\n\n/** Controlled HazRob Sensing visual identity. */\npublic final class HazRobBranding {\n private HazRobBranding(){}\n public static final int YELLOW=0xFFFFC107, GREY=0xFF616161, LIGHT_GREY=0xFFF5F5F5, WHITE=0xFFFFFFFF, BLACK=0xFF111111;\n private static final String LOGO="'''+logo+'''";\n public static Bitmap logo(){byte[] b=Base64.decode(LOGO,Base64.DEFAULT);return BitmapFactory.decodeByteArray(b,0,b.length);}\n public static byte[] logoPng(){Bitmap b=logo();ByteArrayOutputStream o=new ByteArrayOutputStream();b.compress(Bitmap.CompressFormat.PNG,100,o);b.recycle();return o.toByteArray();}\n public static void drawPdfHeader(Canvas c){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(YELLOW);c.drawRect(28,8,567,12,p);Bitmap b=logo();c.drawBitmap(b,null,new RectF(505,14,563,72),p);b.recycle();}\n}\n''',encoding='utf-8')
+JAVA.write_text('''package com.servoc.app.branding;\n\nimport android.graphics.Bitmap;\nimport android.graphics.BitmapFactory;\nimport android.graphics.Canvas;\nimport android.graphics.Paint;\nimport android.graphics.RectF;\nimport android.util.Base64;\nimport java.io.ByteArrayOutputStream;\n\n/** Controlled HazRob Sensing visual identity. */\npublic final class HazRobBranding {\n private HazRobBranding(){}\n public static final int YELLOW=0xFFFFC107, GREY=0xFF616161, LIGHT_GREY=0xFFF5F5F5, WHITE=0xFFFFFFFF, BLACK=0xFF111111;\n private static final String LOGO="'''+logo+'''";\n public static Bitmap logo(){byte[] b=Base64.decode(LOGO,Base64.DEFAULT);return BitmapFactory.decodeByteArray(b,0,b.length);}\n public static byte[] logoPng(){Bitmap b=logo();ByteArrayOutputStream o=new ByteArrayOutputStream();b.compress(Bitmap.CompressFormat.PNG,100,o);b.recycle();return o.toByteArray();}\n public static void drawPdfHeader(Canvas c){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(YELLOW);c.drawRect(28,8,567,12,p);Bitmap b=logo();c.drawBitmap(b,null,new RectF(505,14,563,72),p);b.recycle();}\n}\n''',encoding='utf-8')
 
 # Apply the yellow/grey/white visual system consistently to Java UI sources.
+replacements={
+    '0xFF90CAF9':'0xFFFFC107',
+    '0xFF245A7A':'0xFF616161',
+    '0xFF263238':'0xFF616161',
+    '0xFF0A0D11':'0xFFFFFFFF',
+    '0xFF0E1116':'0xFFFFFFFF',
+    '0xFF181D24':'0xFFF5F5F5',
+    '0xFF232A33':'0xFFF5F5F5',
+    '0xFF151A20':'0xFFF5F5F5',
+    '0xCC151A20':'0xEEF5F5F5',
+    '0xFFB8C1CC':'0xFF616161',
+    '0xFF30363D':'0xFFBDBDBD',
+    '0xFF607D8B':'0xFF616161',
+    '0xFF90A4AE':'0xFF616161',
+}
 for p in (ROOT/'app/src/main/java/com/servoc/app').rglob('*.java'):
     s=p.read_text(encoding='utf-8')
-    s=s.replace('0xFF90CAF9','0xFFFFC107').replace('0xFF245A7A','0xFF616161').replace('0xFF263238','0xFF616161')
-    s=s.replace('0xFF0A0D11','0xFFFFFFFF').replace('0xFF181D24','0xFFF5F5F5').replace('0xFF232A33','0xFFF5F5F5')
-    s=s.replace('0xFFB8C1CC','0xFF616161').replace('0xFF30363D','0xFFBDBDBD').replace('0xFF607D8B','0xFF616161').replace('0xFF90A4AE','0xFF616161')
+    for old,new in replacements.items(): s=s.replace(old,new)
     p.write_text(s,encoding='utf-8')
 
 # UiKit defaults: white/light-grey surfaces, dark text, yellow primary buttons.
