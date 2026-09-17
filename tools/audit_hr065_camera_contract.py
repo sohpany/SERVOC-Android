@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Compatibility camera/network gate for the canonical HazRob 0.10.1 runtime.
 
-The camera must remain STA-only at 192.168.4.2, with Main as the sole HazRob AP at
-192.168.4.1. The Android readiness gate must validate actual camera identity and JPEG data.
+The camera remains STA-only at 192.168.4.2, with Main as the sole HazRob AP at
+192.168.4.1. Camera identity/JPEG validation remains strict when camera capability is used,
+but camera readiness must not block entry to the rest of the application.
 """
 from pathlib import Path
 
@@ -62,7 +63,10 @@ def main():
         ('LocalNetworkContract.CAMERA_HOST.equals(ip)','Android CAM IP gate'),
         ('prev==0xFF&&cur==0xD8','JPEG SOI gate'),
         ('prev==0xFF&&cur==0xD9&&jpegBytes>128','JPEG EOI gate')]: req(camera_api,n,l)
-    req(gate,'directCamera.directReady()','Direct waits for valid CAM frame')
+    req(camera_api,'return localStreamReady();','strict camera capability validation')
+    req(gate,'final boolean ready=network&&robotReady','Main-only Direct admission')
+    ban(gate,'directCamera.directReady()','camera-gated Direct admission')
+    req(gate,'directCamera.status()','independent camera status probe')
 
     for n,l in [
         ('applyRadioProfile(RadioProfile::DIRECT,false);','Direct boot'),
@@ -91,7 +95,7 @@ def main():
         ('R0_SESSION[]="FIELD-R0-3SESSION-20260913"','R0 campaign')]: req(cfg,n,l)
 
     print("HazRob 0.10.1 camera/network contract: PASS")
-    print("CAM=STA-only 192.168.4.2; Main sole AP=HazRob/192.168.4.1; Android exact FW/JPEG gate; physical acceptance=PENDING")
+    print("CAM=STA-only 192.168.4.2; Main sole AP=HazRob/192.168.4.1; camera is capability state, not admission gate; physical acceptance=PENDING")
     return 0
 
 if __name__=='__main__':
