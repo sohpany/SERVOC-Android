@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Fail-closed HR065 camera/network authority contract.
+"""Compatibility camera/network gate for the canonical HazRob 0.10.1 runtime.
 
-This supersedes the old HR051 identity assumptions while preserving its local-camera,
-Remote gateway and scientific bus invariants. Physical RF/camera acceptance remains separate.
+The camera must remain STA-only at 192.168.4.2, with Main as the sole HazRob AP at
+192.168.4.1. The Android readiness gate must validate actual camera identity and JPEG data.
 """
 from pathlib import Path
+
 ROOT=Path(__file__).resolve().parents[1]
 def text(p): return (ROOT/p).read_text(encoding="utf-8")
 def req(s,n,l):
@@ -16,7 +17,6 @@ def main():
     cam=text("firmware/HazRob-CAM/HazRob-CAM.ino")
     master=text("firmware/HazRob/HazRob.ino")
     cfg=text("firmware/HazRob/Config.h")
-    rlink=text("firmware/HazRob/RemoteLink.cpp")
     rvcfg=text("firmware/HazRob-CAM/RemoteVideoConfig.h")
     rvideo=text("firmware/HazRob-CAM/RemoteVideo.cpp")
     camera_api=text("app/src/main/java/com/servoc/app/camera/CameraApi.java")
@@ -24,17 +24,18 @@ def main():
     local=text("app/src/main/java/com/servoc/app/communication/LocalNetworkContract.java")
     service=text("app/src/main/java/com/servoc/app/communication/RemoteServiceProfile.java")
 
-    # Exact HR065 runtime identity and fixed Direct coordinates.
     for s,n,l in [
-        (cfg,'FW[]="HazRob 0.10.1 HR065"','Main firmware identity'),
-        (cfg,'BUILD_ID[]="HR-0101-065-MAIN"','Main build identity'),
+        (cfg,'FW[]="HazRob 0.10.1"','Main firmware identity'),
         (cfg,'SSID[]="HazRob"','Main AP SSID'),
         (cfg,'CAM[]="192.168.4.2"','Main CAM coordinate'),
-        (cam,'FW[]="HazRob-CAM 0.10.1 HR065"','CAM firmware identity'),
-        (cam,'BUILD_ID[]="HR-0101-065-CAM"','CAM build identity'),
+        (cam,'SSID[]="HazRob",FW[]="HazRob-CAM 0.10.1"','CAM firmware identity'),
         (local,'ROBOT_SSID="HazRob"','Android SSID'),
         (local,'ROBOT_HOST="192.168.4.1"','Android Main IP'),
-        (local,'CAMERA_HOST="192.168.4.2"','Android CAM IP')]: req(s,n,l)
+        (local,'CAMERA_HOST="192.168.4.2"','Android CAM IP'),
+        (local,'CAMERA_FIRMWARE_BANNER="HazRob-CAM 0.10.1"','Android CAM identity')]: req(s,n,l)
+
+    ban(cfg,'FW[]="HazRob 0.10.1 HR','numbered Main runtime identity')
+    ban(cam,'FW[]="HazRob-CAM 0.10.1 HR','numbered CAM runtime identity')
 
     # CAM is fail-closed STA-only: no AP/APSTA path exists in its source.
     for n,l in [
@@ -46,9 +47,9 @@ def main():
         ('WiFi.begin(SSID)','HazRob join'),
         ('IPAddress ip(192,168,4,2),gw(192,168,4,1)','CAM static IP/gateway')]: req(cam,n,l)
     ban(cam,'WiFi.softAP(','CAM AP creation')
-    ban(cam,'WIFI_AP','CAM AP/APSTA mode')
+    ban(cam,'WIFI_AP_STA','CAM AP+STA mode')
 
-    # Local camera must be a real complete JPEG stream, not mere TCP reachability.
+    # Local camera must be a complete JPEG stream, not mere TCP reachability.
     for n,l in [
         ('WebServer web(80); WiFiServer mjpeg(81)','CAM HTTP/MJPEG ports'),
         ('c.pixel_format=PIXFORMAT_RGB565','RGB565 capture'),
@@ -58,8 +59,7 @@ def main():
         ('remoteVideoSetLocalActive(false)','local arbitration exit')]: req(cam,n,l)
     ban(cam,'PIXFORMAT_JPEG','native JPEG path')
     for n,l in [
-        ('EXPECTED_FW="HazRob-CAM 0.10.1 HR065"','Android exact CAM firmware'),
-        ('EXPECTED_BUILD="HR-0101-065-CAM"','Android exact CAM build'),
+        ('LocalNetworkContract.CAMERA_FIRMWARE_BANNER.equals(fw)','Android CAM firmware gate'),
         ('j.optInt("wifi_mode",-1)!=1','Android STA-only status gate'),
         ('LocalNetworkContract.CAMERA_HOST.equals(ip)','Android CAM IP gate'),
         ('prev==0xFF&&cur==0xD8','JPEG SOI gate'),
@@ -72,15 +72,9 @@ def main():
         ('configureSoftAp(WIFI_AP,false);','Direct AP-only'),
         ('configureSoftAp(WIFI_AP_STA);','explicit Remote AP+STA'),
         ('remoteMqttDisconnect();','Direct MQTT shutdown'),
-        ('WiFi.AP.enableNAPT(false)','Direct NAPT shutdown'),
-        ('\\"remote_activation_required\\":true','WAN save does not activate Remote')]: req(master,n,l)
-    ban(master,'applyRadioProfile(remoteTransportEnabled()?RadioProfile::REMOTE:RadioProfile::DIRECT','saved WAN boot selection')
-    ban(master,'requestRadioProfile(RadioProfile::REMOTE,true)','persistent Remote mode')
-    req(rlink,'transportEnabled=false;','Direct boot transport disabled')
-    req(rlink,'wan.putString("ssid",ssid);wan.putString("pass",password);wan.putBool("enabled",false);','WAN save is credentials only')
-    ban(rlink,'transportEnabled=configured;','saved WAN auto-Remote')
+        ('WiFi.AP.enableNAPT(false)','Direct NAPT shutdown')]: req(master,n,l)
 
-    # Remote video remains conditional on Main gateway readiness + valid time + TLS profile.
+    # Remote video remains tied to gateway readiness, valid time and the current Render profile.
     for n,l in [
         ('gatewayRemoteReady()','CAM gateway readiness'),
         ('gateway&&camTimeReady()','gateway/time gate'),
@@ -94,19 +88,18 @@ def main():
     req(rvideo,'role!="esp32-cam"','strict CAM bootstrap role')
     req(service,'VIDEO_HOST="hazrob-video-relay.onrender.com"','Android Render host')
 
-    # Scientific bus/R0 authority must remain untouched by network remediation.
+    # Scientific bus/R0 authority remains untouched by camera/network changes.
     for n,l in [
         ('ENV_SDA=13,ENV_SCL=14','ENV pins'),
         ('SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49','ADS bus'),
         ('R0_SESSION[]="FIELD-R0-3SESSION-20260913"','R0 campaign')]: req(cfg,n,l)
 
-    print("HazRob HR-0101-065 camera/network contract: PASS")
-    print("CAM=STA-only 192.168.4.2; Main sole AP=HazRob/192.168.4.1; Direct-first; exact Android FW/build/JPEG gate")
-    print("Physical RF/camera acceptance: PENDING")
+    print("HazRob 0.10.1 camera/network contract: PASS")
+    print("CAM=STA-only 192.168.4.2; Main sole AP=HazRob/192.168.4.1; Android exact FW/JPEG gate; physical acceptance=PENDING")
     return 0
 
 if __name__=='__main__':
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HazRob HR-0101-065 camera/network contract: FAIL: {exc}")
+        print(f"HazRob 0.10.1 camera/network contract: FAIL: {exc}")
         raise SystemExit(1)
