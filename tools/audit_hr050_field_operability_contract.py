@@ -82,8 +82,8 @@ def main() -> int:
 
     req(video_cfg, "FRAME_INTERVAL_MIN_MS=55", "remote video fast target")
     req(video_cfg, "FRAME_INTERVAL_MAX_MS=120", "remote video backoff ceiling")
-    req(video, "adaptPacing", "adaptive video pacing")
-    req(video, '\\"frame_interval_ms\\"', "video pacing diagnostics")
+    req(video, "if(w+6>=interval)interval=min(RemoteVideoCfg::FRAME_INTERVAL_MAX_MS", "adaptive video slowdown")
+    req(video, "interval=max(RemoteVideoCfg::FRAME_INTERVAL_MIN_MS,interval-RemoteVideoCfg::FRAME_INTERVAL_STEP_MS)", "adaptive video recovery")
     forbid(video, "std::queue", "remote video backlog")
 
     req(gradle, "HAZROB_FLAMMABILITY_SHA256 = '457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434'", "controlled flammability digest")
@@ -104,7 +104,7 @@ def main() -> int:
     print("IR: persistent loss-of-ground cliff warning with explicit drive-screen semantics")
     print("Remote: bounded verified TLS/MQTT; explicit profile handoff; control admission independent from video")
     print("MQ: RESPONSE visibility remains below warning/quantitative authority")
-    print("Video: adaptive 55..120 ms pacing; nominal good-link target ~18.2 fps")
+    print("Video: inline adaptive 55..120 ms pacing; nominal good-link target ~18.2 fps")
     print("Build reproducibility: controlled flammability bytes recovered only from accepted APK and SHA-256 verified; no live regeneration")
     return 0
 
