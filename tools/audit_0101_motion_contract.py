@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Fail-closed source contract for HazRob 0.10.1 HR-0101-034 motion control.
+"""Fail-closed source contract for HazRob 0.10.1 motion control carried into HR065.
 
 This audit prevents reintroduction of retired acceleration/retrace/link-hold motion
-policy while preserving the independent stale-command neutral stop and explicit E-stop.
+policy while preserving the independent 500 ms stale-command neutral stop and explicit E-stop.
 It is a source contract only; it does not replace wheels-up or remote field testing.
 """
 from pathlib import Path
@@ -41,7 +41,7 @@ def main() -> int:
     remote = read("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
 
     # Firmware normal motion is direct command -> PWM. Retired shaping/retrace code must be gone.
-    require(cfg, "CONTROL_COMMAND_TIMEOUT_MS=1500", "bounded stale-command policy")
+    require(cfg, "CONTROL_COMMAND_TIMEOUT_MS=500", "bounded stale-command policy")
     for retired in (
         "DRIVE_LEASE_MS", "LINK_DETECT_MS", "LINK_HOLD_MS", "RETRACE_MS",
         "RETRACE_MAX_SPEED", "ACCEL=", "DECEL=", "REVERSE=",
@@ -89,12 +89,13 @@ def main() -> int:
     forbid(main_activity, 'optBoolean("retrace"', "retired retrace status")
     forbid(main_activity, 'optBoolean("hold"', "retired link-hold status")
 
-    # Remote freshness/replay protections remain; they do not shape motor speed.
-    require(remote, 'command("drive",p,700,false,0)', "Remote fire-and-forget drive")
+    # Remote freshness/replay protections remain; current HR065 uses the shared RemoteDrivePolicy TTL.
+    require(remote, 'p.put("left",left);p.put("right",right);command("drive",p,RemoteDrivePolicy.COMMAND_TTL_MS,false,0);', "Remote fire-and-forget drive")
     require(mqtt, "if(!fresh(j))", "Remote TTL freshness")
     require(mqtt, "if(q<=lastSeq)", "Remote sequence rejection")
 
-    print("HazRob 0.10.1 HR-0101-034 motion contract: PASS")
+    print("HazRob 0.10.1 HR065 motion contract: PASS")
+    print("watchdog=500ms; direct command-to-PWM preserved; Remote drive TTL bound to RemoteDrivePolicy; physical acceptance=PENDING")
     return 0
 
 
