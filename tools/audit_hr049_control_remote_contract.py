@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compatibility control/remote gate for HazRob 0.10.1.
 
-Direct is AP-only + low-latency HTTP control. Remote keeps the latest-command MQTT
+Direct is AP-only + persistent low-latency HTTP control. Remote keeps the latest-command MQTT
 architecture and bounded publish policy. Steering geometry remains delegated to DriveMixer.
 """
 from pathlib import Path
@@ -30,12 +30,14 @@ def main():
 
     req(joy,"DriveMixer.mix(x, y)","joystick mixer authority")
     req(joy,"DEAD_ZONE = 0.025","joystick dead zone")
-    req(mixer,"double left=y+x;","left differential equation")
-    req(mixer,"double right=y-x;","right differential equation")
-    req(mixer_test,"reverseSteeringKeepsYawHandedness","reverse steering regression")
-    req(mixer_test,"rightAndLeftYawSignsAreConsistentAcrossForwardAndReverse","yaw handedness regression")
+    req(mixer,"double steer=y<0?-x:x;","travel-relative steering")
+    req(mixer,"double left=y+steer;","left differential equation")
+    req(mixer,"double right=y-steer;","right differential equation")
+    req(mixer_test,"reverseSteeringUsesSameInsidePhysicalSide","reverse steering regression")
+    req(mixer_test,"samePhysicalSideIsInsideForwardAndReverse","physical-side steering regression")
+    req(mixer_test,"purePivotUsesCounterRotation","pivot regression")
 
-    # Direct: AP-only + HTTP drive, local-only Android route, no local UDP authority.
+    # Direct: AP-only + HTTP drive, persistent Android route, no local UDP authority.
     req(ino,'directApStable(){return radioProfile==RadioProfile::DIRECT&&WiFi.getMode()==WIFI_AP',"Direct AP-only profile")
     req(ino,'configureSoftAp(WIFI_AP,false);',"Remote-to-Direct AP-preserving transition")
     req(ino,'if(directApStable())',"Direct idempotence")
@@ -47,8 +49,12 @@ def main():
     req(api,'DIRECT_DRIVE_TIMEOUT_MS=250',"Direct HTTP request bound")
     req(api,'getText("/drive?l="+left+"&r="+right,DIRECT_DRIVE_TIMEOUT_MS)',"Direct HTTP sender")
     forbid(api,'DatagramSocket',"Android active local UDP")
-    req(wifi,'WifiNetworkSpecifier.Builder().setSsid(LocalNetworkContract.ROBOT_SSID)',"Direct local-only Wi-Fi request")
-    req(wifi,'requestCallback=null;requestCm=null;requestedNetwork=null;requestUnavailable=false;',"stale Direct route reset")
+    req(wifi,'WifiNetworkSpecifier.Builder().setSsid(LocalNetworkContract.ROBOT_SSID)',"Direct exact-SSID request")
+    req(wifi,'WifiManager.WIFI_MODE_FULL_LOW_LATENCY',"Direct Wi-Fi performance lock")
+    req(wifi,'wifiLock.acquire()',"Direct Wi-Fi lock acquisition")
+    req(wifi,'onLost(Network network)',"Direct network-loss observer")
+    req(wifi,'SystemClock.elapsedRealtime()-lost>=250',"fast Direct request recovery")
+    req(wifi,'LocalNetworkContract.isRobotSubnetAddress',"robot-subnet route validation")
     req(cfg,"CONTROL_COMMAND_TIMEOUT_MS=500","lost-command motor watchdog")
 
     # Remote latest-command architecture: no backlog, bounded publish rate, hold refresh.
@@ -73,7 +79,7 @@ def main():
     req(mqtt,"while(tls.available())processPacket()","incoming commands before telemetry")
 
     print("HazRob 0.10.1 control/remote contract: PASS")
-    print("Direct=HTTP 150ms keepalive / 250ms timeout; Remote=latest-command 25Hz max / 120ms hold refresh; watchdog=500ms")
+    print("Direct=persistent HazRob route + HTTP 150ms keepalive / 250ms timeout; Remote=latest-command 25Hz max / 120ms hold refresh; watchdog=500ms")
     return 0
 
 if __name__=="__main__":
