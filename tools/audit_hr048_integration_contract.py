@@ -69,7 +69,7 @@ def main() -> int:
     require(doc, "no version bump", "HR048 documentation")
 
     # Canonical differential mixer + the controlled HR048 hardware-boundary side map.
-    require(joy, "DriveMixer.Command command=DriveMixer.mix(x,y);", "joystick pure mixer binding")
+    require(joy, "DriveMixer.Command command = DriveMixer.mix(x, y);", "joystick pure mixer binding")
     require(mixer, "double steer=y<0?-x:x;", "travel-relative steering equation")
     require(mixer, "double left=y+steer;", "canonical logical left equation")
     require(mixer, "double right=y-steer;", "canonical logical right equation")
