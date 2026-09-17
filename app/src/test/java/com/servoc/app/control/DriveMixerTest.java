@@ -17,37 +17,44 @@ public class DriveMixerTest {
         assertMix(-1,0,-100,100);
     }
 
-    @Test public void forwardSteeringIsCorrect(){
+    @Test public void purePivotUsesCounterRotation(){
+        DriveMixer.Command right=DriveMixer.mix(1,0),left=DriveMixer.mix(-1,0);
+        assertEquals(100,right.left);assertEquals(-100,right.right);
+        assertEquals(-100,left.left);assertEquals(100,left.right);
+        assertTrue(right.left*right.right<0);
+        assertTrue(left.left*left.right<0);
+    }
+
+    @Test public void forwardSteeringSlowsInsidePhysicalSide(){
+        // Right turn: RIGHT side becomes half speed; left remains full.
         assertMix(0.25,0.75,100,50);
+        // Left turn: LEFT side becomes half speed; right remains full.
         assertMix(-0.25,0.75,50,100);
     }
 
-    @Test public void reverseSteeringKeepsYawHandedness(){
-        // +X means nose/camera turns right even while reversing.
-        assertMix(0.25,-0.75,-50,-100);
-        assertMix(-0.25,-0.75,-100,-50);
+    @Test public void reverseSteeringUsesSameInsidePhysicalSide(){
+        // Same physical-side rule while reversing: right command still slows RIGHT side.
+        assertMix(0.25,-0.75,-100,-50);
+        assertMix(-0.25,-0.75,-50,-100);
     }
 
-    @Test public void rightAndLeftYawSignsAreConsistentAcrossForwardAndReverse(){
-        DriveMixer.Command fr=DriveMixer.mix(0.25,0.75), rr=DriveMixer.mix(0.25,-0.75);
-        DriveMixer.Command fl=DriveMixer.mix(-0.25,0.75), rl=DriveMixer.mix(-0.25,-0.75);
-        assertTrue(fr.left-fr.right>0);assertTrue(rr.left-rr.right>0);
-        assertTrue(fl.left-fl.right<0);assertTrue(rl.left-rl.right<0);
+    @Test public void samePhysicalSideIsInsideForwardAndReverse(){
+        DriveMixer.Command fr=DriveMixer.mix(0.25,0.75),rr=DriveMixer.mix(0.25,-0.75);
+        DriveMixer.Command fl=DriveMixer.mix(-0.25,0.75),rl=DriveMixer.mix(-0.25,-0.75);
+        assertTrue(Math.abs(fr.right)<Math.abs(fr.left));
+        assertTrue(Math.abs(rr.right)<Math.abs(rr.left));
+        assertTrue(Math.abs(fl.left)<Math.abs(fl.right));
+        assertTrue(Math.abs(rl.left)<Math.abs(rl.right));
     }
 
     @Test public void normalizationPreservesFullScaleWithoutClippingCurvature(){
         assertMix(0.5,0.5,100,0);
         assertMix(-0.5,0.5,0,100);
-        assertMix(0.5,-0.5,0,-100);
-        assertMix(-0.5,-0.5,-100,0);
+        assertMix(0.5,-0.5,-100,0);
+        assertMix(-0.5,-0.5,0,-100);
     }
 
-    @Test public void centralSymmetryIsExact(){
-        DriveMixer.Command a=DriveMixer.mix(0.31,0.67), b=DriveMixer.mix(-0.31,-0.67);
-        assertEquals(-a.left,b.left);assertEquals(-a.right,b.right);
-    }
-
-    @Test public void inputsAreBoundedToUnitCircleCommandDomain(){
+    @Test public void inputsAreBoundedToUnitCommandDomain(){
         assertMix(2,0,100,-100);
         assertMix(0,2,100,100);
         assertMix(-2,0,-100,100);
