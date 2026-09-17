@@ -107,10 +107,13 @@ public final class WifiRoute {
 
     public static boolean waitForRobotWifi(Context context,long timeoutMs){
         synchronized(LOCK){acquireWifiLockLocked(context);}
-        // On Android 10+ always keep an explicit HazRob request alive even when the user already
-        // joined the AP manually. This prevents the OS from treating the no-internet AP as expendable.
-        if(Build.VERSION.SDK_INT>=29){try{requestRobotWifi(context);}catch(Exception ignored){}}
+        // Prefer the already-associated HazRob Wi-Fi. Do not create a second temporary
+        // WifiNetworkSpecifier route when Android is already on 192.168.4.0/24.
         if(bindRobotWifi(context))return true;
+        if(Build.VERSION.SDK_INT>=29){
+            synchronized(LOCK){if(requestUnavailable)clearRequestLocked();}
+            try{requestRobotWifi(context);}catch(Exception ignored){}
+        }
         long until=SystemClock.elapsedRealtime()+Math.max(0,timeoutMs);
         do{
             Network n=requestedNetwork;
@@ -143,23 +146,11 @@ public final class WifiRoute {
         return false;
     }
 
-    /** Keeps Direct associated, requests recovery quickly after loss, and continuously re-pins routing. */
+    /** Keeps Direct pinned to the current HazRob Wi-Fi without spawning repeated temporary-network prompts. */
     public static boolean maintainRobotWifi(Context context){
         synchronized(LOCK){acquireWifiLockLocked(context);}
-
-        // Keep the exact-SSID request alive even when the route is currently healthy. Merely binding
-        // an already-connected no-internet Wi-Fi is not enough on all Android builds to stop auto-drop.
-        if(Build.VERSION.SDK_INT>=29){
-            boolean restart=false,needRequest=false;
-            synchronized(LOCK){
-                long lost=requestLostAt;
-                restart=requestUnavailable||(requestedNetwork==null&&lost>0&&SystemClock.elapsedRealtime()-lost>=250);
-                if(restart)clearRequestLocked();
-                needRequest=requestCallback==null;
-            }
-            if(needRequest){try{requestRobotWifi(context);}catch(Exception ignored){}}
-        }
-
+        // Runtime maintenance is binding-only. A WifiNetworkSpecifier request may be created
+        // only by the explicit Direct-entry flow in waitForRobotWifi(), never by the 250 ms keeper.
         return bindRobotWifi(context);
     }
 
