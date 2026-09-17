@@ -18,9 +18,9 @@ def sha256File = { File f ->
 
 tasks.register('applyHazRobBranding', Exec) {
     workingDir rootProject.projectDir
-    commandLine 'python3', 'tools/apply_hr062_branding.py'
+    commandLine 'python3', 'tools/apply_hazrob_branding.py'
     inputs.file rootProject.file('branding/hazrob_sensing_logo_96.webp.b64')
-    inputs.file rootProject.file('tools/apply_hr062_branding.py')
+    inputs.file rootProject.file('tools/apply_hazrob_branding.py')
     outputs.file file('src/main/res/drawable/ic_hazrob_app.webp')
 }
 
@@ -31,17 +31,17 @@ tasks.register('prepareHazRobFlammabilitySeed') {
         if (sourceFlammability.exists()) {
             generatedFlammability.bytes = sourceFlammability.bytes
         } else {
-            // HR050: never regenerate the controlled seed from live NIOSH pages during a release build.
+            // Never regenerate the controlled seed from live NIOSH pages during a release build.
             // Recover the exact content-addressed asset from the last accepted 0.10.1 APK and fail closed
             // unless its bytes still match HAZROB_FLAMMABILITY_SHA256.
-            File acceptedApk = file("$buildDir/hr050-accepted/HazRob-0.10.1-accepted.apk")
+            File acceptedApk = file("$buildDir/accepted/HazRob-0.10.1-accepted.apk")
             acceptedApk.parentFile.mkdirs()
             Exception last = null
             for (int attempt=1; attempt<=3; attempt++) {
                 try {
                     URLConnection c = new URL(HAZROB_ACCEPTED_APK_URL).openConnection()
                     c.setConnectTimeout(20_000); c.setReadTimeout(90_000)
-                    c.setRequestProperty('User-Agent','HazRob-0.10.1-HR050-content-addressed-build')
+                    c.setRequestProperty('User-Agent','HazRob-0.10.1-content-addressed-build')
                     c.inputStream.withCloseable { input -> acceptedApk.withOutputStream { output -> output << input } }
                     ZipFile z = new ZipFile(acceptedApk)
                     try {
@@ -75,7 +75,7 @@ android {
         applicationId 'com.servoc.app'
         minSdk 26
         targetSdk 36
-        versionCode 22
+        versionCode 23
         versionName '0.10.1'
         buildConfigField 'String', 'APP_UPDATE_MANIFEST_URL', '"https://hazrob-app-updates.onrender.com/app-update.json"'
         // Stable read-only endpoints; developer mode alone may override the ChemCore source.
