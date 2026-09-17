@@ -1,0 +1,1 @@
+Temporary build instrumentation is used only to package compile-verified HR065 firmware artifacts from the existing Render firmware service. Runtime firmware source is unchanged from 0d935b9aeecec192a71c45520809bfc36c6f37e9.
