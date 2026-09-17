@@ -2,7 +2,7 @@
 """Fail-closed source contract for HazRob 0.10.1 motion control.
 
 This audit prevents reintroduction of retired acceleration/retrace/link-hold shaping while
-preserving the independent 500 ms stale-command neutral stop, explicit E-stop, canonical
+preserving the independent 500 ms stale-command neutral stop, explicit E-stop, travel-relative
 differential steering, and the low-latency Direct/Remote command paths.
 """
 from pathlib import Path
@@ -36,13 +36,13 @@ def main() -> int:
     main_activity = read("app/src/main/java/com/servoc/app/MainActivity.java")
     joystick = read("app/src/main/java/com/servoc/app/control/JoystickView.java")
     mixer = read("app/src/main/java/com/servoc/app/control/DriveMixer.java")
+    mixer_test = read("app/src/test/java/com/servoc/app/control/DriveMixerTest.java")
     limiter = read("app/src/main/java/com/servoc/app/control/DriveSpeedLimiter.java")
     robot_api = read("app/src/main/java/com/servoc/app/communication/RobotApi.java")
     control = read("app/src/main/java/com/servoc/app/ui/ControlTab.java")
     status = read("app/src/main/java/com/servoc/app/ui/StatusTab.java")
     remote = read("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
 
-    # Firmware normal motion is direct command -> PWM. Retired shaping/retrace code must be gone.
     require(cfg, "CONTROL_COMMAND_TIMEOUT_MS=500", "bounded stale-command policy")
     for retired in (
         "DRIVE_LEASE_MS", "LINK_DETECT_MS", "LINK_HOLD_MS", "RETRACE_MS",
@@ -60,22 +60,28 @@ def main() -> int:
     ):
         forbid(hw, retired, "Hardware.cpp")
 
-    # E-stop remains a separate explicit latch and is not part of speed shaping.
     require(safety, "void safetyLatchEstop(){estopLatched=true;}", "software E-stop latch")
     require(master, 'web.on("/estop",[]{safetyLatchEstop();emergencyStop();', "Direct E-stop")
     require(master, 'web.on("/estop/reset",[]{motionStop();safetyResetEstop();', "Direct E-stop reset")
     require(mqtt, 't=="estop"', "Remote E-stop")
     require(mqtt, 't=="estop_reset"', "Remote E-stop reset")
 
-    # Android operator input: circular 2-axis joystick, 2.5% dead zone, linear full-scale command.
     require(limiter, "DEFAULT_PERCENT = 100", "operator default speed")
     require(joystick, "DEAD_ZONE = 0.025", "joystick dead zone")
     require(joystick, "DriveMixer.mix(x, y)", "joystick uses canonical mixer")
     require(joystick, "resetInternal(true)", "touch release/cancel neutral")
     forbid(joystick, "z *= z", "joystick quadratic shaping")
-    require(mixer, "double left=y+x;", "left differential mix")
-    require(mixer, "double right=y-x;", "right differential mix")
+    require(mixer, "double steer=y<0?-x:x;", "travel-relative steering contribution")
+    require(mixer, "double left=y+steer;", "left differential mix")
+    require(mixer, "double right=y-steer;", "right differential mix")
     require(mixer, "Math.max(1.0,Math.max(Math.abs(left),Math.abs(right)))", "full-scale normalization")
+    for marker in (
+        "purePivotUsesCounterRotation",
+        "forwardSteeringSlowsInsidePhysicalSide",
+        "reverseSteeringUsesSameInsidePhysicalSide",
+        "samePhysicalSideIsInsideForwardAndReverse",
+    ):
+        require(mixer_test, marker, "drive steering regression")
     require(control, '"السرعة "+DriveSpeedLimiter.DEFAULT_PERCENT+"%"', "speed badge default")
     forbid(control, '"السرعة 50%"', "retired 50-percent badge")
     forbid(control, '"RETRACE"', "retired retrace UI")
@@ -83,7 +89,6 @@ def main() -> int:
     require(control, 'x.optBoolean("stale_stop",false)', "stale-stop UI")
     forbid(status, 'optBoolean("lost"', "retired link-loss status")
 
-    # Direct steering refreshes inside the firmware 500 ms stale-command lease.
     require(robot_api, "DIRECT_KEEPALIVE_MS=150L", "Direct moving keepalive")
     require(robot_api, "DIRECT_DRIVE_TIMEOUT_MS=250", "Direct request timeout")
     require(main_activity, "private void queueDriveSend()", "immediate drive dispatcher")
@@ -94,13 +99,12 @@ def main() -> int:
     forbid(main_activity, 'optBoolean("retrace"', "retired retrace status")
     forbid(main_activity, 'optBoolean("hold"', "retired link-hold status")
 
-    # Remote drive is coalesced and fire-and-forget; freshness/replay protections remain in firmware.
     require(remote, 'p.put("left",left);p.put("right",right);command("drive",p,RemoteDrivePolicy.COMMAND_TTL_MS,false,0);', "Remote fire-and-forget drive")
     require(mqtt, "if(!fresh(j))", "Remote TTL freshness")
     require(mqtt, "if(q<=lastSeq)", "Remote sequence rejection")
 
     print("HazRob 0.10.1 motion contract: PASS")
-    print("watchdog=500ms; direct keepalive=150ms; direct timeout=250ms; circular linear differential steering; physical acceptance=PENDING")
+    print("watchdog=500ms; direct keepalive=150ms; direct timeout=250ms; travel-relative physical-side steering; physical acceptance=PENDING")
     return 0
 
 
