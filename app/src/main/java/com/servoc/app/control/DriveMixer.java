@@ -1,9 +1,15 @@
 package com.servoc.app.control;
 
-/** Pure differential/skid-steer mixer used by the on-screen joystick.
- * X is yaw demand: +X always means turn the robot nose/camera right.
- * Y is translation demand: +Y forward, -Y reverse.
- * Outputs are normalized to the full -100..+100 command range without changing curvature.
+/**
+ * Differential/skid-steer mixer used by the on-screen joystick.
+ *
+ * Steering is travel-relative. +X means turn toward the vehicle's right-hand side and -X toward
+ * the left-hand side, regardless of whether translation is forward or reverse. Therefore the
+ * inside physical side is the same side that is slowed in both directions of travel.
+ *
+ * With no translation demand, horizontal joystick motion becomes an in-place counter-rotation.
+ * Outputs are normalized to the full -100..+100 command range without changing the requested
+ * steering ratio.
  */
 public final class DriveMixer {
     public static final class Command {
@@ -18,8 +24,13 @@ public final class DriveMixer {
 
     public static Command mix(double x,double y){
         x=clampUnit(x);y=clampUnit(y);
-        double left=y+x;
-        double right=y-x;
+
+        // While reversing, invert the steering contribution before differential mixing so a
+        // right-hand command still slows the physical RIGHT side, and a left-hand command the LEFT.
+        // At y==0 retain conventional skid-steer pivot: right = left forward/right reverse.
+        double steer=y<0?-x:x;
+        double left=y+steer;
+        double right=y-steer;
         double scale=Math.max(1.0,Math.max(Math.abs(left),Math.abs(right)));
         return new Command((int)Math.round(left/scale*100.0),(int)Math.round(right/scale*100.0));
     }
