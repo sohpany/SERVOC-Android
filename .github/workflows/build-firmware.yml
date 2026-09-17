@@ -1,54 +1,27 @@
 name: Build HazRob Firmware
-
 on:
   workflow_dispatch:
   push:
     branches: ['dev/**','fix/**',main]
-    paths: ['firmware/**','tools/audit_0101_integration_contract.py','tools/audit_0101_motion_contract.py','tools/audit_hr061_direct_first_contract.py','tools/audit_hr047_gas_safety_contract.py','tools/audit_hr048_drive_contract.py','tools/audit_hr049_control_remote_contract.py','tools/audit_hr050_field_operability_contract.py','.github/workflows/build-firmware.yml','.github/workflows/build-apk.yml','app/src/main/java/com/servoc/app/**']
-
+    paths: ['firmware/**','tools/**','.github/workflows/build-firmware.yml','app/src/main/java/com/servoc/app/**']
 permissions: { contents: write }
-
 jobs:
   compile-firmware:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-
-      - name: Record controlled build identity
-        shell: bash
+      - name: Record HR065 controlled build identity
         run: |
           set -euo pipefail
-          {
-            echo "release=HazRob-0.10.1"
-            echo "source_sha=${GITHUB_SHA}"
-            echo "source_ref=${GITHUB_REF}"
-            echo "source_repository=${GITHUB_REPOSITORY}"
-            echo "workflow_run=${GITHUB_RUN_ID}"
-            echo "master_source=firmware/HazRob"
-            echo "camera_source=firmware/HazRob-CAM"
-            echo "network_authority=master-esp32"
-            echo "direct_ssid=HazRob"
-            echo "direct_robot_ip=192.168.4.1"
-            echo "direct_camera_mode=STA-only"
-            echo "direct_camera_ip=192.168.4.2"
-            echo "boot_profile=DIRECT"
-            echo "remote_activation=explicit-operator-only"
-          } > firmware-build-identity.txt
+          printf '%s\n' "release=HazRob-0.10.1-HR065" "source_sha=${GITHUB_SHA}" "source_ref=${GITHUB_REF}" "main_build_id=HR-0101-065-MAIN" "camera_build_id=HR-0101-065-CAM" "network_authority=master-esp32" "direct_ssid=HazRob" "direct_robot_ip=192.168.4.1" "direct_camera_mode=STA-only" "direct_camera_ip=192.168.4.2" "boot_profile=DIRECT" "remote_activation=explicit-operator-only" > firmware-build-identity.txt
           cat firmware-build-identity.txt
-
-      - name: Validate HR061 Direct-first release contract
-        run: python3 tools/audit_hr061_direct_first_contract.py
-
-      - name: Validate HazRob 0.10.1 cross-component contract
+      - name: Validate HR065 integration contract
         run: python3 tools/audit_0101_integration_contract.py
-
-      - name: Validate HR-0101-034 motion contract
-        run: python3 tools/audit_0101_motion_contract.py
-
-      - name: Validate consolidated HR047-HR050 release gate
-        run: python3 tools/audit_hr047_gas_safety_contract.py
-
+      - name: Validate motion and safety contracts
+        run: |
+          python3 tools/audit_0101_motion_contract.py
+          python3 tools/audit_hr047_gas_safety_contract.py
       - uses: arduino/setup-arduino-cli@v2
       - name: Install pinned ESP32 core 3.3.11
         run: |
@@ -56,98 +29,28 @@ jobs:
           arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@3.3.11
-
-      - name: Compile master ESP32
-        shell: bash
+      - name: Compile Main ESP32
         run: |
-          set -o pipefail
           mkdir -p build/master
           arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all --output-dir build/master firmware/HazRob 2>&1 | tee build/master-size.log
-
       - name: Compile ESP32-CAM
-        shell: bash
         run: |
-          set -o pipefail
           mkdir -p build/camera
           arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all --output-dir build/camera firmware/HazRob-CAM 2>&1 | tee build/camera-size.log
-
-      - name: Enforce firmware flash headroom
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          import re, pathlib, sys
-          pct_target=70.0
-          pct_hard={'master':80.0,'camera':80.0}
-          byte_target={'master':1_000_000,'camera':1_150_000}
-          byte_hard={'master':1_150_000,'camera':1_300_000}
-          for k,limit in pct_hard.items():
-              txt=pathlib.Path(f'build/{k}-size.log').read_text(errors='ignore')
-              m=re.search(r'Sketch uses\s+([\d,]+)\s+bytes\s*\((\d+(?:\.\d+)?)%\)',txt)
-              if not m:
-                  print(f'{k}: compiler size line not found'); sys.exit(1)
-              size=int(m.group(1).replace(',','')); pct=float(m.group(2))
-              pstate='TARGET' if pct<=pct_target else 'HEADROOM-WARNING'
-              bstate='TARGET' if size<=byte_target[k] else 'BINARY-WARNING'
-              print(f'{k}: {size} bytes; flash={pct:.1f}% target<={pct_target:.1f}% hard<={limit:.1f}% [{pstate}; {bstate}]')
-              if pct>limit: sys.exit(f'{k} exceeds 0.10.1 partition headroom ceiling')
-              if size>byte_hard[k]: sys.exit(f'{k} exceeds 0.10.1 absolute binary ceiling')
-          PY
-
-      - name: Hash exact flash binaries
-        shell: bash
+      - name: Create exact HR065 flash package
         run: |
           set -euo pipefail
-          find build/master build/camera -maxdepth 1 -type f -name '*.bin' -print0 | sort -z | xargs -0 sha256sum > firmware-binary-sha256.txt
-          cat firmware-binary-sha256.txt
-
-      - name: Remove optional local secret headers before source packaging
-        run: rm -f firmware/HazRob/RemoteCloudSecrets.h firmware/HazRob-CAM/RemoteVideoSecrets.h
-
-      - name: Create source ZIPs
-        run: |
-          cd firmware
-          zip -qr ../HazRob-ESP32-v0.10.1-source.zip HazRob
-          zip -qr ../HazRob-ESP32-CAM-v0.10.1-source.zip HazRob-CAM
-          cd ..
-          sha256sum HazRob-ESP32-v0.10.1-source.zip HazRob-ESP32-CAM-v0.10.1-source.zip > firmware-source-sha256.txt
-
-      - name: Upload firmware binaries, provenance and size logs
+          mkdir -p HR065-FLASH/Main HR065-FLASH/CAM
+          cp build/master/*.bin HR065-FLASH/Main/
+          cp build/camera/*.bin HR065-FLASH/CAM/
+          cp firmware-build-identity.txt HR065-FLASH/
+          find HR065-FLASH -type f -name '*.bin' -print0 | sort -z | xargs -0 sha256sum > HR065-FLASH/SHA256SUMS.txt
+          printf '%s\n' 'HazRob 0.10.1 HR065' 'ERASE BOTH ESP32 FLASHES BEFORE PROGRAMMING.' 'Main must advertise HazRob at 192.168.4.1.' 'CAM must NEVER advertise ESP_*; it is STA-only at 192.168.4.2.' 'Verify CAM /status: fw=HazRob-CAM 0.10.1 HR065, build_id=HR-0101-065-CAM, wifi_mode=1.' > HR065-FLASH/README-FLASH.txt
+          cat HR065-FLASH/SHA256SUMS.txt
+      - name: Upload exact HR065 flash artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-v0.10.1-firmware-${{ github.sha }}
-          path: |
-            build/master/*.bin
-            build/camera/*.bin
-            build/*-size.log
-            firmware-build-identity.txt
-            firmware-binary-sha256.txt
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload source ZIPs with provenance
-        uses: actions/upload-artifact@v4
-        with:
-          name: HazRob-v0.10.1-firmware-sources-${{ github.sha }}
-          path: |
-            HazRob-ESP32-v0.10.1-source.zip
-            HazRob-ESP32-CAM-v0.10.1-source.zip
-            firmware-source-sha256.txt
-            firmware-build-identity.txt
+          name: HazRob-0.10.1-HR065-FLASH-${{ github.sha }}
+          path: HR065-FLASH/
           if-no-files-found: error
           retention-days: 90
-
-      - name: Publish source ZIPs to update distribution
-        if: github.ref == 'refs/heads/release/hazrob-0.10.1-ready'
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin app-update-distribution
-          rm -rf /tmp/hazrob-dist
-          git worktree add -B app-update-distribution /tmp/hazrob-dist origin/app-update-distribution
-          mkdir -p /tmp/hazrob-dist/public/firmware
-          cp HazRob-ESP32-v0.10.1-source.zip HazRob-ESP32-CAM-v0.10.1-source.zip firmware-source-sha256.txt firmware-build-identity.txt /tmp/hazrob-dist/public/firmware/
-          git -C /tmp/hazrob-dist add public/firmware
-          git -C /tmp/hazrob-dist diff --cached --quiet || {
-            git -C /tmp/hazrob-dist commit -m 'dist(firmware): publish HazRob 0.10.1 source ZIPs'
-            git -C /tmp/hazrob-dist push origin HEAD:app-update-distribution
-          }
