@@ -24,6 +24,7 @@ def main():
     cam=read('firmware/HazRob-CAM/HazRob-CAM.ino')
     local=read('app/src/main/java/com/servoc/app/communication/LocalNetworkContract.java')
     route=read('app/src/main/java/com/servoc/app/communication/WifiRoute.java')
+    service=read('app/src/main/java/com/servoc/app/communication/RobotLinkService.java')
 
     require(cfg, '"HazRob"', 'master SSID')
     require(master, 'WIFI_AP', 'master Direct radio mode')
@@ -41,18 +42,25 @@ def main():
     require(local, 'CAMERA_HOST="192.168.4.2"', 'Android camera host')
     require(route, 'setSsid(LocalNetworkContract.ROBOT_SSID)', 'Android Direct Wi-Fi request')
     require(route, 'bindProcessToNetwork', 'Android local route pinning')
+    require(route, 'WifiManager.WIFI_MODE_FULL_LOW_LATENCY', 'Android Direct Wi-Fi lock')
+    require(route, 'wifiLock.acquire()', 'Android Wi-Fi lock acquisition')
+    require(route, 'onLost(Network network)', 'Android loss callback')
+    require(route, 'SystemClock.elapsedRealtime()-lost>=250', 'Android fast reconnect')
+    require(route, 'LocalNetworkContract.isRobotSubnetAddress', 'Android robot-subnet validation')
+    require(service, 'worker.scheduleAtFixedRate(this::linkTick,0,250,TimeUnit.MILLISECONDS)', 'foreground link keeper cadence')
+    require(service, 'WifiRoute.maintainRobotWifi(this)', 'foreground Direct route maintenance')
 
-    print('HR061 DIRECT-FIRST CONTRACT: PASS')
+    print('HAZROB DIRECT-FIRST CONTRACT: PASS')
     print('  boot/default: DIRECT')
     print('  visible SSID authority: master ESP32 / HazRob')
     print('  robot: 192.168.4.1')
     print('  camera: STA-only / 192.168.4.2')
-    print('  Android: canonical HazRob local route')
+    print('  Android: persistent exact-SSID request + Wi-Fi lock + 250 ms route maintenance/recovery')
     return 0
 
 if __name__=='__main__':
     try:
         raise SystemExit(main())
     except AssertionError as e:
-        print(f'HR061 DIRECT-FIRST CONTRACT: FAIL: {e}', file=sys.stderr)
+        print(f'HAZROB DIRECT-FIRST CONTRACT: FAIL: {e}', file=sys.stderr)
         raise SystemExit(1)
