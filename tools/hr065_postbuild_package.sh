@@ -4,9 +4,12 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 PUBLIC="$ROOT/public"
 PKG="$PUBLIC/hr065-flash-package"
+MAINPKG="$PUBLIC/hr065-main-flash"
+CAMPKG="$PUBLIC/hr065-cam-flash"
 RUNTIME_SOURCE_COMMIT="0d935b9aeecec192a71c45520809bfc36c6f37e9"
 
-mkdir -p "$PKG/main" "$PKG/cam" "$PKG/logs"
+rm -rf "$PKG" "$MAINPKG" "$CAMPKG"
+mkdir -p "$PKG/main" "$PKG/cam" "$PKG/logs" "$MAINPKG/logs" "$CAMPKG/logs"
 
 # Re-run the applicable non-RF/non-physical gates after successful compilation.
 cd "$ROOT"
@@ -95,6 +98,7 @@ EOF
   find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
 )
 
+# Preserve the combined engineering package.
 rm -f "$PUBLIC/HazRob-0.10.1-HR065-ESP32-CAM-FLASH.zip" "$PUBLIC/HazRob-0.10.1-HR065-ESP32-CAM-FLASH.sha256"
 (
   cd "$PKG"
@@ -102,4 +106,61 @@ rm -f "$PUBLIC/HazRob-0.10.1-HR065-ESP32-CAM-FLASH.zip" "$PUBLIC/HazRob-0.10.1-H
 )
 sha256sum "$PUBLIC/HazRob-0.10.1-HR065-ESP32-CAM-FLASH.zip" | tee "$PUBLIC/HazRob-0.10.1-HR065-ESP32-CAM-FLASH.sha256"
 
-echo "HR065 PACKAGE PASS: $PUBLIC/HazRob-0.10.1-HR065-ESP32-CAM-FLASH.zip"
+# Operator-friendly independent MAIN package.
+cp "$PKG"/main/*.bin "$MAINPKG/"
+cp "$PKG/HazRob-Main-HR065-merged.bin" "$MAINPKG/"
+cp "$PKG/HazRob-ESP32-v0.10.1-source.zip" "$MAINPKG/"
+cp "$PKG/logs/main-compile.log" "$MAINPKG/logs/"
+cp "$PKG/logs/audit_0101_integration_contract.log" "$MAINPKG/logs/"
+cp "$PKG/logs/audit_0101_motion_contract.log" "$MAINPKG/logs/"
+cp "$PKG/logs/audit_0101_relay_remote_guard.log" "$MAINPKG/logs/"
+cp "$PKG/logs/audit_hr048_drive_contract.log" "$MAINPKG/logs/"
+cp "$PKG/logs/audit_hr049_control_remote_contract.log" "$MAINPKG/logs/"
+cp "$PKG/BUILD-PROVENANCE.txt" "$MAINPKG/"
+cat > "$MAINPKG/FLASH-INSTRUCTIONS.txt" <<'EOF'
+HazRob 0.10.1 HR065 - MAIN ESP32
+1. Perform a FULL FLASH ERASE on the Main ESP32.
+2. Flash HazRob-Main-HR065-merged.bin at address 0x0.
+3. Reboot normally.
+Expected Direct behavior: SSID HazRob is advertised by this Main ESP32; IP 192.168.4.1; boot always enters Direct.
+Drive contract: HR048 logical LEFT -> L298N channel B, RIGHT -> channel A, inversions=false.
+EOF
+(
+  cd "$MAINPKG"
+  find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+)
+rm -f "$PUBLIC/HazRob-0.10.1-HR065-ESP32-FLASH.zip" "$PUBLIC/HazRob-0.10.1-HR065-ESP32-FLASH.sha256"
+(
+  cd "$MAINPKG"
+  /usr/bin/zip -qr "$PUBLIC/HazRob-0.10.1-HR065-ESP32-FLASH.zip" .
+)
+sha256sum "$PUBLIC/HazRob-0.10.1-HR065-ESP32-FLASH.zip" | tee "$PUBLIC/HazRob-0.10.1-HR065-ESP32-FLASH.sha256"
+
+# Operator-friendly independent CAM package.
+cp "$PKG"/cam/*.bin "$CAMPKG/"
+cp "$PKG/HazRob-CAM-HR065-merged.bin" "$CAMPKG/"
+cp "$PKG/HazRob-ESP32-CAM-v0.10.1-source.zip" "$CAMPKG/"
+cp "$PKG/logs/cam-compile.log" "$CAMPKG/logs/"
+cp "$PKG/logs/audit_0101_integration_contract.log" "$CAMPKG/logs/"
+cp "$PKG/BUILD-PROVENANCE.txt" "$CAMPKG/"
+cat > "$CAMPKG/FLASH-INSTRUCTIONS.txt" <<'EOF'
+HazRob 0.10.1 HR065 - ESP32-CAM
+1. Perform a FULL FLASH ERASE on the ESP32-CAM. This is mandatory to remove any stale generic ESP_* firmware/configuration.
+2. Flash HazRob-CAM-HR065-merged.bin at address 0x0.
+3. Reboot normally.
+Expected behavior: CAM is STA-only, never creates an AP, never advertises ESP_*, joins HazRob, and uses static IP 192.168.4.2.
+EOF
+(
+  cd "$CAMPKG"
+  find . -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS.txt
+)
+rm -f "$PUBLIC/HazRob-0.10.1-HR065-CAM-FLASH.zip" "$PUBLIC/HazRob-0.10.1-HR065-CAM-FLASH.sha256"
+(
+  cd "$CAMPKG"
+  /usr/bin/zip -qr "$PUBLIC/HazRob-0.10.1-HR065-CAM-FLASH.zip" .
+)
+sha256sum "$PUBLIC/HazRob-0.10.1-HR065-CAM-FLASH.zip" | tee "$PUBLIC/HazRob-0.10.1-HR065-CAM-FLASH.sha256"
+
+echo "HR065 COMBINED PACKAGE PASS: $PUBLIC/HazRob-0.10.1-HR065-ESP32-CAM-FLASH.zip"
+echo "HR065 MAIN PACKAGE PASS: $PUBLIC/HazRob-0.10.1-HR065-ESP32-FLASH.zip"
+echo "HR065 CAM PACKAGE PASS: $PUBLIC/HazRob-0.10.1-HR065-CAM-FLASH.zip"
