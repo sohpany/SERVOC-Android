@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Fail-closed cross-component integration gate for HazRob 0.10.1 HR048/060 carried into HR065.
+"""Fail-closed cross-component regression gate for HazRob 0.10.1 HR048/060 carried into HR066.
 
-HR065's integration audit is now authoritative for the already-accepted HR048 drive map, so this
-legacy gate must not rewrite the drive mapping back to a pre-HR048 topology. It layers the original
-steering/operability checks on top of the current HR065 Direct-first / CAM STA-only contract.
+This retained historical gate verifies that accepted HR048 drive, gas-warning, alert and diagnostic
+semantics remain compatible with the current HR066 Direct-first / CAM STA-only / developer-authorized
+Remote contract. It must track the current implementation instead of freezing superseded HR065 labels.
 Physical wheel/RF acceptance remains separate.
 """
 from pathlib import Path
@@ -60,19 +60,21 @@ def main() -> int:
     doc = text("docs/0.10.1/FIELD_INTEGRATION_REMEDIATION_HR048.md")
     gpio_doc = text("docs/0.10.1/GPIO_AUTHORITY.md")
 
-    # Product version remains 0.10.1; HR065 is a controlled build identity, not a 0.10.2 bump.
-    require(cfg, 'FW[]="HazRob 0.10.1 HR065"', "firmware HR065 identity")
-    require(cfg, 'BUILD_ID[]="HR-0101-065-MAIN"', "firmware HR065 build ID")
+    # Product version remains 0.10.1; HR066 is a controlled change set, not a 0.10.2 bump.
+    require(cfg, 'FW[]="HazRob 0.10.1"', "firmware release identity")
+    require(cfg, 'SSID[]="HazRob"', "Main AP SSID authority")
+    require(cfg, 'CAM[]="192.168.4.2"', "camera canonical host")
     forbid(cfg, "0.10.2", "firmware release identity")
     forbid(profile, "0.10.2", "Android hardware profile")
     require(doc, "no version bump", "HR048 documentation")
 
     # Canonical differential mixer + the controlled HR048 hardware-boundary side map.
     require(joy, "DriveMixer.Command command=DriveMixer.mix(x,y);", "joystick pure mixer binding")
-    require(mixer, "double left=y+x;", "canonical logical left equation")
-    require(mixer, "double right=y-x;", "canonical logical right equation")
-    require(mixer_test, "forwardSteeringIsCorrect", "forward steering regression")
-    require(mixer_test, "reverseSteeringKeepsYawHandedness", "reverse steering regression")
+    require(mixer, "double steer=y<0?-x:x;", "travel-relative steering equation")
+    require(mixer, "double left=y+steer;", "canonical logical left equation")
+    require(mixer, "double right=y-steer;", "canonical logical right equation")
+    require(mixer_test, "forwardSteeringSlowsInsidePhysicalSide", "forward steering regression")
+    require(mixer_test, "reverseSteeringUsesSameInsidePhysicalSide", "reverse steering regression")
     require(cfg, "DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32", "firmware logical left")
     require(cfg, "DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27", "firmware logical right")
     require(cfg, "DRIVE_L_INVERT=false,DRIVE_R_INVERT=false", "drive inversion contract")
@@ -84,7 +86,7 @@ def main() -> int:
     require(remote, 'p.put("left",left);p.put("right",right);command("drive",p,RemoteDrivePolicy.COMMAND_TTL_MS,false,0);', "Remote left/right parity")
 
     # Idle Direct does not continuously overwrite independent commands; non-zero motion is refreshed.
-    require(api, "DIRECT_KEEPALIVE_MS=250L", "Direct keepalive policy")
+    require(api, "DIRECT_KEEPALIVE_MS=150L", "Direct keepalive policy")
     require(api, "if(left==0&&right==0)return;", "Direct idle-zero ownership")
     require(api, "if(now-lastDirectDriveAt<DIRECT_KEEPALIVE_MS)return;", "Direct non-zero refresh bound")
 
@@ -115,8 +117,8 @@ def main() -> int:
     require(bootstrap, 'PINNED_SHA256="457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434"', "flammability pinned hash")
     require(doc, "the primary seed service is retained until then.", "flammability retirement gate")
 
-    print("HazRob 0.10.1 HR-0101-048/060 -> HR065 cross-component integration contract: PASS")
-    print("HR065 network authority preserved; HR048 drive map + pure mixer + forward/reverse steering verified.")
+    print("HazRob 0.10.1 HR-0101-048/060 -> HR066 cross-component integration contract: PASS")
+    print("HR066 network authority preserved; HR048 drive map + travel-relative mixer + forward/reverse steering verified.")
     print("Physical field acceptance: PENDING")
     return 0
 
@@ -125,5 +127,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except AssertionError as exc:
-        print("HazRob 0.10.1 HR048/060 -> HR065 integration contract: FAIL:", exc)
+        print("HazRob 0.10.1 HR048/060 -> HR066 integration contract: FAIL:", exc)
         raise SystemExit(1)
