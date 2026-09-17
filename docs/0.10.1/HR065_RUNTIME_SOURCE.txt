@@ -1,0 +1,2 @@
+HR065 runtime firmware source boundary: 0d935b9aeecec192a71c45520809bfc36c6f37e9
+Subsequent commits in this packaging sequence contain build/documentation instrumentation only and do not modify runtime firmware logic.
