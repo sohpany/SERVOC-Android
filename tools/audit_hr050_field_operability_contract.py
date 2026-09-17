@@ -96,7 +96,7 @@ def main() -> int:
     forbid(gradle, "build_niosh_flammability_seed.py", "live NIOSH regeneration must not occur in Gradle")
 
     req(fw_flow, "esp32:esp32@3.3.11", "pinned ESP32 Arduino core")
-    req(fw_flow, "audit_hr047_gas_safety_contract.py", "firmware consolidated release gate")
+    req(fw_flow, "audit_0101_firmware_baseline.py", "firmware baseline release gate")
     req(apk_flow, "audit_hr047_gas_safety_contract.py", "APK consolidated release gate")
 
     print("HazRob HR-0101-050 field-operability contract: PASS")
