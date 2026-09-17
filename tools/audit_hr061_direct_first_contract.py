@@ -53,7 +53,7 @@ def main():
     require(route, 'if(bindRobotWifi(context))return true;', 'existing HazRob route preference')
     require(route, 'only by the explicit Direct-entry flow in waitForRobotWifi()', 'temporary-network request scope')
     forbid(route, 'SystemClock.elapsedRealtime()-lost>=250', 'repeated temporary-network recreation')
-    require(route, 'requestCallback==null', 'long-lived exact-SSID request guard')
+    require(route, 'if(requestCallback!=null)return;', 'single active fallback request guard')
     require(route, 'LocalNetworkContract.isRobotSubnetAddress', 'Android robot-subnet validation')
     require(service, 'worker.scheduleAtFixedRate(this::linkTick,0,250,TimeUnit.MILLISECONDS)', 'foreground link keeper cadence')
     require(service, 'WifiRoute.maintainRobotWifi(this)', 'foreground Direct route maintenance')
