@@ -60,7 +60,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     private static final int EXPORT_XLSX=8101,EXPORT_PDF=8102,EXPORT_REFERENCE=8103,EXPORT_RAW=8104;
     private final Handler ui=new Handler(Looper.getMainLooper());
     private final ScheduledExecutorService workers=Executors.newScheduledThreadPool(7);
-    private final AtomicBoolean driveDispatching=new AtomicBoolean(false),telemetryPolling=new AtomicBoolean(false);
+    private final AtomicBoolean driveDispatching=new AtomicBoolean(false),driveDirty=new AtomicBoolean(false),telemetryPolling=new AtomicBoolean(false);
     private final MotionHistory motionHistory=new MotionHistory();
     private final SensorHealthEngine sensorHealth=new SensorHealthEngine();
     private final GasAlertCoordinator gasAlertCoordinator=new GasAlertCoordinator();
@@ -95,8 +95,22 @@ public final class MainActivity extends Activity implements HazRobHost {
     }
 
     private void queueDriveSend(){
-        if(!entered||!driveDispatching.compareAndSet(false,true))return;
-        workers.execute(()->{try{robotApi.drive(left,right);}catch(Exception ignored){}finally{driveDispatching.set(false);}});
+        if(!entered)return;
+        driveDirty.set(true);
+        if(!driveDispatching.compareAndSet(false,true))return;
+        workers.execute(()->{
+            try{
+                do{
+                    driveDirty.set(false);
+                    int sendLeft=left,sendRight=right;
+                    try{robotApi.drive(sendLeft,sendRight);}catch(Exception ignored){}
+                }while(entered&&driveDirty.get());
+            }finally{
+                driveDispatching.set(false);
+                // Close the race where a touch update arrived after the loop check but before release.
+                if(entered&&driveDirty.get())queueDriveSend();
+            }
+        });
     }
     private void scheduleComms(){
         if(commsScheduled)return;commsScheduled=true;
