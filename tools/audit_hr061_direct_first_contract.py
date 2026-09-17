@@ -29,6 +29,9 @@ def main():
     require(cfg, '"HazRob"', 'master SSID')
     require(master, 'WIFI_AP', 'master Direct radio mode')
     require(master, 'configureSoftAp', 'master SoftAP authority')
+    require(master, 'if(directApStable())', 'repeat-Direct no-bounce guard')
+    require(master, 'configureSoftAp(WIFI_AP,false);', 'AP-preserving Direct recovery')
+    require(master, 'if(millis()-wifiAt<5000)return;', 'bounded firmware Wi-Fi health check')
 
     require(cam, 'WIFI_STA', 'camera STA mode')
     require(cam, '192,168,4,2', 'camera canonical IP')
@@ -46,6 +49,7 @@ def main():
     require(route, 'wifiLock.acquire()', 'Android Wi-Fi lock acquisition')
     require(route, 'onLost(Network network)', 'Android loss callback')
     require(route, 'SystemClock.elapsedRealtime()-lost>=250', 'Android fast reconnect')
+    require(route, 'requestCallback==null', 'long-lived exact-SSID request guard')
     require(route, 'LocalNetworkContract.isRobotSubnetAddress', 'Android robot-subnet validation')
     require(service, 'worker.scheduleAtFixedRate(this::linkTick,0,250,TimeUnit.MILLISECONDS)', 'foreground link keeper cadence')
     require(service, 'WifiRoute.maintainRobotWifi(this)', 'foreground Direct route maintenance')
@@ -55,6 +59,7 @@ def main():
     print('  visible SSID authority: master ESP32 / HazRob')
     print('  robot: 192.168.4.1')
     print('  camera: STA-only / 192.168.4.2')
+    print('  firmware: healthy Direct AP is not bounced by repeated Direct selection')
     print('  Android: persistent exact-SSID request + Wi-Fi lock + 250 ms route maintenance/recovery')
     return 0
 
