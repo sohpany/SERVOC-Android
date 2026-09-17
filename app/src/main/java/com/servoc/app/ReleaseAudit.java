@@ -6,7 +6,7 @@ public final class ReleaseAudit {
     public static final String VERSION="0.10.1";
     public static final String PROJECT_PREPARERS="شهاب الصهباني، مجدي ذيبان";
     public static final int DATABASE_SCHEMA=8;
-    public static final String ESP32_API="HazRob API v4 / firmware 0.10.1 / L298N 4WD LEFT GPIO17-19-32 / RIGHT GPIO16-18-27 / single MQ relay / fixed ADS1115 5V supply / exact session lineage / unified direct+remote transport";
+    public static final String ESP32_API="HazRob API v4 / firmware 0.10.1 / L298N 4WD LEFT GPIO17-19-32 / RIGHT GPIO16-18-27 / ADS I2C GPIO21-22 / ENV I2C GPIO13-14 / single MQ relay / fixed ADS1115 5V supply / unified direct+remote transport";
 
     public static final boolean PRECALIBRATED_MQ=false;
     public static final boolean ARABIC_RTL_UI=true;
@@ -52,6 +52,12 @@ public final class ReleaseAudit {
     public static final boolean REMOTE_ROLE_SCOPED_BOOTSTRAP=true;
     public static final boolean MQTT_RETAINED_LAST_WILL=true;
     public static final boolean L298N_4WD_DRIVE=true;
+    public static final boolean CIRCULAR_JOYSTICK_DRIVE=true;
+    public static final boolean DIFFERENTIAL_SKID_STEER_MIX=true;
+    public static final boolean LINEAR_OPERATOR_DRIVE_NO_RAMP=true;
+    public static final boolean DRIVE_DEFAULT_100_PERCENT=true;
+    public static final boolean LOW_LATENCY_DIRECT_DRIVE=true;
+    public static final boolean ESTOP_LATCHED_UI=true;
     public static final boolean CHEMCORE_FOUNDATION=true;
     public static final boolean CHEMCORE_CONTROLLED_RUNTIME=true;
     public static final boolean CHEMCORE_DYNAMIC_LIBRARY=true;
