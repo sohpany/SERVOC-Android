@@ -23,10 +23,13 @@ public final class LocalNetworkContractTest {
         assertFalse(LocalNetworkContract.isRobotSubnetAddress(null));
     }
 
-    @Test public void directFirmwareIdentityMustMatchControlledRelease(){
+    @Test public void directFirmwareIdentityAcceptsLegacyAndHr065(){
         assertTrue(LocalNetworkContract.isExpectedFirmwareBanner("HazRob 0.10.1","0.10.1"));
         assertTrue(LocalNetworkContract.isExpectedFirmwareBanner("  HazRob 0.10.1  ","0.10.1"));
+        assertTrue(LocalNetworkContract.isExpectedFirmwareBanner("HazRob 0.10.1 HR065","0.10.1"));
+        assertTrue(LocalNetworkContract.isExpectedFirmwareBanner("  HazRob 0.10.1 HR065  ","0.10.1"));
         assertFalse(LocalNetworkContract.isExpectedFirmwareBanner("HazRob 0.10.0","0.10.1"));
+        assertFalse(LocalNetworkContract.isExpectedFirmwareBanner("HazRob 0.10.1 HR064","0.10.1"));
         assertFalse(LocalNetworkContract.isExpectedFirmwareBanner("router","0.10.1"));
         assertFalse(LocalNetworkContract.isExpectedFirmwareBanner(null,"0.10.1"));
         assertFalse(LocalNetworkContract.isExpectedFirmwareBanner("HazRob 0.10.1",null));
