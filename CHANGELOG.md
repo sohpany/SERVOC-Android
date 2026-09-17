@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.10.1 HR-0101-066 — 2026-09-18
+- Made the already-associated HazRob Wi-Fi route the Android Direct authority; temporary `WifiNetworkSpecifier` is now an explicit fallback instead of a 250 ms recurring recovery mechanism.
+- Preserved Direct as boot/default and dominant control mode; Remote now requires configured WAN + persisted developer authorization + an explicit Remote request.
+- Added developer Remote authorization controls and Main ESP32 enforcement; Direct transition still stops motion and removes MQTT/NAPT/STA remote transport while preserving WAN configuration.
+- Kept ESP32-CAM STA-only at `192.168.4.2`, forced flash GPIO4 OFF at boot and added camera reset-reason diagnostics.
+- Kept live MQ readings independent from timed analysis sessions; changed live value text to grey for the light UI and made elevated/high gas headings red while retaining phone alarm tones.
+- Recorded the downward digital IR channel's 8 cm physical ground/cliff reference in firmware telemetry.
+- Enlarged the drive joystick by 20%, removed its software dead-zone, prevented parent touch interception during active control, and retained the latest touch command across in-flight sends.
+- Updated controlled source audits and added `docs/0.10.1/HR066_DIRECT_REMOTE_LIVE_UI_CONTROL_MANIFEST.md`.
+
 ## 0.10.0 — 2026-09-09
 - Promoted HazRob to the first major **ChemCore / AMCI** release: Android `0.10.0` (versionCode 20), master ESP32 `HazRob 0.10.0` / API v4 and ESP32-CAM `HazRob-CAM 0.10.0`.
 - Preserved the validated physical wiring revision `hazrob-0.9.3-1r8mq-alert-ldr-l298n-v1`; release version and hardware revision are intentionally independent.
