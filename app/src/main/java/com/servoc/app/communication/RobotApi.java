@@ -12,7 +12,12 @@ import java.nio.charset.StandardCharsets;
 
 /** HazRob API facade: HTTP for Direct control/telemetry, MQTT for Remote. */
 public final class RobotApi {
-    private static final long DIRECT_KEEPALIVE_MS=250L;
+    // Main firmware stops stale motion after 500 ms. Refresh well inside that lease and keep
+    // a local drive request timeout below the full firmware watchdog so one slow HTTP exchange
+    // cannot dominate steering responsiveness.
+    private static final long DIRECT_KEEPALIVE_MS=150L;
+    private static final int DIRECT_DRIVE_TIMEOUT_MS=250;
+    private static final int DIRECT_STOP_TIMEOUT_MS=350;
     private static volatile boolean operatorForeground=true;
     private static volatile boolean requireNeutralAfterBackground=false;
 
@@ -38,7 +43,7 @@ public final class RobotApi {
     private String url(String path){return "http://"+robotHost+(path.startsWith("/")?path:"/"+path);}
     private static RemoteConnection remote(){RemoteConnection r=RemoteConnection.current();if(r==null&&RemoteConnection.transportOwned())throw new IllegalStateException("remote transport reconnecting");return r;}
 
-    public String getText(String path,int timeoutMs)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(url(path)).openConnection();c.setUseCaches(false);c.setConnectTimeout(timeoutMs);c.setReadTimeout(timeoutMs);c.setRequestMethod("GET");return finish(c);}
+    public String getText(String path,int timeoutMs)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(url(path)).openConnection();c.setUseCaches(false);c.setConnectTimeout(timeoutMs);c.setReadTimeout(timeoutMs);c.setRequestMethod("GET");c.setRequestProperty("Cache-Control","no-store");return finish(c);}
     public String postForm(String path,String body,int timeoutMs)throws Exception{HttpURLConnection c=(HttpURLConnection)new URL(url(path)).openConnection();c.setUseCaches(false);c.setConnectTimeout(timeoutMs);c.setReadTimeout(timeoutMs);c.setRequestMethod("POST");c.setDoOutput(true);c.setRequestProperty("Content-Type","application/x-www-form-urlencoded; charset=UTF-8");c.setRequestProperty("Cache-Control","no-store");byte[] b=(body==null?"":body).getBytes(StandardCharsets.UTF_8);c.setFixedLengthStreamingMode(b.length);try(OutputStream out=c.getOutputStream()){out.write(b);out.flush();}return finish(c);}
     private static String finish(HttpURLConnection c)throws Exception{int code=c.getResponseCode();InputStream in=code>=200&&code<300?c.getInputStream():c.getErrorStream();StringBuilder s=new StringBuilder();if(in!=null){try(BufferedReader r=new BufferedReader(new InputStreamReader(in,StandardCharsets.UTF_8))){String line;while((line=r.readLine())!=null)s.append(line);}}c.disconnect();if(code<200||code>=300)throw new IllegalStateException("HTTP "+code+" "+s);return s.toString();}
     public JSONObject getJson(String path,int timeoutMs)throws Exception{return new JSONObject(getText(path,timeoutMs));}
@@ -59,10 +64,10 @@ public final class RobotApi {
             if(left==0&&right==0)return;
             if(now-lastDirectDriveAt<DIRECT_KEEPALIVE_MS)return;
         }
-        getText("/drive?l="+left+"&r="+right,450);
+        getText("/drive?l="+left+"&r="+right,DIRECT_DRIVE_TIMEOUT_MS);
         lastDirectDriveLeft=left;lastDirectDriveRight=right;lastDirectDriveAt=now;
     }
-    public synchronized void motionStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.motionStop();return;}try{getText("/motion/stop",450);}catch(Exception e){getText("/stop",450);}lastDirectDriveLeft=lastDirectDriveRight=0;lastDirectDriveAt=System.nanoTime()/1_000_000L;}
+    public synchronized void motionStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.motionStop();return;}try{getText("/motion/stop",DIRECT_STOP_TIMEOUT_MS);}catch(Exception e){getText("/stop",DIRECT_STOP_TIMEOUT_MS);}lastDirectDriveLeft=lastDirectDriveRight=0;lastDirectDriveAt=System.nanoTime()/1_000_000L;}
     public void stop()throws Exception{motionStop();}
     public synchronized void emergencyStop()throws Exception{RemoteConnection r=remote();if(r!=null){r.emergencyStop();return;}getText("/estop",650);lastDirectDriveLeft=lastDirectDriveRight=0;lastDirectDriveAt=System.nanoTime()/1_000_000L;}
     public void emergencyReset()throws Exception{RemoteConnection r=remote();if(r!=null){r.emergencyReset();return;}getText("/estop/reset",650);}
