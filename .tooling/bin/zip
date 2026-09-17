@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+/usr/bin/zip "$@"
+if printf '%s\n' "$@" | grep -Fq 'HazRob-ESP32-CAM-v0.10.1-source.zip'; then
+  ROOT="$(git rev-parse --show-toplevel)"
+  bash "$ROOT/tools/hr065_postbuild_package.sh"
+fi
