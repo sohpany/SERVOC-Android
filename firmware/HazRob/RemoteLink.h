@@ -9,6 +9,8 @@ void remoteClear();
 void remoteSetTransportEnabled(bool enabled,bool persistMode);
 bool remoteTransportEnabled();
 bool remoteConfigured();
+bool remoteDeveloperAuthorized();
+void remoteSetDeveloperAuthorized(bool enabled);
 String remoteStatusJson();
 String remoteSsid();
 bool remoteInternetReady();
