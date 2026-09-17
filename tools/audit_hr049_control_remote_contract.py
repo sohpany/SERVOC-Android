@@ -24,6 +24,7 @@ def main():
     ino=txt("firmware/HazRob/HazRob.ino")
     cfg=txt("firmware/HazRob/Config.h")
     mqtt=txt("firmware/HazRob/RemoteMqtt.cpp")
+    link=txt("firmware/HazRob/RemoteLink.cpp")
     joy=txt("app/src/main/java/com/servoc/app/control/JoystickView.java")
     mixer=txt("app/src/main/java/com/servoc/app/control/DriveMixer.java")
     mixer_test=txt("app/src/test/java/com/servoc/app/control/DriveMixerTest.java")
@@ -65,8 +66,11 @@ def main():
     req(cfg,"CONTROL_COMMAND_TIMEOUT_MS=500","lost-command motor watchdog")
     req(ino,'remoteDeveloperAuthorized()',"developer Remote authorization gate")
     req(ino,'web.on("/remote/authorize"',"developer Remote authorization endpoint")
+    req(link,'wan.getBool("authorized",false)',"persisted developer authorization load")
+    req(link,'wan.putBool("authorized",enabled)',"persisted developer authorization save")
+    req(link,'if(enabled&&!developerAuthorized)',"transport-level developer authorization gate")
     req(ino,'requestRadioProfile(RadioProfile::DIRECT,false)',"Direct priority transition")
-    req(ino,'"remote_authority_revoked":true',"Direct takeover acknowledgement")
+    req(ino,'\\\"remote_authority_revoked\\\":true',"Direct takeover acknowledgement")
     req(ino,'remoteSetTransportEnabled(false,false);',"immediate Remote transport revocation")
 
     # Remote latest-command architecture: no backlog, bounded publish rate, hold refresh.
