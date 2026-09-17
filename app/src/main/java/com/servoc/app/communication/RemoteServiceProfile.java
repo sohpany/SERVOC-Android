@@ -2,7 +2,7 @@ package com.servoc.app.communication;
 
 import android.content.SharedPreferences;
 
-/** Public HazRob 0.10.1 service coordinates. Secrets are stored separately from this profile. */
+/** Canonical HazRob 0.10.1 remote-service coordinates. Secrets are stored separately. */
 public final class RemoteServiceProfile {
     public static final String SERVICE_VERSION="0.10.1";
     public static final int PROTOCOL=2;
@@ -15,13 +15,14 @@ public final class RemoteServiceProfile {
     public static final String VIDEO_HEALTH_HTTPS="https://"+VIDEO_HOST+"/health";
     public static final String VIDEO_STATUS_HTTPS="https://"+VIDEO_HOST+"/hazrob/video/status/"+ROBOT_ID;
 
+    /** Removes stale service coordinates left by older experimental builds. */
     public static void ensureDefaults(SharedPreferences prefs){
         if(prefs==null)return;
         SharedPreferences.Editor e=prefs.edit();boolean changed=false;
-        if(prefs.getString("remote_broker_host","").trim().isEmpty()){e.putString("remote_broker_host",MQTT_HOST);changed=true;}
-        if(prefs.getInt("remote_broker_port",0)<=0){e.putInt("remote_broker_port",MQTT_PORT);changed=true;}
-        if(prefs.getString("remote_robot_id","").trim().isEmpty()){e.putString("remote_robot_id",ROBOT_ID);changed=true;}
-        if(prefs.getString("remote_video_url","").trim().isEmpty()){e.putString("remote_video_url",VIDEO_VIEW_WSS);changed=true;}
+        if(!MQTT_HOST.equals(prefs.getString("remote_broker_host","").trim())){e.putString("remote_broker_host",MQTT_HOST);changed=true;}
+        if(prefs.getInt("remote_broker_port",0)!=MQTT_PORT){e.putInt("remote_broker_port",MQTT_PORT);changed=true;}
+        if(!ROBOT_ID.equals(prefs.getString("remote_robot_id","").trim())){e.putString("remote_robot_id",ROBOT_ID);changed=true;}
+        if(!VIDEO_VIEW_WSS.equals(prefs.getString("remote_video_url","").trim())){e.putString("remote_video_url",VIDEO_VIEW_WSS);changed=true;}
         if(changed)e.apply();
     }
 
