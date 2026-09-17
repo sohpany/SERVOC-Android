@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Compatibility steering/safety gate for HazRob 0.10.1.
 
-The gate locks differential-drive geometry across the Android joystick, pure mixer,
-main-firmware side mapping, Direct HTTP and Remote MQTT transports. Physical wheel
-acceptance remains a post-flash gate.
+The gate locks travel-relative differential-drive geometry across the Android joystick, pure mixer,
+main-firmware side mapping, Direct HTTP and Remote MQTT transports. Physical wheel acceptance
+remains a post-flash gate.
 """
 from pathlib import Path
 import os
@@ -18,7 +18,8 @@ def forbid(src,s,label):
 
 def mix(x,y):
     x=max(-1.0,min(1.0,x));y=max(-1.0,min(1.0,y))
-    l=y+x;r=y-x;q=max(1.0,abs(l),abs(r))
+    steer=-x if y<0 else x
+    l=y+steer;r=y-steer;q=max(1.0,abs(l),abs(r))
     return round(l/q*100),round(r/q*100)
 
 def main():
@@ -36,8 +37,9 @@ def main():
 
     req(joy,"DriveMixer.mix(x, y)","joystick uses audited mixer")
     req(joy,"DEAD_ZONE = 0.025","joystick low dead zone")
-    req(mixer,"double left=y+x;","mixer logical left")
-    req(mixer,"double right=y-x;","mixer logical right")
+    req(mixer,"double steer=y<0?-x:x;","travel-relative steering")
+    req(mixer,"double left=y+steer;","mixer logical left")
+    req(mixer,"double right=y-steer;","mixer logical right")
     req(mixer,"Math.max(1.0,Math.max(Math.abs(left),Math.abs(right)))","mixer normalization")
 
     expected={
@@ -48,18 +50,21 @@ def main():
         "left_pivot":((-1,0),(-100,100)),
         "forward_right":((.25,.75),(100,50)),
         "forward_left":((-.25,.75),(50,100)),
-        "reverse_right":((.25,-.75),(-50,-100)),
-        "reverse_left":((-.25,-.75),(-100,-50)),
+        "reverse_right":((.25,-.75),(-100,-50)),
+        "reverse_left":((-.25,-.75),(-50,-100)),
     }
     for name,(xy,want) in expected.items():
         got=mix(*xy)
         if got!=want: raise AssertionError(f"{name} mix invalid: got={got} want={want}")
-    if not (mix(.25,.75)[0]-mix(.25,.75)[1]>0 and mix(.25,-.75)[0]-mix(.25,-.75)[1]>0):
-        raise AssertionError("right-yaw handedness changes between forward/reverse")
-    if not (mix(-.25,.75)[0]-mix(-.25,.75)[1]<0 and mix(-.25,-.75)[0]-mix(-.25,-.75)[1]<0):
-        raise AssertionError("left-yaw handedness changes between forward/reverse")
 
-    for marker in ["forwardSteeringIsCorrect","reverseSteeringKeepsYawHandedness","rightAndLeftYawSignsAreConsistentAcrossForwardAndReverse","normalizationPreservesFullScaleWithoutClippingCurvature"]:
+    fr,rr=mix(.25,.75),mix(.25,-.75)
+    fl,rl=mix(-.25,.75),mix(-.25,-.75)
+    if not (abs(fr[1])<abs(fr[0]) and abs(rr[1])<abs(rr[0])):
+        raise AssertionError("right turn must slow physical RIGHT side in forward and reverse")
+    if not (abs(fl[0])<abs(fl[1]) and abs(rl[0])<abs(rl[1])):
+        raise AssertionError("left turn must slow physical LEFT side in forward and reverse")
+
+    for marker in ["purePivotUsesCounterRotation","forwardSteeringSlowsInsidePhysicalSide","reverseSteeringUsesSameInsidePhysicalSide","samePhysicalSideIsInsideForwardAndReverse","normalizationPreservesFullScaleWithoutClippingCurvature"]:
         req(mixer_test,marker,"JUnit steering matrix")
     req(limiter_test,"defaultIsFullScale","100-percent operator default")
     req(limiter_test,"assertEquals(100,DriveSpeedLimiter.scale(100,100))","100-percent forward full scale")
@@ -93,7 +98,7 @@ def main():
     req(remote_policy,"MIN_PUBLISH_MS=40","remote publish ceiling")
 
     print("HazRob 0.10.1 steering contract: PASS")
-    print("Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
+    print("travel-relative inside-side steering; Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
 
     if os.environ.get("HR048_SKIP_INTEGRATION") != "1":
         from audit_hr048_integration_contract import main as integration_main
