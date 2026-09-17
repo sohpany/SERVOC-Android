@@ -1,52 +1,55 @@
-# HazRob ESP32-CAM — 0.10.1
+# HazRob ESP32-CAM firmware — 0.10.1
 
-Target: AI-Thinker-style ESP32-CAM. This controller is intentionally isolated from robot motion and chemical inference: it provides local video/flash status and the remote WSS JPEG publisher only.
+Hardware target: AI-Thinker-style ESP32-CAM.
+
+This directory is the canonical camera-controller source for HazRob 0.10.1.
 
 ## Network contract
 
-- Wi-Fi SSID: `HazRob`.
-- Static IP: `192.168.4.2`.
-- Gateway/master ESP32: `192.168.4.1`.
-- Compact HTTP status/control server: port 80 using `WiFiServer`.
-- Local MJPEG: port 81, canonical `/stream`.
-- `GET /stream` on port 80 redirects to port 81.
+- Station SSID: `HazRob`
+- Static IP: `192.168.4.2`
+- Gateway/main ESP32: `192.168.4.1`
+- Wi-Fi mode: STA-only
+- The camera never creates a SoftAP
+- Wi-Fi sleep and library auto-reconnect are disabled; reconnect is controlled by the firmware
 
-Canonical 0.10.1 endpoints are `/`, `/status`, `/stream`, and `/flash?mode=off|auto|on`. Retired `/led`, `/control`, `/mjpeg`, and `/flash?on=` compatibility routes are not part of the 0.10.1 field contract.
+## Local camera service
 
-## Camera pipeline
+- HTTP status/control: port 80
+- MJPEG stream: port 81, `/stream`
+- `GET /stream` on port 80 redirects to the port-81 stream
+- Local viewing has priority over remote publishing
 
-- AI-Thinker pin map; flash GPIO4.
-- XCLK 20 MHz.
-- QVGA 320×240.
-- Native sensor JPEG is attempted first with two PSRAM framebuffers and latest-frame capture.
-- If native JPEG initialization fails, firmware falls back to RGB565 capture plus `frame2jpg_cb` software JPEG conversion.
-- A fixed 160 KiB PSRAM JPEG buffer is used by local and remote paths.
-- JPEG structural validation occurs before transmission.
-- Local MJPEG and remote WSS share a camera mutex; Remote WSS capture pauses while a local MJPEG viewer is active so the local stream remains latency-priority.
-- Wi-Fi sleep is disabled.
+The local stream uses:
 
-`/status` reports firmware ID, camera/PSRAM state, PID/sensor label, dimensions, capture format, JPEG quality, measured FPS, JPEG size, capture/encode error counters, stream clients, RSSI, flash state and remote-video diagnostics.
+- AI-Thinker pin mapping
+- XCLK 20 MHz
+- QVGA 320×240
+- RGB565 capture
+- software `frame2jpg`
+- JPEG quality 35
+- one PSRAM framebuffer
+- 160 KiB JPEG buffer
+- structural JPEG validation before transmission
+
+The local MJPEG task is given higher scheduling priority than the camera control loop, while still yielding between frames. TCP no-delay is enabled for the local viewer.
 
 ## Remote video
 
-`RemoteVideo.cpp` publishes binary JPEG frames through authenticated WSS to `hazrob-video-relay.onrender.com`.
+Remote video publishes JPEG frames through authenticated WSS to `hazrob-video-relay.onrender.com`.
 
-For HazRob 0.10.1, the camera identifies itself to the authenticated bootstrap endpoint as `esp32-cam` and accepts the role-scoped `video_publish_token`. It does not use the robot MQTT password as its intended video credential. The Android viewer receives a separate view token.
+Remote publishing is enabled only when the main controller reports REMOTE mode, Internet readiness and NAPT, and the camera has a valid TLS wall clock. A local MJPEG client pauses remote publishing.
 
-The trusted public root CA is embedded in `RemoteVideoConfig.h`. `RemoteVideoSecrets.example.h` is optional fallback-only and contains no live secret.
+The trusted ISRG Root X1 CA used by the camera is the same validated root used by the main controller. Remote video uses bounded reconnect backoff and adaptive frame pacing from 55 ms to 120 ms. The remote video worker remains alive after first creation so stopping and restarting remote publishing cannot lose the task during a transition.
 
-If Render rejects a WSS publisher token with HTTP 401, the camera invalidates its runtime credential and obtains a fresh publisher token on the next reconnect attempt. Connection recovery uses bounded exponential backoff from 2 to 30 seconds.
+## Flash
 
-Remote TLS startup is gated on station Wi-Fi plus a valid SNTP wall clock. The master ESP32 provides the outbound Internet route via NAPT when its STA/WAN path is ready. Loss of remote video does not disable local MJPEG.
+GPIO4 controls the onboard flash LED.
 
-## Flash footprint policy
+Supported mode values are `off`, `auto`, and `on`. In this firmware `auto` is retained as a protocol state; automatic luminance-based switching is not implemented.
 
-The 0.10.1 field source intentionally uses a compact raw HTTP server rather than Arduino `WebServer`. This is a binary-footprint optimization, not source minification: comments and whitespace do not materially change compiled Flash usage.
+## Build target
 
-The camera firmware contains no robot drive code, ChemCore, molecular database, or analytical models. Build verification records compiled Flash/RAM usage and packages this directory as the `HazRob-ESP32-CAM-v0.10.1-source` artifact.
+Recommended Arduino-ESP32 core: 3.3.11.
 
-## Field test
-
-Power the master ESP32 first, then ESP32-CAM. Verify `http://192.168.4.2/status`, `http://192.168.4.2:81/stream`, and `/flash?mode=on|off` before testing WSS/Render. In `/status`, `remote_video.credential_ready=true` confirms a runtime publisher credential and `remote_video.connected=true` confirms the WSS publisher connection.
-
-Phone-side MP4 recording remains an Android function and is separate from camera firmware.
+Manual board target: AI Thinker ESP32-CAM / `esp32cam`.

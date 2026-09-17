@@ -45,17 +45,15 @@ String esc(const String& s){String o;o.reserve(s.length()+8);for(size_t i=0;i<s.
 void remoteBegin(){
   wan.begin("hazwan",false);
   ssid=wan.getString("ssid","");password=wan.getString("pass","");configured=!ssid.isEmpty();
-  // HR061 boot authority: every power-up starts LOCAL/DIRECT. Saved WAN is configuration only;
-  // it is never permission to start STA/MQTT/Render automatically. Remote requires an explicit
-  // operator action after boot. Keep the legacy flag normalized false so older builds cannot
-  // accidentally reinterpret saved credentials as an auto-Remote boot request.
+  // Every power-up starts LOCAL/DIRECT. Saved WAN is configuration only and never authorizes
+  // automatic STA/MQTT/Render startup. Remote requires an explicit operator action after boot.
   transportEnabled=false;
   wan.putBool("enabled",false);
   WiFi.setSleep(false);WiFi.setAutoReconnect(false);
   resetRuntime(configured?"direct_saved_wan":"direct_local");
 }
 void remoteSetTransportEnabled(bool enabled,bool persistMode){
-  (void)persistMode; // Mode is deliberately runtime-only in HR061; credentials persist, mode does not.
+  (void)persistMode; // Connection mode is runtime-only; credentials persist, mode does not.
   transportEnabled=enabled;
   wan.putBool("enabled",false);
   if(!enabled){

@@ -1,16 +1,14 @@
 #pragma once
 #include <Arduino.h>
 
-/** HazRob 0.10.1 Render video profile.
- *  Normal field builds obtain the publisher credential at runtime from Render.
- *  RemoteVideoSecrets.h is optional fallback-only and is not required.
- */
 #if __has_include("RemoteVideoSecrets.h")
 #include "RemoteVideoSecrets.h"
 #endif
+
 #ifndef HAZROB_VIDEO_PUBLISH_TOKEN
 #define HAZROB_VIDEO_PUBLISH_TOKEN ""
 #endif
+
 #ifndef HAZROB_VIDEO_ROOT_CA
 #define HAZROB_VIDEO_ROOT_CA R"PEM(-----BEGIN CERTIFICATE-----
 MIIFazCCA1OgAwIBAgIRAIIQz7DSQONZRGPgu2OCiwAwDQYJKoZIhvcNAQELBQAw
@@ -46,23 +44,24 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 )PEM"
 #endif
 
-namespace RemoteVideoCfg {
+namespace RemoteVideoCfg{
 constexpr char HOST[]="hazrob-video-relay.onrender.com";
 constexpr uint16_t PORT=443;
 constexpr char BASE_PATH[]="/hazrob/video";
 constexpr char ROBOT_ID[]="hazrob-001";
-constexpr char PUBLISH_TOKEN[]=HAZROB_VIDEO_PUBLISH_TOKEN; // optional fallback only
+constexpr char PUBLISH_TOKEN[]=HAZROB_VIDEO_PUBLISH_TOKEN;
 constexpr char ROOT_CA[]=HAZROB_VIDEO_ROOT_CA;
 constexpr char BOOTSTRAP_PATH[]="/hazrob/bootstrap";
 constexpr char BOOTSTRAP_TOKEN[]="hazrob-prototype-bootstrap-v1";
 constexpr char BOOTSTRAP_SERVICE_VERSION[]="0.10.1";
 constexpr int BOOTSTRAP_PROTOCOL=2;
-// HR050: nominal good-link target is ~18.2 fps (55 ms). Publisher may back off toward 120 ms
-// under sustained send pressure; frames are never queued for later transmission.
 constexpr uint32_t FRAME_INTERVAL_MIN_MS=55;
 constexpr uint32_t FRAME_INTERVAL_MAX_MS=120;
 constexpr uint32_t FRAME_INTERVAL_STEP_MS=10;
 constexpr uint32_t RETRY_MIN_MS=2000,RETRY_MAX_MS=30000;
 constexpr size_t MAX_JPEG=160*1024;
-inline bool configured(){return HOST[0]&&ROBOT_ID[0]&&BOOTSTRAP_TOKEN[0]&&strstr(ROOT_CA,"BEGIN CERTIFICATE")!=nullptr;}
+
+inline bool configured(){
+  return HOST[0]&&ROBOT_ID[0]&&BOOTSTRAP_TOKEN[0]&&ROOT_CA[0];
+}
 }

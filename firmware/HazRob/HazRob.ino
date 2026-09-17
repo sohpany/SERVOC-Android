@@ -5,13 +5,10 @@
 #include "RemoteMqtt.h"
 #include "SafetyInterlock.h"
 
-// HR-0101-061 connection authority:
-// BOOT/DIRECT = AP-only + HTTP control/telemetry + local camera network. This is always the default.
-// REMOTE = AP+STA + MQTT/Render gateway and is entered only by an explicit operator command.
-// Saved WAN credentials are configuration data only; they never auto-enable STA/MQTT/Render on boot.
-// Entering DIRECT shuts down MQTT/NAPT/STA first. Direct->Direct is radio-idempotent and must not bounce
-// the HazRob SoftAP or disconnect the phone/CAM merely because the operator pressed Direct again.
-// WAN provisioning stores credentials while remaining Direct. RESET WAN is the only destructive credential clear.
+// DIRECT is always the boot/default profile: AP-only, local HTTP control/telemetry and local camera.
+// REMOTE is AP+STA and is entered only by an explicit operator command.
+// Saved WAN credentials never auto-enable STA, MQTT or Render after boot.
+// Returning to DIRECT shuts down remote transport while preserving saved WAN credentials.
 WebServer web(80);
 
 enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1};
@@ -25,7 +22,12 @@ void reply(int code,const char* type,const String& body){web.send(code,type,body
 void reply(int code,const char* body){reply(code,"text/plain",body);}
 const char* profileName(){return radioProfile==RadioProfile::DIRECT?"direct":"remote";}
 IPAddress directApIp(){return IPAddress(192,168,4,1);}
-bool directApStable(){return radioProfile==RadioProfile::DIRECT&&WiFi.getMode()==WIFI_AP&&WiFi.softAPIP()==directApIp();}
+bool directApStable(){
+  return radioProfile==RadioProfile::DIRECT&&
+         WiFi.getMode()==WIFI_AP&&
+         WiFi.softAPIP()==directApIp()&&
+         WiFi.softAPSSID()==Cfg::SSID;
+}
 
 void configureSoftAp(wifi_mode_t mode,bool forceApRestart=true){
   WiFi.persistent(false);
@@ -35,7 +37,7 @@ void configureSoftAp(wifi_mode_t mode,bool forceApRestart=true){
   IPAddress ip=directApIp(),mask(255,255,255,0),dhcp(192,168,4,100);
   // AP+STA -> AP does not require re-creating an already healthy HazRob AP. Keeping the existing
   // AP association avoids dropping the Android Direct route and ESP32-CAM during a profile switch.
-  if(forceApRestart||WiFi.softAPIP()!=ip){
+  if(forceApRestart||WiFi.softAPIP()!=ip||WiFi.softAPSSID()!=Cfg::SSID){
     WiFi.softAPConfig(ip,ip,mask,dhcp);
     WiFi.softAP(Cfg::SSID);
   }
@@ -86,7 +88,7 @@ void gatewayUpdate(){
 void wifiWatch(){
   if(millis()-wifiAt<5000)return;wifiAt=millis();
   wifi_mode_t expected=radioProfile==RadioProfile::DIRECT?WIFI_AP:WIFI_AP_STA;
-  if(WiFi.getMode()!=expected||WiFi.softAPIP()!=directApIp()){
+  if(WiFi.getMode()!=expected||WiFi.softAPIP()!=directApIp()||WiFi.softAPSSID()!=Cfg::SSID){
     applyRadioProfile(radioProfile,false);
   }
 }
@@ -108,7 +110,7 @@ void setup(){
   relayBootSafeInit();hwBegin();
   WiFi.persistent(false);WiFi.setSleep(false);WiFi.setAutoReconnect(false);
   remoteBegin();remoteMqttBegin();
-  // HR061: every boot is deterministically local. Saved WAN is not consulted for mode selection.
+  // Every boot starts deterministically in the local DIRECT profile.
   applyRadioProfile(RadioProfile::DIRECT,false);
 
   web.on("/",[]{reply(200,Cfg::FW);});

@@ -3,54 +3,57 @@ on:
   workflow_dispatch:
   push:
     branches: ['dev/**','fix/**',main]
-    paths: ['firmware/**','tools/**','.github/workflows/build-firmware.yml','app/src/main/java/com/servoc/app/**']
-permissions: { contents: write }
+    paths:
+      - 'firmware/**'
+      - 'tools/audit_0101_firmware_baseline.py'
+      - '.github/workflows/build-firmware.yml'
+
+permissions:
+  contents: read
+
 jobs:
   compile-firmware:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: Record HR065 controlled build identity
-        run: |
-          set -euo pipefail
-          printf '%s\n' "release=HazRob-0.10.1-HR065" "source_sha=${GITHUB_SHA}" "source_ref=${GITHUB_REF}" "main_build_id=HR-0101-065-MAIN" "camera_build_id=HR-0101-065-CAM" "network_authority=master-esp32" "direct_ssid=HazRob" "direct_robot_ip=192.168.4.1" "direct_camera_mode=STA-only" "direct_camera_ip=192.168.4.2" "boot_profile=DIRECT" "remote_activation=explicit-operator-only" > firmware-build-identity.txt
-          cat firmware-build-identity.txt
-      - name: Validate HR065 integration contract
-        run: python3 tools/audit_0101_integration_contract.py
-      - name: Validate motion and safety contracts
-        run: |
-          python3 tools/audit_0101_motion_contract.py
-          python3 tools/audit_hr047_gas_safety_contract.py
+
+      - name: Validate firmware baseline contract
+        run: python3 tools/audit_0101_firmware_baseline.py
+
       - uses: arduino/setup-arduino-cli@v2
+
       - name: Install pinned ESP32 core 3.3.11
         run: |
           arduino-cli config init
           arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@3.3.11
+
       - name: Compile Main ESP32
         run: |
-          mkdir -p build/master
-          arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all --output-dir build/master firmware/HazRob 2>&1 | tee build/master-size.log
+          mkdir -p build/main
+          arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all --output-dir build/main firmware/HazRob 2>&1 | tee build/main.log
+
       - name: Compile ESP32-CAM
         run: |
           mkdir -p build/camera
-          arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all --output-dir build/camera firmware/HazRob-CAM 2>&1 | tee build/camera-size.log
-      - name: Create exact HR065 flash package
+          arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all --output-dir build/camera firmware/HazRob-CAM 2>&1 | tee build/camera.log
+
+      - name: Package canonical firmware
         run: |
           set -euo pipefail
-          mkdir -p HR065-FLASH/Main HR065-FLASH/CAM
-          cp build/master/*.bin HR065-FLASH/Main/
-          cp build/camera/*.bin HR065-FLASH/CAM/
-          cp firmware-build-identity.txt HR065-FLASH/
-          find HR065-FLASH -type f -name '*.bin' -print0 | sort -z | xargs -0 sha256sum > HR065-FLASH/SHA256SUMS.txt
-          printf '%s\n' 'HazRob 0.10.1 HR065' 'ERASE BOTH ESP32 FLASHES BEFORE PROGRAMMING.' 'Main must advertise HazRob at 192.168.4.1.' 'CAM must NEVER advertise ESP_*; it is STA-only at 192.168.4.2.' 'Verify CAM /status: fw=HazRob-CAM 0.10.1 HR065, build_id=HR-0101-065-CAM, wifi_mode=1.' > HR065-FLASH/README-FLASH.txt
-          cat HR065-FLASH/SHA256SUMS.txt
-      - name: Upload exact HR065 flash artifacts
+          mkdir -p HazRob-0.10.1-FIRMWARE/Main HazRob-0.10.1-FIRMWARE/CAM
+          cp build/main/*.bin HazRob-0.10.1-FIRMWARE/Main/
+          cp build/camera/*.bin HazRob-0.10.1-FIRMWARE/CAM/
+          cp firmware/FIRMWARE_BASELINE_0.10.1.md HazRob-0.10.1-FIRMWARE/
+          find HazRob-0.10.1-FIRMWARE -type f -name '*.bin' -print0 | sort -z | xargs -0 sha256sum > HazRob-0.10.1-FIRMWARE/SHA256SUMS.txt
+          printf '%s\n'             'HazRob 0.10.1 canonical firmware'             'Erase both ESP32 flash memories before programming when replacing an unknown prior build.'             'Main must advertise HazRob at 192.168.4.1.'             'Camera is STA-only at 192.168.4.2 and must never advertise ESP_*.'             'Verify http://192.168.4.2/status and http://192.168.4.2:81/stream after flashing.'             > HazRob-0.10.1-FIRMWARE/README-FLASH.txt
+
+      - name: Upload firmware artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-0.10.1-HR065-FLASH-${{ github.sha }}
-          path: HR065-FLASH/
+          name: HazRob-0.10.1-FIRMWARE-${{ github.sha }}
+          path: HazRob-0.10.1-FIRMWARE/
           if-no-files-found: error
           retention-days: 90
