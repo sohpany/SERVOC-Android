@@ -43,6 +43,14 @@ RUN python3 tools/audit_hr061_direct_first_contract.py && \
     python3 tools/audit_0101_motion_contract.py && \
     python3 tools/audit_hr047_gas_safety_contract.py
 
+# HR066 comprehensive regression sweep: execute every retained audit, including older
+# subsystem contracts, so stale assumptions or cross-component drift fail the build.
+RUN set -eux; \
+    for f in tools/audit_*.py; do \
+      echo "===== $f ====="; \
+      python3 "$f"; \
+    done
+
 RUN python3 tools/audit_0101_firmware_baseline.py && \
     mkdir -p /tmp/fw-main /tmp/fw-cam && \
     arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all --output-dir /tmp/fw-main firmware/HazRob && \
@@ -70,6 +78,7 @@ RUN sha256sum /out/HazRob-ESP32-Main-0.10.1-HR066.zip > /out/HazRob-ESP32-Main-0
 
 RUN grep -q "versionCode 25" app/build.gradle && grep -q "versionName '0.10.1'" app/build.gradle
 RUN gradle --no-daemon :app:testDebugUnitTest
+RUN gradle --no-daemon :app:lintDebug
 RUN gradle --no-daemon :app:assembleRelease
 
 # Verify the APK is signed by the already-controlled HazRob prototype certificate.
@@ -94,6 +103,7 @@ RUN cat > /out/index.html <<'EOF'
 <p><a href="/HazRob-0.10.1-v25-TEST.sha256">APK SHA-256</a> · <a href="/HazRob-0.10.1-v25-signing.txt">Signing verification</a></p>
 <p><a href="/HazRob-ESP32-Main-0.10.1-HR066.zip">Firmware Main ESP32</a> · <a href="/HazRob-ESP32-Main-0.10.1-HR066.sha256">SHA-256</a></p>
 <p><a href="/HazRob-ESP32-CAM-0.10.1-HR066.zip">Firmware ESP32-CAM</a> · <a href="/HazRob-ESP32-CAM-0.10.1-HR066.sha256">SHA-256</a></p>
+<p>Validation: complete audit sweep + Android unit tests + Android lint + Main/CAM compile + signed release build.</p>
 </body></html>
 EOF
 
