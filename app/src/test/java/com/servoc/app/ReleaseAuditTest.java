@@ -19,12 +19,25 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.BACKGROUND_MQ_CONTINUITY);
         assertTrue(ReleaseAudit.DERIVED_REFERENCE_ARTIFACTS);
         assertTrue(ReleaseAudit.EXACT_SESSION_REPORT_LINEAGE);
-        assertTrue(ReleaseAudit.THREE_SECOND_LINK_RECOVERY_HOLD);
+        assertFalse(ReleaseAudit.THREE_SECOND_LINK_RECOVERY_HOLD);
     }
 
-    @Test public void v0101RetainsL298nAndSingleMqPowerRelay(){
+    @Test public void v0101LocksCanonicalDriveContract(){
+        assertTrue(ReleaseAudit.ESP32_API.contains("LEFT GPIO17-19-32"));
+        assertTrue(ReleaseAudit.ESP32_API.contains("RIGHT GPIO16-18-27"));
+        assertTrue(ReleaseAudit.ESP32_API.contains("ADS I2C GPIO21-22"));
+        assertTrue(ReleaseAudit.ESP32_API.contains("ENV I2C GPIO13-14"));
         assertTrue(ReleaseAudit.L298N_4WD_DRIVE);
+        assertTrue(ReleaseAudit.CIRCULAR_JOYSTICK_DRIVE);
+        assertTrue(ReleaseAudit.DIFFERENTIAL_SKID_STEER_MIX);
+        assertTrue(ReleaseAudit.LINEAR_OPERATOR_DRIVE_NO_RAMP);
+        assertTrue(ReleaseAudit.DRIVE_DEFAULT_100_PERCENT);
+        assertTrue(ReleaseAudit.LOW_LATENCY_DIRECT_DRIVE);
+        assertTrue(ReleaseAudit.ESTOP_LATCHED_UI);
         assertFalse(ReleaseAudit.SERVO_DRIVE);
+    }
+
+    @Test public void v0101RetainsSingleMqPowerAndRemoteTransport(){
         assertFalse(ReleaseAudit.PRECALIBRATED_MQ);
         assertTrue(ReleaseAudit.DUAL_ADS1115);
         assertTrue(ReleaseAudit.ADS_FIXED_5V_SUPPLY);
