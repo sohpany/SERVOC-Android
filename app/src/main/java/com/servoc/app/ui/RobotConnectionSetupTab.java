@@ -42,6 +42,8 @@ public final class RobotConnectionSetupTab {
         Button refresh=UiKit.button(c,"تشخيص الاتصال");refresh.setOnClickListener(v->refreshStatus());stateButtons.addView(refresh,UiKit.weight(1));
         Button useSaved=UiKit.button(c,"استخدام الإعداد الحالي");useSaved.setOnClickListener(v->loadRemembered());stateButtons.addView(useSaved,UiKit.weight(1));current.addView(stateButtons,UiKit.full(c));
 
+        Button allowRemote=UiKit.button(c,"سماح المطور بالاتصال البعيد");allowRemote.setOnClickListener(v->authorizeRemote(true));current.addView(allowRemote,UiKit.full(c));
+        Button revokeRemote=UiKit.button(c,"إلغاء سماح الاتصال البعيد");revokeRemote.setOnClickListener(v->authorizeRemote(false));current.addView(revokeRemote,UiKit.full(c));
         Button disconnect=UiKit.button(c,"فصل Remote مع الاحتفاظ بـ WAN");disconnect.setOnClickListener(v->disconnectRemote());current.addView(disconnect,UiKit.full(c));
         Button reconnect=UiKit.button(c,"تفعيل Remote باستخدام WAN المحفوظ");reconnect.setOnClickListener(v->reconnectRemote());current.addView(reconnect,UiKit.full(c));
         Button resetWan=UiKit.button(c,"مسح WAN نهائيًا");resetWan.setOnClickListener(v->confirmClearRobotWan());current.addView(resetWan,UiKit.full(c));
@@ -73,9 +75,9 @@ public final class RobotConnectionSetupTab {
         host.io().execute(()->{
             try{
                 JSONObject j=host.robotApi().remoteStatus();
-                boolean configured=j.optBoolean("configured",false),transport=j.optBoolean("transport_enabled",false),wifi=j.optBoolean("wifi",false),ip=j.optBoolean("ip_ok",false),dns=j.optBoolean("dns",false),time=j.optBoolean("time",false),internet=j.optBoolean("internet",false),tls=j.optBoolean("tls",false),mqtt=j.optBoolean("mqtt",false),ack=j.optBoolean("command_ack",false),telemetry=j.optBoolean("telemetry",false),ready=j.optBoolean("remote_ready",false),retryHold=j.optBoolean("retry_hold",false),napt=j.optBoolean("napt",false);
+                boolean configured=j.optBoolean("configured",false),authorized=j.optBoolean("developer_authorized",false),transport=j.optBoolean("transport_enabled",false),wifi=j.optBoolean("wifi",false),ip=j.optBoolean("ip_ok",false),dns=j.optBoolean("dns",false),time=j.optBoolean("time",false),internet=j.optBoolean("internet",false),tls=j.optBoolean("tls",false),mqtt=j.optBoolean("mqtt",false),ack=j.optBoolean("command_ack",false),telemetry=j.optBoolean("telemetry",false),ready=j.optBoolean("remote_ready",false),retryHold=j.optBoolean("retry_hold",false),napt=j.optBoolean("napt",false);
                 String profile=j.optString("radio_profile","—");String first=firstFailure(configured,transport,wifi,ip,dns,time,internet,tls,mqtt,ack,telemetry);String detail=dash(j.optString("detail",""));
-                String text="Profile: "+profile+"   •   Boot: "+j.optString("boot_default","direct")+"   •   Transport: "+yes(transport)+"   •   NAPT: "+yes(napt)+"\n"+
+                String text="Profile: "+profile+"   •   Boot: "+j.optString("boot_default","direct")+"   •   سماح المطور: "+yes(authorized)+"\nTransport: "+yes(transport)+"   •   NAPT: "+yes(napt)+"\n"+
                         "SSID: "+dash(j.optString("ssid",""))+"   •   IP: "+dash(j.optString("ip",""))+"\n"+
                         "RSSI: "+j.optInt("rssi",0)+" dBm   •   قناة Wi-Fi: "+j.optInt("wifi_channel",0)+"   •   عملاء HazRob: "+j.optInt("ap_clients",0)+"\n"+
                         "محاولات WAN: "+j.optInt("connect_attempts",0)+"   •   Retry hold: "+yes(retryHold)+"\n\n"+
@@ -103,6 +105,17 @@ public final class RobotConnectionSetupTab {
         });
     }
 
+    private void authorizeRemote(boolean enabled){
+        status.setText(enabled?"جارٍ تسجيل سماح المطور للاتصال البعيد...":"جارٍ إلغاء سماح الاتصال البعيد والعودة إلى Direct...");
+        host.io().execute(()->{
+            try{
+                host.robotApi().remoteAuthorize(enabled);
+                host.preferences().edit().putBoolean("remote_authorized_by_developer",enabled).apply();
+                root.post(()->{status.setText(enabled?"تم تسجيل سماح المطور. لن يعمل Remote إلا بعد طلبه صراحة ومع وجود WAN محفوظ.":"تم إلغاء سماح Remote. الاتصال المباشر هو السلطة الفعالة.");status.setTextColor(enabled?0xFF81C784:0xFF80CBC4);});
+            }catch(Exception e){root.post(()->{status.setText(enabled?"تعذر منح السماح. احفظ WAN أولًا وتأكد من اتصال HazRob.":"تعذر إلغاء السماح. تأكد من الاتصال المباشر بـ HazRob.");status.setTextColor(0xFFFF7043);});}
+        });
+    }
+
     private void disconnectRemote(){
         status.setText("جارٍ إيقاف الاتصال البعيد والعودة إلى Direct AP-only دون حذف WAN...");
         host.io().execute(()->{
@@ -114,12 +127,12 @@ public final class RobotConnectionSetupTab {
     }
 
     private void reconnectRemote(){
-        status.setText("جارٍ تفعيل Remote صراحة باستخدام WAN المحفوظ...");
+        status.setText("جارٍ تفعيل Remote صراحة باستخدام WAN المحفوظ وسماح المطور...");
         host.io().execute(()->{
             try{
                 host.robotApi().remoteReconnect();
                 root.post(()->{status.setText("تم طلب Remote لهذه الجلسة. الروبوت سيستخدم WAN المحفوظ ويحوّل الراديو إلى AP+STA ثم يعيد MQTT/NAPT/Render عند جاهزية الإنترنت. بعد إعادة التشغيل سيعود Direct تلقائيًا.");status.setTextColor(0xFF81C784);});
-            }catch(Exception e){root.post(()->{status.setText("تعذر تفعيل Remote. تأكد من وجود WAN محفوظ ومن الاتصال المحلي بشبكة HazRob.");status.setTextColor(0xFFFF7043);});}
+            }catch(Exception e){root.post(()->{status.setText("تعذر تفعيل Remote. تأكد من وجود WAN محفوظ وسماح المطور ومن الاتصال المحلي بشبكة HazRob.");status.setTextColor(0xFFFF7043);});}
         });
     }
 
