@@ -7,22 +7,39 @@ import android.graphics.Paint;
 import android.view.MotionEvent;
 import android.view.View;
 
+/**
+ * Circular two-axis driving control.
+ *
+ * Command policy is intentionally direct and linear: there is no acceleration ramp,
+ * reverse delay or steering smoothing in the operator path. The firmware remains the
+ * final safety authority. Releasing/cancelling the touch always emits neutral 0/0.
+ */
 public final class JoystickView extends View {
     public interface Listener { void onDrive(int left, int right, boolean active); }
 
-    private static final double DEAD_ZONE = 0.03;
-    private final Paint ring = new Paint(1);
-    private final Paint knob = new Paint(1);
+    private static final double DEAD_ZONE = 0.025;
+    private static final float KNOB_RADIUS_RATIO = 0.22f;
+    private static final int INVALID_POINTER = -1;
+
+    private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint guide = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint knob = new Paint(Paint.ANTI_ALIAS_FLAG);
     private float x = 0, y = 0;
     private boolean active = false;
+    private int pointerId = INVALID_POINTER;
     private Listener listener;
 
     public JoystickView(Context context) {
         super(context);
+        setClickable(true);
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(4);
-        ring.setColor(0x88FFFFFF);
-        knob.setColor(0xAAFFFFFF);
+        ring.setColor(0xAAFFFFFF);
+        guide.setStyle(Paint.Style.STROKE);
+        guide.setStrokeWidth(2);
+        guide.setColor(0x44FFFFFF);
+        knob.setStyle(Paint.Style.FILL);
+        knob.setColor(0xDDFFFFFF);
         setBackgroundColor(Color.TRANSPARENT);
     }
 
@@ -31,37 +48,87 @@ public final class JoystickView extends View {
     @Override protected void onDraw(Canvas c) {
         super.onDraw(c);
         float cx = getWidth() / 2f, cy = getHeight() / 2f;
-        float r = Math.min(cx, cy) - 8;
+        float r = Math.max(1f, Math.min(cx, cy) - 8f);
+        float knobRadius = Math.max(8f, r * KNOB_RADIUS_RATIO);
+        float travel = Math.max(0f, r - knobRadius - 2f);
         c.drawCircle(cx, cy, r, ring);
-        c.drawCircle(cx + x * r * .62f, cy - y * r * .62f, r * .25f, knob);
+        c.drawLine(cx - r * .72f, cy, cx + r * .72f, cy, guide);
+        c.drawLine(cx, cy - r * .72f, cx, cy + r * .72f, guide);
+        c.drawCircle(cx + x * travel, cy - y * travel, knobRadius, knob);
     }
 
     @Override public boolean onTouchEvent(MotionEvent e) {
-        if (e.getAction() == MotionEvent.ACTION_UP || e.getAction() == MotionEvent.ACTION_CANCEL) {
-            active = false; x = y = 0; invalidate(); emit(); return true;
+        switch (e.getActionMasked()) {
+            case MotionEvent.ACTION_DOWN:
+                pointerId = e.getPointerId(0);
+                active = true;
+                updateFromPointer(e, 0);
+                return true;
+            case MotionEvent.ACTION_MOVE: {
+                int index = e.findPointerIndex(pointerId);
+                if (index < 0) { resetInternal(true); return true; }
+                updateFromPointer(e, index);
+                return true;
+            }
+            case MotionEvent.ACTION_POINTER_UP:
+                if (e.getPointerId(e.getActionIndex()) == pointerId) resetInternal(true);
+                return true;
+            case MotionEvent.ACTION_UP:
+                performClick();
+                resetInternal(true);
+                return true;
+            case MotionEvent.ACTION_CANCEL:
+                resetInternal(true);
+                return true;
+            default:
+                return true;
         }
-        if (e.getAction() != MotionEvent.ACTION_DOWN && e.getAction() != MotionEvent.ACTION_MOVE) return true;
-        active = true;
+    }
+
+    private void updateFromPointer(MotionEvent e, int index) {
         float cx = getWidth() / 2f, cy = getHeight() / 2f;
-        float radius = Math.max(1, Math.min(cx, cy) - 8);
-        float nx = (e.getX() - cx) / radius;
-        float ny = -(e.getY() - cy) / radius;
-        double m = Math.hypot(nx, ny);
-        if (m > 1) { nx /= m; ny /= m; m = 1; }
-        if (m < DEAD_ZONE) { nx = ny = 0; }
-        else {
-            double z = (m - DEAD_ZONE) / (1.0 - DEAD_ZONE);
-            nx = (float) (nx / m * z);
-            ny = (float) (ny / m * z);
+        float radius = Math.max(1f, Math.min(cx, cy) - 8f);
+        float nx = (e.getX(index) - cx) / radius;
+        float ny = -(e.getY(index) - cy) / radius;
+        double magnitude = Math.hypot(nx, ny);
+        if (magnitude > 1.0) {
+            nx /= magnitude;
+            ny /= magnitude;
+            magnitude = 1.0;
         }
-        x = nx; y = ny; invalidate(); emit(); return true;
+        if (magnitude < DEAD_ZONE) {
+            nx = 0f;
+            ny = 0f;
+        } else {
+            double normalized = (magnitude - DEAD_ZONE) / (1.0 - DEAD_ZONE);
+            nx = (float) (nx / magnitude * normalized);
+            ny = (float) (ny / magnitude * normalized);
+        }
+        x = nx;
+        y = ny;
+        invalidate();
+        emit();
+    }
+
+    private void resetInternal(boolean emit) {
+        pointerId = INVALID_POINTER;
+        active = false;
+        x = 0f;
+        y = 0f;
+        invalidate();
+        if (emit) emit();
     }
 
     private void emit() {
         if (listener == null) return;
-        DriveMixer.Command command=DriveMixer.mix(x,y);
-        listener.onDrive(command.left,command.right,active);
+        DriveMixer.Command command = DriveMixer.mix(x, y);
+        listener.onDrive(command.left, command.right, active);
     }
 
-    public void reset() { active = false; x = y = 0; invalidate(); emit(); }
+    @Override public boolean performClick() {
+        super.performClick();
+        return true;
+    }
+
+    public void reset() { resetInternal(true); }
 }
