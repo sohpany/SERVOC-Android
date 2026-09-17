@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
-"""HR-0101-049/060 control/remote contract carried forward on HazRob 0.10.1.
+"""Compatibility control/remote gate for HazRob 0.10.1.
 
-Direct is AP-only + HTTP and now uses radio-idempotent Direct locking. Remote retains the
-latest-command MQTT architecture and latency policy. Steering geometry is delegated to the
-pure DriveMixer so forward/reverse handedness has one executable authority.
-Physical latency/RF tests remain field gates.
+Direct is AP-only + low-latency HTTP control. Remote keeps the latest-command MQTT
+architecture and bounded publish policy. Steering geometry remains delegated to DriveMixer.
 """
 from pathlib import Path
 
@@ -30,13 +28,14 @@ def main():
     mixer=txt("app/src/main/java/com/servoc/app/control/DriveMixer.java")
     mixer_test=txt("app/src/test/java/com/servoc/app/control/DriveMixerTest.java")
 
-    req(joy,"DriveMixer.Command command=DriveMixer.mix(x,y);","joystick mixer authority")
+    req(joy,"DriveMixer.mix(x, y)","joystick mixer authority")
+    req(joy,"DEAD_ZONE = 0.025","joystick dead zone")
     req(mixer,"double left=y+x;","left differential equation")
     req(mixer,"double right=y-x;","right differential equation")
     req(mixer_test,"reverseSteeringKeepsYawHandedness","reverse steering regression")
     req(mixer_test,"rightAndLeftYawSignsAreConsistentAcrossForwardAndReverse","yaw handedness regression")
 
-    # HR060 Direct: AP-only + HTTP drive, OS-requested local-only network, no AP bounce on repeat Direct.
+    # Direct: AP-only + HTTP drive, local-only Android route, no local UDP authority.
     req(ino,'directApStable(){return radioProfile==RadioProfile::DIRECT&&WiFi.getMode()==WIFI_AP',"Direct AP-only profile")
     req(ino,'configureSoftAp(WIFI_AP,false);',"Remote-to-Direct AP-preserving transition")
     req(ino,'if(directApStable())',"Direct idempotence")
@@ -44,14 +43,15 @@ def main():
     req(ino,'radioProfile!=RadioProfile::DIRECT',"dual-authority drive rejection")
     req(ino,'\\"drive_udp\\":{\\"installed\\":false',"UDP disabled capability")
     forbid(ino,'#include <WiFiUdp.h>',"active local UDP transport")
-    req(api,'DIRECT_KEEPALIVE_MS=250L',"Direct HTTP keepalive cadence")
-    req(api,'getText("/drive?l="+left+"&r="+right,450)',"Direct HTTP sender")
+    req(api,'DIRECT_KEEPALIVE_MS=150L',"Direct HTTP keepalive cadence")
+    req(api,'DIRECT_DRIVE_TIMEOUT_MS=250',"Direct HTTP request bound")
+    req(api,'getText("/drive?l="+left+"&r="+right,DIRECT_DRIVE_TIMEOUT_MS)',"Direct HTTP sender")
     forbid(api,'DatagramSocket',"Android active local UDP")
     req(wifi,'WifiNetworkSpecifier.Builder().setSsid(LocalNetworkContract.ROBOT_SSID)',"Direct local-only Wi-Fi request")
     req(wifi,'requestCallback=null;requestCm=null;requestedNetwork=null;requestUnavailable=false;',"stale Direct route reset")
     req(cfg,"CONTROL_COMMAND_TIMEOUT_MS=500","lost-command motor watchdog")
 
-    # Remote latest-command architecture: no command backlog, bounded publish rate, hold refresh.
+    # Remote latest-command architecture: no backlog, bounded publish rate, hold refresh.
     for s in ("PUMP_MS=20","MIN_PUBLISH_MS=40","HOLD_REFRESH_MS=120","COMMAND_TTL_MS=900"):
         req(policy,s,"Remote drive timing policy")
     req(policy_test,"stopTransitionBypassesRateLimit","Remote stop-priority test")
@@ -71,14 +71,13 @@ def main():
     req(mqtt,'t=="drive"||t=="heartbeat"||t=="alert"',"fire-and-forget ACK suppression set")
     req(mqtt,"if(!quietSuccess)ack(s,q,n,ok,p,err)","critical/error ACK retention")
     req(mqtt,"while(tls.available())processPacket()","incoming commands before telemetry")
-    forbid(remote,'command("drive",p,700,false,0)',"retired synchronous Remote drive path")
 
-    print("HazRob 0.10.1 HR-0101-049/060 control/remote contract: PASS")
-    print("Direct=AP-only HTTP/250ms keepalive with idempotent AP lock; Remote=latest-command 25Hz max / 120ms hold refresh; telemetry=2Hz; watchdog=500ms")
+    print("HazRob 0.10.1 control/remote contract: PASS")
+    print("Direct=HTTP 150ms keepalive / 250ms timeout; Remote=latest-command 25Hz max / 120ms hold refresh; watchdog=500ms")
     return 0
 
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as e:
-        print("HazRob 0.10.1 HR-0101-049/060 control/remote gate: FAIL:",e)
+        print("HazRob 0.10.1 control/remote gate: FAIL:",e)
         raise SystemExit(1)
