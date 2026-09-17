@@ -94,7 +94,10 @@ def main():
 
     # Camera arbitration, local Direct path, NTP/TLS readiness and WSS paths.
     for n,label in [('SSID[]="HazRob"','CAM local SSID'),('IPAddress ip(192,168,4,2)','CAM local IP'),('WiFiServer mjpeg(81)','CAM local MJPEG'),('if(clients)return;','local viewer priority'),('gateway&&camTimeReady()','CAM gateway+time gate'),('TLS_TIME_MIN=1700000000','CAM TLS epoch'),('configTime(0,0,"pool.ntp.org","time.cloudflare.com")','CAM NTP'),('\\"time_ready\\":','CAM time diagnostics'),('\\"radio_profile\\":\\"remote\\"','CAM remote profile'),('\\"internet\\":true','CAM internet'),('\\"napt\\":true','CAM NAPT')]: req(cam,n,label)
-    req(rvideo,'if(localActive||!RemoteVideoCfg::configured()','no WSS handshake during local'); req(rvideo,'if(localActive&&!connected)','no remote connect during local')
+    req(rvideo,'if(local||WiFi.status()!=WL_CONNECTED||!RemoteVideoCfg::configured())return false;','no bootstrap during local or disconnected state')
+    req(rvideo,'if(local||!bootstrap())return false;','no WSS handshake during local')
+    req(rvideo,'if(WiFi.status()!=WL_CONNECTED||local){','worker local-view priority')
+    req(rvideo,'remoteVideoSetLocalActive(bool a){local=a;if(a){ws.stop();conn=false;}}','local viewer immediately tears down WSS')
     req(rvcfg,'BASE_PATH[]="/hazrob/video"','CAM video base'); req(service,'VIDEO_VIEW_WSS="wss://"+VIDEO_HOST+"/hazrob/video/view/"+ROBOT_ID','Android viewer path'); req(relay,'/^\\/hazrob\\/video\\/(publish|view)\\/([^/]+)$/','Render WSS routes')
 
     # Authenticated TLS everywhere.
