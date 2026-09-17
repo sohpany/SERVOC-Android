@@ -62,8 +62,8 @@ def main() -> int:
 
     # E-stop remains a separate explicit latch and is not part of speed shaping.
     require(safety, "void safetyLatchEstop(){estopLatched=true;}", "software E-stop latch")
-    require(master, 'path=="/estop"', "Direct E-stop")
-    require(master, 'path=="/estop/reset"', "Direct E-stop reset")
+    require(master, 'web.on("/estop",[]{safetyLatchEstop();emergencyStop();', "Direct E-stop")
+    require(master, 'web.on("/estop/reset",[]{motionStop();safetyResetEstop();', "Direct E-stop reset")
     require(mqtt, 't=="estop"', "Remote E-stop")
     require(mqtt, 't=="estop_reset"', "Remote E-stop reset")
 
