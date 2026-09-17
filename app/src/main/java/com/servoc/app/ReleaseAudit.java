@@ -6,7 +6,7 @@ public final class ReleaseAudit {
     public static final String VERSION="0.10.1";
     public static final String PROJECT_PREPARERS="شهاب الصهباني، مجدي ذيبان";
     public static final int DATABASE_SCHEMA=8;
-    public static final String ESP32_API="HazRob API v4 / firmware 0.10.1 / L298N 4WD GPIO18-27-19-32 / single MQ relay / fixed ADS1115 5V supply / exact session lineage / unified direct+remote transport";
+    public static final String ESP32_API="HazRob API v4 / firmware 0.10.1 / L298N 4WD LEFT GPIO17-19-32 / RIGHT GPIO16-18-27 / single MQ relay / fixed ADS1115 5V supply / exact session lineage / unified direct+remote transport";
 
     public static final boolean PRECALIBRATED_MQ=false;
     public static final boolean ARABIC_RTL_UI=true;
@@ -41,7 +41,7 @@ public final class ReleaseAudit {
     public static final boolean EXACT_SESSION_REPORT_LINEAGE=true;
     public static final boolean MOTION_BREADCRUMB_RECORDING=true;
     public static final boolean AUTONOMOUS_BACKTRACK=true;
-    public static final boolean THREE_SECOND_LINK_RECOVERY_HOLD=true;
+    public static final boolean THREE_SECOND_LINK_RECOVERY_HOLD=false;
     public static final boolean API4_SPLIT_SAFETY=true;
     public static final boolean ADS_AUTO_REPROBE=true;
     public static final boolean BACKGROUND_MQ_CONTINUITY=true;
