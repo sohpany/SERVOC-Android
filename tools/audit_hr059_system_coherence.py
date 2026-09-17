@@ -71,7 +71,7 @@ def main():
     req(gate,'directCamera.status()','non-blocking CAM status probe')
     ban(gate,'directCamera.directReady()','camera hard admission gate')
     req(gate,'developer_authorized','Android Remote developer authorization gate')
-    req(camera_api,'String expectedFw="HazRob-CAM "+ReleaseAudit.VERSION','CAM identity gate'); req(camera_api,'prev==0xFF&&cur==0xD9&&jpegBytes>128','complete local JPEG gate')
+    req(camera_api,'LocalNetworkContract.CAMERA_FIRMWARE_BANNER.equals(fw)','CAM identity gate'); req(camera_api,'prev==0xFF&&cur==0xD9&&jpegBytes>128','complete local JPEG gate')
 
     # Remote command parity across Android facade+transport and main firmware.
     expected={"probe","drive","motion_stop","estop","estop_reset","sensor_off","heartbeat","heartbeat_disarm","relay","measure_start","measure_cancel","alert","alert_test","camera_flash","config_get","config_set"}
