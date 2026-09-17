@@ -37,7 +37,6 @@ def main():
     ban(cfg,'FW[]="HazRob 0.10.1 HR','numbered Main runtime identity')
     ban(cam,'FW[]="HazRob-CAM 0.10.1 HR','numbered CAM runtime identity')
 
-    # CAM is fail-closed STA-only: no AP/APSTA path exists in its source.
     for n,l in [
         ('WiFi.mode(WIFI_STA)','Arduino STA mode'),
         ('esp_wifi_set_mode(WIFI_MODE_STA)','ESP-IDF STA mode'),
@@ -49,7 +48,6 @@ def main():
     ban(cam,'WiFi.softAP(','CAM AP creation')
     ban(cam,'WIFI_AP_STA','CAM AP+STA mode')
 
-    # Local camera must be a complete JPEG stream, not mere TCP reachability.
     for n,l in [
         ('WebServer web(80); WiFiServer mjpeg(81)','CAM HTTP/MJPEG ports'),
         ('c.pixel_format=PIXFORMAT_RGB565','RGB565 capture'),
@@ -66,7 +64,6 @@ def main():
         ('prev==0xFF&&cur==0xD9&&jpegBytes>128','JPEG EOI gate')]: req(camera_api,n,l)
     req(gate,'directCamera.directReady()','Direct waits for valid CAM frame')
 
-    # Main owns the AP and only explicit Remote can add WAN STA/NAPT.
     for n,l in [
         ('applyRadioProfile(RadioProfile::DIRECT,false);','Direct boot'),
         ('configureSoftAp(WIFI_AP,false);','Direct AP-only'),
@@ -74,7 +71,6 @@ def main():
         ('remoteMqttDisconnect();','Direct MQTT shutdown'),
         ('WiFi.AP.enableNAPT(false)','Direct NAPT shutdown')]: req(master,n,l)
 
-    # Remote video remains tied to gateway readiness, valid time and the current Render profile.
     for n,l in [
         ('gatewayRemoteReady()','CAM gateway readiness'),
         ('gateway&&camTimeReady()','gateway/time gate'),
@@ -85,10 +81,10 @@ def main():
         ('BASE_PATH[]="/hazrob/video"','video base path'),
         ('BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','bootstrap version'),
         ('BOOTSTRAP_PROTOCOL=2','bootstrap protocol')]: req(rvcfg,n,l)
-    req(rvideo,'role!="esp32-cam"','strict CAM bootstrap role')
+    req(rvideo,'js(r,"client")!="esp32-cam"','strict CAM bootstrap client identity')
+    req(rvideo,'js(r,"robot")!=RemoteVideoCfg::ROBOT_ID','strict CAM robot identity')
     req(service,'VIDEO_HOST="hazrob-video-relay.onrender.com"','Android Render host')
 
-    # Scientific bus/R0 authority remains untouched by camera/network changes.
     for n,l in [
         ('ENV_SDA=13,ENV_SCL=14','ENV pins'),
         ('SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49','ADS bus'),
