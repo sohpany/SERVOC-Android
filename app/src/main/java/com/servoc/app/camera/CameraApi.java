@@ -8,10 +8,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-/** Canonical HazRob 0.10.1 HR065 ESP32-CAM HTTP client. */
+/** Canonical HazRob 0.10.1 ESP32-CAM HTTP client. */
 public final class CameraApi {
-    private static final String EXPECTED_FW="HazRob-CAM 0.10.1 HR065";
-    private static final String EXPECTED_BUILD="HR-0101-065-CAM";
     private volatile String host;
     private volatile String lastProbe="not tested";
     public CameraApi(String host){setHost(host);}
@@ -24,10 +22,13 @@ public final class CameraApi {
         if(host==null||host.isEmpty()){lastProbe="camera host empty";return false;}
         if(!LocalNetworkContract.CAMERA_HOST.equals(host)){lastProbe="camera host is not canonical: "+host;return false;}
         JSONObject j=status();if(j==null||!j.optBoolean("camera_ok",false)){lastProbe="camera status not ready";return false;}
-        String fw=j.optString("fw","").trim();if(!EXPECTED_FW.equals(fw)){lastProbe="camera firmware mismatch: "+fw;return false;}
-        String build=j.optString("build_id","").trim();if(!EXPECTED_BUILD.equals(build)){lastProbe="camera build mismatch: "+build;return false;}
+        String fw=j.optString("fw","").trim();if(!LocalNetworkContract.CAMERA_FIRMWARE_BANNER.equals(fw)){lastProbe="camera firmware mismatch: "+fw;return false;}
+        String ssid=j.optString("ssid","").trim();if(!LocalNetworkContract.ROBOT_SSID.equals(ssid)){lastProbe="camera SSID mismatch: "+ssid;return false;}
         if(j.optInt("wifi_mode",-1)!=1){lastProbe="camera is not STA-only";return false;}
         String ip=j.optString("ip","").trim();if(!LocalNetworkContract.CAMERA_HOST.equals(ip)){lastProbe="camera IP mismatch: "+ip;return false;}
+        if(j.optInt("width",0)!=320||j.optInt("height",0)!=240){lastProbe="camera frame size mismatch";return false;}
+        if(!"RGB565".equalsIgnoreCase(j.optString("capture_format",""))){lastProbe="camera capture format mismatch";return false;}
+        if(!j.optString("stream_format","").toUpperCase().contains("MJPEG")){lastProbe="camera stream format mismatch";return false;}
         return localStreamReady();
     }
     public boolean localStreamReady(){HttpURLConnection c=null;try{c=(HttpURLConnection)new URL("http://"+host+":81/stream").openConnection();c.setConnectTimeout(1600);c.setReadTimeout(4000);c.setUseCaches(false);c.setInstanceFollowRedirects(true);c.setRequestMethod("GET");c.setRequestProperty("Connection","close");int code=c.getResponseCode();if(code<200||code>=300){lastProbe="MJPEG HTTP "+code;return false;}try(InputStream in=c.getInputStream()){int prev=-1,cur,scanned=0,jpegBytes=0;boolean sawSoi=false;while(scanned++<196608&&(cur=in.read())!=-1){if(!sawSoi){if(prev==0xFF&&cur==0xD8){sawSoi=true;jpegBytes=2;}}else{jpegBytes++;if(prev==0xFF&&cur==0xD9&&jpegBytes>128){lastProbe="MJPEG 81 complete JPEG "+jpegBytes+" bytes";return true;}}prev=cur;}lastProbe=sawSoi?"MJPEG JPEG started but did not complete":"MJPEG stream opened without JPEG SOI";}}catch(Exception e){lastProbe="MJPEG unavailable: "+e.getClass().getSimpleName();}finally{if(c!=null)c.disconnect();}return false;}
