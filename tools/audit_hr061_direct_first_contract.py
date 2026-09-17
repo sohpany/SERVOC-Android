@@ -25,6 +25,8 @@ def main():
     local=read('app/src/main/java/com/servoc/app/communication/LocalNetworkContract.java')
     route=read('app/src/main/java/com/servoc/app/communication/WifiRoute.java')
     service=read('app/src/main/java/com/servoc/app/communication/RobotLinkService.java')
+    gate=read('app/src/main/java/com/servoc/app/auth/ConnectionGate.java')
+    camera_api=read('app/src/main/java/com/servoc/app/camera/CameraApi.java')
 
     require(cfg, '"HazRob"', 'master SSID')
     require(master, 'WIFI_AP', 'master Direct radio mode')
@@ -54,11 +56,21 @@ def main():
     require(service, 'worker.scheduleAtFixedRate(this::linkTick,0,250,TimeUnit.MILLISECONDS)', 'foreground link keeper cadence')
     require(service, 'WifiRoute.maintainRobotWifi(this)', 'foreground Direct route maintenance')
 
+    # Direct admission authority is Main ESP32 only. Camera is diagnostic/capability state and must not lock out the app.
+    require(gate, 'final boolean ready=network&&robotReady', 'Main-only Direct admission')
+    forbid(gate, 'final boolean ready=accepted', 'camera-gated Direct admission')
+    forbid(gate, 'cameraDeadline=SystemClock.elapsedRealtime()+20000L', 'blocking camera admission wait')
+    require(gate, 'camera_preflight_ready', 'independent camera preflight state')
+    require(gate, 'ControlTab owns it', 'non-competing MJPEG ownership')
+    require(gate, 'حالة ESP32-CAM مستقلة ولا تمنع دخول التطبيق', 'operator recovery wording')
+    require(camera_api, 'camera /status unreachable at ', 'camera transport diagnostic')
+    require(camera_api, 'camera initialization failed • error=', 'camera initialization diagnostic')
+
     print('HAZROB DIRECT-FIRST CONTRACT: PASS')
     print('  boot/default: DIRECT')
     print('  visible SSID authority: master ESP32 / HazRob')
     print('  robot: 192.168.4.1')
-    print('  camera: STA-only / 192.168.4.2')
+    print('  camera: STA-only / 192.168.4.2; capability state, not admission gate')
     print('  firmware: healthy Direct AP is not bounced by repeated Direct selection')
     print('  Android: persistent exact-SSID request + Wi-Fi lock + 250 ms route maintenance/recovery')
     return 0
