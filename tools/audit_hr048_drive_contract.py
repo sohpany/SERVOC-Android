@@ -36,7 +36,9 @@ def main():
     profile=txt("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
 
     req(joy,"DriveMixer.mix(x, y)","joystick uses audited mixer")
-    req(joy,"DEAD_ZONE = 0.025","joystick low dead zone")
+    forbid(joy,"DEAD_ZONE","joystick software dead zone")
+    req(joy,"magnitude <= 1.0e-6","joystick numerical center guard")
+    req(joy,"requestDisallowInterceptTouchEvent(true)","joystick touch ownership")
     req(mixer,"double steer=y<0?-x:x;","travel-relative steering")
     req(mixer,"double left=y+steer;","mixer logical left")
     req(mixer,"double right=y-steer;","mixer logical right")
