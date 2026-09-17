@@ -8,11 +8,13 @@ public final class HazRobHardwareProfile {
 
     public static final String ID="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2";
     public static final String DRIVE_DRIVER="L298N";
-    /** HR048 remediation candidate: logical LEFT -> L298N channel B; post-flash physical acceptance is still required. */
+
+    /** Logical LEFT maps to L298N channel B. */
     public static final int DRIVE_L_EN=17;
     public static final int DRIVE_L_IN1=19;
     public static final int DRIVE_L_IN2=32;
-    /** HR048 remediation candidate: logical RIGHT -> L298N channel A; post-flash physical acceptance is still required. */
+
+    /** Logical RIGHT maps to L298N channel A. */
     public static final int DRIVE_R_EN=16;
     public static final int DRIVE_R_IN1=18;
     public static final int DRIVE_R_IN2=27;
@@ -35,16 +37,18 @@ public final class HazRobHardwareProfile {
     public static final int ULTRASONIC_ECHO_GPIO=39;
     public static final boolean INTERNAL_TEMP_INSTALLED=false;
 
-    /** Analytical I2C bus: ADS1115 #1/#2 only after HR050. */
+    /** Analytical I2C bus: ADS1115 #1/#2 only. */
     public static final int I2C_SDA_GPIO=21;
     public static final int I2C_SCL_GPIO=22;
+
     /** Dedicated environmental I2C bus: BME280/BMP280 only. */
     public static final int ENV_I2C_SDA_GPIO=13;
     public static final int ENV_I2C_SCL_GPIO=14;
-    /** Future BH1750-style quantitative illuminance requires an explicit bus assignment; no lux sensor is installed in 0.10.1. */
+
+    /** Future quantitative illuminance requires an explicit bus assignment; no lux sensor is installed in 0.10.1. */
     public static final boolean LUX_SENSOR_INSTALLED=false;
 
-    /** Software acquisition contract assumes ADS1115 VDD=5 V; HR048 physical acceptance must confirm the assembled supply domain. */
+    /** Software acquisition contract assumes both ADS1115 boards are supplied from the regulated 5 V rail. */
     public static final float ADS_SUPPLY_V=5.0f;
 
     public static final class Channel {
