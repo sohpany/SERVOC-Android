@@ -8,7 +8,7 @@ ENV ANDROID_SDK_ROOT=/opt/android-sdk \
     PATH=/opt/gradle-9.5.0/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:/opt/android-sdk/build-tools/36.0.0:$PATH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl unzip python3 git file && \
+      ca-certificates curl unzip python3 git file openssl && \
     rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /opt/android-sdk/cmdline-tools && \
@@ -24,6 +24,13 @@ RUN curl -fsSL "https://services.gradle.org/distributions/gradle-9.5.0-bin.zip" 
     unzip -q /tmp/gradle.zip -d /opt && \
     rm /tmp/gradle.zip
 
+RUN curl -fsSL "https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh" | BINDIR=/usr/local/bin sh
+
+RUN arduino-cli config init && \
+    arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json && \
+    arduino-cli core update-index && \
+    arduino-cli core install esp32:esp32@3.3.11
+
 WORKDIR /src
 COPY . .
 
@@ -35,6 +42,11 @@ RUN python3 tools/audit_hr061_direct_first_contract.py && \
     python3 tools/audit_0101_integration_contract.py && \
     python3 tools/audit_0101_motion_contract.py && \
     python3 tools/audit_hr047_gas_safety_contract.py
+
+RUN python3 tools/audit_0101_firmware_baseline.py && \
+    mkdir -p /tmp/fw-main /tmp/fw-cam && \
+    arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all --output-dir /tmp/fw-main firmware/HazRob && \
+    arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all --output-dir /tmp/fw-cam firmware/HazRob-CAM
 
 RUN grep -q "versionCode 25" app/build.gradle && grep -q "versionName '0.10.1'" app/build.gradle
 RUN gradle --no-daemon :app:testDebugUnitTest
