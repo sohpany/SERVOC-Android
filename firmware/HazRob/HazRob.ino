@@ -131,7 +131,12 @@ void setup(){
   web.on("/connection/direct",HTTP_POST,[]{
     motionStop();
     if(directApStable())return reply(200,"application/json","{\"ok\":true,\"radio_profile\":\"direct\",\"already_direct\":true,\"wan_retained\":true}");
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\",\"wan_retained\":true}");requestRadioProfile(RadioProfile::DIRECT,false);
+    // Local Direct takeover is immediate at the command-authority boundary: stop cloud commands
+    // before the short deferred radio-profile transition completes.
+    remoteMqttDisconnect();
+    if(naptEnabled){WiFi.AP.enableNAPT(false);naptEnabled=false;}
+    remoteSetTransportEnabled(false,false);
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\",\"remote_authority_revoked\":true,\"wan_retained\":true}");requestRadioProfile(RadioProfile::DIRECT,false);
   });
   web.on("/connection/remote",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
@@ -144,7 +149,10 @@ void setup(){
   web.on("/remote/disconnect",HTTP_POST,[]{
     motionStop();
     if(directApStable())return reply(200,"application/json","{\"ok\":true,\"radio_profile\":\"direct\",\"already_direct\":true,\"wan_retained\":true}");
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\",\"wan_retained\":true}");
+    remoteMqttDisconnect();
+    if(naptEnabled){WiFi.AP.enableNAPT(false);naptEnabled=false;}
+    remoteSetTransportEnabled(false,false);
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\",\"remote_authority_revoked\":true,\"wan_retained\":true}");
     requestRadioProfile(RadioProfile::DIRECT,false);
   });
   web.on("/remote/authorize",HTTP_POST,[]{
