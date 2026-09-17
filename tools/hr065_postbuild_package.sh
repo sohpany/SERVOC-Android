@@ -27,18 +27,26 @@ cp "$PUBLIC"/source/HazRob-ESP32-CAM-v0.10.1-source.zip "$PKG/"
 
 MAIN_MERGED="$(find "$PKG/main" -maxdepth 1 -type f -name '*.merged.bin' | head -n1)"
 CAM_MERGED="$(find "$PKG/cam" -maxdepth 1 -type f -name '*.merged.bin' | head -n1)"
-test -n "$MAIN_MERGED"
-test -n "$CAM_MERGED"
+test -n "$MAIN_MERGED" || { echo 'FAIL: Main merged binary missing' >&2; exit 1; }
+test -n "$CAM_MERGED" || { echo 'FAIL: CAM merged binary missing' >&2; exit 1; }
 
-grep -aFq 'HR-0101-065-MAIN' "$MAIN_MERGED"
-grep -aFq 'HazRob 0.10.1 HR065' "$MAIN_MERGED"
-grep -aFq 'HR-0101-065-CAM' "$CAM_MERGED"
-grep -aFq 'HazRob-CAM 0.10.1 HR065' "$CAM_MERGED"
+# Main BUILD_ID is a source/provenance constant and is not currently emitted into a runtime endpoint;
+# under LTO/--gc-sections the unreferenced literal may legitimately be absent from the merged image.
+# Verify Main product identity in the binary, and verify the controlled BUILD_ID in the exact source
+# that produced it. CAM exposes build_id at runtime, so both CAM FW and BUILD_ID must be in its binary.
+echo 'HR065 package identity check: Main firmware marker'
+grep -aFq 'HazRob 0.10.1 HR065' "$MAIN_MERGED" || { echo 'FAIL: Main HR065 firmware marker missing from binary' >&2; exit 1; }
+echo 'HR065 package identity check: Main source build ID'
+grep -Fq 'BUILD_ID[]="HR-0101-065-MAIN"' "$ROOT/firmware/HazRob/Config.h" || { echo 'FAIL: Main HR065 build ID missing from source' >&2; exit 1; }
+echo 'HR065 package identity check: CAM runtime build ID + firmware marker'
+grep -aFq 'HR-0101-065-CAM' "$CAM_MERGED" || { echo 'FAIL: CAM HR065 build ID missing from binary' >&2; exit 1; }
+grep -aFq 'HazRob-CAM 0.10.1 HR065' "$CAM_MERGED" || { echo 'FAIL: CAM HR065 firmware marker missing from binary' >&2; exit 1; }
 if grep -aFq 'ESP_D62F69' "$CAM_MERGED"; then
   echo 'FAIL: stale ESP_D62F69 identity found in CAM binary' >&2
   exit 1
 fi
 
+echo 'HR065 package identity checks: PASS'
 cp "$MAIN_MERGED" "$PKG/HazRob-Main-HR065-merged.bin"
 cp "$CAM_MERGED" "$PKG/HazRob-CAM-HR065-merged.bin"
 
@@ -47,8 +55,8 @@ HazRob 0.10.1 HR065 controlled flash package
 runtime_source_commit=$RUNTIME_SOURCE_COMMIT
 packaging_commit=${RENDER_GIT_COMMIT:-unknown}
 arduino_esp32_core=3.3.11
-main_build_id=HR-0101-065-MAIN
-cam_build_id=HR-0101-065-CAM
+main_build_id=HR-0101-065-MAIN (source/provenance identity)
+cam_build_id=HR-0101-065-CAM (runtime identity)
 main_ssid=HazRob
 main_direct_ip=192.168.4.1
 cam_mode=STA-only
