@@ -16,12 +16,20 @@ public final class CameraApi {
     public void setHost(String h){if(h==null)h="";h=h.trim().replace("http://","").replace("https://","");int slash=h.indexOf('/');if(slash>=0)h=h.substring(0,slash);int colon=h.indexOf(':');if(colon>0)h=h.substring(0,colon);while(h.endsWith("/"))h=h.substring(0,h.length()-1);host=h;}
     public String host(){return host;} public String lastProbe(){return lastProbe;}
     public String[] streamUrls(){String h=host;return new String[]{"http://"+h+":81/stream","http://"+h+"/stream"};}
-    public JSONObject status(){try{String text=getText(80,"/status",1800);if(text==null||text.trim().isEmpty())return null;JSONObject j=new JSONObject(text);lastProbe="HTTP 80 /status";return j;}catch(Exception ignored){return null;}}
+    public JSONObject status(){
+        if(host==null||host.isEmpty()){lastProbe="camera host empty";return null;}
+        try{
+            String text=getText(80,"/status",1800);
+            if(text==null||text.trim().isEmpty()){lastProbe="camera /status empty or non-2xx at "+host;return null;}
+            JSONObject j=new JSONObject(text);lastProbe="HTTP 80 /status";return j;
+        }catch(Exception e){lastProbe="camera /status unreachable at "+host+" • "+e.getClass().getSimpleName();return null;}
+    }
     public boolean ping(){if(host==null||host.isEmpty()){lastProbe="camera host empty";return false;}if(status()!=null)return true;if(probe(80,"/",true)){lastProbe="HTTP 80 /";return true;}if(probe(81,"/stream",false)){lastProbe="HTTP 81 /stream";return true;}lastProbe="unreachable at "+host+" (80/81)";return false;}
     public boolean directReady(){
         if(host==null||host.isEmpty()){lastProbe="camera host empty";return false;}
         if(!LocalNetworkContract.CAMERA_HOST.equals(host)){lastProbe="camera host is not canonical: "+host;return false;}
-        JSONObject j=status();if(j==null||!j.optBoolean("camera_ok",false)){lastProbe="camera status not ready";return false;}
+        JSONObject j=status();if(j==null)return false;
+        if(!j.optBoolean("camera_ok",false)){lastProbe="camera initialization failed • error="+j.optString("camera_error","unknown")+" • psram="+j.optBoolean("psram",false)+" • ip="+j.optString("ip","—");return false;}
         String fw=j.optString("fw","").trim();if(!LocalNetworkContract.CAMERA_FIRMWARE_BANNER.equals(fw)){lastProbe="camera firmware mismatch: "+fw;return false;}
         String ssid=j.optString("ssid","").trim();if(!LocalNetworkContract.ROBOT_SSID.equals(ssid)){lastProbe="camera SSID mismatch: "+ssid;return false;}
         if(j.optInt("wifi_mode",-1)!=1){lastProbe="camera is not STA-only";return false;}
