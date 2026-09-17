@@ -133,7 +133,24 @@ Audits:
 
 ## 9. Acceptance status
 
-Source-contract consistency: implemented; automated build/audit execution required after documentation commit.  
-Android APK acceptance: pending next controlled build.  
-Main ESP32 physical acceptance: pending flash/field test.  
-ESP32-CAM power/reset acceptance: pending stable 5 V test and, if needed, serial reset log.
+Automated source-contract validation: **PASS** on the controlled Railway build. The Direct-first, integration, motion, control/remote, HR050 field-operability, HR065 camera/network, HR047 gas-safety, and firmware-baseline gates all passed.
+
+Android unit tests: **PASS** (`:app:testDebugUnitTest`).  
+Android release build: **PASS** (`:app:assembleRelease`).  
+Main ESP32 compile: **PASS** with pinned `esp32:esp32@3.3.11`.  
+ESP32-CAM compile: **PASS** with pinned `esp32:esp32@3.3.11`.  
+APK signature verification: **PASS**, APK Signature Scheme v2, certificate SHA-256 `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
+
+Controlled deployment: Railway deployment `4f15df75-46f7-4269-a91b-d2b025d060cf`, build commit `992954601f9f803292e770a6533f7aa2b0780dc2`, status **SUCCESS**.
+
+Artifacts:
+- `HazRob-0.10.1-v25-TEST.apk` — SHA-256 `7db41f6d2b56f39398948054abc5ce6d7f29c2152368ae122bf19fa664adb831`.
+- `HazRob-ESP32-Main-0.10.1-HR066.zip` — SHA-256 `512567bf76198a3c186f564eaa982b42da678ad65d1a4bacad63995390dc8f91`.
+- `HazRob-ESP32-CAM-0.10.1-HR066.zip` — SHA-256 `0d0d851b1b6acc78273f9696a237dc333cb2ae91136effc5e2b8325476526b83`.
+
+GitHub Actions note: the `ubuntu-latest` job failed before any workflow step was assigned (`runner_id=0`, zero executed steps) on two attempts; therefore this is not recorded as a source/test failure. The controlled Railway build executed the source gates, both firmware compiles, Android unit tests, release build and signing verification successfully.
+
+Physical acceptance remains **PENDING**:
+- Main ESP32: flash + field control test.
+- ESP32-CAM: flash + stable 5 V test; if the 1 s ON / 1 s OFF flash symptom persists, capture serial/reset evidence and inspect `reset_reason`.
+- Direct/Remote takeover, live sensor alarms and IR cliff behavior require final robot-side acceptance after flashing this HR066 firmware.
