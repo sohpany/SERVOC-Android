@@ -59,7 +59,7 @@ def main():
     ban(rlink,'wan.putBool("enabled",configured);','saved WAN auto boot flag')
     req(rlink,'developerAuthorized=wan.getBool("authorized",false);','persisted developer authorization')
     req(rlink,'if(enabled&&!developerAuthorized)','Remote transport authorization gate')
-    req(rlink,'\"developer_authorized\"','Remote authorization diagnostics')
+    req(rlink,'\\\"developer_authorized\\\"','Remote authorization diagnostics')
     for n,label in [('web.on("/remote/disconnect"','disconnect endpoint'),('\\"wan_retained\\":true','WAN retained'),('web.on("/remote/connect"','reconnect endpoint'),('\\"explicit_operator_request\\":true','explicit Remote request')]: req(master,n,label)
     req(api,'remoteDisconnect()','Android disconnect'); req(api,'remoteReconnect()','Android reconnect'); req(api,'remoteAuthorize(boolean enabled)','Android developer authorization')
     req(wifi,'if(bindRobotWifi(context))return true;','Android existing HazRob route preference')
