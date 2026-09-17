@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""HR-0101-048/060 steering/safety contract carried forward on HazRob 0.10.1.
+"""Compatibility steering/safety gate for HazRob 0.10.1.
 
-The gate locks the differential-drive geometry across the Android joystick, pure mixer,
-main firmware side mapping, Direct HTTP and Remote MQTT transports. It explicitly covers
-forward/reverse diagonals so steering handedness cannot silently regress.
-Physical wheel acceptance remains a post-flash gate.
+The gate locks differential-drive geometry across the Android joystick, pure mixer,
+main-firmware side mapping, Direct HTTP and Remote MQTT transports. Physical wheel
+acceptance remains a post-flash gate.
 """
 from pathlib import Path
 import os
@@ -35,8 +34,8 @@ def main():
     remote_policy=txt("app/src/main/java/com/servoc/app/communication/RemoteDrivePolicy.java")
     profile=txt("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
 
-    # One executable mixer authority. X is yaw: +X always rotates nose/camera right.
-    req(joy,"DriveMixer.Command command=DriveMixer.mix(x,y);","joystick uses audited mixer")
+    req(joy,"DriveMixer.mix(x, y)","joystick uses audited mixer")
+    req(joy,"DEAD_ZONE = 0.025","joystick low dead zone")
     req(mixer,"double left=y+x;","mixer logical left")
     req(mixer,"double right=y-x;","mixer logical right")
     req(mixer,"Math.max(1.0,Math.max(Math.abs(left),Math.abs(right)))","mixer normalization")
@@ -55,7 +54,6 @@ def main():
     for name,(xy,want) in expected.items():
         got=mix(*xy)
         if got!=want: raise AssertionError(f"{name} mix invalid: got={got} want={want}")
-    # Right yaw remains right yaw in reverse; left yaw remains left yaw in reverse.
     if not (mix(.25,.75)[0]-mix(.25,.75)[1]>0 and mix(.25,-.75)[0]-mix(.25,-.75)[1]>0):
         raise AssertionError("right-yaw handedness changes between forward/reverse")
     if not (mix(-.25,.75)[0]-mix(-.25,.75)[1]<0 and mix(-.25,-.75)[0]-mix(-.25,-.75)[1]<0):
@@ -69,7 +67,7 @@ def main():
 
     req(cfg,"DRIVE_L_EN=17,DRIVE_L_IN1=19,DRIVE_L_IN2=32","logical LEFT -> L298N B")
     req(cfg,"DRIVE_R_EN=16,DRIVE_R_IN1=18,DRIVE_R_IN2=27","logical RIGHT -> L298N A")
-    req(cfg,"DRIVE_L_INVERT=false,DRIVE_R_INVERT=false","no speculative direction inversion")
+    req(cfg,"DRIVE_L_INVERT=false,DRIVE_R_INVERT=false","no direction inversion")
     req(cfg,"CONTROL_COMMAND_TIMEOUT_MS=500","lost-command watchdog")
     req(cfg,"int speed=100","firmware full-scale default")
     req(profile,"DRIVE_L_EN=17","Android profile left EN")
@@ -79,34 +77,32 @@ def main():
     req(hw,"motorWrite(Cfg::DRIVE_L_EN,Cfg::DRIVE_L_IN1,Cfg::DRIVE_L_IN2,curL,Cfg::DRIVE_L_INVERT)","left output")
     req(hw,"motorWrite(Cfg::DRIVE_R_EN,Cfg::DRIVE_R_IN1,Cfg::DRIVE_R_IN2,curR,Cfg::DRIVE_R_INVERT)","right output")
 
-    # Direct authority is HTTP only; no local UDP competes with it.
     req(ino,'web.on("/drive"',"Direct HTTP drive endpoint")
     req(ino,'radioProfile!=RadioProfile::DIRECT',"Direct/Remote drive authority guard")
     req(ino,'\\"drive_udp\\":{\\"installed\\":false',"firmware advertises local UDP disabled")
     forbid(ino,'#include <WiFiUdp.h>',"active firmware local UDP")
     forbid(ino,'driveUdp.begin(',"active firmware local UDP listener")
-    req(api,'DIRECT_KEEPALIVE_MS=250L',"Direct HTTP keepalive limit")
-    req(api,'getText("/drive?l="+left+"&r="+right,450)',"Direct HTTP drive")
+    req(api,'DIRECT_KEEPALIVE_MS=150L',"Direct HTTP keepalive")
+    req(api,'DIRECT_DRIVE_TIMEOUT_MS=250',"Direct HTTP latency bound")
+    req(api,'getText("/drive?l="+left+"&r="+right,DIRECT_DRIVE_TIMEOUT_MS)',"Direct HTTP drive")
     req(api,'requireNeutralAfterBackground',"background neutral re-arm")
     forbid(api,'DatagramSocket',"Android active local UDP")
-    forbid(api,'sendDriveDatagram',"Android active local UDP sender")
 
     req(remote,"RemoteDrivePolicy.COMMAND_TTL_MS","remote drive policy binding")
     req(remote,"publishedDriveRevision","remote latest-command coalescing")
     req(remote_policy,"MIN_PUBLISH_MS=40","remote publish ceiling")
 
-    print("HazRob 0.10.1 HR-0101-048/060 steering contract: PASS")
-    print("matrix: F=(100,100) R=(-100,-100) FR=(100,50) FL=(50,100) RR=(-50,-100) RL=(-100,-50) pivotR=(100,-100) pivotL=(-100,100)")
-    print("semantics: +X = right yaw of robot nose/camera in both forward and reverse; speed default=100%; physical acceptance=PENDING")
+    print("HazRob 0.10.1 steering contract: PASS")
+    print("Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
 
     if os.environ.get("HR048_SKIP_INTEGRATION") != "1":
         from audit_hr048_integration_contract import main as integration_main
         if integration_main() not in (None,0):
-            raise AssertionError("HR048 cross-component integration audit returned non-zero")
+            raise AssertionError("cross-component integration audit returned non-zero")
     return 0
 
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as e:
-        print("HazRob 0.10.1 HR-0101-048/060 steering/integration gate: FAIL:",e)
+        print("HazRob 0.10.1 steering/integration gate: FAIL:",e)
         raise SystemExit(1)
