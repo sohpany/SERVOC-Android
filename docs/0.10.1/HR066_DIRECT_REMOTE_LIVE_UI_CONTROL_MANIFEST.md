@@ -41,7 +41,7 @@ Remote activation now requires all three conditions:
 
 Main ESP32 rejects `/connection/remote` and `/remote/connect` when developer authorization is absent. Developer authorization is controlled from the PIN-protected Developer > Connection workspace through `/remote/authorize`.
 
-Direct always has priority. A Direct request stops motion and then removes MQTT/NAPT/STA remote transport while preserving saved WAN credentials and the developer authorization state.
+Direct always has priority. A Direct request stops motion and **immediately revokes MQTT/NAPT/STA remote command authority before the deferred radio-profile switch**, while preserving saved WAN credentials and the developer authorization state. This closes the short transition window in which a remote command could otherwise arrive after the local operator selected Direct.
 
 Clearing WAN also clears developer authorization.
 
