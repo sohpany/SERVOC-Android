@@ -135,8 +135,9 @@ void setup(){
   });
   web.on("/connection/remote",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
+    if(!remoteDeveloperAuthorized())return reply(403,"application/json","{\"ok\":false,\"error\":\"developer_authorization_required\"}");
     motionStop();
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\",\"explicit_operator_request\":true}");requestRadioProfile(RadioProfile::REMOTE,false);
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\",\"developer_authorized\":true,\"explicit_operator_request\":true}");requestRadioProfile(RadioProfile::REMOTE,false);
   });
 
   // Explicit local WAN runtime controls. Disconnect preserves credentials; every reboot is Direct.
@@ -146,10 +147,19 @@ void setup(){
     reply(200,"application/json","{\"ok\":true,\"switching_to\":\"direct\",\"wan_retained\":true}");
     requestRadioProfile(RadioProfile::DIRECT,false);
   });
+  web.on("/remote/authorize",HTTP_POST,[]{
+    motionStop();
+    bool enable=web.arg("enabled")=="1";
+    if(enable&&!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"configure_wan_first\"}");
+    remoteSetDeveloperAuthorized(enable);
+    reply(200,"application/json",String("{\"ok\":true,\"developer_authorized\":")+(enable?"true":"false")+"}");
+    if(!enable&&radioProfile==RadioProfile::REMOTE)requestRadioProfile(RadioProfile::DIRECT,false);
+  });
   web.on("/remote/connect",HTTP_POST,[]{
     if(!remoteConfigured())return reply(409,"application/json","{\"ok\":false,\"error\":\"not_configured\"}");
+    if(!remoteDeveloperAuthorized())return reply(403,"application/json","{\"ok\":false,\"error\":\"developer_authorization_required\"}");
     motionStop();
-    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\",\"wan_retained\":true,\"explicit_operator_request\":true}");
+    reply(200,"application/json","{\"ok\":true,\"switching_to\":\"remote\",\"wan_retained\":true,\"developer_authorized\":true,\"explicit_operator_request\":true}");
     requestRadioProfile(RadioProfile::REMOTE,false);
   });
 
