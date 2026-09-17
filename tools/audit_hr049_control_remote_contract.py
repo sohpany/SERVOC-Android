@@ -66,6 +66,8 @@ def main():
     req(ino,'remoteDeveloperAuthorized()',"developer Remote authorization gate")
     req(ino,'web.on("/remote/authorize"',"developer Remote authorization endpoint")
     req(ino,'requestRadioProfile(RadioProfile::DIRECT,false)',"Direct priority transition")
+    req(ino,'"remote_authority_revoked":true',"Direct takeover acknowledgement")
+    req(ino,'remoteSetTransportEnabled(false,false);',"immediate Remote transport revocation")
 
     # Remote latest-command architecture: no backlog, bounded publish rate, hold refresh.
     for s in ("PUMP_MS=20","MIN_PUBLISH_MS=40","HOLD_REFRESH_MS=120","COMMAND_TTL_MS=900"):
