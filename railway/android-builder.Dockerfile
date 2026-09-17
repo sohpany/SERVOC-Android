@@ -36,7 +36,7 @@ RUN python3 tools/audit_hr061_direct_first_contract.py && \
     python3 tools/audit_0101_motion_contract.py && \
     python3 tools/audit_hr047_gas_safety_contract.py
 
-RUN grep -q "versionCode 23" app/build.gradle && grep -q "versionName '0.10.1'" app/build.gradle
+RUN grep -q "versionCode 24" app/build.gradle && grep -q "versionName '0.10.1'" app/build.gradle
 RUN gradle --no-daemon :app:testDebugUnitTest
 RUN gradle --no-daemon :app:assembleRelease
 
@@ -47,19 +47,19 @@ RUN set -eux; \
     ACTUAL=$(apksigner verify --print-certs "$APK" | awk -F': ' '/SHA-256 digest/ {print $2; exit}' | tr -d ': ' | tr 'A-F' 'a-f'); \
     test "$ACTUAL" = "$EXPECTED"; \
     mkdir -p /out; \
-    cp "$APK" /out/HazRob-0.10.1-v23-TEST.apk; \
-    sha256sum /out/HazRob-0.10.1-v23-TEST.apk > /out/HazRob-0.10.1-v23-TEST.sha256; \
-    apksigner verify --verbose --print-certs "$APK" > /out/HazRob-0.10.1-v23-signing.txt
+    cp "$APK" /out/HazRob-0.10.1-v24-TEST.apk; \
+    sha256sum /out/HazRob-0.10.1-v24-TEST.apk > /out/HazRob-0.10.1-v24-TEST.sha256; \
+    apksigner verify --verbose --print-certs "$APK" > /out/HazRob-0.10.1-v24-signing.txt
 
 RUN cat > /out/index.html <<'EOF'
 <!doctype html>
 <html lang="ar" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HazRob v23 Test Build</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HazRob v24 Test Build</title></head>
 <body style="font-family:sans-serif;max-width:760px;margin:40px auto;padding:0 18px">
-<h1>HazRob 0.10.1 — v23 TEST</h1>
-<p>بناء تجريبي من فرع HazRob 0.10.1 مع اختبارات التكامل والتوقيع.</p>
-<p><a href="/HazRob-0.10.1-v23-TEST.apk">تحميل APK</a></p>
-<p><a href="/HazRob-0.10.1-v23-TEST.sha256">SHA-256</a> · <a href="/HazRob-0.10.1-v23-signing.txt">Signing verification</a></p>
+<h1>HazRob 0.10.1 — v24 TEST</h1>
+<p>بناء تجريبي: الدخول المباشر يعتمد على ESP32 الرئيسي، وحالة ESP32-CAM مستقلة ولا تمنع استخدام التطبيق.</p>
+<p><a href="/HazRob-0.10.1-v24-TEST.apk">تحميل APK</a></p>
+<p><a href="/HazRob-0.10.1-v24-TEST.sha256">SHA-256</a> · <a href="/HazRob-0.10.1-v24-signing.txt">Signing verification</a></p>
 </body></html>
 EOF
 
