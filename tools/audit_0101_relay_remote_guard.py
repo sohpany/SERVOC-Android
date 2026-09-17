@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Fail-closed HR-0101-039 guard for relay boot safety and Remote MQTT diagnostics.
+"""Fail-closed relay boot-safety and Remote MQTT diagnostics guard for HazRob HR065.
 
-This is intentionally narrow and complements audit_0101_integration_contract.py.
-It makes the HR038/HR039 invariants easy to re-run before distribution builds.
+The historical HR039 invariants remain required, but the setup sequence now follows HR061/HR065
+Direct-first network authority rather than the retired startAP() bootstrap.
 """
 from pathlib import Path
 
@@ -21,6 +21,11 @@ def need(hay: str, needle: str, where: str) -> None:
         raise AssertionError(f"{where}: missing invariant: {needle}")
 
 
+def ban(hay: str, needle: str, where: str) -> None:
+    if needle in hay:
+        raise AssertionError(f"{where}: retired/forbidden invariant present: {needle}")
+
+
 def main() -> None:
     cfg = txt("firmware/HazRob/Config.h")
     hw = txt("firmware/HazRob/Hardware.h")
@@ -35,7 +40,13 @@ def main() -> None:
     # OFF latch must be loaded before GPIO25 becomes an output, then asserted again.
     sequence = "digitalWrite(Cfg::RELAY_MQ,Cfg::RELAY_OFF);pinMode(Cfg::RELAY_MQ,OUTPUT);digitalWrite(Cfg::RELAY_MQ,Cfg::RELAY_OFF);"
     need(hw, sequence, "Hardware.h relayBootSafeInit")
-    need(ino, "void setup(){relayBootSafeInit();hwBegin();startAP();remoteBegin();remoteMqttBegin();web.begin();}", "HazRob.ino setup")
+    need(ino, "void setup(){\n  relayBootSafeInit();hwBegin();", "HazRob.ino relay-first setup")
+
+    # HR065 boot authority: initialize remote subsystems but always enter Direct explicitly.
+    need(ino, "remoteBegin();remoteMqttBegin();", "HazRob.ino remote subsystem init")
+    need(ino, "applyRadioProfile(RadioProfile::DIRECT,false);", "HazRob.ino Direct-first boot")
+    need(ino, "web.begin();", "HazRob.ino HTTP server start")
+    ban(ino, "startAP();", "HazRob.ino retired AP bootstrap")
 
     # Main ESP32 must distinguish authentication and subscription authorization stages.
     for marker in (
@@ -66,7 +77,8 @@ def main() -> None:
     need(session, 'return e.getClass().getSimpleName()+(m==null||m.trim().isEmpty()?"":": "+m.trim());', "RemoteSessionManager.java")
     need(session, "detail(e)", "RemoteSessionManager.java")
 
-    print("HazRob 0.10.1 HR039 relay/remote guard: PASS")
+    print("HazRob 0.10.1 HR065 relay/remote guard: PASS")
+    print("relay boot-safe OFF latch + Direct-first network authority + MQTT diagnostics preserved")
 
 
 if __name__ == "__main__":
