@@ -94,6 +94,14 @@ public final class AnalyticalCharts {
         barChart(c,box,"Chemical candidate agreement","agreement",names,values);
     }
 
+    /** ChemCore candidate residual RMS; lower is a better joint-array fit. */
+    public static void candidateResiduals(Canvas c,RectF box,JSONObject chemcore){JSONArray a=chemcore==null?null:chemcore.optJSONArray("candidates");if(a==null||a.length()==0){empty(c,box,"Candidate residual RMS","No ChemCore candidates");return;}int n=Math.min(8,a.length());String[] labels=new String[n];double[] v=new double[n];for(int i=0;i<n;i++){JSONObject q=a.optJSONObject(i);labels[i]=shortName(q==null?"—":q.optString("label","#"+(i+1)),16);v[i]=q==null?Double.NaN:q.optDouble("residual_rms",Double.NaN);}barRawChart(c,box,"Candidate residual RMS","residual",labels,v);}
+
+    /** Evidence-tier distribution across the persisted 144-panel result. */
+    public static void evidenceTiers(Canvas c,RectF box,JSONObject chemcore){JSONObject p=chemcore==null?null:chemcore.optJSONObject("screening_144");JSONArray rows=p==null?null:p.optJSONArray("rows");String[] labels={"M0","M1","M2","M3","M4"};double[] v=new double[5];if(rows!=null)for(int i=0;i<rows.length();i++){JSONObject q=rows.optJSONObject(i);if(q==null)continue;String e=q.optString("evidence_level","");for(int k=0;k<5;k++)if(e.contains("M"+k)){v[k]++;break;}}barCountChart(c,box,"Evidence-tier distribution","chemicals",labels,v);}
+
+    private static void barRawChart(Canvas c,RectF box,String title,String axis,String[] labels,double[] values){frame(c,box,title);RectF p=new RectF(box.left+45,box.top+34,box.right-12,box.bottom-46);double max=0;for(double v:values)if(Double.isFinite(v))max=Math.max(max,v);if(max<=0)max=1;int n=labels.length;float gap=Math.max(3,p.width()/(Math.max(1,n)*6f)),bw=(p.width()-gap*(n+1))/Math.max(1,n);for(int i=0;i<n;i++){double v=values[i];float h=Double.isFinite(v)?(float)(Math.max(0,v)/max*p.height()):0,l=p.left+gap+i*(bw+gap);Paint b=paint(PALETTE[i%PALETTE.length],1);b.setStyle(Paint.Style.FILL);c.drawRect(l,p.bottom-h,l+bw,p.bottom,b);small(c,labels[i],l+bw/2,p.bottom+14,Color.DKGRAY,Paint.Align.CENTER);small(c,fmt(v),l+bw/2,p.bottom-h-4,Color.DKGRAY,Paint.Align.CENTER);}small(c,axis,p.centerX(),box.bottom-7,Color.DKGRAY,Paint.Align.CENTER);}
+
     /** Distribution of the authoritative 144-panel screening states. */
     public static void screening144(Canvas c,RectF box,JSONObject chemcore){
         JSONObject panel=chemcore==null?null:chemcore.optJSONObject("screening_144");JSONArray rows=panel==null?null:panel.optJSONArray("rows");
