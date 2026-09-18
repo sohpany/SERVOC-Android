@@ -8,7 +8,7 @@ RUN sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
 RUN curl -fsSL "https://services.gradle.org/distributions/gradle-9.5.0-bin.zip" -o /tmp/gradle.zip && unzip -q /tmp/gradle.zip -d /opt && rm /tmp/gradle.zip
 WORKDIR /src
 COPY . .
-RUN gradle --no-daemon :app:testDebugUnitTest --tests 'com.servoc.app.chemcore.ChemCoreFeaturePipelineTest' --tests 'com.servoc.app.analytics.TemporalFeatureExtractorCanonicalAdapterTest' --tests 'com.servoc.app.measurement.SignalFeaturesTest' --tests 'com.servoc.app.measurement.LiveGasStateEngineTest' --tests 'com.servoc.app.measurement.GasAlertCoordinatorTest'
+RUN gradle --no-daemon :app:testDebugUnitTest --tests 'com.servoc.app.chemcore.ChemCoreFeaturePipelineTest' --tests 'com.servoc.app.analytics.TemporalFeatureExtractorCanonicalAdapterTest' --tests 'com.servoc.app.measurement.SignalFeaturesTest' --tests 'com.servoc.app.measurement.LiveGasStateEngineTest' --tests 'com.servoc.app.measurement.GasAlertCoordinatorTest' --tests 'com.servoc.app.chemcore.ChemCore144ScreeningEngineTest'
 RUN gradle --no-daemon :app:lintDebug
 RUN gradle --no-daemon :app:compileDebugJavaWithJavac
 RUN mkdir -p /out && printf 'Stage 3 validation passed\n' > /out/STAGE3_VALIDATION_OK.txt
