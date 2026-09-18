@@ -16,11 +16,16 @@ public final class ChemCoreInferenceEngine {
 
     public static final class Context {
         public final String sessionId,samplingProfileId,modelVersion;
-        public final double temperatureC,rh;\n        public final boolean calibrationHealthValid;
+        public final double temperatureC,rh;
+        public final boolean calibrationHealthValid;
         public final ChemCoreOpenSetGate.Result openSetResult;
         public Context(String sessionId,String samplingProfileId,String modelVersion,double temperatureC,double rh,ChemCoreOpenSetGate.Result openSetResult){
+            this(sessionId,samplingProfileId,modelVersion,temperatureC,rh,openSetResult,true);
+        }
+        public Context(String sessionId,String samplingProfileId,String modelVersion,double temperatureC,double rh,ChemCoreOpenSetGate.Result openSetResult,boolean calibrationHealthValid){
             this.sessionId=sessionId==null?"":sessionId;this.samplingProfileId=samplingProfileId==null?"":samplingProfileId;
             this.modelVersion=modelVersion==null?"":modelVersion;this.temperatureC=temperatureC;this.rh=rh;this.openSetResult=openSetResult;
+            this.calibrationHealthValid=calibrationHealthValid;
         }
     }
 
