@@ -243,3 +243,19 @@ The program is complete only when:
 - exact library/model/calibration/source provenance is reproducible per session;
 - full HR066 integration regression passes;
 - a documented release candidate is produced for field validation.
+
+
+### Stage 3 completion — 2026-09-18
+- Status: COMPLETE.
+- Canonical app-side live MQ operational state implemented with immediate WARNING for a strong single-channel response and persistent multi-channel escalation.
+- Warm-up, missing/invalid channels, clean-air baseline requirement, drift/degradation and de-escalation covered by focused tests.
+- Live operational alerts remain non-identity and non-quantitative evidence.
+- Railway validation deployment: f28aab6b-e7a3-4043-bf69-bde0bcd191f3 — SUCCESS.
+- Validation passed focused unit tests, lintDebug and debug Java compilation.
+- Firmware remained frozen; no Stage 3 firmware modification or integration was performed.
+
+### Stage 4 start — 2026-09-18
+- Status: IN_PROGRESS.
+- Operational panel source: HAZROB-CHEM-144-v3 / ChemicalCatalog.COUNT.
+- ChemCore144ScreeningEngine added and bound to chemcore-result/4 screening_144.
+- Exactly one explicit row is produced per catalogue entry; unsupported coverage never fabricates detection or reportable ppm.
