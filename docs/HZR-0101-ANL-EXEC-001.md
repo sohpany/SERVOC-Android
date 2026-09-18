@@ -321,3 +321,14 @@ The program is complete only when:
 ### Stage 9 start — 2026-09-18
 - Status: IN_PROGRESS.
 - Scope: reuse existing analytical chart primitives and bind them to persisted/canonical analytical data without presentation-side inference.
+
+
+### Stage 9 completion — 2026-09-18
+- Status: COMPLETE by reuse audit; no new chart framework introduced.
+- Existing canonical analytical visualization path is retained; fingerprint uses chemcore-features/1 canonical abs_delta_log10 rather than legacy feature recomputation.
+- Presentation remains non-authoritative and cannot create identity/ppm decisions.
+- Firmware remained frozen.
+
+### Stage 10 start — 2026-09-18
+- Status: IN_PROGRESS.
+- Scope: update ReportsTab to surface the persisted session-bound chemcore-result/4 summary rather than only legacy analytics result counts.
