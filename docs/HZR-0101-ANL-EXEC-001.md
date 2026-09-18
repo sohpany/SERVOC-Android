@@ -39,7 +39,7 @@
 **Completion record:** This document creation commit.
 
 ### Stage 1 — Analytical Contract v4 specification
-**Status:** IN_PROGRESS  
+**Status:** COMPLETE  
 **Goal:** Define one canonical session-bound result consumed by UI/reports.
 **Tasks:**
 - Specify chemcore-result/4 fields.
@@ -49,7 +49,7 @@
 **Acceptance:** Contract schema documented; serialization/deserialization tests; no scientific gate regression.
 
 ### Stage 2 — Canonical feature pipeline consolidation
-**Status:** NOT_STARTED  
+**Status:** IN_PROGRESS  
 **Prerequisite:** Stage 1.
 **Goal:** Make ChemCoreFeaturePipeline the single scientific feature contract.
 **Tasks:**
@@ -219,6 +219,8 @@ Append one row whenever a stage changes state.
 |---|---:|---|---|---|---|
 | 2026-09-18 | 0 | COMPLETE | 9a15a10fb7b537af122a6d5d8e4167653965628a | Reference creation | HR066 baseline; execution ledger established |
 | 2026-09-18 | 1 | IN_PROGRESS | 6b58c498ebb5ec4723e0452e6623833b64102158 | Contract spec + v4 envelope + tests added | Validation/build pending |
+| 2026-09-18 | 1 | COMPLETE | 0bcb09db49caadcf6fbdbcabb32d8f78872d6f53 | v4/V3 regression + audit JSON + M4 completeness; lintDebug; assembleRelease; validation deployment baecaf6e-1759-498c-a99d-b163a6234120 SUCCESS | Analytical Contract v4 accepted; firmware frozen and unchanged |
+| 2026-09-18 | 2 | IN_PROGRESS | — | Consumer inventory starting | Canonicalize Android analytical feature paths onto chemcore-features/1; no firmware changes |
 
 ## 5. Resume protocol after interruption
 1. Open this file first.
