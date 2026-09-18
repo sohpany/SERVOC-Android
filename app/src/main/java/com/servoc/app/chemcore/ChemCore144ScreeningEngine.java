@@ -13,7 +13,9 @@ public final class ChemCore144ScreeningEngine {
     private ChemCore144ScreeningEngine() {}
     public static final String PANEL_ID="hazrob-operational-144";
 
-    public static JSONObject evaluate() {
+    public static JSONObject evaluate() { return evaluate(null); }
+
+    public static JSONObject evaluate(ChemCoreResultEnvelope result) {
         try {
             JSONArray rows=new JSONArray();
             for(int i=0;i<ChemicalCatalog.COUNT;i++){
@@ -23,14 +25,15 @@ public final class ChemCore144ScreeningEngine {
                 r.put("index",i);
                 r.put("name",ChemicalCatalog.NAMES[i]);
                 r.put("formula",ChemicalCatalog.FORMULAS[i]);
-                r.put("status",status(coverage,plan));
+                r.put("status",status(i,coverage,plan,result));
                 r.put("evidence_level",coverage.level);
                 r.put("method",coverage.method);
                 r.put("sensor_mask",plan.mask);
                 r.put("sensors",ChemicalCoverage.sensorNames(plan.mask));
                 r.put("reason",coverage.note);
-                r.put("detected",false);
-                r.put("ppm_reportable",false);
+                boolean accepted=result!=null&&result.chemicalUid!=null&&result.chemicalUid==i&&ChemCoreDecision.permitsNamedIdentity(result.outcome);
+                r.put("detected",accepted);
+                r.put("ppm_reportable",accepted&&ChemCoreDecision.permitsQuantitativeOccupationalInterpretation(result.outcome,result.evidenceTier)&&Double.isFinite(result.ppm));
                 rows.put(r);
             }
             JSONObject q=new JSONObject();
@@ -44,7 +47,12 @@ public final class ChemCore144ScreeningEngine {
         } catch(JSONException e){throw new IllegalStateException("Unable to build 144 screening panel",e);}
     }
 
-    private static String status(ChemicalCoverage.Status c,MqSensorAffinity.Plan p){
+    private static String status(int index,ChemicalCoverage.Status c,MqSensorAffinity.Plan p,ChemCoreResultEnvelope result){
+        if(result!=null&&result.chemicalUid!=null&&result.chemicalUid==index){
+            if(result.outcome==ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN)return "OUT_OF_DOMAIN";
+            if(result.outcome==ChemCoreDecision.Outcome.UNKNOWN||result.outcome==ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE||result.outcome==ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE)return "INSUFFICIENT_EVIDENCE";
+            if(ChemCoreDecision.permitsNamedIdentity(result.outcome))return "SUPPORTED";
+        }
         if(p.mask==0)return "UNSUPPORTED_BY_CURRENT_ARRAY";
         if(c.level==ChemicalCoverage.DIRECT_CURVE)return "SUPPORTED";
         if(c.level==ChemicalCoverage.FINGERPRINT_CANDIDATE)return "WEAK_MATCH";
