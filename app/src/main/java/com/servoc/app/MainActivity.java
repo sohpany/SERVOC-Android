@@ -26,7 +26,8 @@ import com.servoc.app.communication.WifiRoute;
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
-import com.servoc.app.measurement.GasAlertCoordinator;\nimport com.servoc.app.measurement.LiveGasStateEngine;
+import com.servoc.app.measurement.GasAlertCoordinator;
+import com.servoc.app.measurement.LiveGasStateEngine;
 import com.servoc.app.measurement.PhoneAlertTone;
 import com.servoc.app.measurement.SensorHealthEngine;
 import com.servoc.app.measurement.TelemetryRecorder;
@@ -149,7 +150,8 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override public void setFlashMode(String mode){final String requested="on".equals(CameraApi.normalizeMode(mode))?"on":"off";workers.execute(()->{boolean ok=cameraApi.flash(requested);if(ok){flashMode=requested;prefs.edit().putString("flash_mode",requested).apply();if(controlTab!=null)ui.post(controlTab::refresh);showToast("الفلاش: "+flashAr(requested));}else showToast("تعذر إرسال أمر الفلاش");});}
     @Override public void testPhoneAlert(){if(phoneAlertTone==null){showToast("تنبيه الهاتف غير متاح على هذا الجهاز");return;}try{phoneAlertTone.test();showToast("اختبار صوت الهاتف — STREAM_ALARM");}catch(Exception e){showToast("تعذر تشغيل اختبار صوت الهاتف");}}
 
-    @Override public SensorHealthEngine.Snapshot sensorHealth(String key){return sensorHealth.snapshot(key);}\n    @Override public LiveGasStateEngine.Snapshot liveGasState(){return gasAlertCoordinator.liveSnapshot();}
+    @Override public SensorHealthEngine.Snapshot sensorHealth(String key){return sensorHealth.snapshot(key);}
+    @Override public LiveGasStateEngine.Snapshot liveGasState(){return gasAlertCoordinator.liveSnapshot();}
     @Override public int captureCleanAirBaseline(){if(!developerMode)return 0;JSONObject d=latestDiag;int n=sensorHealth.captureCleanAirBaseline(d);if(n>0){for(String key:SensorHealthEngine.INSTALLED){double q=sensorHealth.baseline(key);if(Double.isFinite(q)&&q>0)db.putMeta("health_baseline_"+key,Double.toString(q));}db.putMeta("health_baseline_ts",isoNow());}return n;}
     @Override public int evaluateCleanAirDrift(){if(!developerMode)return 0;return sensorHealth.evaluateCleanAirDrift(latestDiag);}
     @Override public String cleanAirBaselineTimestamp(){return db==null?"":db.getMeta("health_baseline_ts","");}
