@@ -1,53 +1,41 @@
 package com.servoc.app.measurement;
 
+import com.servoc.app.hardware.HazRobHardwareProfile;
 import org.json.JSONObject;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class GasAlertCoordinatorTest {
-    private static JSONObject snapshot(double ratio,long powerMs)throws Exception{
-        JSONObject q=new JSONObject().put("ok",true).put("valid",true).put("ratio",ratio);
-        JSONObject mq=new JSONObject().put("mq2",q);
-        JSONObject relay=new JSONObject().put("on",true).put("mask",1).put("power_ms",powerMs);
-        return new JSONObject().put("relay",relay).put("mq",mq);
+    private static JSONObject snapshot(double a,double b,long powerMs)throws Exception{
+        JSONObject mq=new JSONObject();int i=0;
+        for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){
+            double ratio=i==0?a:(i==1?b:1.0);mq.put(hw.key,new JSONObject().put("ok",true).put("valid",true).put("raw",1800+i).put("ratio",ratio));i++;
+        }
+        return new JSONObject().put("relay",new JSONObject().put("on",true).put("mask",3).put("power_ms",powerMs)).put("mq",mq);
     }
-
-    @Test public void escalatesImmediatelyAndDowngradesWithHold()throws Exception{
-        SensorHealthEngine health=new SensorHealthEngine();health.setBaseline("mq2",1.0);
-        GasAlertCoordinator c=new GasAlertCoordinator();
-        assertEquals(GasAlertCoordinator.DANGER,c.evaluate(snapshot(1.50,60000),health,60,1000));
-        assertEquals(GasAlertCoordinator.DANGER,c.evaluate(snapshot(1.10,60000),health,60,2000));
-        assertEquals(GasAlertCoordinator.NONE,c.evaluate(snapshot(1.10,60000),health,60,5001));
+    private static SensorHealthEngine ready()throws Exception{
+        SensorHealthEngine h=new SensorHealthEngine();for(String k:SensorHealthEngine.INSTALLED)h.setBaseline(k,1.0);
+        for(int n=0;n<6;n++)h.accept(snapshot(1,1,60000),n*250L);return h;
     }
-
-    @Test public void elevatedResponseMapsToWarning()throws Exception{
-        SensorHealthEngine health=new SensorHealthEngine();health.setBaseline("mq2",1.0);
-        GasAlertCoordinator c=new GasAlertCoordinator();
-        assertEquals(GasAlertCoordinator.WARNING,c.evaluate(snapshot(1.25,60000),health,60,1000));
+    @Test public void singleChannelSpikeNeverEscalates()throws Exception{
+        SensorHealthEngine h=ready();GasAlertCoordinator c=new GasAlertCoordinator();
+        for(int n=0;n<5;n++){JSONObject s=snapshot(1.5,1,60000);h.accept(s,n*250L+2000);assertEquals(GasAlertCoordinator.NONE,c.evaluate(s,h,60,n*250L+2000));}
     }
-
-    @Test public void acceptedR0NormalizationIsFallbackWhenAppBaselineMissing()throws Exception{
-        SensorHealthEngine health=new SensorHealthEngine();
-        GasAlertCoordinator c=new GasAlertCoordinator();
-        assertEquals(GasAlertCoordinator.NONE,c.evaluate(snapshot(1.80,10000),health,60,1000));
-        assertEquals(GasAlertCoordinator.DANGER,c.evaluate(snapshot(1.80,60000),health,60,2000));
-        InstantMqWarningEngine.Result r=InstantMqWarningEngine.evaluate("mq2",snapshot(1.80,60000).getJSONObject("mq").getJSONObject("mq2"),health.snapshot("mq2"));
-        assertTrue(r.usedFallbackBaseline);
+    @Test public void persistentMultisensorResponseEscalates()throws Exception{
+        SensorHealthEngine h=ready();GasAlertCoordinator c=new GasAlertCoordinator();JSONObject s=snapshot(1.5,1.5,60000);
+        h.accept(s,2000);assertEquals(GasAlertCoordinator.NONE,c.evaluate(s,h,60,2000));
+        h.accept(s,2250);assertEquals(GasAlertCoordinator.WARNING,c.evaluate(s,h,60,2250));
+        h.accept(s,2500);assertEquals(GasAlertCoordinator.DANGER,c.evaluate(s,h,60,2500));
+        assertFalse(c.liveSnapshot().chemicalIdentityPermitted());assertFalse(c.liveSnapshot().quantitativeSafetyInterpretationPermitted());
     }
-
-    @Test public void capturedBaselineOverridesFallbackAndKeepsTwentyPercentBoundaryElevated()throws Exception{
-        SensorHealthEngine health=new SensorHealthEngine();health.setBaseline("mq2",1.50);
-        InstantMqWarningEngine.Result r=InstantMqWarningEngine.evaluate("mq2",snapshot(1.80,60000).getJSONObject("mq").getJSONObject("mq2"),health.snapshot("mq2"));
-        assertFalse(r.usedFallbackBaseline);
-        assertEquals(0.20,r.delta,1e-9);
-        assertEquals(InstantMqWarningEngine.Level.ELEVATED,r.level);
+    @Test public void warmupBlocksOperationalAlert()throws Exception{
+        SensorHealthEngine h=ready();GasAlertCoordinator c=new GasAlertCoordinator();JSONObject s=snapshot(1.5,1.5,10000);h.accept(s,2000);
+        assertEquals(GasAlertCoordinator.NONE,c.evaluate(s,h,60,2000));assertEquals(LiveGasStateEngine.State.WARMING_UP,c.liveSnapshot().state);
     }
-
-    @Test public void mqPowerOffClearsImmediately()throws Exception{
-        SensorHealthEngine health=new SensorHealthEngine();health.setBaseline("mq2",1.0);
-        GasAlertCoordinator c=new GasAlertCoordinator();
-        assertEquals(GasAlertCoordinator.DANGER,c.evaluate(snapshot(1.50,60000),health,60,1000));
-        JSONObject off=snapshot(1.50,60000);off.getJSONObject("relay").put("on",false).put("mask",0);
-        assertEquals(GasAlertCoordinator.NONE,c.evaluate(off,health,60,1100));
+    @Test public void deescalationRetainsAudibleHold()throws Exception{
+        SensorHealthEngine h=ready();GasAlertCoordinator c=new GasAlertCoordinator();JSONObject high=snapshot(1.5,1.5,60000);
+        for(int n=0;n<3;n++){h.accept(high,2000+n*250);c.evaluate(high,h,60,2000+n*250);}
+        assertEquals(GasAlertCoordinator.DANGER,c.level());JSONObject normal=snapshot(1,1,60000);h.accept(normal,3000);
+        assertEquals(GasAlertCoordinator.DANGER,c.evaluate(normal,h,60,3000));h.accept(normal,6101);assertEquals(GasAlertCoordinator.NONE,c.evaluate(normal,h,60,6101));
     }
 }
