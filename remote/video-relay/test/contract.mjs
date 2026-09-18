@@ -20,9 +20,18 @@ function auth(token){return{Authorization:`Bearer ${token}`};}
 function bootstrap(role){return request("/hazrob/bootstrap",{...auth(BOOT),"X-HazRob-Client":role});}
 function openWs(path,token){return new Promise((resolve,reject)=>{const ws=new WebSocket(`ws://127.0.0.1:${PORT}${path}`,{headers:auth(token)});const timer=setTimeout(()=>{try{ws.terminate();}catch{}reject(new Error("WebSocket open timeout"));},3000);ws.once("open",()=>{clearTimeout(timer);resolve(ws);});ws.once("error",e=>{clearTimeout(timer);reject(e);});ws.once("unexpected-response",(_req,res)=>{clearTimeout(timer);reject(new Error(`unexpected HTTP ${res.statusCode}`));});});}
 function oneMessage(ws){return new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error("frame timeout")),3000);ws.once("message",(data,isBinary)=>{clearTimeout(timer);resolve({data:Buffer.from(data),isBinary});});});}
-async function liveJson(path,headers={}){const r=await fetch(LIVE_ORIGIN+path,{headers:{"User-Agent":"hazrob-contract-0.10.1","Cache-Control":"no-store",...headers},signal:AbortSignal.timeout(10000)});let body={};try{body=await r.json();}catch{}return{status:r.status,body};}
+async function liveJson(path,headers={},timeoutMs=20000){const r=await fetch(LIVE_ORIGIN+path,{headers:{"User-Agent":"hazrob-contract-0.10.1","Cache-Control":"no-store",...headers},signal:AbortSignal.timeout(timeoutMs)});let body={};try{body=await r.json();}catch{}return{status:r.status,body};}
+async function waitLiveHealth(){
+  let last=null;
+  for(let i=0;i<4;i++){
+    try{const r=await liveJson("/health",{},60000);if(r.status===200)return r;last=new Error("live health HTTP "+r.status);}
+    catch(e){last=e;}
+    await new Promise(r=>setTimeout(r,2000));
+  }
+  throw last||new Error("live health unavailable");
+}
 async function liveProductionContract(){
-  let r=await liveJson("/health");assert.equal(r.status,200);const h=r.body;
+  let r=await waitLiveHealth();assert.equal(r.status,200);const h=r.body;
   assert.equal(h.ok,true);assert.equal(h.service,"hazrob-video-relay");assert.equal(h.version,"0.10.1");assert.equal(h.protocol,2);assert.equal(h.videoAuthConfigured,true);assert.equal(h.mqttAppConfigured,true);assert.equal(h.mqttRobotConfigured,true);assert.equal(h.bootstrapConfigured,true);assert.equal(h.mqttDiagnostic?.state,"pass");
   const head={Authorization:`Bearer ${LIVE_BOOT}`};
   r=await liveJson("/hazrob/bootstrap",{...head,"X-HazRob-Client":"android"});assert.equal(r.status,200);assert.equal(r.body.version,"0.10.1");assert.equal(r.body.protocol,2);assert.equal(r.body.robot,"hazrob-001");assert.equal(r.body.client,"android");assert.ok(r.body.mqtt_user);assert.ok(r.body.mqtt_password);assert.ok(r.body.video_view_token);assert.equal("video_publish_token" in r.body,false);
