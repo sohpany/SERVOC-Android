@@ -10,7 +10,7 @@ WORKDIR /src
 COPY . .
 RUN gradle --no-daemon :app:testDebugUnitTest --tests 'com.servoc.app.chemcore.ChemCoreFeaturePipelineTest' --tests 'com.servoc.app.analytics.TemporalFeatureExtractorCanonicalAdapterTest' --tests 'com.servoc.app.measurement.SignalFeaturesTest' --tests 'com.servoc.app.measurement.LiveGasStateEngineTest' --tests 'com.servoc.app.measurement.GasAlertCoordinatorTest'
 RUN gradle --no-daemon :app:lintDebug
-RUN gradle --no-daemon :app:assembleDebug
+RUN gradle --no-daemon :app:compileDebugJavaWithJavac
 RUN mkdir -p /out && cp app/build/outputs/apk/debug/app-debug.apk /out/HazRob-Analytical-V4-Stage3-Validation.apk
 RUN printf '%s\n' '<!doctype html><html><body><h1>HazRob Analytical V4 Stage 3 Validation</h1><p>Android/ChemCore-only validation. No firmware build or modification.</p></body></html>' > /out/index.html
 FROM nginx:1.27-alpine
