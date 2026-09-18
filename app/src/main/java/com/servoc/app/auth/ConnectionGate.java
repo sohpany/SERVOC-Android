@@ -77,7 +77,12 @@ public final class ConnectionGate {
         if(WifiRoute.hasRequiredPermission(a))return true;
         String p=WifiRoute.requiredRuntimePermission();
         if(!p.isEmpty()){
-            try{a.requestPermissions(new String[]{p},WIFI_PERMISSION_REQUEST);}catch(Exception ignored){}
+            try{
+                if(android.os.Build.VERSION.SDK_INT>=29&&android.os.Build.VERSION.SDK_INT<33)
+                    a.requestPermissions(new String[]{android.Manifest.permission.ACCESS_COARSE_LOCATION,android.Manifest.permission.ACCESS_FINE_LOCATION},WIFI_PERMISSION_REQUEST);
+                else
+                    a.requestPermissions(new String[]{p},WIFI_PERMISSION_REQUEST);
+            }catch(Exception ignored){}
             status.setText("يلزم إذن الاتصال بأجهزة Wi-Fi القريبة للمحافظة على شبكة HazRob. امنح الإذن ثم اضغط التحكم المباشر مرة أخرى.");status.setTextColor(0xFF245A7A);
         }
         return false;
