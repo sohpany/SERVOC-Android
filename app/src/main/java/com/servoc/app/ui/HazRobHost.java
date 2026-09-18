@@ -3,7 +3,8 @@ package com.servoc.app.ui;
 import android.content.SharedPreferences;
 import com.servoc.app.communication.RobotApi;
 import com.servoc.app.data.ExperimentsDb;
-import com.servoc.app.measurement.SensorHealthEngine;\nimport com.servoc.app.measurement.LiveGasStateEngine;
+import com.servoc.app.measurement.SensorHealthEngine;
+import com.servoc.app.measurement.LiveGasStateEngine;
 import org.json.JSONObject;
 import java.util.concurrent.ExecutorService;
 
@@ -28,7 +29,8 @@ public interface HazRobHost {
     void setFlashMode(String mode);
     String flashMode();
     void testPhoneAlert();
-    SensorHealthEngine.Snapshot sensorHealth(String key);\n    LiveGasStateEngine.Snapshot liveGasState();
+    SensorHealthEngine.Snapshot sensorHealth(String key);
+    LiveGasStateEngine.Snapshot liveGasState();
     int captureCleanAirBaseline();
     int evaluateCleanAirDrift();
     String cleanAirBaselineTimestamp();
