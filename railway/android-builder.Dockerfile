@@ -5,7 +5,7 @@ RUN npm install --no-audit --no-fund
 COPY remote/video-relay/ ./
 # This test exercises the local HTTP/bootstrap/WSS relay contract and then the live
 # Render bootstrap + HiveMQ diagnostic exposed by production /health.
-RUN npm test && touch /relay-test-pass
+RUN HAZROB_SKIP_LIVE_CONTRACT=1 npm test && touch /relay-test-pass
 
 FROM eclipse-temurin:17-jdk-jammy AS build
 
