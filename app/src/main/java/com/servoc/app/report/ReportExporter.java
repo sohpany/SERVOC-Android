@@ -56,8 +56,6 @@ public final class ReportExporter {
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.fingerprintRadar(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),series);AnalyticalCharts.analyticalQualityRadar(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqSignalQuality(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),series);AnalyticalCharts.mqResponseKinetics(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqPersistenceMap(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),series);AnalyticalCharts.mqEnvironmentMatrix(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
-            PpmImage ppm=chemicals==null?null:renderPpm(series,chemicals,analytics);
-            if(ppm!=null&&ppm.count>0){page=page(pdf,pageNo++);c=page.getCanvas();c.drawBitmap(ppm.bitmap,null,new RectF(PDF_MARGIN,70,595-PDF_MARGIN,650),null);text(c,"Quantitative curves are shown only when the calibration engine returned a valid quantitative result across recorded samples.",PDF_MARGIN,700,EN_BODY_PT,Color.DKGRAY,false);reportChrome(c,pageNo-1,0);pdf.finishPage(page);ppm.bitmap.recycle();}
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,330),candidatePayload(analytics,chemcore));AnalyticalCharts.temperature(c,new RectF(PDF_MARGIN,350,595-PDF_MARGIN,555),series);AnalyticalCharts.humidity(c,new RectF(PDF_MARGIN,575,595-PDF_MARGIN,790),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.pressure(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),series);AnalyticalCharts.sound(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
         }else{
@@ -70,8 +68,6 @@ public final class ReportExporter {
     public static void writeXlsx(OutputStream out,List<ExperimentQueries.Record> rows)throws Exception{if(rows==null||rows.isEmpty())throw new IllegalArgumentException("no experiment");writeXlsx(out,rows.get(0),null);}
     public static void writeXlsx(OutputStream out,ExperimentQueries.Record r,ChemicalRepository chemicals)throws Exception{if(r==null)throw new IllegalArgumentException("record");XlsxReportWriter.write(out,r,chemicals);}
 
-    private static final class PpmImage{final Bitmap bitmap;final int count;PpmImage(Bitmap b,int n){bitmap=b;count=n;}}
-    private static PpmImage renderPpm(SessionSeries.Series series,ChemicalRepository chemicals,JSONObject analytics){Bitmap b=Bitmap.createBitmap(1200,600,Bitmap.Config.ARGB_8888);Canvas c=new Canvas(b);c.drawColor(Color.WHITE);int n=AnalyticalCharts.ppm(c,new RectF(10,10,1190,590),series,chemicals.database(),analytics);if(n<=0){b.recycle();return null;}return new PpmImage(b,n);}
     private static PdfDocument.Page page(PdfDocument pdf,int n){return pdf.startPage(new PdfDocument.PageInfo.Builder(595,842,n).create());}
 
     private static void summary(Canvas c,ExperimentQueries.Record r,JSONObject d,JSONObject a,JSONObject chemcore,SessionSeries.Series s,ChemicalRepository chemicals){
