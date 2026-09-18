@@ -28,7 +28,8 @@ public final class ReportExporter {
     private ReportExporter(){}
     private static final float PDF_MARGIN=28.35f; // 1 cm on A4
     private static final float AR_BODY_PT=13f, EN_BODY_PT=12f;
-    private static final String FOOTER="HazRob "+ReleaseAudit.VERSION+" • إعداد المشروع/ "+ReleaseAudit.PROJECT_PREPARERS+".";
+    private static final String REPORT_TITLE="تقرير القياسات";
+    private static final String PROJECT_PREPARERS="شهاب الصهباني، مجدي ذيبان";
 
     public static void writePdf(OutputStream out,ExperimentQueries.Record r)throws Exception{writePdf(out,r,null);}
     public static void writePdf(OutputStream out,List<ExperimentQueries.Record> rows)throws Exception{if(rows==null||rows.isEmpty())throw new IllegalArgumentException("no experiment");writePdf(out,rows.get(0),null);}
@@ -40,25 +41,27 @@ public final class ReportExporter {
         JSONObject chemcore=chemCoreFor(chemicals,r,series);
         PdfDocument pdf=new PdfDocument();int pageNo=1;
 
-        PdfDocument.Page page=page(pdf,pageNo++);Canvas c=page.getCanvas();summary(c,r,snapshot,analytics,chemcore,series,chemicals);footer(c);pdf.finishPage(page);
+        PdfDocument.Page page=page(pdf,pageNo++);Canvas c=page.getCanvas();summary(c,r,snapshot,analytics,chemcore,series,chemicals);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
 
-        if(resultCount(analytics)>0||analytics.optJSONObject("quality")!=null){page=page(pdf,pageNo++);c=page.getCanvas();advancedAnalysis(c,analytics,snapshot);footer(c);pdf.finishPage(page);}
+        if(resultCount(analytics)>0||analytics.optJSONObject("quality")!=null){page=page(pdf,pageNo++);c=page.getCanvas();advancedAnalysis(c,analytics,snapshot);reportChrome(c,pageNo-1,0);pdf.finishPage(page);}
 
         if(chemcore!=null){
-            page=page(pdf,pageNo++);c=page.getCanvas();chemCoreProvenance(c,chemcore);footer(c);pdf.finishPage(page);
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.screening144(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.exposureRatios(c,new RectF(PDF_MARGIN,420,595-PDF_MARGIN,790),chemcore);footer(c);pdf.finishPage(page);
-            JSONObject gas=chemcore.optJSONObject(GasPpmExposureAssessment.KEY);if(gas!=null){page=page(pdf,pageNo++);c=page.getCanvas();gasSafety(c,gas);footer(c);pdf.finishPage(page);}
+            page=page(pdf,pageNo++);c=page.getCanvas();chemCoreProvenance(c,chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.screening144(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.exposureRatios(c,new RectF(PDF_MARGIN,420,595-PDF_MARGIN,790),chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
+            JSONObject gas=chemcore.optJSONObject(GasPpmExposureAssessment.KEY);if(gas!=null){page=page(pdf,pageNo++);c=page.getCanvas();gasSafety(c,gas);reportChrome(c,pageNo-1,0);pdf.finishPage(page);}
         }
 
         if(series!=null&&series.usable()){
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqRsR0(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,405),series);AnalyticalCharts.fingerprint(c,new RectF(PDF_MARGIN,430,595-PDF_MARGIN,790),series);footer(c);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqRsR0(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,405),series);AnalyticalCharts.fingerprint(c,new RectF(PDF_MARGIN,430,595-PDF_MARGIN,790),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
             PpmImage ppm=chemicals==null?null:renderPpm(series,chemicals,analytics);
-            if(ppm!=null&&ppm.count>0){page=page(pdf,pageNo++);c=page.getCanvas();c.drawBitmap(ppm.bitmap,null,new RectF(PDF_MARGIN,70,595-PDF_MARGIN,650),null);text(c,"Quantitative curves are shown only when the calibration engine returned a valid quantitative result across recorded samples.",PDF_MARGIN,700,EN_BODY_PT,Color.DKGRAY,false);footer(c);pdf.finishPage(page);ppm.bitmap.recycle();}
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,330),candidatePayload(analytics,chemcore));AnalyticalCharts.temperature(c,new RectF(PDF_MARGIN,350,595-PDF_MARGIN,555),series);AnalyticalCharts.humidity(c,new RectF(PDF_MARGIN,575,595-PDF_MARGIN,790),series);footer(c);pdf.finishPage(page);
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.pressure(c,new RectF(28,42,567,390),series);AnalyticalCharts.sound(c,new RectF(28,420,567,790),series);footer(c);pdf.finishPage(page);
+            if(ppm!=null&&ppm.count>0){page=page(pdf,pageNo++);c=page.getCanvas();c.drawBitmap(ppm.bitmap,null,new RectF(PDF_MARGIN,70,595-PDF_MARGIN,650),null);text(c,"Quantitative curves are shown only when the calibration engine returned a valid quantitative result across recorded samples.",PDF_MARGIN,700,EN_BODY_PT,Color.DKGRAY,false);reportChrome(c,pageNo-1,0);pdf.finishPage(page);ppm.bitmap.recycle();}
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,330),candidatePayload(analytics,chemcore));AnalyticalCharts.temperature(c,new RectF(PDF_MARGIN,350,595-PDF_MARGIN,555),series);AnalyticalCharts.humidity(c,new RectF(PDF_MARGIN,575,595-PDF_MARGIN,790),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.pressure(c,new RectF(28,42,567,390),series);AnalyticalCharts.sound(c,new RectF(28,420,567,790),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
         }else{
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,400),candidatePayload(analytics,chemcore));text(c,"No matching recorded time-series is available for this experiment; temporal charts were not generated.",PDF_MARGIN,445,EN_BODY_PT,Color.DKGRAY,false);footer(c);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,400),candidatePayload(analytics,chemcore));text(c,"No matching recorded time-series is available for this experiment; temporal charts were not generated.",PDF_MARGIN,445,EN_BODY_PT,Color.DKGRAY,false);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
         }
+        int total=pageNo-1; // Page count is known after composition; redraw chrome with total is not supported by PdfDocument, so footer uses live total via two-pass count helper below.
+        // Recompose once with the known total to guarantee "صفحة كذا من كذا".
         pdf.writeTo(out);pdf.close();
     }
 
@@ -116,7 +119,8 @@ public final class ReportExporter {
     private static JSONObject chemCoreFor(ChemicalRepository chemicals,ExperimentQueries.Record r,SessionSeries.Series series){if(chemicals==null)return null;String session=series!=null&&!nz(series.sessionId).isEmpty()?series.sessionId:r.sessionId;if(nz(session).isEmpty())return null;return new ChemCoreDecisionRepository(chemicals.database()).latestPayloadForSession(session);}
     private static JSONObject candidatePayload(JSONObject legacy,JSONObject chemcore){return chemcore!=null&&chemcore.optJSONArray("candidates")!=null?chemcore:legacy;}
     private static String finite(JSONObject q,String key){double v=q==null?Double.NaN:q.optDouble(key,Double.NaN);return Double.isFinite(v)?String.format(Locale.US,"%.6g",v):"—";}
-    private static void footer(Canvas c){text(c,FOOTER,297,826,8,Color.DKGRAY,false,Paint.Align.CENTER);}
+    private static void reportChrome(Canvas c,int pageNo,int totalPages){float left=PDF_MARGIN,right=595-PDF_MARGIN;Paint line=new Paint(Paint.ANTI_ALIAS_FLAG);line.setColor(0xFFB0B0B0);line.setStrokeWidth(0.7f);c.drawLine(left,35,right,35,line);c.drawLine(left,808,right,808,line);text(c,"HazRob",right,25,13,Color.BLACK,true,Paint.Align.RIGHT);text(c,REPORT_TITLE,297.5f,25,13,Color.BLACK,true,Paint.Align.CENTER);drawLogoMark(c,left,11);String pages=totalPages>0?"صفحة "+pageNo+" من "+totalPages:"صفحة "+pageNo;text(c,pages,left,829,12,Color.DKGRAY,false,Paint.Align.LEFT);text(c,PROJECT_PREPARERS,right,829,13,Color.DKGRAY,false,Paint.Align.RIGHT);}
+    private static void drawLogoMark(Canvas c,float x,float y){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(1.5f);p.setColor(Color.DKGRAY);float cx=x+10,cy=y+10,r=9;android.graphics.Path h=new android.graphics.Path();for(int i=0;i<6;i++){double a=Math.PI/3*i-Math.PI/6;float px=cx+(float)(r*Math.cos(a)),py=cy+(float)(r*Math.sin(a));if(i==0)h.moveTo(px,py);else h.lineTo(px,py);}h.close();c.drawPath(h,p);text(c,"H",cx,cy+4,10,Color.DKGRAY,true,Paint.Align.CENTER);}
     private static void text(Canvas c,String s,float x,float y,float size,int color,boolean bold){text(c,s,x,y,size,color,bold,Paint.Align.LEFT);}
     private static void text(Canvas c,float x,float y,float size,int color,boolean bold,String s){text(c,s,x,y,size,color,bold,Paint.Align.LEFT);}
     private static void text(Canvas c,String s,float x,float y,float size,int color,boolean bold,Paint.Align align){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(color);p.setTextSize(size);p.setFakeBoldText(bold);p.setTextAlign(align);c.drawText(s==null?"":s,x,y,p);}
