@@ -16,7 +16,7 @@ public final class ChemCoreInferenceEngine {
 
     public static final class Context {
         public final String sessionId,samplingProfileId,modelVersion;
-        public final double temperatureC,rh;
+        public final double temperatureC,rh;\n        public final boolean calibrationHealthValid;
         public final ChemCoreOpenSetGate.Result openSetResult;
         public Context(String sessionId,String samplingProfileId,String modelVersion,double temperatureC,double rh,ChemCoreOpenSetGate.Result openSetResult){
             this.sessionId=sessionId==null?"":sessionId;this.samplingProfileId=samplingProfileId==null?"":samplingProfileId;
@@ -37,7 +37,7 @@ public final class ChemCoreInferenceEngine {
         MixtureResidualGuard.Result consistency=MixtureResidualGuard.evaluate(solvable,2.5,.80,.25);
         boolean allContributorsDeviceCalibrated=top.contributors>0&&top.calibratedContributors==top.contributors;
         ChemCoreDecision.EvidenceTier tier=top.highestEvidenceTier;
-        if(allContributorsDeviceCalibrated)tier=ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED;
+        if(allContributorsDeviceCalibrated&&context.calibrationHealthValid)tier=ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED;
         else if(top.contributors>=2&&consistency.verdict==MixtureResidualGuard.Verdict.SINGLE_CANDIDATE_CONSISTENT)
             tier=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT;
 
