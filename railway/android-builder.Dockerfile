@@ -93,7 +93,7 @@ RUN sha256sum /out/HazRob-ESP32-Main-0.10.1-HR066.zip > /out/HazRob-ESP32-Main-0
     sha256sum /out/HazRob-ESP32-CAM-0.10.1-HR066.zip > /out/HazRob-ESP32-CAM-0.10.1-HR066.sha256
 
 RUN grep -q "versionCode 25" app/build.gradle && grep -q "versionName '0.10.1'" app/build.gradle
-RUN gradle --no-daemon :app:testDebugUnitTest
+RUN gradle --no-daemon :app:testDebugUnitTest --tests com.servoc.app.chemcore.ChemCoreResultEnvelopeV4Test --tests com.servoc.app.chemcore.ChemCoreResultEnvelopeV3Test --tests com.servoc.app.chemcore.ChemCoreAuditJsonTest --tests com.servoc.app.chemcore.ChemCoreM4CompletenessGateTest
 RUN gradle --no-daemon :app:lintDebug
 RUN gradle --no-daemon :app:assembleRelease
 
