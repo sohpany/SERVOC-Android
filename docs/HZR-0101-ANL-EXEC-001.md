@@ -332,3 +332,12 @@ The program is complete only when:
 ### Stage 10 start — 2026-09-18
 - Status: IN_PROGRESS.
 - Scope: update ReportsTab to surface the persisted session-bound chemcore-result/4 summary rather than only legacy analytics result counts.
+
+
+### Stage 10 reporting directive — 2026-09-18
+- Reporting is a priority deliverable, not a simple saved-session list.
+- ReportsTab will become a dynamic analytical dashboard driven by the persisted session-bound chemcore-result/4 truth.
+- Planned report views: executive result/KPIs; MQ time-series; 8-channel response comparison/fingerprint; candidate/evidence view; 144-screening status distribution; measurement quality; environmental T/RH/P context; exposure ratios with TWA/STEL/Ceiling/IDLH kept distinct; flammability LFL/UFL view; session trend/comparison where historical data exists.
+- PDF/XLSX exports in Stage 11 must consume the same report model, preserving scientific lineage and gates.
+- Power BI is treated as an optional downstream visualization/BI consumer through structured export, not as an analytical authority and not as a runtime dependency of HazRob Android.
+- No UI chart may recompute chemical identity, evidence tier, reportable ppm, or safety decisions.
