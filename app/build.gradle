@@ -75,8 +75,8 @@ android {
         applicationId 'com.servoc.app'
         minSdk 26
         targetSdk 36
-        versionCode 25
-        versionName '0.10.1'
+        versionCode 26
+        versionName '0.10.2'
         buildConfigField 'String', 'APP_UPDATE_MANIFEST_URL', '"https://hazrob-app-updates.onrender.com/app-update.json"'
         // Stable read-only endpoints; developer mode alone may override the ChemCore source.
         buildConfigField 'String', 'CHEMCORE_LIBRARY_MANIFEST_URL', '"https://hazrob-app-updates.onrender.com/chemcore/manifest.json"'
