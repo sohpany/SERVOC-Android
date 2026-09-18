@@ -341,3 +341,14 @@ The program is complete only when:
 - PDF/XLSX exports in Stage 11 must consume the same report model, preserving scientific lineage and gates.
 - Power BI is treated as an optional downstream visualization/BI consumer through structured export, not as an analytical authority and not as a runtime dependency of HazRob Android.
 - No UI chart may recompute chemical identity, evidence tier, reportable ppm, or safety decisions.
+
+
+### Stage 10 dynamic candidate list — 2026-09-18
+- Add a vertically scrollable dynamic candidate list; do not truncate the available evaluated panel merely to Top-N.
+- Candidate emphasis uses five presentation ranks only: red -> orange -> yellow -> green -> blue, strongest analytical candidate first.
+- White = evaluated/in-scope but not nominated as a candidate for the session.
+- Gray = outside current analytical domain or unsupported by the current sensor array.
+- Candidate color is explicitly NOT a hazard-severity color and must never change identity, evidence tier, ppm, or safety interpretation.
+- Accepted identity, when present, receives a separate explicit marker independent of candidate-rank color.
+- Row fields should surface when available: chemical/formula, candidate rank, relative posterior/score, evidence tier, contributing MQ channels, residual, 144-screening status, and decision/domain state.
+- Preserve the same semantic color legend in app, PDF, XLSX, and Power BI-oriented structured export.
