@@ -19,7 +19,7 @@ public class ChemCoreResultEnvelopeV3Test {
                 .put("field_r0_normalization_ready",true).put("reference_gas_validated_channels",0));
         ChemCoreResultEnvelope r=new ChemCoreResultEnvelope("S1",ChemCoreDecision.Outcome.SCREENING,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,
                 1L,"benzene",Double.NaN,Double.NaN,Double.NaN,2.0,.72,.4,"p",ChemCoreFeaturePipeline.SCHEMA_VERSION,"m","screening",Collections.singletonList(c)).withLabQuality(quality);
-        JSONObject json=r.toJson();assertEquals("chemcore-result/3",json.getString("schema"));assertTrue(json.isNull("ppm"));assertFalse(json.getBoolean("ppm_reportable"));
+        JSONObject json=r.toJson();assertEquals(ChemCoreResultEnvelope.SCHEMA,json.getString("schema"));assertTrue(json.isNull("ppm"));assertFalse(json.getBoolean("ppm_reportable"));
         assertEquals("m4_device_reference_calibration_required",json.getString("ppm_withheld_reason"));
         JSONObject row=json.getJSONArray("candidates").getJSONObject(0);assertTrue(row.isNull("agreement_pct"));assertEquals(35.0,row.getDouble("screening_fit_ppm"),1e-9);
         assertFalse(row.getBoolean("device_quantitative_support"));assertEquals(0.12,row.getJSONObject("residual_log10_by_sensor").getDouble("mq3"),1e-9);
