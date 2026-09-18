@@ -37,6 +37,9 @@ public final class ChemCoreDecisionRepository {
         }
     }
 
+    /** Attaches operator-selected tracking lineage without changing the analytical decision. */
+    public boolean attachOperatorTracking(String sessionId,int chemicalId,String name,long capturedAtMs){if(sessionId==null||sessionId.trim().isEmpty())return false;String id=sessionId.trim();try(Cursor c=db.getReadableDatabase().rawQuery("SELECT id,payload FROM chemcore_decisions WHERE session_id=? AND payload IS NOT NULL ORDER BY t_ms DESC,id DESC LIMIT 1",new String[]{id})){if(!c.moveToFirst())return false;long rowId=c.getLong(0);JSONObject payload=new JSONObject(c.getString(1)==null?"{}":c.getString(1));JSONObject t=new JSONObject();t.put("kind","operator_selected_hypothesis");t.put("active",chemicalId>=0);if(chemicalId>=0){t.put("chemical_uid",chemicalId);t.put("name",name==null?"":name);}t.put("captured_at_ms",Math.max(0,capturedAtMs));t.put("does_not_modify_analytical_decision",true);payload.put("operator_tracking",t);ContentValues v=new ContentValues();v.put("payload",payload.toString());return db.getWritableDatabase().update("chemcore_decisions",v,"id=?",new String[]{String.valueOf(rowId)})==1;}catch(Exception ignored){return false;}}
+
     /**
      * Returns only accepted, quantitative gas-safety findings. Candidate identities and screening
      * hypotheses are deliberately excluded so safety sorting can never alter analytical identity.
