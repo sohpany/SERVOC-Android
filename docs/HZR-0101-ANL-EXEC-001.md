@@ -298,3 +298,15 @@ The program is complete only when:
 ### Stage 7 start — 2026-09-18
 - Status: IN_PROGRESS.
 - Scope: bind Analysis UI directly to the persisted chemcore-result/4 decision and its 144 screening/safety evidence without recomputation.
+
+
+### Stage 7 completion — 2026-09-18
+- Status: COMPLETE.
+- Added a fourth Measurements sub-tab: نتائج التحليل, while retaining الفيزيائية / القياس / التحليل unchanged.
+- The new results view reads the persisted session-bound chemcore-result/4 only; it does not recompute identity or ppm.
+- It surfaces the analytical summary, 144-panel evaluation progress/state, and persisted exposure/flammability state.
+- Firmware remained frozen.
+
+### Stage 8 start — 2026-09-18
+- Status: IN_PROGRESS.
+- Scope: preserve and tighten the existing live measurement UI/session workflow; no redesign unless required for analytical lineage.
