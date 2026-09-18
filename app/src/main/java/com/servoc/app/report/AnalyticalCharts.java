@@ -94,6 +94,29 @@ public final class AnalyticalCharts {
         barChart(c,box,"Chemical candidate agreement","agreement",names,values);
     }
 
+    /** Distribution of the authoritative 144-panel screening states. */
+    public static void screening144(Canvas c,RectF box,JSONObject chemcore){
+        JSONObject panel=chemcore==null?null:chemcore.optJSONObject("screening_144");JSONArray rows=panel==null?null:panel.optJSONArray("rows");
+        String[] labels={"Supported","Weak","Rejected","OOD","Insufficient","Unsupported"};String[] states={"SUPPORTED","WEAK_MATCH","REJECTED","OUT_OF_DOMAIN","INSUFFICIENT_EVIDENCE","UNSUPPORTED_BY_CURRENT_ARRAY"};double[] v=new double[states.length];
+        if(rows!=null)for(int i=0;i<rows.length();i++){JSONObject r=rows.optJSONObject(i);if(r==null)continue;String s=r.optString("status","");for(int k=0;k<states.length;k++)if(states[k].equals(s)){v[k]++;break;}}
+        barCountChart(c,box,"144-panel screening status","chemicals",labels,v);
+    }
+
+    /** Toxicity and flammability remain separate scientific dimensions. */
+    public static void exposureRatios(Canvas c,RectF box,JSONObject chemcore){
+        JSONObject g=chemcore==null?null:chemcore.optJSONObject("gas_exposure_ppm");String[] labels={"Toxic ref","%LFL"};double[] v={Double.NaN,Double.NaN};
+        if(g!=null&&g.optBoolean("input_gate_passed",false)){v[0]=g.optDouble("toxicity_priority_percent",Double.NaN);v[1]=g.optDouble("percent_lfl",Double.NaN);}
+        barPercentChart(c,box,"Exposure / flammability reference ratios","% of reference",labels,v);
+    }
+
+    private static void barCountChart(Canvas c,RectF box,String title,String axis,String[] labels,double[] values){
+        frame(c,box,title);RectF p=new RectF(box.left+45,box.top+34,box.right-12,box.bottom-46);double max=1;for(double v:values)if(Double.isFinite(v))max=Math.max(max,v);int n=labels.length;float gap=Math.max(3,p.width()/(n*6f)),bw=(p.width()-gap*(n+1))/Math.max(1,n);for(int i=0;i<n;i++){double v=values[i];float h=Double.isFinite(v)?(float)(Math.max(0,v)/max*p.height()):0,l=p.left+gap+i*(bw+gap);Paint b=paint(PALETTE[i%PALETTE.length],1);b.setStyle(Paint.Style.FILL);c.drawRect(l,p.bottom-h,l+bw,p.bottom,b);small(c,labels[i],l+bw/2,p.bottom+14,Color.DKGRAY,Paint.Align.CENTER);small(c,String.valueOf((int)v),l+bw/2,p.bottom-h-4,Color.DKGRAY,Paint.Align.CENTER);}small(c,axis,p.centerX(),box.bottom-7,Color.DKGRAY,Paint.Align.CENTER);
+    }
+
+    private static void barPercentChart(Canvas c,RectF box,String title,String axis,String[] labels,double[] values){
+        frame(c,box,title);RectF p=new RectF(box.left+45,box.top+34,box.right-12,box.bottom-46);double max=100;for(double v:values)if(Double.isFinite(v))max=Math.max(max,v);int n=labels.length;float gap=24,bw=(p.width()-gap*(n+1))/Math.max(1,n);for(int i=0;i<n;i++){double v=values[i];float h=Double.isFinite(v)?(float)(Math.max(0,v)/max*p.height()):0,l=p.left+gap+i*(bw+gap);Paint b=paint(PALETTE[i%PALETTE.length],1);b.setStyle(Paint.Style.FILL);c.drawRect(l,p.bottom-h,l+bw,p.bottom,b);small(c,labels[i],l+bw/2,p.bottom+14,Color.DKGRAY,Paint.Align.CENTER);small(c,Double.isFinite(v)?String.format(Locale.US,"%.1f%%",v):"—",l+bw/2,p.bottom-h-4,Color.DKGRAY,Paint.Align.CENTER);}small(c,axis,p.centerX(),box.bottom-7,Color.DKGRAY,Paint.Align.CENTER);
+    }
+
     private static List<Line> singleEnv(SessionSeries.Series s,String key,String name,int color){
         List<Double>x=new ArrayList<>(),y=new ArrayList<>();for(SessionSeries.Sample q:s.samples){double v=SessionSeries.value(q.env,key);if(Double.isFinite(v)){x.add(q.tMs/1000.0);y.add(v);}}List<Line> out=new ArrayList<>();if(y.size()>=2)out.add(new Line(name,arr(x),arr(y),color));return out;
     }
