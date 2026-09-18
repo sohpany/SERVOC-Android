@@ -352,3 +352,13 @@ The program is complete only when:
 - Accepted identity, when present, receives a separate explicit marker independent of candidate-rank color.
 - Row fields should surface when available: chemical/formula, candidate rank, relative posterior/score, evidence tier, contributing MQ channels, residual, 144-screening status, and decision/domain state.
 - Preserve the same semantic color legend in app, PDF, XLSX, and Power BI-oriented structured export.
+
+
+### Stage 10 candidate-to-tracking interaction — 2026-09-18
+- Candidate rows are selectable by the operator.
+- Add an explicit action button: بدء تتبع المرشح.
+- Pressing the button sets the selected chemical as the operator tracking target using the existing app-side tracking target mechanism; it does NOT promote the candidate to IDENTIFIED/QUANTIFIED and does not alter ChemCore evidence.
+- Tracking is a new observation objective: subsequent measurement/analysis sessions highlight the selected chemical hypothesis and its supporting MQ channels while continuing normal open-set/mixture/domain gates.
+- Persist tracking target by stable chemical identifier plus display name; provide a clear stop/change tracking action.
+- Candidate selection and tracking state must be recorded in report lineage so later reports distinguish operator-selected hypothesis from analytically accepted identity.
+- No firmware modification is required; tracking orchestration remains Android-side during Stages 2-12.
