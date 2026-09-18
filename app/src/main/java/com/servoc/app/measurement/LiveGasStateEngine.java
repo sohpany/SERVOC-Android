@@ -29,9 +29,11 @@ public final class LiveGasStateEngine {
                 double d=Math.abs(Math.log10(s.lastRatio/s.baselineRatio));strongest=Math.max(strongest,d);if(d>=WATCH_LOG10)responding++;
             }
         }
-        if(usable<4){persistence=0;return out(State.DEGRADED,healthy,usable,responding,0,strongest,"insufficient_usable_channels");}\n        if(degraded>=3){persistence=0;return out(State.DEGRADED,healthy,usable,responding,0,strongest,"multiple_unstable_or_drifted_channels");}
+        if(usable<4){persistence=0;return out(State.DEGRADED,healthy,usable,responding,0,strongest,"insufficient_usable_channels");}
+        if(degraded>=3){persistence=0;return out(State.DEGRADED,healthy,usable,responding,0,strongest,"multiple_unstable_or_drifted_channels");}
         if(baselines<4){persistence=0;return out(State.BASELINE_REQUIRED,healthy,usable,responding,0,strongest,"clean_air_baseline_required");}
-        boolean instant=responding>=1&&strongest>=ALERT_LOG10;\n        boolean watch=responding>=2&&strongest>=WATCH_LOG10,alert=responding>=2&&strongest>=ALERT_LOG10;
+        boolean instant=responding>=1&&strongest>=ALERT_LOG10;
+        boolean watch=responding>=2&&strongest>=WATCH_LOG10,alert=responding>=2&&strongest>=ALERT_LOG10;
         if(watch)persistence=Math.min(99,persistence+1);else persistence=Math.max(0,persistence-1);
         if(alert&&persistence>=ALERT_PERSISTENCE)return out(State.RESPONSE_ALERT,healthy,usable,responding,persistence,strongest,"persistent_multisensor_response");
         if(watch&&persistence>=WATCH_PERSISTENCE)return out(State.RESPONSE_WATCH,healthy,usable,responding,persistence,strongest,"multisensor_response_watch");
