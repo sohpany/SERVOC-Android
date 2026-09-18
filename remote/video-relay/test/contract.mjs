@@ -50,5 +50,9 @@ try{
   await assert.rejects(openWs("/hazrob/video/view/hazrob-001",PUBLISH));await assert.rejects(openWs("/hazrob/video/publish/hazrob-001",VIEW));r=await request("/hazrob/video/status/hazrob-001");assert.equal(r.status,401);
   const viewer=await openWs("/hazrob/video/view/hazrob-001",VIEW);const publisher=await openWs("/hazrob/video/publish/hazrob-001",PUBLISH);const jpeg=Buffer.from([0xff,0xd8,0x01,0x02,0x03,0xff,0xd9]);const incoming=oneMessage(viewer);publisher.send(jpeg,{binary:true});const msg=await incoming;assert.equal(msg.isBinary,true);assert.deepEqual(msg.data,jpeg);r=await request("/hazrob/video/status/hazrob-001",auth(VIEW));assert.equal(r.status,200);assert.equal(r.body.publisher_online,true);assert.ok(r.body.frames>=1);assert.equal(r.body.last_frame_bytes,jpeg.length);viewer.close();publisher.close();
   console.log("HazRob 0.10.1 relay local contract: PASS");
-  const live=await liveProductionContract();console.log("HazRob 0.10.1 live Render/HiveMQ/bootstrap contract: PASS "+JSON.stringify({version:live.version,protocol:live.protocol,videoAuthConfigured:live.videoAuthConfigured,mqttAppConfigured:live.mqttAppConfigured,mqttRobotConfigured:live.mqttRobotConfigured,bootstrapConfigured:live.bootstrapConfigured,mqttDiagnostic:live.mqttDiagnostic?.state,roles:["android","esp32","esp32-cam"]}));
+  if(process.env.HAZROB_SKIP_LIVE_CONTRACT==="1"){
+    console.log("HazRob 0.10.1 live Render/HiveMQ/bootstrap contract: SKIPPED for isolated analytical validation");
+  }else{
+    const live=await liveProductionContract();console.log("HazRob 0.10.1 live Render/HiveMQ/bootstrap contract: PASS "+JSON.stringify({version:live.version,protocol:live.protocol,videoAuthConfigured:live.videoAuthConfigured,mqttAppConfigured:live.mqttAppConfigured,mqttRobotConfigured:live.mqttRobotConfigured,bootstrapConfigured:live.bootstrapConfigured,mqttDiagnostic:live.mqttDiagnostic?.state,roles:["android","esp32","esp32-cam"]}));
+  }
 } finally {child.kill("SIGTERM");}
