@@ -24,7 +24,7 @@ public final class GasAlertCoordinator {
         int requested=NONE;
         if(powered&&!warming){
             if(lastSnapshot.state==LiveGasStateEngine.State.RESPONSE_ALERT)requested=DANGER;
-            else if(lastSnapshot.state==LiveGasStateEngine.State.RESPONSE_WATCH)requested=WARNING;
+            else if(lastSnapshot.state==LiveGasStateEngine.State.RESPONSE_WATCH||lastSnapshot.state==LiveGasStateEngine.State.INSTANT_RESPONSE)requested=WARNING;
         }
         if(requested>=state){state=requested;downgradeSince=0;return state;}
         if(downgradeSince==0){downgradeSince=nowMs;return state;}
