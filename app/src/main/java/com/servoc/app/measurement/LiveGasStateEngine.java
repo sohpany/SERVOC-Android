@@ -18,7 +18,7 @@ public final class LiveGasStateEngine {
         if(!connected){persistence=0;return out(State.UNAVAILABLE,0,0,0,0,Double.NaN,"telemetry_unavailable");}
         if(warmingUp){persistence=0;return out(State.WARMING_UP,0,0,0,0,Double.NaN,"sensor_warmup");}
         if(health==null||health.isEmpty()){persistence=0;return out(State.UNAVAILABLE,0,0,0,0,Double.NaN,"health_unavailable");}
-        int healthy=0,usable=0,responding=0,baselines=0;double strongest=0;
+        int healthy=0,usable=0,responding=0,baselines=0,degraded=0;double strongest=0;
         for(SensorHealthEngine.Snapshot s:health.values()){
             if(s==null)continue;
             boolean hardBad=s.state==SensorHealthEngine.State.MISSING||s.state==SensorHealthEngine.State.INVALID||s.state==SensorHealthEngine.State.SATURATED||s.state==SensorHealthEngine.State.STUCK;
@@ -29,7 +29,7 @@ public final class LiveGasStateEngine {
                 double d=Math.abs(Math.log10(s.lastRatio/s.baselineRatio));strongest=Math.max(strongest,d);if(d>=WATCH_LOG10)responding++;
             }
         }
-        if(usable<4){persistence=0;return out(State.DEGRADED,healthy,usable,responding,0,strongest,"insufficient_usable_channels");}
+        if(usable<4){persistence=0;return out(State.DEGRADED,healthy,usable,responding,0,strongest,"insufficient_usable_channels");}\n        if(degraded>=3){persistence=0;return out(State.DEGRADED,healthy,usable,responding,0,strongest,"multiple_unstable_or_drifted_channels");}
         if(baselines<4){persistence=0;return out(State.BASELINE_REQUIRED,healthy,usable,responding,0,strongest,"clean_air_baseline_required");}
         boolean instant=responding>=1&&strongest>=ALERT_LOG10;\n        boolean watch=responding>=2&&strongest>=WATCH_LOG10,alert=responding>=2&&strongest>=ALERT_LOG10;
         if(watch)persistence=Math.min(99,persistence+1);else persistence=Math.max(0,persistence-1);
