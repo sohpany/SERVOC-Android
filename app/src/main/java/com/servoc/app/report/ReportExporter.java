@@ -52,7 +52,10 @@ public final class ReportExporter {
         }
 
         if(series!=null&&series.usable()){
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqRsR0(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,405),series);AnalyticalCharts.fingerprint(c,new RectF(PDF_MARGIN,430,595-PDF_MARGIN,790),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqRsR0(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),series);AnalyticalCharts.fingerprint(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.fingerprintRadar(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),series);AnalyticalCharts.analyticalQualityRadar(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqSignalQuality(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),series);AnalyticalCharts.mqResponseKinetics(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqPersistenceMap(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),series);AnalyticalCharts.mqEnvironmentMatrix(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
             PpmImage ppm=chemicals==null?null:renderPpm(series,chemicals,analytics);
             if(ppm!=null&&ppm.count>0){page=page(pdf,pageNo++);c=page.getCanvas();c.drawBitmap(ppm.bitmap,null,new RectF(PDF_MARGIN,70,595-PDF_MARGIN,650),null);text(c,"Quantitative curves are shown only when the calibration engine returned a valid quantitative result across recorded samples.",PDF_MARGIN,700,EN_BODY_PT,Color.DKGRAY,false);reportChrome(c,pageNo-1,0);pdf.finishPage(page);ppm.bitmap.recycle();}
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,330),candidatePayload(analytics,chemcore));AnalyticalCharts.temperature(c,new RectF(PDF_MARGIN,350,595-PDF_MARGIN,555),series);AnalyticalCharts.humidity(c,new RectF(PDF_MARGIN,575,595-PDF_MARGIN,790),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
