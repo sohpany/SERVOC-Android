@@ -86,13 +86,13 @@ def pack(name, sketch_name, source_dir, compiled_dir):
             if p.is_file():
                 z.write(p, root/'build'/p.relative_to(compiled_dir))
 
-pack('HazRob-ESP32-Main-0.10.1-HR066.zip','HazRob','firmware/HazRob','/tmp/fw-main')
-pack('HazRob-ESP32-CAM-0.10.1-HR066.zip','HazRob-CAM','firmware/HazRob-CAM','/tmp/fw-cam')
+pack('HazRob-ESP32-Main-0.10.2-HR067.zip','HazRob','firmware/HazRob','/tmp/fw-main')
+pack('HazRob-ESP32-CAM-0.10.2-HR067.zip','HazRob-CAM','firmware/HazRob-CAM','/tmp/fw-cam')
 PY
-RUN sha256sum /out/HazRob-ESP32-Main-0.10.1-HR066.zip > /out/HazRob-ESP32-Main-0.10.1-HR066.sha256 && \
-    sha256sum /out/HazRob-ESP32-CAM-0.10.1-HR066.zip > /out/HazRob-ESP32-CAM-0.10.1-HR066.sha256
+RUN sha256sum /out/HazRob-ESP32-Main-0.10.2-HR067.zip > /out/HazRob-ESP32-Main-0.10.2-HR067.sha256 && \
+    sha256sum /out/HazRob-ESP32-CAM-0.10.2-HR067.zip > /out/HazRob-ESP32-CAM-0.10.2-HR067.sha256
 
-RUN grep -q "versionCode 25" app/build.gradle && grep -q "versionName '0.10.1'" app/build.gradle
+RUN grep -q "versionCode 26" app/build.gradle && grep -q "versionName '0.10.2'" app/build.gradle
 RUN gradle --no-daemon :app:testDebugUnitTest
 RUN gradle --no-daemon :app:lintDebug
 RUN gradle --no-daemon :app:assembleRelease
@@ -104,21 +104,21 @@ RUN set -eux; \
     ACTUAL=$(apksigner verify --print-certs "$APK" | awk -F': ' '/SHA-256 digest/ {print $2; exit}' | tr -d ': ' | tr 'A-F' 'a-f'); \
     test "$ACTUAL" = "$EXPECTED"; \
     mkdir -p /out; \
-    cp "$APK" /out/HazRob-0.10.1-v25-TEST.apk; \
-    sha256sum /out/HazRob-0.10.1-v25-TEST.apk > /out/HazRob-0.10.1-v25-TEST.sha256; \
+    cp "$APK" /out/HazRob-0.10.2-v26-HR067.apk; \
+    sha256sum /out/HazRob-0.10.2-v26-HR067.apk > /out/HazRob-0.10.2-v26-HR067.sha256; \
     apksigner verify --verbose --print-certs "$APK" > /out/HazRob-0.10.1-v25-signing.txt
 
 RUN cat > /out/index.html <<'EOF'
 <!doctype html>
 <html lang="ar" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HazRob v25 Test Build</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HazRob 0.10.2 HR067</title></head>
 <body style="font-family:sans-serif;max-width:760px;margin:40px auto;padding:0 18px">
-<h1>HazRob 0.10.1 — v25 TEST</h1>
-<p>بناء HR066 تجريبي: Direct مستقر، Remote بسماح المطور، قراءات حية محسّنة، وتحكم قيادة سريع.</p>
-<p><a href="/HazRob-0.10.1-v25-TEST.apk">تحميل APK</a></p>
-<p><a href="/HazRob-0.10.1-v25-TEST.sha256">APK SHA-256</a> · <a href="/HazRob-0.10.1-v25-signing.txt">Signing verification</a></p>
-<p><a href="/HazRob-ESP32-Main-0.10.1-HR066.zip">Firmware Main ESP32</a> · <a href="/HazRob-ESP32-Main-0.10.1-HR066.sha256">SHA-256</a></p>
-<p><a href="/HazRob-ESP32-CAM-0.10.1-HR066.zip">Firmware ESP32-CAM</a> · <a href="/HazRob-ESP32-CAM-0.10.1-HR066.sha256">SHA-256</a></p>
+<h1>HazRob 0.10.2 — HR067</h1>
+<p>حزمة HR067 الموحدة: تطبيق HazRob 0.10.2 مع منظومة Analytical v4، وفريموير Main/CAM مطابق للمصدر المجمد HR066 دون تعديل.</p>
+<p><a href="/HazRob-0.10.2-v26-HR067.apk">تحميل APK</a></p>
+<p><a href="/HazRob-0.10.2-v26-HR067.sha256">APK SHA-256</a> · <a href="/HazRob-0.10.1-v25-signing.txt">Signing verification</a></p>
+<p><a href="/HazRob-ESP32-Main-0.10.2-HR067.zip">Firmware Main ESP32</a> · <a href="/HazRob-ESP32-Main-0.10.2-HR067.sha256">SHA-256</a></p>
+<p><a href="/HazRob-ESP32-CAM-0.10.2-HR067.zip">Firmware ESP32-CAM</a> · <a href="/HazRob-ESP32-CAM-0.10.2-HR067.sha256">SHA-256</a></p>
 <p>Validation: complete audit sweep + relay local/live Render/HiveMQ contract + Android unit tests + Android lint + Main/CAM compile + signed release build.</p>
 </body></html>
 EOF
