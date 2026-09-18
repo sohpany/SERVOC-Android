@@ -167,7 +167,7 @@
 **Acceptance:** UI/PDF/XLSX semantic parity; 144 rows present; old session provenance not replaced by current library.
 
 ### Stage 12 — Drift and longitudinal sensor-health layer
-**Status:** IN_PROGRESS  
+**Status:** COMPLETE  
 **Prerequisite:** Stage 3.
 **Goal:** Detect sensor drift and protect scientific gates.
 **Tasks:**
@@ -178,7 +178,7 @@
 **Acceptance:** synthetic/recorded drift tests; fail-closed quantitative behavior.
 
 ### Stage 13 — Full regression, scientific validation and integration audit
-**Status:** NOT_STARTED  
+**Status:** IN_PROGRESS  
 **Prerequisite:** Stages 1–12.
 **Goal:** Prove Android/ChemCore scientific coherence before final robot integration.
 **Mandatory scenarios:**
@@ -220,7 +220,7 @@ Append one row whenever a stage changes state.
 | 2026-09-18 | 0 | COMPLETE | 9a15a10fb7b537af122a6d5d8e4167653965628a | Reference creation | HR066 baseline; execution ledger established |
 | 2026-09-18 | 1 | IN_PROGRESS | 6b58c498ebb5ec4723e0452e6623833b64102158 | Contract spec + v4 envelope + tests added | Validation/build pending |
 | 2026-09-18 | 1 | COMPLETE | 0bcb09db49caadcf6fbdbcabb32d8f78872d6f53 | v4/V3 regression + audit JSON + M4 completeness; lintDebug; assembleRelease; validation deployment baecaf6e-1759-498c-a99d-b163a6234120 SUCCESS | Analytical Contract v4 accepted; firmware frozen and unchanged |
-| 2026-09-18 | 11 | COMPLETE | 0ea408406affc20e104b8d2084a3bdc86fba185e | Source audit + v4 report semantics | PDF/XLSX session-bound; 144 screening worksheet; quality/provenance worksheet; legacy PPM renderer removed |\n| 2026-09-18 | 12 | IN_PROGRESS | 0ea408406affc20e104b8d2084a3bdc86fba185e | Started | Drift/longitudinal sensor-health layer |\n| 2026-09-18 | 10 | COMPLETE | be5aa9efdcbfd7bcea9299000207891f3878a68e | Source-level chart API audit: PDF 22 calls, XLSX 22 calls, ReportsTab 21 calls; zero missing AnalyticalCharts methods | ReportsTab bound to session ChemCore v4; dynamic candidate tracking remains UI-only; 20-chart selector integrated; no firmware changes |\n| 2026-09-18 | 11 | IN_PROGRESS | be5aa9efdcbfd7bcea9299000207891f3878a68e | PDF/XLSX semantic and layout work underway | 1 cm PDF margins; report identity/header/footer; XLSX RTL/print identity; legacy recomputed PPM removed |\n| 2026-09-18 | 2 | IN_PROGRESS | — | Consumer inventory starting | Canonicalize Android analytical feature paths onto chemcore-features/1; no firmware changes |\n| 2026-09-18 | 2 | COMPLETE | 3557bb4c945dced33d8f8f1800f9670ca063718b | deterministic canonical feature tests; lint/build validation deployment c073febd-67f6-4c82-a2fd-d8d967e55ecd SUCCESS; firmware diff audit clean | TemporalFeatureExtractor, SignalFeatures and analytical fingerprint consolidated onto chemcore-features/1 |\n| 2026-09-18 | 3 | IN_PROGRESS | 3557bb4c945dced33d8f8f1800f9670ca063718b | live-state engine + coordinator + UI integration tests underway | Immediate WARNING preserved; DANGER requires persistent multisensor response; no identity/ppm claim |
+| 2026-09-18 | 12 | COMPLETE | 9811084059b4419b5c46371b97129a2defad2b35 | Focused source audit | Existing SensorHealthEngine drift gate reused; invalid calibration health withholds M4 without blocking lower-tier analysis |\n| 2026-09-18 | 13 | IN_PROGRESS | 9811084059b4419b5c46371b97129a2defad2b35 | Started | Android/ChemCore regression and scientific audit only; firmware remains frozen |\n| 2026-09-18 | 11 | COMPLETE | 0ea408406affc20e104b8d2084a3bdc86fba185e | Source audit + v4 report semantics | PDF/XLSX session-bound; 144 screening worksheet; quality/provenance worksheet; legacy PPM renderer removed |\n| 2026-09-18 | 12 | IN_PROGRESS | 0ea408406affc20e104b8d2084a3bdc86fba185e | Started | Drift/longitudinal sensor-health layer |\n| 2026-09-18 | 10 | COMPLETE | be5aa9efdcbfd7bcea9299000207891f3878a68e | Source-level chart API audit: PDF 22 calls, XLSX 22 calls, ReportsTab 21 calls; zero missing AnalyticalCharts methods | ReportsTab bound to session ChemCore v4; dynamic candidate tracking remains UI-only; 20-chart selector integrated; no firmware changes |\n| 2026-09-18 | 11 | IN_PROGRESS | be5aa9efdcbfd7bcea9299000207891f3878a68e | PDF/XLSX semantic and layout work underway | 1 cm PDF margins; report identity/header/footer; XLSX RTL/print identity; legacy recomputed PPM removed |\n| 2026-09-18 | 2 | IN_PROGRESS | — | Consumer inventory starting | Canonicalize Android analytical feature paths onto chemcore-features/1; no firmware changes |\n| 2026-09-18 | 2 | COMPLETE | 3557bb4c945dced33d8f8f1800f9670ca063718b | deterministic canonical feature tests; lint/build validation deployment c073febd-67f6-4c82-a2fd-d8d967e55ecd SUCCESS; firmware diff audit clean | TemporalFeatureExtractor, SignalFeatures and analytical fingerprint consolidated onto chemcore-features/1 |\n| 2026-09-18 | 3 | IN_PROGRESS | 3557bb4c945dced33d8f8f1800f9670ca063718b | live-state engine + coordinator + UI integration tests underway | Immediate WARNING preserved; DANGER requires persistent multisensor response; no identity/ppm claim |
 
 ## 5. Resume protocol after interruption
 1. Open this file first.
