@@ -6,6 +6,7 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 
 import com.servoc.app.calibration.SqliteCalibrationProvider;
+import com.servoc.app.chemcore.ChemCoreFeaturePipeline;
 import com.servoc.app.chemical.ValidatedGasEngine;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.data.SessionSeries;
@@ -38,13 +39,24 @@ public final class AnalyticalCharts {
     }
 
     public static void fingerprint(Canvas c,RectF box,SessionSeries.Series s){
-        String[] labels=new String[HazRobHardwareProfile.MQ.length];double[] response=new double[labels.length];double max=0;
-        for(int i=0;i<labels.length;i++){
-            HazRobHardwareProfile.Channel hw=HazRobHardwareProfile.MQ[i];labels[i]=hw.key.toUpperCase(Locale.US);double a=medianWindow(s,hw.key,0.00,0.25),b=medianWindow(s,hw.key,0.75,1.00);
-            double v=Double.isFinite(a)&&Double.isFinite(b)&&a>0&&b>0?Math.abs(Math.log(b/a)):Double.NaN;response[i]=v;if(Double.isFinite(v))max=Math.max(max,v);
+        String[] labels=new String[HazRobHardwareProfile.MQ.length];
+        double[] response=new double[labels.length];
+        if(s==null||s.samples.isEmpty()){barChart(c,box,"Sensor fingerprint","canonical |signed delta|",labels,response);return;}
+        double[] time=new double[s.samples.size()];
+        double[][] ratios=new double[s.samples.size()][HazRobHardwareProfile.MQ.length];
+        for(int n=0;n<s.samples.size();n++){
+            SessionSeries.Sample sample=s.samples.get(n);time[n]=sample.tMs/1000.0;
+            for(int i=0;i<labels.length;i++){
+                HazRobHardwareProfile.Channel hw=HazRobHardwareProfile.MQ[i];labels[i]=hw.key.toUpperCase(Locale.US);
+                JSONObject m=SessionSeries.sensor(sample,hw.key);
+                ratios[n][i]=m==null?Double.NaN:m.optDouble("ratio",Double.NaN);
+            }
         }
+        ChemCoreFeaturePipeline.Result canonical=ChemCoreFeaturePipeline.extract(time,ratios);
+        double max=0;
+        for(int i=0;i<labels.length;i++){double v=canonical.feature(i,4);response[i]=v;if(Double.isFinite(v))max=Math.max(max,v);}
         if(max>0)for(int i=0;i<response.length;i++)if(Double.isFinite(response[i]))response[i]/=max;
-        barChart(c,box,"Sensor fingerprint","normalized response",labels,response);
+        barChart(c,box,"Sensor fingerprint","canonical |signed delta|",labels,response);
     }
 
     /** Returns the number of quantitative chemical curves actually plotted. */
