@@ -12,7 +12,9 @@ import java.util.Map;
 
 /** Auditable ChemCore analytical result payload shared by DB/report exporters. */
 public final class ChemCoreResultEnvelope {
-    public static final String SCHEMA = "chemcore-result/3";
+    public static final String SCHEMA = "chemcore-result/4";
+    public static final String LEGACY_SCHEMA_V3 = "chemcore-result/3";
+    public static final String OPERATIONAL_PANEL_ID = "hazrob-operational-144";
 
     public static final class CandidateSummary {
         public final long chemicalUid;
@@ -120,6 +122,14 @@ public final class ChemCoreResultEnvelope {
             putFinite(out,"ppm",ppm);putFinite(out,"prediction_low",predictionLow);putFinite(out,"prediction_high",predictionHigh);
             putFinite(out,"ood_score",oodScore);putFinite(out,"top_posterior",topPosterior);putFinite(out,"normalized_entropy",normalizedEntropy);
             out.put("sampling_profile_id",samplingProfileId);out.put("feature_schema",featureSchema);out.put("model_version",modelVersion);out.put("note",note);
+            out.put("measurement_quality",measurementQualityJson());
+            out.put("quality_gates",qualityGatesJson());
+            out.put("methodology",methodologyJson());
+            out.put("feature_summary",featureSummaryJson());
+            out.put("screening_144",pendingOperationalPanelJson());
+            out.put("accepted_findings",new JSONArray());
+            out.put("safety_findings",new JSONArray());
+            out.put("source_refs",new JSONArray());
             JSONObject library=new JSONObject();library.put("version",libraryVersion);library.put("sha256",librarySha256);library.put("source_commit",librarySourceCommit);out.put("library",library);
             JSONArray candidateArray=new JSONArray();
             int rank=0;for(CandidateSummary candidate:candidates){if(candidate==null)continue;JSONObject item=new JSONObject();item.put("rank",++rank);item.put("chemical_uid",candidate.chemicalUid);item.put("label",candidate.label);putFinite(item,"posterior",candidate.posterior);
@@ -133,6 +143,53 @@ public final class ChemCoreResultEnvelope {
             if(labQuality!=null&&labQuality.length()>0){JSONObject q=copy(labQuality);out.put("lab_quality",q);JSONObject gate=q.optJSONObject("calibration_gate");if(gate!=null)out.put("calibration_gate",new JSONObject(gate.toString()));}
             return out;
         }catch(JSONException e){throw new IllegalStateException("Unable to serialize ChemCore result envelope",e);}
+    }
+
+    private JSONObject measurementQualityJson() throws JSONException {
+        JSONObject q=labQuality==null?new JSONObject():copy(labQuality);
+        if(q==null)q=new JSONObject();
+        q.put("state",q.length()==0?"NOT_RECORDED":q.optString("state","RECORDED"));
+        return q;
+    }
+
+    private JSONObject qualityGatesJson() throws JSONException {
+        JSONObject q=new JSONObject();
+        q.put("identity_named",ChemCoreDecision.permitsNamedIdentity(outcome));
+        q.put("quantitative_occupational_interpretation",ChemCoreDecision.permitsQuantitativeOccupationalInterpretation(outcome,evidenceTier));
+        q.put("m4_evidence",evidenceTier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED);
+        q.put("outcome",outcome.name());
+        if(!ChemCoreDecision.permitsQuantitativeOccupationalInterpretation(outcome,evidenceTier))q.put("ppm_withheld_reason",ppmWithheldReason());
+        return q;
+    }
+
+    private JSONObject methodologyJson() throws JSONException {
+        JSONObject q=new JSONObject();
+        q.put("result_contract",SCHEMA);
+        q.put("feature_contract",featureSchema);
+        q.put("sampling_profile_id",samplingProfileId);
+        q.put("model_version",modelVersion);
+        q.put("candidate_concentration_semantics","joint_curve_fit_screening_hypothesis_unless_final_m4_gate_passes");
+        q.put("posterior_semantics","relative_model_ranking_weight_not_calibrated_identity_probability");
+        return q;
+    }
+
+    private JSONObject featureSummaryJson() throws JSONException {
+        JSONObject q=new JSONObject();
+        q.put("schema",featureSchema);
+        q.put("state","SESSION_BOUND_FEATURES_REFERENCED");
+        return q;
+    }
+
+    /** Stage-1 fail-closed placeholder. Stage 4 replaces this with exactly 144 explicit rows. */
+    private JSONObject pendingOperationalPanelJson() throws JSONException {
+        JSONObject q=new JSONObject();
+        q.put("panel_id",OPERATIONAL_PANEL_ID);
+        q.put("panel_version","PENDING_STAGE_4");
+        q.put("state","PENDING_ENGINE");
+        q.put("target_count",144);
+        q.put("evaluated_count",0);
+        q.put("rows",new JSONArray());
+        return q;
     }
 
     private String ppmWithheldReason(){
