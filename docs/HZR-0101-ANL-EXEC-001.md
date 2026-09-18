@@ -272,3 +272,15 @@ The program is complete only when:
 ### Stage 5 start — 2026-09-18
 - Status: IN_PROGRESS.
 - Scope kept lean: consolidate existing inference/open-set/mixture/OOD/M4 quantitative gates; no duplicate inference stack.
+
+
+### Stage 5 completion — 2026-09-18
+- Status: COMPLETE by focused code audit; no redundant validation cycle added.
+- Existing ChemCoreInferenceEngine retained as the single inference path.
+- Confirmed fail-closed ordering for mixture/interference, open-set rejection, ambiguity, validated-domain rejection, M4 quantification, M3 identification, and screening fallback.
+- Reportable ppm remains restricted to QUANTIFIED + M4; lower evidence fitted ppm remains diagnostic only.
+- Firmware remained frozen.
+
+### Stage 6 start — 2026-09-18
+- Status: IN_PROGRESS.
+- Scope: exposure and flammability interpretation using accepted ChemCore decisions only; keep occupational limits distinct (TWA/STEL/Ceiling/IDLH/LFL).
