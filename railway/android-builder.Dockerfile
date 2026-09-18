@@ -1,3 +1,12 @@
+FROM node:20-bookworm-slim AS relaytest
+WORKDIR /relay
+COPY remote/video-relay/package.json ./
+RUN npm install --no-audit --no-fund
+COPY remote/video-relay/ ./
+# This test exercises the local HTTP/bootstrap/WSS relay contract and then the live
+# Render bootstrap + HiveMQ diagnostic exposed by production /health.
+RUN npm test && touch /relay-test-pass
+
 FROM eclipse-temurin:17-jdk-jammy AS build
 
 ARG DEBIAN_FRONTEND=noninteractive
@@ -33,6 +42,7 @@ RUN arduino-cli config init && \
 
 WORKDIR /src
 COPY . .
+COPY --from=relaytest /relay-test-pass /tmp/hazrob-relay-test-pass
 
 # Restore the controlled prototype signing key only inside this isolated build container.
 RUN base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks && chmod 600 signing/hazrob-prototype.jks
@@ -103,7 +113,7 @@ RUN cat > /out/index.html <<'EOF'
 <p><a href="/HazRob-0.10.1-v25-TEST.sha256">APK SHA-256</a> · <a href="/HazRob-0.10.1-v25-signing.txt">Signing verification</a></p>
 <p><a href="/HazRob-ESP32-Main-0.10.1-HR066.zip">Firmware Main ESP32</a> · <a href="/HazRob-ESP32-Main-0.10.1-HR066.sha256">SHA-256</a></p>
 <p><a href="/HazRob-ESP32-CAM-0.10.1-HR066.zip">Firmware ESP32-CAM</a> · <a href="/HazRob-ESP32-CAM-0.10.1-HR066.sha256">SHA-256</a></p>
-<p>Validation: complete audit sweep + Android unit tests + Android lint + Main/CAM compile + signed release build.</p>
+<p>Validation: complete audit sweep + relay local/live Render/HiveMQ contract + Android unit tests + Android lint + Main/CAM compile + signed release build.</p>
 </body></html>
 EOF
 
