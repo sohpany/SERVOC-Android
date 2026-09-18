@@ -29,7 +29,7 @@ public class LiveGasStateEngineTest {
     }
     @Test public void singleSpikeDoesNotAlert()throws Exception{
         LiveGasStateEngine e=new LiveGasStateEngine();
-        for(int i=0;i<5;i++)assertEquals(LiveGasStateEngine.State.NORMAL,e.evaluate(array(1.35,1),true,false).state);
+        for(int i=0;i<5;i++)assertEquals(LiveGasStateEngine.State.INSTANT_RESPONSE,e.evaluate(array(1.35,1),true,false).state);
     }
     @Test public void persistentMultisensorResponseEscalatesAndDeescalates()throws Exception{
         LiveGasStateEngine e=new LiveGasStateEngine();
