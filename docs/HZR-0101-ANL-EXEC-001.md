@@ -39,7 +39,7 @@
 **Completion record:** This document creation commit.
 
 ### Stage 1 — Analytical Contract v4 specification
-**Status:** NOT_STARTED  
+**Status:** IN_PROGRESS  
 **Goal:** Define one canonical session-bound result consumed by UI/reports.
 **Tasks:**
 - Specify chemcore-result/4 fields.
@@ -217,7 +217,8 @@ Append one row whenever a stage changes state.
 
 | UTC date | Stage | New status | Commit SHA | Tests/audits | Notes |
 |---|---:|---|---|---|---|
-| 2026-09-18 | 0 | COMPLETE | PENDING_THIS_COMMIT | Reference creation | HR066 baseline; execution ledger established |
+| 2026-09-18 | 0 | COMPLETE | 9a15a10fb7b537af122a6d5d8e4167653965628a | Reference creation | HR066 baseline; execution ledger established |
+| 2026-09-18 | 1 | IN_PROGRESS | 6b58c498ebb5ec4723e0452e6623833b64102158 | Contract spec + v4 envelope + tests added | Validation/build pending |
 
 ## 5. Resume protocol after interruption
 1. Open this file first.
