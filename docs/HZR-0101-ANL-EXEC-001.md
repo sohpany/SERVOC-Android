@@ -259,3 +259,16 @@ The program is complete only when:
 - Operational panel source: HAZROB-CHEM-144-v3 / ChemicalCatalog.COUNT.
 - ChemCore144ScreeningEngine added and bound to chemcore-result/4 screening_144.
 - Exactly one explicit row is produced per catalogue entry; unsupported coverage never fabricates detection or reportable ppm.
+
+
+### Stage 4 completion — 2026-09-18
+- Status: COMPLETE.
+- ChemCore144ScreeningEngine is bound to chemcore-result/4 and emits exactly 144 explicit catalogue rows.
+- Session-aware identity and quantitative gates are enforced; unsupported rows cannot fabricate detection or reportable ppm.
+- Focused Railway unit-test command including ChemCore144ScreeningEngineTest: BUILD SUCCESSFUL in 31s.
+- Final container packaging was still running when Stage 5 began; the Stage 4 acceptance test itself passed.
+- Firmware remained frozen.
+
+### Stage 5 start — 2026-09-18
+- Status: IN_PROGRESS.
+- Scope kept lean: consolidate existing inference/open-set/mixture/OOD/M4 quantitative gates; no duplicate inference stack.
