@@ -126,7 +126,7 @@ public final class ChemCoreResultEnvelope {
             out.put("quality_gates",qualityGatesJson());
             out.put("methodology",methodologyJson());
             out.put("feature_summary",featureSummaryJson());
-            out.put("screening_144",pendingOperationalPanelJson());
+            out.put("screening_144",ChemCore144ScreeningEngine.evaluate());
             out.put("accepted_findings",new JSONArray());
             out.put("safety_findings",new JSONArray());
             out.put("source_refs",new JSONArray());
