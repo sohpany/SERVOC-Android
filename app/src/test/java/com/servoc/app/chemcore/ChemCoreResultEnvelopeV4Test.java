@@ -50,4 +50,49 @@ public class ChemCoreResultEnvelopeV4Test {
         ChemCoreResultEnvelope r=new ChemCoreResultEnvelope("S3",ChemCoreDecision.Outcome.IDENTIFIED,ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,1L,"partial",Double.NaN,Double.NaN,Double.NaN,1,.7,.2,"p",ChemCoreFeaturePipeline.SCHEMA_VERSION,"m","gate",Arrays.asList(partial,complete));
         JSONObject rows=r.toJson();assertFalse(rows.getJSONArray("candidates").getJSONObject(0).getBoolean("device_quantitative_support"));assertTrue(rows.getJSONArray("candidates").getJSONObject(1).getBoolean("device_quantitative_support"));
     }
+    @Test public void failClosedOutcomesExportCanonicalWithheldReasons()throws Exception{
+        Object[][] cases=new Object[][]{
+                {ChemCoreDecision.Outcome.UNKNOWN,"open_set_unknown"},
+                {ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE,"mixture_or_interference"},
+                {ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN,"outside_validated_domain"}
+        };
+        for(Object[] x:cases){
+            ChemCoreResultEnvelope e=new ChemCoreResultEnvelope("G",(ChemCoreDecision.Outcome)x[0],
+                    ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED,null,"",Double.NaN,Double.NaN,Double.NaN,
+                    2,.4,.7,"p",ChemCoreFeaturePipeline.SCHEMA_VERSION,"m","gate",Collections.emptyList());
+            JSONObject j=e.toJson();assertFalse(j.getBoolean("ppm_reportable"));
+            assertEquals(x[1],j.getString("ppm_withheld_reason"));
+            assertEquals(x[1],j.getJSONObject("quality_gates").getString("ppm_withheld_reason"));
+        }
+    }
+
+    @Test public void quantifiedM4IsOnlyReportableCombination()throws Exception{
+        for(ChemCoreDecision.EvidenceTier tier:ChemCoreDecision.EvidenceTier.values()){
+            ChemCoreResultEnvelope e=new ChemCoreResultEnvelope("Q",ChemCoreDecision.Outcome.QUANTIFIED,tier,9L,"X",18,15,21,
+                    .2,.9,.1,"p",ChemCoreFeaturePipeline.SCHEMA_VERSION,"m","quant",Collections.emptyList());
+            JSONObject j=e.toJson();
+            assertEquals(tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED,j.getBoolean("ppm_reportable"));
+        }
+    }
+
+    @Test public void libraryAndSessionProvenanceSurviveSerialization()throws Exception{
+        ChemCoreResultEnvelope e=new ChemCoreResultEnvelope("SESSION-EXACT",ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,
+                ChemCoreDecision.EvidenceTier.M1_MOLECULARLY_INFERRED,null,"",Double.NaN,Double.NaN,Double.NaN,
+                Double.NaN,.3,.8,"profile-v2",ChemCoreFeaturePipeline.SCHEMA_VERSION,"model-17","audit",Collections.emptyList())
+                .withLibraryProvenance("stable-2.4","abc123","deadbeef");
+        JSONObject j=e.toJson();assertEquals("SESSION-EXACT",j.getString("session_id"));
+        assertEquals("stable-2.4",j.getJSONObject("library").getString("version"));
+        assertEquals("abc123",j.getJSONObject("library").getString("sha256"));
+        assertEquals("deadbeef",j.getJSONObject("library").getString("source_commit"));
+        assertEquals("profile-v2",j.getJSONObject("methodology").getString("sampling_profile_id"));
+    }
+
+    @Test public void screeningFitNeverBecomesFinalPpm()throws Exception{
+        ChemCoreResultEnvelope.CandidateSummary c=new ChemCoreResultEnvelope.CandidateSummary(8,"Y",.88,500,.1,4,
+                ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,50,90,90,0,true,Collections.emptyMap());
+        JSONObject j=new ChemCoreResultEnvelope("S",ChemCoreDecision.Outcome.IDENTIFIED,ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,
+                8L,"Y",Double.NaN,Double.NaN,Double.NaN,.1,.88,.2,"p",ChemCoreFeaturePipeline.SCHEMA_VERSION,"m","id",Collections.singletonList(c)).toJson();
+        assertTrue(j.isNull("ppm"));assertFalse(j.getBoolean("ppm_reportable"));
+        assertEquals(500,j.getJSONArray("candidates").getJSONObject(0).getDouble("screening_fit_ppm"),0);
+    }
 }
