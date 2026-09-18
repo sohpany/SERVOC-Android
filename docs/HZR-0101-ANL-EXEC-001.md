@@ -371,3 +371,5 @@ The program is complete only when:
 - Dynamic charts, candidate tracking, report KPIs, and scientific provenance must be implemented inside those existing HazRob surfaces.
 
 - In-app report chart UX: avoid chart crowding. Use one fixed chart viewport with a drop-down selector listing all available charts; selecting a chart replaces only the content of that viewport. Hide/disable charts whose required session evidence is unavailable. PDF/XLSX remain multi-chart report outputs and are not constrained by this single-view selector.
+
+- Reporting visual-design directive: diversify chart geometry where scientifically appropriate instead of repeating bars. Planned/allowed forms include multi-line traces, radar/spider fingerprint, horizontal ranked bars, donut/ring status composition, gauge/progress indicators for bounded reference ratios, scatter plots for residual-vs-posterior relationships, heatmap/matrix for MQ-channel contribution, and compact KPI cards. Visual form must not imply unsupported precision; toxicity and flammability remain separate dimensions, and candidate-rank colors remain distinct from hazard severity.
