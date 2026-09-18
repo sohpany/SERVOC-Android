@@ -47,7 +47,7 @@ public final class ReportExporter {
 
         if(chemcore!=null){
             page=page(pdf,pageNo++);c=page.getCanvas();chemCoreProvenance(c,chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.screening144(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.exposureRatios(c,new RectF(PDF_MARGIN,420,595-PDF_MARGIN,790),chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.candidateScatter(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);\n            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidateBubbleMap(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.candidateResiduals(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);\n            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.screening144(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.screeningDonut(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);\n            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.evidenceTiers(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.exposureRatios(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
             JSONObject gas=chemcore.optJSONObject(GasPpmExposureAssessment.KEY);if(gas!=null){page=page(pdf,pageNo++);c=page.getCanvas();gasSafety(c,gas);reportChrome(c,pageNo-1,0);pdf.finishPage(page);}
         }
 
@@ -59,12 +59,10 @@ public final class ReportExporter {
             PpmImage ppm=chemicals==null?null:renderPpm(series,chemicals,analytics);
             if(ppm!=null&&ppm.count>0){page=page(pdf,pageNo++);c=page.getCanvas();c.drawBitmap(ppm.bitmap,null,new RectF(PDF_MARGIN,70,595-PDF_MARGIN,650),null);text(c,"Quantitative curves are shown only when the calibration engine returned a valid quantitative result across recorded samples.",PDF_MARGIN,700,EN_BODY_PT,Color.DKGRAY,false);reportChrome(c,pageNo-1,0);pdf.finishPage(page);ppm.bitmap.recycle();}
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,330),candidatePayload(analytics,chemcore));AnalyticalCharts.temperature(c,new RectF(PDF_MARGIN,350,595-PDF_MARGIN,555),series);AnalyticalCharts.humidity(c,new RectF(PDF_MARGIN,575,595-PDF_MARGIN,790),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.pressure(c,new RectF(28,42,567,390),series);AnalyticalCharts.sound(c,new RectF(28,420,567,790),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.pressure(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),series);AnalyticalCharts.sound(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),series);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
         }else{
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,400),candidatePayload(analytics,chemcore));text(c,"No matching recorded time-series is available for this experiment; temporal charts were not generated.",PDF_MARGIN,445,EN_BODY_PT,Color.DKGRAY,false);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
         }
-        int total=pageNo-1; // Page count is known after composition; redraw chrome with total is not supported by PdfDocument, so footer uses live total via two-pass count helper below.
-        // Recompose once with the known total to guarantee "صفحة كذا من كذا".
         pdf.writeTo(out);pdf.close();
     }
 
