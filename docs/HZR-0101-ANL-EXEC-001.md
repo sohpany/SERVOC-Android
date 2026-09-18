@@ -369,3 +369,5 @@ The program is complete only when:
 - Do not create any standalone dashboard, external reporting UI, or parallel analytics interface.
 - The authoritative reporting surfaces remain: HazRob in-app Reports/Analysis Results UI plus HazRob-generated PDF and XLSX.
 - Dynamic charts, candidate tracking, report KPIs, and scientific provenance must be implemented inside those existing HazRob surfaces.
+
+- In-app report chart UX: avoid chart crowding. Use one fixed chart viewport with a drop-down selector listing all available charts; selecting a chart replaces only the content of that viewport. Hide/disable charts whose required session evidence is unavailable. PDF/XLSX remain multi-chart report outputs and are not constrained by this single-view selector.
