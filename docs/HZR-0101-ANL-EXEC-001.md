@@ -375,3 +375,17 @@ The program is complete only when:
 - Reporting visual-design directive: diversify chart geometry where scientifically appropriate instead of repeating bars. Planned/allowed forms include multi-line traces, radar/spider fingerprint, horizontal ranked bars, donut/ring status composition, gauge/progress indicators for bounded reference ratios, scatter plots for residual-vs-posterior relationships, heatmap/matrix for MQ-channel contribution, and compact KPI cards. Visual form must not imply unsupported precision; toxicity and flammability remain separate dimensions, and candidate-rank colors remain distinct from hazard severity.
 
 - Stage 10 tracking lineage: existing MainActivity tracking target is Android-side persisted state (SharedPreferences: tracking_id/tracking_name), with no firmware dependency. Analysis Results now labels it explicitly as an operator-tracked hypothesis and never as an analytically accepted identity. Selection and start-tracking remain separate actions.
+
+
+## 2026-09-18 — End-of-day checkpoint
+
+- Analytical v4 execution reached Stage 14 after completing Stages 1–13.
+- Stage 14 release designation: **HR067**, while preserving the application compatibility line **HazRob 0.10.1** and **versionCode 25**. The temporary 0.10.2/versionCode 26 bump was reverted by explicit project decision.
+- HR067 does **not** introduce firmware behavior changes. Frozen HR066 Main/CAM firmware remains the source-equivalent firmware baseline; firmware continues to acquire/transport measurements while analytical processing remains Android-side.
+- Verified analytical branch divergence from frozen baseline contained no firmware-related source changes before HR067 packaging work.
+- HR067 unified release manifest exists at `docs/0.10.2/HR067_UNIFIED_RELEASE_MANIFEST.md`; its content was corrected to the 0.10.1 compatibility line. Path relocation may be performed later as documentation cleanup only.
+- APK build is currently blocked by external CI/account capacity, not by a demonstrated Android compilation defect: GitHub Actions runs are failing before runner allocation; Railway Agent usage limit was reached; Render Hobby workspace is at its 25-service limit.
+- Render review identified `hazrob-0101-flammability-seed-10` as an obsolete no-op candidate if a service slot must later be freed; no service was deleted today.
+- No production Render/Railway service was modified during the workaround attempts.
+- Periodic follow-up was scheduled every 8 hours to retry GitHub Actions/Railway and, when available, build the signed **HazRob 0.10.1 / HR067 APK**, verify signing and SHA-256, and notify upon successful artifact availability.
+- End-of-day state: source work preserved; HR067 APK artifact still pending external build capacity.
