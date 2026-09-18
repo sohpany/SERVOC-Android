@@ -44,6 +44,7 @@ public final class ReportExporter {
 
         if(chemcore!=null){
             page=page(pdf,pageNo++);c=page.getCanvas();chemCoreProvenance(c,chemcore);footer(c);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.screening144(c,new RectF(28,42,567,390),chemcore);AnalyticalCharts.exposureRatios(c,new RectF(28,420,567,790),chemcore);footer(c);pdf.finishPage(page);
             JSONObject gas=chemcore.optJSONObject(GasPpmExposureAssessment.KEY);if(gas!=null){page=page(pdf,pageNo++);c=page.getCanvas();gasSafety(c,gas);footer(c);pdf.finishPage(page);}
         }
 
