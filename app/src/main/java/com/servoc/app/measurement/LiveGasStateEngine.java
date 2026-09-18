@@ -38,7 +38,7 @@ public final class LiveGasStateEngine {
         if(watch)persistence=Math.min(99,persistence+1);else persistence=Math.max(0,persistence-1);
         if(alert&&persistence>=ALERT_PERSISTENCE)return out(State.RESPONSE_ALERT,healthy,usable,responding,persistence,strongest,"persistent_multisensor_response");
         if(watch&&persistence>=WATCH_PERSISTENCE)return out(State.RESPONSE_WATCH,healthy,usable,responding,persistence,strongest,"multisensor_response_watch");
-        if(instant)return out(State.INSTANT_RESPONSE,healthy,usable,responding,persistence,strongest,"instant_strong_response");
+        if(instant&&responding==1)return out(State.INSTANT_RESPONSE,healthy,usable,responding,persistence,strongest,"instant_strong_response");
         return out(State.NORMAL,healthy,usable,responding,persistence,strongest,"no_persistent_multisensor_response");
     }
     private static Snapshot out(State s,int h,int u,int r,int p,double d,String why){return new Snapshot(s,h,u,r,p,d,why);}
