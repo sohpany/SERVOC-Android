@@ -23,4 +23,14 @@ public class ChemCore144ScreeningEngineTest {
             assertFalse(r.optBoolean("ppm_reportable",true));
         }
     }
+    @Test public void identifiedSessionMarksOnlyAcceptedRowDetected() {
+        ChemCoreResultEnvelope e=new ChemCoreResultEnvelope("s",ChemCoreDecision.Outcome.IDENTIFIED,ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,
+                20L,"Carbon Monoxide",Double.NaN,Double.NaN,Double.NaN,0.1,0.8,0.2,"p",ChemCoreFeaturePipeline.SCHEMA_VERSION,"m","",null);
+        JSONArray rows=ChemCore144ScreeningEngine.evaluate(e).optJSONArray("rows");
+        int detected=0;
+        for(int i=0;i<rows.length();i++)if(rows.optJSONObject(i).optBoolean("detected"))detected++;
+        assertEquals(1,detected);
+        assertTrue(rows.optJSONObject(20).optBoolean("detected"));
+        assertFalse(rows.optJSONObject(20).optBoolean("ppm_reportable"));
+    }
 }
