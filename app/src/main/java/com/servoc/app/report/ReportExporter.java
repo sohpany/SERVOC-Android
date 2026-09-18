@@ -26,6 +26,8 @@ import java.util.Locale;
 /** HazRob analytical report facade. All reports bind analytical provenance to the exact measurement session. */
 public final class ReportExporter {
     private ReportExporter(){}
+    private static final float PDF_MARGIN=28.35f; // 1 cm on A4
+    private static final float AR_BODY_PT=13f, EN_BODY_PT=12f;
     private static final String FOOTER="HazRob "+ReleaseAudit.VERSION+" • إعداد المشروع/ "+ReleaseAudit.PROJECT_PREPARERS+".";
 
     public static void writePdf(OutputStream out,ExperimentQueries.Record r)throws Exception{writePdf(out,r,null);}
@@ -44,18 +46,18 @@ public final class ReportExporter {
 
         if(chemcore!=null){
             page=page(pdf,pageNo++);c=page.getCanvas();chemCoreProvenance(c,chemcore);footer(c);pdf.finishPage(page);
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.screening144(c,new RectF(28,42,567,390),chemcore);AnalyticalCharts.exposureRatios(c,new RectF(28,420,567,790),chemcore);footer(c);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.screening144(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.exposureRatios(c,new RectF(PDF_MARGIN,420,595-PDF_MARGIN,790),chemcore);footer(c);pdf.finishPage(page);
             JSONObject gas=chemcore.optJSONObject(GasPpmExposureAssessment.KEY);if(gas!=null){page=page(pdf,pageNo++);c=page.getCanvas();gasSafety(c,gas);footer(c);pdf.finishPage(page);}
         }
 
         if(series!=null&&series.usable()){
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqRsR0(c,new RectF(28,42,567,405),series);AnalyticalCharts.fingerprint(c,new RectF(28,430,567,790),series);footer(c);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.mqRsR0(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,405),series);AnalyticalCharts.fingerprint(c,new RectF(PDF_MARGIN,430,595-PDF_MARGIN,790),series);footer(c);pdf.finishPage(page);
             PpmImage ppm=chemicals==null?null:renderPpm(series,chemicals,analytics);
-            if(ppm!=null&&ppm.count>0){page=page(pdf,pageNo++);c=page.getCanvas();c.drawBitmap(ppm.bitmap,null,new RectF(28,70,567,650),null);text(c,"Quantitative curves are shown only when the calibration engine returned a valid quantitative result across recorded samples.",32,700,9,Color.DKGRAY,false);footer(c);pdf.finishPage(page);ppm.bitmap.recycle();}
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(28,42,567,330),candidatePayload(analytics,chemcore));AnalyticalCharts.temperature(c,new RectF(28,350,567,555),series);AnalyticalCharts.humidity(c,new RectF(28,575,567,790),series);footer(c);pdf.finishPage(page);
+            if(ppm!=null&&ppm.count>0){page=page(pdf,pageNo++);c=page.getCanvas();c.drawBitmap(ppm.bitmap,null,new RectF(PDF_MARGIN,70,595-PDF_MARGIN,650),null);text(c,"Quantitative curves are shown only when the calibration engine returned a valid quantitative result across recorded samples.",PDF_MARGIN,700,EN_BODY_PT,Color.DKGRAY,false);footer(c);pdf.finishPage(page);ppm.bitmap.recycle();}
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,330),candidatePayload(analytics,chemcore));AnalyticalCharts.temperature(c,new RectF(PDF_MARGIN,350,595-PDF_MARGIN,555),series);AnalyticalCharts.humidity(c,new RectF(PDF_MARGIN,575,595-PDF_MARGIN,790),series);footer(c);pdf.finishPage(page);
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.pressure(c,new RectF(28,42,567,390),series);AnalyticalCharts.sound(c,new RectF(28,420,567,790),series);footer(c);pdf.finishPage(page);
         }else{
-            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(28,42,567,400),candidatePayload(analytics,chemcore));text(c,"No matching recorded time-series is available for this experiment; temporal charts were not generated.",35,445,10,Color.DKGRAY,false);footer(c);pdf.finishPage(page);
+            page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,42,595-PDF_MARGIN,400),candidatePayload(analytics,chemcore));text(c,"No matching recorded time-series is available for this experiment; temporal charts were not generated.",PDF_MARGIN,445,EN_BODY_PT,Color.DKGRAY,false);footer(c);pdf.finishPage(page);
         }
         pdf.writeTo(out);pdf.close();
     }
