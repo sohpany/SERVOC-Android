@@ -284,3 +284,17 @@ The program is complete only when:
 ### Stage 6 start — 2026-09-18
 - Status: IN_PROGRESS.
 - Scope: exposure and flammability interpretation using accepted ChemCore decisions only; keep occupational limits distinct (TWA/STEL/Ceiling/IDLH/LFL).
+
+
+### Stage 6 completion — 2026-09-18
+- Status: COMPLETE by focused integration audit; no redundant rebuild.
+- Reused GasPpmExposureAssessment as the single fail-closed exposure/flammability interpretation path.
+- Safety input remains gated to accepted M4 reportable ppm from ChemCore.
+- ppm toxicology references remain separate from mass-concentration references; no silent unit conversion.
+- TWA/STEL duration context, Ceiling, IDLH and LFL/UFL are kept distinct; LFL uses explicit vol%→ppmv ratio conversion.
+- GasHazardPriority affects display ordering only and cannot alter analytical identity.
+- Firmware remained frozen.
+
+### Stage 7 start — 2026-09-18
+- Status: IN_PROGRESS.
+- Scope: bind Analysis UI directly to the persisted chemcore-result/4 decision and its 144 screening/safety evidence without recomputation.
