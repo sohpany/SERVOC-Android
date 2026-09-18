@@ -310,3 +310,14 @@ The program is complete only when:
 ### Stage 8 start — 2026-09-18
 - Status: IN_PROGRESS.
 - Scope: preserve and tighten the existing live measurement UI/session workflow; no redesign unless required for analytical lineage.
+
+
+### Stage 8 completion — 2026-09-18
+- Status: COMPLETE by focused UI audit; existing live measurement workflow retained.
+- MQ relay control, eight live MQ cards, ADS readiness, warm-up/baseline state, session start/cancel/save and operational warning semantics remain intact.
+- No duplicate measurement UI was introduced; analytical results remain isolated in the new نتائج التحليل sub-tab.
+- Firmware remained frozen.
+
+### Stage 9 start — 2026-09-18
+- Status: IN_PROGRESS.
+- Scope: reuse existing analytical chart primitives and bind them to persisted/canonical analytical data without presentation-side inference.
