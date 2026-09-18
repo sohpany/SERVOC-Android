@@ -17,9 +17,9 @@ public class GasAlertCoordinatorTest {
         SensorHealthEngine h=new SensorHealthEngine();for(String k:SensorHealthEngine.INSTALLED)h.setBaseline(k,1.0);
         for(int n=0;n<6;n++)h.accept(snapshot(1,1,60000),n*250L);return h;
     }
-    @Test public void singleChannelSpikeNeverEscalates()throws Exception{
+    @Test public void singleChannelResponseWarnsImmediatelyButNeverEscalatesToDanger()throws Exception{
         SensorHealthEngine h=ready();GasAlertCoordinator c=new GasAlertCoordinator();
-        for(int n=0;n<5;n++){JSONObject s=snapshot(1.5,1,60000);h.accept(s,n*250L+2000);assertEquals(GasAlertCoordinator.NONE,c.evaluate(s,h,60,n*250L+2000));}
+        for(int n=0;n<5;n++){JSONObject s=snapshot(1.5,1,60000);h.accept(s,n*250L+2000);assertEquals(GasAlertCoordinator.WARNING,c.evaluate(s,h,60,n*250L+2000));}
     }
     @Test public void persistentMultisensorResponseEscalates()throws Exception{
         SensorHealthEngine h=ready();GasAlertCoordinator c=new GasAlertCoordinator();JSONObject s=snapshot(1.5,1.5,60000);
