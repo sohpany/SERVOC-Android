@@ -72,16 +72,22 @@ RUN mkdir -p /out && python3 - <<'PY'
 from pathlib import Path
 import zipfile
 
-def pack(name, source_dir, compiled_dir):
+def pack(name, sketch_name, source_dir, compiled_dir):
+    # Arduino expects the sketch itself to be one folder whose primary .ino name
+    # matches that folder. Keep all related source tabs and validated binaries
+    # together under that single root so extraction is immediately usable.
     out=Path('/out')/name
+    root=Path(sketch_name)
     with zipfile.ZipFile(out,'w',zipfile.ZIP_DEFLATED) as z:
-        for base,prefix in [(Path(source_dir),'source'),(Path(compiled_dir),'compiled')]:
-            for p in sorted(base.rglob('*')):
-                if p.is_file():
-                    z.write(p, Path(prefix)/p.relative_to(base))
+        for p in sorted(Path(source_dir).rglob('*')):
+            if p.is_file():
+                z.write(p, root/p.relative_to(source_dir))
+        for p in sorted(Path(compiled_dir).rglob('*')):
+            if p.is_file():
+                z.write(p, root/'build'/p.relative_to(compiled_dir))
 
-pack('HazRob-ESP32-Main-0.10.1-HR066.zip','firmware/HazRob','/tmp/fw-main')
-pack('HazRob-ESP32-CAM-0.10.1-HR066.zip','firmware/HazRob-CAM','/tmp/fw-cam')
+pack('HazRob-ESP32-Main-0.10.1-HR066.zip','HazRob','firmware/HazRob','/tmp/fw-main')
+pack('HazRob-ESP32-CAM-0.10.1-HR066.zip','HazRob-CAM','firmware/HazRob-CAM','/tmp/fw-cam')
 PY
 RUN sha256sum /out/HazRob-ESP32-Main-0.10.1-HR066.zip > /out/HazRob-ESP32-Main-0.10.1-HR066.sha256 && \
     sha256sum /out/HazRob-ESP32-CAM-0.10.1-HR066.zip > /out/HazRob-ESP32-CAM-0.10.1-HR066.sha256
