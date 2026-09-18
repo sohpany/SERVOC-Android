@@ -4,7 +4,7 @@ import java.util.Map;
 
 /** App-side operational MQ response monitor; never identifies chemicals or produces quantitative safety claims. */
 public final class LiveGasStateEngine {
-    public enum State { UNAVAILABLE, WARMING_UP, DEGRADED, BASELINE_REQUIRED, NORMAL, RESPONSE_WATCH, RESPONSE_ALERT }
+    public enum State { UNAVAILABLE, WARMING_UP, DEGRADED, BASELINE_REQUIRED, NORMAL, INSTANT_RESPONSE, RESPONSE_WATCH, RESPONSE_ALERT }
     public static final class Snapshot {
         public final State state; public final int healthyChannels,usableChannels,respondingChannels,persistence; public final double strongestAbsLogDelta; public final String reason;
         Snapshot(State s,int h,int u,int r,int p,double d,String why){state=s;healthyChannels=h;usableChannels=u;respondingChannels=r;persistence=p;strongestAbsLogDelta=d;reason=why;}
@@ -31,7 +31,7 @@ public final class LiveGasStateEngine {
         }
         if(usable<4){persistence=0;return out(State.DEGRADED,healthy,usable,responding,0,strongest,"insufficient_usable_channels");}
         if(baselines<4){persistence=0;return out(State.BASELINE_REQUIRED,healthy,usable,responding,0,strongest,"clean_air_baseline_required");}
-        boolean watch=responding>=2&&strongest>=WATCH_LOG10,alert=responding>=2&&strongest>=ALERT_LOG10;
+        boolean instant=responding>=1&&strongest>=ALERT_LOG10;\n        boolean watch=responding>=2&&strongest>=WATCH_LOG10,alert=responding>=2&&strongest>=ALERT_LOG10;
         if(watch)persistence=Math.min(99,persistence+1);else persistence=Math.max(0,persistence-1);
         if(alert&&persistence>=ALERT_PERSISTENCE)return out(State.RESPONSE_ALERT,healthy,usable,responding,persistence,strongest,"persistent_multisensor_response");
         if(watch&&persistence>=WATCH_PERSISTENCE)return out(State.RESPONSE_WATCH,healthy,usable,responding,persistence,strongest,"multisensor_response_watch");
