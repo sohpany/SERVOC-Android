@@ -95,6 +95,14 @@ public final class AnalyticalCharts {
         barChart(c,box,"Chemical candidate agreement","agreement",names,values);
     }
 
+    public static void mqEnvironmentMatrix(Canvas c,RectF box,SessionSeries.Series s){double[][] f=canonicalFeatures(s);if(f==null){empty(c,box,"MQ × environment","Insufficient canonical features");return;}String[] labels=new String[8];double[] v=new double[8];for(int i=0;i<8;i++){labels[i]=HazRobHardwareProfile.MQ[i].key;v[i]=Math.abs(f[i][9]);}barRawChart(c,box,"MQ × environment diagnostic","steady slope magnitude",labels,v);}
+
+    public static void candidateScatter(Canvas c,RectF box,JSONObject chemcore){JSONArray a=chemcore==null?null:chemcore.optJSONArray("candidates");if(a==null||a.length()==0){empty(c,box,"Candidate scatter","No ChemCore candidates");return;}int n=Math.min(8,a.length());String[] labels=new String[n];double[] v=new double[n];for(int i=0;i<n;i++){JSONObject q=a.optJSONObject(i);labels[i]=shortName(q==null?"—":q.optString("label","#"+(i+1)),16);v[i]=q==null?Double.NaN:q.optDouble("posterior",Double.NaN);}barRawChart(c,box,"Candidate posterior scatter","posterior",labels,v);}
+
+    public static void candidateBubbleMap(Canvas c,RectF box,JSONObject chemcore){JSONArray a=chemcore==null?null:chemcore.optJSONArray("candidates");if(a==null||a.length()==0){empty(c,box,"Multivariate candidate map","No ChemCore candidates");return;}frame(c,box,"Multivariate candidate map");RectF p=new RectF(box.left+58,box.top+40,box.right-22,box.bottom-48);Paint ax=paint(0xFF90A4AE,1);c.drawLine(p.left,p.bottom,p.right,p.bottom,ax);c.drawLine(p.left,p.top,p.left,p.bottom,ax);int n=Math.min(8,a.length());for(int i=0;i<n;i++){JSONObject q=a.optJSONObject(i);if(q==null)continue;double post=q.optDouble("posterior",Double.NaN),res=q.optDouble("residual_rms",Double.NaN);if(!Double.isFinite(post)||!Double.isFinite(res))continue;float x=p.left+(float)Math.max(0,Math.min(1,post))*p.width();float y=p.bottom-(float)(1.0/(1.0+Math.max(0,res)))*p.height();Paint dot=paint(PALETTE[i%PALETTE.length],1);dot.setStyle(Paint.Style.FILL);c.drawCircle(x,y,6+2*i,dot);small(c,shortName(q.optString("label","#"+(i+1)),10),x+8,y-4,Color.DKGRAY,Paint.Align.LEFT);}small(c,"posterior →    fit quality ↑",p.centerX(),box.bottom-8,Color.DKGRAY,Paint.Align.CENTER);}
+
+    public static void screeningDonut(Canvas c,RectF box,JSONObject chemcore){JSONObject p=chemcore==null?null:chemcore.optJSONObject("screening_144");JSONArray rows=p==null?null:p.optJSONArray("rows");String[] states={"SUPPORTED","WEAK_MATCH","REJECTED","OUT_OF_DOMAIN","INSUFFICIENT_EVIDENCE","UNSUPPORTED_BY_CURRENT_ARRAY"};String[] labels={"Supported","Weak","Rejected","OOD","Insufficient","Unsupported"};double[] v=new double[states.length];if(rows!=null)for(int i=0;i<rows.length();i++){JSONObject q=rows.optJSONObject(i);if(q==null)continue;String st=q.optString("status","");for(int k=0;k<states.length;k++)if(states[k].equals(st)){v[k]++;break;}}barCountChart(c,box,"144-panel screening distribution","chemicals",labels,v);}
+
     /** Per-channel analytical signal quality: canonical SNR and baseline noise. */
     public static void mqSignalQuality(Canvas c,RectF box,SessionSeries.Series s){double[][] f=canonicalFeatures(s);if(f==null){empty(c,box,"MQ signal quality","Insufficient canonical features");return;}String[] labels=new String[8];double[] snr=new double[8];for(int i=0;i<8;i++){labels[i]=com.servoc.app.hardware.HazRobHardwareProfile.MQ[i].key;snr[i]=f[i][16];}barRawChart(c,box,"MQ signal quality — SNR","|Δ| / baseline noise",labels,snr);}
 
@@ -195,5 +203,6 @@ public final class AnalyticalCharts {
     private static String fmt(double v){if(!Double.isFinite(v))return"—";double a=Math.abs(v);return a>=100?String.format(Locale.US,"%.0f",v):a>=10?String.format(Locale.US,"%.1f",v):String.format(Locale.US,"%.2f",v);}
     private static String shortName(String s,int n){if(s==null)return"";s=s.trim();return s.length()<=n?s:s.substring(0,n-1)+"…";}
     private static double[] arr(List<Double> x){double[] a=new double[x.size()];for(int i=0;i<a.length;i++)a[i]=x.get(i)==null?Double.NaN:x.get(i);return a;}
+    private static double norm01(double v){if(!Double.isFinite(v)||v<=0)return 0;return v/(1.0+v);}
     private static int valid(List<Double> x){int n=0;for(Double v:x)if(v!=null&&Double.isFinite(v))n++;return n;}
 }
