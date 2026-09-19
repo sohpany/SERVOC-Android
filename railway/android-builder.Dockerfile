@@ -92,7 +92,7 @@ PY
 RUN sha256sum /out/HazRob-ESP32-Main-0.10.1-HR067.zip > /out/HazRob-ESP32-Main-0.10.1-HR067.sha256 && \
     sha256sum /out/HazRob-ESP32-CAM-0.10.1-HR067.zip > /out/HazRob-ESP32-CAM-0.10.1-HR067.sha256
 
-RUN grep -q "versionCode 26" app/build.gradle && grep -q "versionName '0.10.1'" app/build.gradle
+RUN grep -q "versionCode 25" app/build.gradle && grep -q "versionName '0.10.1'" app/build.gradle
 RUN gradle --no-daemon :app:testDebugUnitTest
 RUN gradle --no-daemon :app:lintDebug
 RUN gradle --no-daemon :app:assembleRelease
