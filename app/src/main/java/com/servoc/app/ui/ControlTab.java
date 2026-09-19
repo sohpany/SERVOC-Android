@@ -14,6 +14,7 @@ import com.servoc.app.camera.MjpegRecorder;
 import com.servoc.app.camera.MjpegView;
 import com.servoc.app.camera.RemoteVideoCredentialStore;
 import com.servoc.app.control.DriveSpeedLimiter;
+import com.servoc.app.control.DualTankDriveControl;
 import com.servoc.app.control.JoystickView;
 import com.servoc.app.control.VerticalSpeedControl;
 import com.servoc.app.navigation.GasDirectionEstimator;
@@ -33,9 +34,9 @@ public final class ControlTab {
     private final Context appContext;private final HazRobHost host;private final LinearLayout root;
     private final TextView status,drive,cameraBadge,flameBadge,irBadge,trackingBadge,recordInfo,speedBadge;
     private final Button stop,flash,record,cancelTracking;
-    private final MjpegView video;private final MjpegRecorder recorder;private final FlameFrameAnalyzer flameAnalyzer;private final HazardOverlayView overlay;private final GasDirectionEstimator gasDirection=new GasDirectionEstimator();private final JoystickView joystick;private final VerticalSpeedControl speedControl;
+    private final MjpegView video;private final MjpegRecorder recorder;private final FlameFrameAnalyzer flameAnalyzer;private final HazardOverlayView overlay;private final GasDirectionEstimator gasDirection=new GasDirectionEstimator();private final JoystickView joystick;private final VerticalSpeedControl speedControl;private final DualTankDriveControl tankLeft,tankRight;
     private volatile boolean recordingStopping=false,estopLatched=false;private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;private FlameFrameAnalyzer.Result lastFlameResult;private int lastTarget=-1;
-    private int rawJoystickLeft=0,rawJoystickRight=0,speedPercent=DriveSpeedLimiter.DEFAULT_PERCENT;
+    private int rawJoystickLeft=0,rawJoystickRight=0,tankLeftRaw=0,tankRightRaw=0,speedPercent=DriveSpeedLimiter.DEFAULT_PERCENT;private boolean tankMode=false;
 
     public ControlTab(Context c,HazRobHost host){
         appContext=c.getApplicationContext();this.host=host;boolean landscape=c.getResources().getConfiguration().orientation==android.content.res.Configuration.ORIENTATION_LANDSCAPE;
@@ -45,10 +46,15 @@ public final class ControlTab {
         video=new MjpegView(c);recorder=new MjpegRecorder(c);flameAnalyzer=new FlameFrameAnalyzer(r->root.post(()->showFlame(r)));video.setFrameListener((jpeg,t)->{recorder.onJpegFrame(jpeg,t);flameAnalyzer.onJpegFrame(jpeg,t);});video.setStatusListener(this::showCameraStatus);cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
         overlay=new HazardOverlayView(c);cameraBox.addView(overlay,new FrameLayout.LayoutParams(-1,-1));
 
-        joystick=new JoystickView(c);int baseJoystickDp=landscape?120:150;int size=UiKit.dp(c,Math.round(baseJoystickDp*1.20f));FrameLayout.LayoutParams jp=new FrameLayout.LayoutParams(size,size,Gravity.RIGHT|Gravity.BOTTOM);jp.setMargins(0,0,UiKit.dp(c,10),UiKit.dp(c,10));cameraBox.addView(joystick,jp);joystick.setListener((l,r,active)->{rawJoystickLeft=l;rawJoystickRight=r;applyOperatorSpeed();});
+        joystick=new JoystickView(c);int baseJoystickDp=landscape?120:150;int size=UiKit.dp(c,Math.round(baseJoystickDp*1.20f));FrameLayout.LayoutParams jp=new FrameLayout.LayoutParams(size,size,Gravity.RIGHT|Gravity.BOTTOM);jp.setMargins(0,0,UiKit.dp(c,10),UiKit.dp(c,10));cameraBox.addView(joystick,jp);joystick.setListener((l,r,active)->{rawJoystickLeft=l;rawJoystickRight=r;if(!tankMode)applyOperatorSpeed();});
+        tankLeft=new DualTankDriveControl(c);tankRight=new DualTankDriveControl(c);
+        FrameLayout.LayoutParams tlp=new FrameLayout.LayoutParams(UiKit.dp(c,92),size,Gravity.LEFT|Gravity.BOTTOM);tlp.setMargins(UiKit.dp(c,78),0,0,UiKit.dp(c,10));cameraBox.addView(tankLeft,tlp);
+        FrameLayout.LayoutParams trp=new FrameLayout.LayoutParams(UiKit.dp(c,92),size,Gravity.RIGHT|Gravity.BOTTOM);trp.setMargins(0,0,UiKit.dp(c,10),UiKit.dp(c,10));cameraBox.addView(tankRight,trp);
+        tankLeft.setListener(v->{tankLeftRaw=v;if(tankMode)applyTankDrive();});tankRight.setListener(v->{tankRightRaw=v;if(tankMode)applyTankDrive();});
+        tankMode=host.preferences().getBoolean("tank_drive_mode",false);applyDriveModeVisibility();
 
         speedBadge=badge(c,"السرعة "+DriveSpeedLimiter.DEFAULT_PERCENT+"%");FrameLayout.LayoutParams sbp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.BOTTOM);sbp.setMargins(UiKit.dp(c,6),0,0,size+UiKit.dp(c,14));cameraBox.addView(speedBadge,sbp);
-        speedControl=new VerticalSpeedControl(c);speedControl.setPercent(DriveSpeedLimiter.DEFAULT_PERCENT,false);FrameLayout.LayoutParams vsp=new FrameLayout.LayoutParams(UiKit.dp(c,64),size,Gravity.LEFT|Gravity.BOTTOM);vsp.setMargins(UiKit.dp(c,8),0,0,UiKit.dp(c,10));cameraBox.addView(speedControl,vsp);speedControl.setListener(p->{speedPercent=DriveSpeedLimiter.clampPercent(p);speedBadge.setText("السرعة "+speedPercent+"%");applyOperatorSpeed();});
+        speedControl=new VerticalSpeedControl(c);speedControl.setPercent(DriveSpeedLimiter.DEFAULT_PERCENT,false);FrameLayout.LayoutParams vsp=new FrameLayout.LayoutParams(UiKit.dp(c,64),size,Gravity.LEFT|Gravity.BOTTOM);vsp.setMargins(UiKit.dp(c,8),0,0,UiKit.dp(c,10));cameraBox.addView(speedControl,vsp);speedControl.setListener(p->{speedPercent=DriveSpeedLimiter.clampPercent(p);speedBadge.setText("السرعة "+speedPercent+"%");if(tankMode)applyTankDrive();else applyOperatorSpeed();});
 
         status=badge(c,"ROBOT —");FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.TOP);sp.setMargins(0,UiKit.dp(c,6),UiKit.dp(c,6),0);cameraBox.addView(status,sp);
         irBadge=badge(c,"أرض —");FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.TOP);ip.setMargins(0,UiKit.dp(c,40),UiKit.dp(c,6),0);cameraBox.addView(irBadge,ip);
@@ -57,7 +63,7 @@ public final class ControlTab {
         flameBadge=badge(c,"🔥 —");FrameLayout.LayoutParams fp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.TOP);fp.setMargins(UiKit.dp(c,6),UiKit.dp(c,74),0,0);cameraBox.addView(flameBadge,fp);
         root.addView(cameraBox,new LinearLayout.LayoutParams(-1,0,1f));
 
-        LinearLayout actions=UiKit.hbox(c);stop=UiKit.button(c,"إيقاف طارئ");stop.setTextColor(Color.WHITE);stop.setBackgroundColor(0xFFC62828);stop.setOnClickListener(v->{latchEstopUi();host.emergencyStop();});stop.setOnLongClickListener(v->{requestEstopReset();return true;});actions.addView(stop,UiKit.weight(1.25f));flash=UiKit.button(c,"فلاش OFF");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1));record=UiKit.button(c,"تسجيل");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1));cancelTracking=UiKit.button(c,"إلغاء التتبع");cancelTracking.setOnClickListener(v->{host.setTrackingTarget(-1,"");gasDirection.reset();overlay.clearGas();host.refreshAllTabs();});actions.addView(cancelTracking,UiKit.weight(1.05f));root.addView(actions,UiKit.full(c));
+        LinearLayout actions=UiKit.hbox(c);stop=UiKit.button(c,"إيقاف طارئ");stop.setTextColor(Color.WHITE);stop.setBackgroundColor(0xFFC62828);stop.setOnClickListener(v->{latchEstopUi();host.emergencyStop();});stop.setOnLongClickListener(v->{requestEstopReset();return true;});actions.addView(stop,UiKit.weight(1.25f));flash=UiKit.button(c,"فلاش OFF");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1));record=UiKit.button(c,"تسجيل");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1));cancelTracking=UiKit.button(c,"إلغاء التتبع");cancelTracking.setOnClickListener(v->{host.setTrackingTarget(-1,"");gasDirection.reset();overlay.clearGas();host.refreshAllTabs();});actions.addView(cancelTracking,UiKit.weight(1.05f));Button driveMode=UiKit.button(c,"نمط القيادة");driveMode.setOnClickListener(v->toggleDriveMode(driveMode));actions.addView(driveMode,UiKit.weight(1));root.addView(actions,UiKit.full(c));driveMode.setText(tankMode?"قيادة: مزدوج":"قيادة: عصا");
         drive=UiKit.small(c,"L 0   R 0   —");drive.setBackgroundColor(0xFF151A20);root.addView(drive,UiKit.full(c));recordInfo=UiKit.small(c,"VIDEO —");recordInfo.setBackgroundColor(0xFF151A20);root.addView(recordInfo,UiKit.full(c));
         renderEstopButton();
     }
@@ -65,6 +71,9 @@ public final class ControlTab {
     private TextView badge(Context c,String text){TextView v=UiKit.small(c,text);v.setTextColor(0xFF90A4AE);v.setBackgroundColor(0xCC151A20);v.setPadding(UiKit.dp(c,8),UiKit.dp(c,4),UiKit.dp(c,8),UiKit.dp(c,4));return v;}
     private void showCameraStatus(String state,String detail){if("streaming".equals(state)){cameraBadge.setText("CAM ●");cameraBadge.setTextColor(0xFF81C784);}else if("connecting".equals(state)){cameraBadge.setText("CAM …");cameraBadge.setTextColor(0xFFFFB74D);}else if("retrying".equals(state)){cameraBadge.setText("CAM ↻");cameraBadge.setTextColor(0xFFFF7043);}else{cameraBadge.setText("CAM ○");cameraBadge.setTextColor(0xFF90A4AE);}}
     private void applyOperatorSpeed(){if(estopLatched){host.setDriveCommand(0,0);return;}host.setDriveCommand(DriveSpeedLimiter.scale(rawJoystickLeft,speedPercent),DriveSpeedLimiter.scale(rawJoystickRight,speedPercent));}
+    private void applyTankDrive(){if(estopLatched){host.setDriveCommand(0,0);return;}host.setDriveCommand(DriveSpeedLimiter.scale(tankLeftRaw,speedPercent),DriveSpeedLimiter.scale(tankRightRaw,speedPercent));}
+    private void applyDriveModeVisibility(){joystick.setVisibility(tankMode?View.GONE:View.VISIBLE);tankLeft.setVisibility(tankMode?View.VISIBLE:View.GONE);tankRight.setVisibility(tankMode?View.VISIBLE:View.GONE);}
+    private void toggleDriveMode(Button b){host.setDriveCommand(0,0);rawJoystickLeft=rawJoystickRight=tankLeftRaw=tankRightRaw=0;joystick.reset();tankLeft.reset();tankRight.reset();tankMode=!tankMode;host.preferences().edit().putBoolean("tank_drive_mode",tankMode).apply();applyDriveModeVisibility();b.setText(tankMode?"قيادة: مزدوج":"قيادة: عصا");host.showToast(tankMode?"تم تفعيل القيادة المزدوجة":"تم تفعيل عصا القيادة");}
 
     private void latchEstopUi(){estopLatched=true;rawJoystickLeft=rawJoystickRight=0;joystick.reset();host.setDriveCommand(0,0);renderEstopButton();}
     private void requestEstopReset(){
@@ -100,7 +109,7 @@ public final class ControlTab {
         if(r.temporal.state==FlameEvidenceTracker.State.PERSISTENT){flameBadge.setText("🔥 ●");flameBadge.setTextColor(0xFFFF7043);}else if(r.temporal.state==FlameEvidenceTracker.State.CANDIDATE){flameBadge.setText("🔥 ?");flameBadge.setTextColor(0xFFFFB74D);}else{flameBadge.setText("🔥 ○");flameBadge.setTextColor(0xFF90A4AE);}
     }
 
-    public View view(){return root;}public void resetJoystick(){rawJoystickLeft=rawJoystickRight=0;joystick.reset();}
+    public View view(){return root;}public void resetJoystick(){rawJoystickLeft=rawJoystickRight=tankLeftRaw=tankRightRaw=0;joystick.reset();tankLeft.reset();tankRight.reset();}
     public void startCamera(){
         if(remoteMode()){String url=host.preferences().getString("remote_video_url","").trim();String token=new RemoteVideoCredentialStore(host.preferences()).load();if(url.isEmpty()){showCameraStatus("retrying","Remote video not configured");return;}video.startWss(url,token);return;}
         String h=host.cameraHost();if(h==null||h.trim().isEmpty()){showCameraStatus("retrying","");return;}h=h.trim();video.start(new String[]{"http://"+h+":81/stream","http://"+h+"/stream"});
