@@ -47,7 +47,15 @@ public final class ChemCore144ScreeningEngine {
         } catch(JSONException e){throw new IllegalStateException("Unable to build 144 screening panel",e);}
     }
 
-    private static boolean matchesAcceptedChemical(int index,ChemCoreResultEnvelope result){\n        if(result==null||result.chemicalUid==null)return false;\n        // chemical_uid is a stable database UID, not a 0..143 catalogue index. Match the operational\n        // panel by canonical label; never equate UID numerically with the legacy catalogue position.\n        String label=result.chemicalLabel==null?"":result.chemicalLabel.trim();\n        return !label.isEmpty()&&label.equalsIgnoreCase(ChemicalCatalog.NAMES[index]);\n    }\n\n    private static String status(int index,ChemicalCoverage.Status c,MqSensorAffinity.Plan p,ChemCoreResultEnvelope result){
+    private static boolean matchesAcceptedChemical(int index,ChemCoreResultEnvelope result){
+        if(result==null||result.chemicalUid==null)return false;
+        // chemical_uid is a stable database UID, not a 0..143 catalogue index. Match the operational
+        // panel by canonical label; never equate UID numerically with the legacy catalogue position.
+        String label=result.chemicalLabel==null?"":result.chemicalLabel.trim();
+        return !label.isEmpty()&&label.equalsIgnoreCase(ChemicalCatalog.NAMES[index]);
+    }
+
+    private static String status(int index,ChemicalCoverage.Status c,MqSensorAffinity.Plan p,ChemCoreResultEnvelope result){
         if(matchesAcceptedChemical(index,result)){
             if(result.outcome==ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN)return "OUT_OF_DOMAIN";
             if(result.outcome==ChemCoreDecision.Outcome.UNKNOWN||result.outcome==ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE||result.outcome==ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE)return "INSUFFICIENT_EVIDENCE";
