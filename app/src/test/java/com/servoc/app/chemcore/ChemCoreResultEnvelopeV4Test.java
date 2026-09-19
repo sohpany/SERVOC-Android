@@ -20,10 +20,10 @@ public class ChemCoreResultEnvelopeV4Test {
         ChemCoreResultEnvelope r=new ChemCoreResultEnvelope("S1",ChemCoreDecision.Outcome.SCREENING,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,
                 1L,"benzene",Double.NaN,Double.NaN,Double.NaN,2.0,.72,.4,"p",ChemCoreFeaturePipeline.SCHEMA_VERSION,"m","screening",Collections.singletonList(c)).withLabQuality(quality);
         JSONObject json=r.toJson();assertEquals("chemcore-result/4",json.getString("schema"));
-        assertEquals("PENDING_ENGINE",json.getJSONObject("screening_144").getString("state"));
+        assertEquals("EVALUATED",json.getJSONObject("screening_144").getString("state"));
         assertEquals(144,json.getJSONObject("screening_144").getInt("target_count"));
-        assertEquals(0,json.getJSONObject("screening_144").getInt("evaluated_count"));
-        assertEquals(0,json.getJSONObject("screening_144").getJSONArray("rows").length());
+        assertEquals(144,json.getJSONObject("screening_144").getInt("evaluated_count"));
+        assertEquals(144,json.getJSONObject("screening_144").getJSONArray("rows").length());
         assertEquals("chemcore-features/1",json.getJSONObject("feature_summary").getString("schema"));
         assertEquals("relative_model_ranking_weight_not_calibrated_identity_probability",json.getJSONObject("methodology").getString("posterior_semantics"));
         assertTrue(json.has("quality_gates"));assertTrue(json.has("source_refs"));assertTrue(json.has("accepted_findings"));assertTrue(json.has("safety_findings"));assertTrue(json.isNull("ppm"));assertFalse(json.getBoolean("ppm_reportable"));
