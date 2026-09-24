@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-/** HazRob 0.10.1 cloud profile. MQTT credentials are resolved at runtime from the prototype bootstrap service. */
+/** HazRob 0.10.2 cloud profile. MQTT credentials are resolved at runtime from the prototype bootstrap service. */
 #if __has_include("RemoteCloudSecrets.h")
 #include "RemoteCloudSecrets.h"
 #endif
@@ -57,7 +57,7 @@ constexpr char BOOTSTRAP_HOST[]="hazrob-video-relay.onrender.com";
 constexpr uint16_t BOOTSTRAP_PORT=443;
 constexpr char BOOTSTRAP_PATH[]="/hazrob/bootstrap";
 constexpr char BOOTSTRAP_TOKEN[]="hazrob-prototype-bootstrap-v1";
-constexpr char BOOTSTRAP_SERVICE_VERSION[]="0.10.1";
+constexpr char BOOTSTRAP_SERVICE_VERSION[]="0.10.2";
 constexpr int BOOTSTRAP_PROTOCOL=2;
 constexpr uint16_t KEEPALIVE_SEC=20;
 constexpr uint32_t RETRY_MS=2000;
