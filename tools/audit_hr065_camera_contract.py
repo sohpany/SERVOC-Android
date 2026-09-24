@@ -83,13 +83,13 @@ def main():
         ('configTime(0,0,"pool.ntp.org","time.cloudflare.com")','CAM NTP'),
         ('TLS_TIME_MIN=1700000000','TLS epoch floor')]: req(cam,n,l)
     for n,l in [
-        ('HOST[]="hazrob-video-relay.onrender.com"','Render host'),
+        ('HOST[]="hazrob-video-relay-0102-branchfix-production.up.railway.app"','Railway host'),
         ('BASE_PATH[]="/hazrob/video"','video base path'),
-        ('BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','bootstrap version'),
+        ('BOOTSTRAP_SERVICE_VERSION[]="0.10.2"','bootstrap version'),
         ('BOOTSTRAP_PROTOCOL=2','bootstrap protocol')]: req(rvcfg,n,l)
     req(rvideo,'js(r,"client")!="esp32-cam"','strict CAM bootstrap client identity')
     req(rvideo,'js(r,"robot")!=RemoteVideoCfg::ROBOT_ID','strict CAM robot identity')
-    req(service,'VIDEO_HOST="hazrob-video-relay.onrender.com"','Android Render host')
+    req(service,'VIDEO_HOST="hazrob-video-relay-0102-branchfix-production.up.railway.app"','Android Railway host')
 
     for n,l in [
         ('ENV_SDA=13,ENV_SCL=14','ENV pins'),
