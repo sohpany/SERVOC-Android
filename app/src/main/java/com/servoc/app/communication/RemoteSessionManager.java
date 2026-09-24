@@ -20,7 +20,7 @@ public final class RemoteSessionManager {
     private static final String BOOTSTRAP_SERVICE_VERSION=RemoteServiceProfile.SERVICE_VERSION;
     private static final int BOOTSTRAP_PROTOCOL=RemoteServiceProfile.PROTOCOL;
     private static final String CONTRACT_PREF="remote_bootstrap_contract";
-    private static final String CONTRACT_ID="hazrob-0.10.1-protocol-2";
+    private static final String CONTRACT_ID="hazrob-0.10.2-protocol-2";
     // HR050: entry must fail visibly and promptly instead of inheriting a 15s/70s cold-start wait.
     private static final int BOOTSTRAP_CONNECT_TIMEOUT_MS=5000;
     private static final int BOOTSTRAP_READ_TIMEOUT_MS=8000;
@@ -70,7 +70,7 @@ public final class RemoteSessionManager {
         return RemoteConnection.connect(context,prefs);
     }
 
-    /** Returns one accepted remote session. Existing live sessions are reused. If cached credentials are stale, refresh once from Render. */
+    /** Returns one accepted remote session. Existing live sessions are reused. If cached credentials are stale, refresh once from the 0.10.2 bootstrap service. */
     public RemoteConnection ensureConnected()throws Exception{
         bootstrapIfNeeded();if(!serviceProfileConfigured())throw new IllegalStateException("remote control profile not configured");
         synchronized(CONNECT_LOCK){
@@ -86,7 +86,7 @@ public final class RemoteSessionManager {
         }
     }
 
-    /** Entry/readiness check. Control readiness does not depend on Render video readiness. */
+    /** Entry/readiness check. Control readiness does not depend on Railway video readiness. */
     public RemoteReadiness probe(){return probe(null);}
     public RemoteReadiness probe(Progress observer){
         progress(observer,"تهيئة ملف الاتصال البعيد",1);
