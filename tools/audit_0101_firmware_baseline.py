@@ -21,7 +21,7 @@ main_cloud=read(MAIN/"RemoteCloudConfig.h")
 
 require('constexpr char SSID[]="HazRob"' in main_cfg,"main SSID is not HazRob")
 require('192,168,4,1' in main_ino,"main AP IP 192.168.4.1 missing")
-require('constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.1"' in cam_ino,"camera SSID/identity mismatch")
+require('constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.2"' in cam_ino,"camera SSID/identity mismatch")
 require('IPAddress ip(192,168,4,2),gw(192,168,4,1)' in cam_ino,"camera static IP/gateway mismatch")
 require('WiFi.softAPSSID()==Cfg::SSID' in main_ino,"main AP health check does not verify SSID")
 require('WiFi.softAP(Cfg::SSID)' in main_ino,"main does not explicitly create HazRob SoftAP")
@@ -60,7 +60,7 @@ with tempfile.NamedTemporaryFile("w",suffix=".pem",delete=False) as f:
 r=subprocess.run(["openssl","x509","-in",cert_path,"-noout","-subject","-fingerprint","-sha256"],capture_output=True,text=True)
 require(r.returncode==0,"camera root CA is not a valid X.509 certificate")
 
-print("PASS: HazRob 0.10.1 firmware baseline contract")
+print("PASS: HazRob 0.10.2 firmware baseline contract")
 print(r.stdout.strip())
 for directory in (MAIN,CAM):
     for f in sorted(directory.iterdir()):
