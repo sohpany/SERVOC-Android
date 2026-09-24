@@ -45,7 +45,7 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 #endif
 
 namespace RemoteVideoCfg{
-constexpr char HOST[]="hazrob-video-relay.onrender.com";
+constexpr char HOST[]="hazrob-video-relay-0102-branchfix-production.up.railway.app";
 constexpr uint16_t PORT=443;
 constexpr char BASE_PATH[]="/hazrob/video";
 constexpr char ROBOT_ID[]="hazrob-001";
