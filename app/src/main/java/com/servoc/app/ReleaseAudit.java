@@ -1,12 +1,12 @@
 package com.servoc.app;
 
-/** Build markers for the HazRob 0.10.1 integrated connectivity release. */
+/** Build markers for the HazRob 0.10.2 integrated connectivity release. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    public static final String VERSION="0.10.1";
+    public static final String VERSION="0.10.2";
     public static final String PROJECT_PREPARERS="شهاب الصهباني، مجدي ذيبان";
     public static final int DATABASE_SCHEMA=8;
-    public static final String ESP32_API="HazRob API v4 / firmware 0.10.1 / L298N 4WD LEFT GPIO17-19-32 / RIGHT GPIO16-18-27 / ADS I2C GPIO21-22 / ENV I2C GPIO13-14 / single MQ relay / fixed ADS1115 5V supply / unified direct+remote transport";
+    public static final String ESP32_API="HazRob API v4 / firmware 0.10.2 / L298N 4WD LEFT GPIO17-19-32 / RIGHT GPIO16-18-27 / ADS I2C GPIO21-22 / ENV I2C GPIO13-14 / single MQ relay / fixed ADS1115 5V supply / unified direct+remote transport";
 
     public static final boolean PRECALIBRATED_MQ=false;
     public static final boolean ARABIC_RTL_UI=true;
