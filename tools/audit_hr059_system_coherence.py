@@ -31,7 +31,7 @@ def main():
     wifi=text("app/src/main/java/com/servoc/app/communication/WifiRoute.java"); gate=text("app/src/main/java/com/servoc/app/auth/ConnectionGate.java")
 
     # Shared identity and cloud coordinates.
-    for src,n,label in [(cfg,'FW[]="HazRob 0.10.1"','main version'),(cam,'FW[]="HazRob-CAM 0.10.1"','CAM version'),(service,'SERVICE_VERSION="0.10.1"','Android service version'),(rcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','main bootstrap version'),(rvcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','CAM bootstrap version'),(relay,'SERVICE_VERSION="0.10.1",PROTOCOL=2','Render version/protocol'),(gradle,"versionName '0.10.1'",'APK version'),(gradle,'versionCode 25','APK versionCode')]: req(src,n,label)
+    for src,n,label in [(cfg,'FW[]="HazRob 0.10.2"','main version'),(cam,'FW[]="HazRob-CAM 0.10.2"','CAM version'),(service,'SERVICE_VERSION="0.10.1"','Android service version'),(rcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','main bootstrap version'),(rvcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','CAM bootstrap version'),(relay,'SERVICE_VERSION="0.10.1",PROTOCOL=2','Render version/protocol'),(gradle,"versionName '0.10.2'",'APK version'),(gradle,'versionCode 26','APK versionCode')]: req(src,n,label)
     for src,n,label in [(service,'PROTOCOL=2','Android protocol'),(rcfg,'BOOTSTRAP_PROTOCOL=2','main protocol'),(rvcfg,'BOOTSTRAP_PROTOCOL=2','CAM protocol')]: req(src,n,label)
     for src,n,label in [(rcfg,'ROBOT_ID[]="hazrob-001"','main id'),(rvcfg,'ROBOT_ID[]="hazrob-001"','CAM id'),(service,'ROBOT_ID="hazrob-001"','Android id'),(relay,'ROBOT_ID="hazrob-001"','Render id')]: req(src,n,label)
     hive='e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud'; render='hazrob-video-relay.onrender.com'
@@ -107,7 +107,7 @@ def main():
     req(relay,'expected=role==="publisher"?c.publish:c.view','relay token isolation'); req(rtest,'openWs("/hazrob/video/view/hazrob-001",PUBLISH)','publisher token rejection'); req(rtest,'openWs("/hazrob/video/publish/hazrob-001",VIEW)','viewer token rejection'); req(rtest,'liveProductionContract()','live production contract test'); req(rtest,'mqttDiagnostic?.state,"pass"','live Hive diagnostic')
 
     print("HazRob HR-0101-059/061/066 five-layer system coherence: PASS")
-    print(f"Identity: 0.10.1 / protocol 2 / hazrob-001; cloud={hive}:8883 + {render}")
+    print(f"Product identity: 0.10.2; remote service contract: 0.10.1 / protocol 2 / hazrob-001; cloud={hive}:8883 + {render}")
     print(f"Safety timing: Direct {direct}ms; Remote hold {hold}ms; watchdog {watchdog}ms; command TTL {ttl}ms")
     print("Lifecycle: every boot Direct; WAN save stays local; Remote requires developer authorization + explicit runtime activation")
     print("Control parity: Direct HTTP + Remote MQTT command families aligned")
