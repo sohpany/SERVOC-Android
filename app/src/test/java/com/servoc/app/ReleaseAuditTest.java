@@ -4,8 +4,8 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class ReleaseAuditTest {
-    @Test public void v0101KeepsCriticalCameraEvidenceAndSafetyContracts(){
-        assertEquals("0.10.1",ReleaseAudit.VERSION);
+    @Test public void v0102KeepsCriticalCameraEvidenceAndSafetyContracts(){
+        assertEquals("0.10.2",ReleaseAudit.VERSION);
         assertEquals("شهاب الصهباني، مجدي ذيبان",ReleaseAudit.PROJECT_PREPARERS);
         assertEquals(8,ReleaseAudit.DATABASE_SCHEMA);
         assertTrue(ReleaseAudit.VIDEO_RECORDING);
@@ -22,7 +22,7 @@ public class ReleaseAuditTest {
         assertFalse(ReleaseAudit.THREE_SECOND_LINK_RECOVERY_HOLD);
     }
 
-    @Test public void v0101LocksCanonicalDriveContract(){
+    @Test public void v0102LocksCanonicalDriveContract(){
         assertTrue(ReleaseAudit.ESP32_API.contains("LEFT GPIO17-19-32"));
         assertTrue(ReleaseAudit.ESP32_API.contains("RIGHT GPIO16-18-27"));
         assertTrue(ReleaseAudit.ESP32_API.contains("ADS I2C GPIO21-22"));
@@ -37,7 +37,7 @@ public class ReleaseAuditTest {
         assertFalse(ReleaseAudit.SERVO_DRIVE);
     }
 
-    @Test public void v0101RetainsSingleMqPowerAndRemoteTransport(){
+    @Test public void v0102RetainsSingleMqPowerAndRemoteTransport(){
         assertFalse(ReleaseAudit.PRECALIBRATED_MQ);
         assertTrue(ReleaseAudit.DUAL_ADS1115);
         assertTrue(ReleaseAudit.ADS_FIXED_5V_SUPPLY);
@@ -57,7 +57,7 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.MQTT_RETAINED_LAST_WILL);
     }
 
-    @Test public void v0101KeepsChemCoreAndEndUserUpdateContracts(){
+    @Test public void v0102KeepsChemCoreAndEndUserUpdateContracts(){
         assertTrue(ReleaseAudit.CHEMCORE_FOUNDATION);
         assertTrue(ReleaseAudit.CHEMCORE_CONTROLLED_RUNTIME);
         assertTrue(ReleaseAudit.CHEMCORE_DYNAMIC_LIBRARY);
