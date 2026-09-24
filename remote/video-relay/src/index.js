@@ -3,7 +3,7 @@ import tls from "node:tls";
 import { timingSafeEqual } from "node:crypto";
 import { WebSocketServer, WebSocket } from "ws";
 
-const PORT=Number(process.env.PORT||3000),SERVICE_VERSION="0.10.1",PROTOCOL=2;
+const PORT=Number(process.env.PORT||3000),SERVICE_VERSION="0.10.2",PROTOCOL=2;
 const MAX_JPEG=256*1024,MAX_VIEWER_BUFFER=512*1024,PING_MS=30000;
 const MQTT_HOST="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud",MQTT_PORT=8883,ROBOT_ID="hazrob-001";
 const rooms=new Map();let mqttDiagnostic={state:"not_run"};
