@@ -54,7 +54,7 @@ public final class RobotProtocolV3 {
     private static JSONObject adc(JSONObject diag){JSONObject x=new JSONObject();try{x.put("ads1",diag.optBoolean("ads1",false));x.put("ads2",diag.optBoolean("ads2",false));x.put("ads1_address","0x48");x.put("ads2_address","0x49");}catch(Exception ignored){}return x;}
 
     private static JSONObject measurement(JSONObject m){
-        JSONObject x=new JSONObject();try{if(m==null)m=new JSONObject();int code=m.optInt("state",0);String state=code==1?"warmup":code==2?"measuring":code==3?"ready":code==4?"error":"idle";x.put("state",state);x.put("state_code",code);x.put("group",m.optInt("group",0));x.put("phase",m.optInt("phase",0));x.put("mask",m.optInt("mask",0)&HazRobHardwareProfile.INSTALLED_RELAY_MASK);x.put("manual_power",true);x.put("mq",mq(m.optJSONObject("mq"),true));}catch(Exception ignored){}return x;
+        JSONObject x=new JSONObject();try{if(m==null)m=new JSONObject();Object rawState=m.opt("state");int code=0;String state;if(rawState instanceof Number){code=((Number)rawState).intValue();state=code==1?"warmup":code==2?"measuring":code==3?"ready":code==4?"error":"idle";}else{state=m.optString("state","idle").toLowerCase(Locale.US);code="warmup".equals(state)?1:"measuring".equals(state)?2:"ready".equals(state)?3:"error".equals(state)?4:0;}x.put("state",state);x.put("state_code",code);x.put("group",m.optInt("group",0));x.put("phase",m.optInt("phase",0));x.put("mask",m.optInt("mask",0)&HazRobHardwareProfile.INSTALLED_RELAY_MASK);x.put("manual_power",true);x.put("mq",mq(m.optJSONObject("mq"),true));}catch(Exception ignored){}return x;
     }
 
     private static JSONObject mq(JSONObject source,boolean averaged){
