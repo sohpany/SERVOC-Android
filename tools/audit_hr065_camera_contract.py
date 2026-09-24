@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility camera/network gate for the canonical HazRob 0.10.1 runtime.
+"""Compatibility camera/network gate for the canonical HazRob 0.10.2 runtime.
 
 The camera remains STA-only at 192.168.4.2, with Main as the sole HazRob AP at
 192.168.4.1. Camera identity/JPEG validation remains strict when camera capability is used,
@@ -26,17 +26,17 @@ def main():
     service=text("app/src/main/java/com/servoc/app/communication/RemoteServiceProfile.java")
 
     for s,n,l in [
-        (cfg,'FW[]="HazRob 0.10.1"','Main firmware identity'),
+        (cfg,'FW[]="HazRob 0.10.2"','Main firmware identity'),
         (cfg,'SSID[]="HazRob"','Main AP SSID'),
         (cfg,'CAM[]="192.168.4.2"','Main CAM coordinate'),
-        (cam,'SSID[]="HazRob",FW[]="HazRob-CAM 0.10.1"','CAM firmware identity'),
+        (cam,'SSID[]="HazRob",FW[]="HazRob-CAM 0.10.2"','CAM firmware identity'),
         (local,'ROBOT_SSID="HazRob"','Android SSID'),
         (local,'ROBOT_HOST="192.168.4.1"','Android Main IP'),
         (local,'CAMERA_HOST="192.168.4.2"','Android CAM IP'),
-        (local,'CAMERA_FIRMWARE_BANNER="HazRob-CAM 0.10.1"','Android CAM identity')]: req(s,n,l)
+        (local,'CAMERA_FIRMWARE_BANNER="HazRob-CAM 0.10.2"','Android CAM identity')]: req(s,n,l)
 
-    ban(cfg,'FW[]="HazRob 0.10.1 HR','numbered Main runtime identity')
-    ban(cam,'FW[]="HazRob-CAM 0.10.1 HR','numbered CAM runtime identity')
+    ban(cfg,'FW[]="HazRob 0.10.2 HR','numbered Main runtime identity')
+    ban(cam,'FW[]="HazRob-CAM 0.10.2 HR','numbered CAM runtime identity')
 
     for n,l in [
         ('WiFi.mode(WIFI_STA)','Arduino STA mode'),
@@ -96,12 +96,12 @@ def main():
         ('SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49','ADS bus'),
         ('R0_SESSION[]="FIELD-R0-3SESSION-20260913"','R0 campaign')]: req(cfg,n,l)
 
-    print("HazRob 0.10.1 camera/network contract: PASS")
+    print("HazRob 0.10.2 camera/network contract: PASS")
     print("CAM=STA-only 192.168.4.2; Main sole AP=HazRob/192.168.4.1; camera is capability state, not admission gate; physical acceptance=PENDING")
     return 0
 
 if __name__=='__main__':
     try: raise SystemExit(main())
     except AssertionError as exc:
-        print(f"HazRob 0.10.1 camera/network contract: FAIL: {exc}")
+        print(f"HazRob 0.10.2 camera/network contract: FAIL: {exc}")
         raise SystemExit(1)
