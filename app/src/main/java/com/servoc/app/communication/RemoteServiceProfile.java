@@ -7,9 +7,9 @@ public final class RemoteServiceProfile {
     public static final String SERVICE_VERSION="0.10.2";
     public static final int PROTOCOL=2;
     public static final String ROBOT_ID="hazrob-001";
-    public static final String MQTT_HOST="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud";
+    public static final String MQTT_HOST="hfd1d4a1.ala.asia-southeast1.emqxsl.com";
     public static final int MQTT_PORT=8883;
-    public static final String VIDEO_HOST="hazrob-video-relay.onrender.com";
+    public static final String VIDEO_HOST="hazrob-video-relay-0102-branchfix-production.up.railway.app";
     public static final String BOOTSTRAP_HTTPS="https://"+VIDEO_HOST+"/hazrob/bootstrap";
     public static final String VIDEO_VIEW_WSS="wss://"+VIDEO_HOST+"/hazrob/video/view/"+ROBOT_ID;
     public static final String VIDEO_HEALTH_HTTPS="https://"+VIDEO_HOST+"/health";
