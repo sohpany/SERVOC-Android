@@ -1,17 +1,17 @@
-# HazRob 0.10.1
+# HazRob 0.10.2
 
 HazRob is a low-cost mobile robotic platform for remote hazardous-environment reconnaissance, multi-gas **screening**, controlled chemical analysis, environmental sensing, video inspection, evidence capture and research-grade traceability.
 
-**Release:** Android `0.10.1` · Master ESP32 `HazRob 0.10.1` / API v4 · ESP32-CAM `HazRob-CAM 0.10.1`  
-**Physical hardware profile:** `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`  
+**Release:** Android `0.10.2` · Master ESP32 `HazRob 0.10.2` / API v4 · ESP32-CAM `HazRob-CAM 0.10.2`  
+**Physical hardware profile:** `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2`  
 **Analytical platform:** ChemCore / AMCI  
 **Application ID:** `com.servoc.app`
 
-> HazRob 0.10.1 is a research prototype. The current MQ/ESP32 architecture is **not Ex-certified or intrinsically safe** and must not be represented as suitable for classified explosive atmospheres. Generic/manufacturer MQ response curves are not device calibration certificates. Quantitative occupational interpretation requires analyte-specific validated calibration and the applicable measurement domain.
+> HazRob 0.10.2 is a research prototype. The current MQ/ESP32 architecture is **not Ex-certified or intrinsically safe** and must not be represented as suitable for classified explosive atmospheres. Generic/manufacturer MQ response curves are not device calibration certificates. Quantitative occupational interpretation requires analyte-specific validated calibration and the applicable measurement domain.
 
-## What changed in 0.10.1
+## What changed in 0.10.2
 
-0.10.1 is the controlled integration release for the ChemCore-generation HazRob platform. It keeps the analytical foundation introduced in 0.10 while unifying the Android application, main ESP32, ESP32-CAM, canonical GPIO allocation, Direct transport, Remote MQTT/WSS transport, Render/HiveMQ contracts, scientific datasets, build workflows and release artifacts under one version-controlled baseline.
+0.10.2 is the controlled continuation of the HR067/HR066 integration baseline for the ChemCore-generation HazRob platform. It keeps the analytical foundation introduced in 0.10 while unifying the Android application, main ESP32, ESP32-CAM, canonical GPIO allocation, Direct transport, Remote MQTT/WSS transport, Render/HiveMQ contracts, scientific datasets, build workflows and release artifacts under one version-controlled baseline.
 
 The software separates:
 
@@ -27,10 +27,10 @@ The authoritative human-readable pin map is [`docs/0.10.1/GPIO_AUTHORITY.md`](do
 
 The current robot uses an **L298N differential 4WD chassis**, not servo propulsion:
 
-- left speed enable: ENA = GPIO16 (PWM);
-- left direction: IN1 = GPIO18, IN2 = GPIO27;
-- right speed enable: ENB = GPIO17 (PWM);
-- right direction: IN3 = GPIO19, IN4 = GPIO32;
+- logical LEFT speed enable = GPIO17 (L298N channel B);
+- logical LEFT direction = GPIO19 / GPIO32;
+- logical RIGHT speed enable = GPIO16 (L298N channel A);
+- logical RIGHT direction = GPIO18 / GPIO27;
 - two motors per side are wired in parallel to the corresponding bridge outputs;
 - **ENA and ENB jumpers are removed** when GPIO16/GPIO17 control the enable inputs;
 - speed PWM is applied to ENA/ENB, while IN1..IN4 are direction-only control lines;
@@ -59,7 +59,7 @@ Both ADS1115 boards are **fixed at the regulated 5 V HazRob rail**. Firmware use
 
 ### Other master-ESP32 channels
 
-- alert output: GPIO26 (reserved; alert hardware not installed in 0.10.1);
+- alert output: GPIO26 (reserved; alert hardware not installed in this hardware profile);
 - MAX4466 electrical sound channel: GPIO36 / ADC1;
 - IR digital warning: GPIO35;
 - LDR/LM393 digital threshold: GPIO34;
