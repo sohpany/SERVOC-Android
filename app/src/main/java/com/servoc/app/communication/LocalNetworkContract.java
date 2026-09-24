@@ -1,13 +1,13 @@
 package com.servoc.app.communication;
 
-/** Canonical HazRob 0.10.1 local-network contract. */
+/** Canonical HazRob 0.10.2 local-network contract. */
 public final class LocalNetworkContract {
     public static final String ROBOT_SSID="HazRob";
     public static final String ROBOT_HOST="192.168.4.1";
     public static final String CAMERA_HOST="192.168.4.2";
     public static final String ROBOT_SUBNET_PREFIX="192.168.4.";
     public static final String FIRMWARE_BANNER_PREFIX="HazRob ";
-    public static final String CAMERA_FIRMWARE_BANNER="HazRob-CAM 0.10.1";
+    public static final String CAMERA_FIRMWARE_BANNER="HazRob-CAM 0.10.2";
 
     private LocalNetworkContract(){}
 
