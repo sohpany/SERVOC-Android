@@ -5,7 +5,9 @@ import { WebSocketServer, WebSocket } from "ws";
 
 const PORT=Number(process.env.PORT||3000),SERVICE_VERSION="0.10.2",PROTOCOL=2;
 const MAX_JPEG=256*1024,MAX_VIEWER_BUFFER=512*1024,PING_MS=30000;
-const MQTT_HOST="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud",MQTT_PORT=8883,ROBOT_ID="hazrob-001";
+const MQTT_HOST=String(process.env.MQTT_HOST||process.env.EMQX_HOST||"e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud").trim();
+const MQTT_PORT=Number(process.env.MQTT_PORT||process.env.EMQX_PORT||8883);
+const ROBOT_ID=String(process.env.MQTT_ROBOT_ID||process.env.EMQX_ROBOT_ID||"hazrob-001").trim();
 const rooms=new Map();let mqttDiagnostic={state:"not_run"};
 const clean=v=>String(v||"").replace(/\s+/g,"");
 const present=v=>typeof v==="string"&&v.length>=8;
@@ -19,8 +21,8 @@ function cleanRoom(id,r){if(!r.publisher&&!r.viewers.size)rooms.delete(id);}
 function aggregate(){let publishers=0,viewers=0;for(const r of rooms.values()){if(r.publisher?.readyState===WebSocket.OPEN)publishers++;for(const v of r.viewers)if(v.readyState===WebSocket.OPEN)viewers++;}return{rooms:rooms.size,publishers,viewers};}
 function cfg(){return{
   bootstrap:clean(process.env.BOOTSTRAP_TOKEN),publish:clean(process.env.PUBLISH_TOKEN),view:clean(process.env.VIEW_TOKEN),
-  appUser:String(process.env.MQTT_APP_USER||"hazrob_app").trim(),appPass:clean(process.env.MQTT_APP_PASSWORD),
-  robotUser:String(process.env.MQTT_ROBOT_USER||"hazrob_robot").trim(),robotPass:clean(process.env.MQTT_ROBOT_PASSWORD||process.env.MQTT_ROBOT_PASSWORD_TEST)
+  appUser:String(process.env.MQTT_APP_USER||process.env.EMQX_RELAY_USERNAME||"hazrob_app").trim(),appPass:clean(process.env.MQTT_APP_PASSWORD||process.env.EMQX_RELAY_PASSWORD),
+  robotUser:String(process.env.MQTT_ROBOT_USER||process.env.EMQX_ROBOT_USERNAME||"hazrob_robot").trim(),robotPass:clean(process.env.MQTT_ROBOT_PASSWORD||process.env.MQTT_ROBOT_PASSWORD_TEST||process.env.EMQX_ROBOT_PASSWORD)
 };}
 function roleOf(req){const x=String(req.headers["x-hazrob-client"]||"").trim().toLowerCase();return x||"legacy";}
 function json(res,status,payload){res.writeHead(status,{"Content-Type":"application/json; charset=utf-8"});res.end(JSON.stringify(payload));}
