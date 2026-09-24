@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.10.2 HR068 release candidate — 2026-09-25
+- Built from the exact HR067 application / HR066 Main+CAM source-equivalent baseline at commit `2ac75492ca3dc0eafcfe8328dd2c417e2f9aa2c9`.
+- Advanced Android to versionName `0.10.2` / versionCode `26`, Main firmware to `HazRob 0.10.2`, and CAM firmware to `HazRob-CAM 0.10.2` without changing protocol 2.
+- Preserved Direct as mandatory boot/default operation; no automatic Main WAN STA activation was introduced.
+- Preserved E-stop, 500 ms command watchdog, safety interlocks, L298N/GPIO authority, field R0 metadata and the HR067 analytical/reporting stack.
+- Locked ChemCore feature, M0-M4 evidence, session lineage, quantitative-reportability, exposure, scientific-library and database migration contracts in release documentation.
+- Kept the remote cloud service contract at `0.10.1 / protocol 2` pending coordinated Render/HiveMQ remote-contract migration; product-version advancement does not silently mutate the wire service contract.
+- Corrected active README drive mapping to match executable firmware authority: logical LEFT GPIO17/19/32 and logical RIGHT GPIO16/18/27.
+- No destructive scientific-dataset refresh and no wholesale merge from divergent development branches.
+- Final field acceptance/tag remains gated on physical Direct control/camera/safety tests and optional Remote tests.
+
 ## 0.10.1 HR-0101-066 — 2026-09-18
 - Made the already-associated HazRob Wi-Fi route the Android Direct authority; temporary `WifiNetworkSpecifier` is now an explicit fallback instead of a 250 ms recurring recovery mechanism.
 - Preserved Direct as boot/default and dominant control mode; Remote now requires configured WAN + persisted developer authorization + an explicit Remote request.
