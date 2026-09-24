@@ -9,7 +9,7 @@
 #include "RemoteVideo.h"
 
 // The camera is a station-only client of the HazRob network. It never creates its own access point.
-constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.1";
+constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.2";
 constexpr uint8_t LED=4,JQ=35; constexpr size_t JPG_CAP=160*1024;
 constexpr time_t TLS_TIME_MIN=1700000000;
 constexpr int PWDN=32,RST=-1,XCLK=0,SIOD=26,SIOC=27,Y9=35,Y8=34,Y7=39,Y6=36,Y5=21,Y4=19,Y3=18,Y2=5,VS=25,HR=23,PC=22;
