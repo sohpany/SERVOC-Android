@@ -31,7 +31,7 @@ def main():
     wifi=text("app/src/main/java/com/servoc/app/communication/WifiRoute.java"); gate=text("app/src/main/java/com/servoc/app/auth/ConnectionGate.java")
 
     # Shared identity and cloud coordinates.
-    for src,n,label in [(cfg,'FW[]="HazRob 0.10.2"','main version'),(cam,'FW[]="HazRob-CAM 0.10.2"','CAM version'),(service,'SERVICE_VERSION="0.10.1"','Android service version'),(rcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','main bootstrap version'),(rvcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.1"','CAM bootstrap version'),(relay,'SERVICE_VERSION="0.10.1",PROTOCOL=2','Render version/protocol'),(gradle,"versionName '0.10.2'",'APK version'),(gradle,'versionCode 26','APK versionCode')]: req(src,n,label)
+    for src,n,label in [(cfg,'FW[]="HazRob 0.10.2"','main version'),(cam,'FW[]="HazRob-CAM 0.10.2"','CAM version'),(service,'SERVICE_VERSION="0.10.2"','Android service version'),(rcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.2"','main bootstrap version'),(rvcfg,'BOOTSTRAP_SERVICE_VERSION[]="0.10.2"','CAM bootstrap version'),(relay,'SERVICE_VERSION="0.10.2",PROTOCOL=2','Render version/protocol'),(gradle,"versionName '0.10.2'",'APK version'),(gradle,'versionCode 26','APK versionCode')]: req(src,n,label)
     for src,n,label in [(service,'PROTOCOL=2','Android protocol'),(rcfg,'BOOTSTRAP_PROTOCOL=2','main protocol'),(rvcfg,'BOOTSTRAP_PROTOCOL=2','CAM protocol')]: req(src,n,label)
     for src,n,label in [(rcfg,'ROBOT_ID[]="hazrob-001"','main id'),(rvcfg,'ROBOT_ID[]="hazrob-001"','CAM id'),(service,'ROBOT_ID="hazrob-001"','Android id'),(relay,'ROBOT_ID="hazrob-001"','Render id')]: req(src,n,label)
     hive='e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud'; render='hazrob-video-relay.onrender.com'
