@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Fail-closed HR-0101-059/061/066 five-layer HazRob coherence gate.
-Checks Main ESP32, ESP32-CAM, Android, Render and HiveMQ-facing contracts together.
+Checks Main ESP32, ESP32-CAM, Android, Railway and EMQX-facing contracts together.
 HR066 authority: every boot is Direct; saved WAN is configuration only; Remote requires developer
 authorization plus an explicit operator action; ESP32-CAM is a capability, not an admission gate.
 Physical RF/motor/camera acceptance remains a separate field test.
@@ -107,7 +107,7 @@ def main():
     req(relay,'expected=role==="publisher"?c.publish:c.view','relay token isolation'); req(rtest,'openWs("/hazrob/video/view/hazrob-001",PUBLISH)','publisher token rejection'); req(rtest,'openWs("/hazrob/video/publish/hazrob-001",VIEW)','viewer token rejection'); req(rtest,'liveProductionContract()','live production contract test'); req(rtest,'mqttDiagnostic?.state,"pass"','live Hive diagnostic')
 
     print("HazRob HR-0101-059/061/066 five-layer system coherence: PASS")
-    print(f"Product identity: 0.10.2; remote service contract: 0.10.1 / protocol 2 / hazrob-001; cloud={hive}:8883 + {render}")
+    print(f"Product identity: 0.10.2; remote service contract: 0.10.2 / protocol 2 / hazrob-001; cloud={hive}:8883 + {render}")
     print(f"Safety timing: Direct {direct}ms; Remote hold {hold}ms; watchdog {watchdog}ms; command TTL {ttl}ms")
     print("Lifecycle: every boot Direct; WAN save stays local; Remote requires developer authorization + explicit runtime activation")
     print("Control parity: Direct HTTP + Remote MQTT command families aligned")
