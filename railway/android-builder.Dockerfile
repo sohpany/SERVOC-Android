@@ -111,10 +111,10 @@ RUN set -eux; \
 RUN cat > /out/index.html <<'EOF'
 <!doctype html>
 <html lang="ar" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HazRob 0.10.1 HR067</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HazRob 0.10.2 HR068</title></head>
 <body style="font-family:sans-serif;max-width:760px;margin:40px auto;padding:0 18px">
 <h1>HazRob 0.10.2 — HR068</h1>
-<p>حزمة HR068 المرشحة: تطبيق HazRob 0.10.2 مع منظومة Analytical v4، وفريموير Main/CAM مطابق للمصدر المجمد HR066 دون تعديل.</p>
+<p>حزمة HR068 المرشحة: تطبيق HazRob 0.10.2 مع منظومة Analytical v4، وفريموير Main/CAM مبني على خط أساس HR066 المعتمد مع تحديث هوية الإصدار إلى 0.10.2 دون تغيير العقد الوظيفي.</p>
 <p><a href="/HazRob-0.10.2-v26-HR068.apk">تحميل APK</a></p>
 <p><a href="/HazRob-0.10.2-v26-HR068.sha256">APK SHA-256</a> · <a href="/HazRob-0.10.2-v26-signing.txt">Signing verification</a></p>
 <p><a href="/HazRob-ESP32-Main-0.10.2-HR068.zip">Firmware Main ESP32</a> · <a href="/HazRob-ESP32-Main-0.10.2-HR068.sha256">SHA-256</a></p>
