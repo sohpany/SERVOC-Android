@@ -7,6 +7,7 @@ on:
       - main
       - 'dev/**'
       - 'fix/**'
+      - 'release/**'
     paths:
       - 'app/**'
       - 'firmware/**'
@@ -38,7 +39,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "release=HazRob-0.10.1"
+            echo "release=HazRob-0.10.2"
             echo "source_sha=${GITHUB_SHA}"
             echo "source_ref=${GITHUB_REF}"
             echo "source_repository=${GITHUB_REPOSITORY}"
@@ -55,7 +56,7 @@ jobs:
       - name: Validate HR061 Direct-first release contract
         run: python3 tools/audit_hr061_direct_first_contract.py
 
-      - name: Validate HazRob 0.10.1 cross-component contract
+      - name: Validate HazRob 0.10.2 cross-component contract
         run: python3 tools/audit_0101_integration_contract.py
 
       - name: Validate HR-0101-034 motion contract
