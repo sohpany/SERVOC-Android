@@ -60,8 +60,8 @@ def main() -> int:
     doc = text("docs/0.10.1/FIELD_INTEGRATION_REMEDIATION_HR048.md")
     gpio_doc = text("docs/0.10.1/GPIO_AUTHORITY.md")
 
-    # Product version remains 0.10.1; HR066 is a controlled change set, not a 0.10.2 bump.
-    require(cfg, 'FW[]="HazRob 0.10.1"', "firmware release identity")
+    # 0.10.2 preserves the HR067/HR066 physical contract while advancing product identity.
+    require(cfg, 'FW[]="HazRob 0.10.2"', "firmware release identity")
     require(cfg, 'SSID[]="HazRob"', "Main AP SSID authority")
     require(cfg, 'CAM[]="192.168.4.2"', "camera canonical host")
     forbid(cfg, "0.10.2", "firmware release identity")
@@ -117,7 +117,7 @@ def main() -> int:
     require(bootstrap, 'PINNED_SHA256="457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434"', "flammability pinned hash")
     require(doc, "the primary seed service is retained until then.", "flammability retirement gate")
 
-    print("HazRob 0.10.1 HR-0101-048/060 -> HR066 cross-component integration contract: PASS")
+    print("HazRob 0.10.2 compatibility HR-0101-048/060 -> HR067 baseline cross-component integration contract: PASS")
     print("HR066 network authority preserved; HR048 drive map + travel-relative mixer + forward/reverse steering verified.")
     print("Physical field acceptance: PENDING")
     return 0
@@ -127,5 +127,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except AssertionError as exc:
-        print("HazRob 0.10.1 HR048/060 -> HR066 integration contract: FAIL:", exc)
+        print("HazRob 0.10.2 compatibility HR048/060 -> HR067 baseline integration contract: FAIL:", exc)
         raise SystemExit(1)
