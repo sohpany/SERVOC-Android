@@ -47,13 +47,13 @@ emyPxgcYxn/eR44/KJ4EBs+lVDR3veyJm+kXQ99b21/+jh5Xos1AnX5iItreGCc=
 #endif
 
 namespace RemoteCfg {
-constexpr char BROKER_HOST[]="e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud";
+constexpr char BROKER_HOST[]="hfd1d4a1.ala.asia-southeast1.emqxsl.com";
 constexpr uint16_t BROKER_PORT=8883;
 constexpr char ROBOT_ID[]="hazrob-001";
 constexpr char USERNAME[]=HAZROB_MQTT_USERNAME;
 constexpr char PASSWORD[]=HAZROB_MQTT_PASSWORD; // optional build-time fallback only
 constexpr char ROOT_CA[]=HAZROB_MQTT_ROOT_CA;
-constexpr char BOOTSTRAP_HOST[]="hazrob-video-relay.onrender.com";
+constexpr char BOOTSTRAP_HOST[]="hazrob-video-relay-0102-branchfix-production.up.railway.app";
 constexpr uint16_t BOOTSTRAP_PORT=443;
 constexpr char BOOTSTRAP_PATH[]="/hazrob/bootstrap";
 constexpr char BOOTSTRAP_TOKEN[]="hazrob-prototype-bootstrap-v1";
