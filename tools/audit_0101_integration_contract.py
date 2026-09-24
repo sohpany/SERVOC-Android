@@ -18,7 +18,7 @@ def main():
     hw=text('app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java')
 
     # Canonical firmware identity and Direct network authority.
-    req(cfg,'FW[]="HazRob 0.10.1"','Main identity')
+    req(cfg,'FW[]="HazRob 0.10.2"','Main identity')
     req(cfg,'SSID[]="HazRob"','Main AP authority')
     req(cfg,'CAM[]="192.168.4.2"','CAM canonical IP')
     forbid(cfg,'HR-','Main firmware revision marker')
@@ -33,7 +33,7 @@ def main():
     req(master,'WiFi.softAPSSID()!=Cfg::SSID','Direct SSID health check')
 
     # Camera is STA-only and identifies as the canonical 0.10.1 camera firmware.
-    req(cam,'FW[]="HazRob-CAM 0.10.1"','CAM identity')
+    req(cam,'FW[]="HazRob-CAM 0.10.2"','CAM identity')
     req(cam,'WiFi.mode(WIFI_STA)','CAM Arduino STA-only')
     req(cam,'esp_wifi_set_mode(WIFI_MODE_STA)','CAM ESP-IDF STA-only')
     req(cam,'WiFi.setAutoReconnect(false)','CAM controlled reconnect')
@@ -46,7 +46,7 @@ def main():
     req(local,'ROBOT_SSID="HazRob"','Android SSID')
     req(local,'ROBOT_HOST="192.168.4.1"','Android Main IP')
     req(local,'CAMERA_HOST="192.168.4.2"','Android CAM IP')
-    req(local,'CAMERA_FIRMWARE_BANNER="HazRob-CAM 0.10.1"','Android CAM identity')
+    req(local,'CAMERA_FIRMWARE_BANNER="HazRob-CAM 0.10.2"','Android CAM identity')
     req(api,'LocalNetworkContract.CAMERA_FIRMWARE_BANNER.equals(fw)','Android exact CAM firmware gate')
     req(api,'j.optInt("wifi_mode",-1)!=1','Android requires STA mode')
     req(api,'localStreamReady()','Android requires real JPEG')
@@ -68,7 +68,7 @@ def main():
     ]:
         req(hw,n,'Android hardware authority')
 
-    print('HazRob 0.10.1 integration contract: PASS')
+    print('HazRob 0.10.2 integration contract: PASS')
     print('Main=HazRob/192.168.4.1; CAM=STA-only/192.168.4.2; GPIO and firmware identities aligned')
     return 0
 
