@@ -64,7 +64,6 @@ def main() -> int:
     require(cfg, 'FW[]="HazRob 0.10.2"', "firmware release identity")
     require(cfg, 'SSID[]="HazRob"', "Main AP SSID authority")
     require(cfg, 'CAM[]="192.168.4.2"', "camera canonical host")
-    forbid(cfg, "0.10.2", "firmware release identity")
     forbid(profile, "0.10.2", "Android hardware profile")
     require(doc, "no version bump", "HR048 documentation")
 
