@@ -1,6 +1,6 @@
 # 0.10.2 Field Sessions — Implementation Record
 
-Status: IN PROGRESS
+Status: IMPLEMENTED — pending successful CI runner/build validation
 
 ## Implemented
 
