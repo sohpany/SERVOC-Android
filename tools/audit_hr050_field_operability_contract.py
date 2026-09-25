@@ -83,7 +83,7 @@ def main() -> int:
     req(measurements, "head.setBackgroundColor(0xFFD32F2F)", "elevated gas red sensor heading")
     req(measurements, "التسجيل متوقف والقراءة الحية مستمرة", "live acquisition independent of timed session")
     req(main_activity, "phoneAlertTone.update(phoneLevel,now)", "phone audible warning path")
-    req(main_activity, 'String[] names={"القيادة","القياسات","التقارير","الحالة","الإعدادات","المطور"}', "reports navigation")
+    req(main_activity, 'String[] names={"القيادة","الجلسات","القياسات","التقارير","الحالة","الإعدادات","المطور"}', "reports navigation")
     req(main_activity, "new ReportsTab(this,this)", "reports integration")
     req(host, "void testPhoneAlert();", "phone alert host contract")
     req(settings, "اختبار صوت الهاتف", "phone alert UI test")
