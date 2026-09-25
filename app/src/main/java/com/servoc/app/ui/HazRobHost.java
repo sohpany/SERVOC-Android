@@ -44,5 +44,6 @@ public interface HazRobHost {
     void requestReferenceBankExport(long experimentId);
     boolean userLibraryAttached();
     void requestUserLibraryFolder();
+    void syncUserLibrary();
     void refreshAllTabs();
 }
