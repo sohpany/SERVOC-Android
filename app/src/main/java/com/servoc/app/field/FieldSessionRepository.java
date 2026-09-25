@@ -109,7 +109,7 @@ public final class FieldSessionRepository {
             try(Cursor c=w.rawQuery("SELECT kind,operator_role FROM measurement_sessions WHERE session_id=?",new String[]{ms})){
                 if(!c.moveToFirst())return false;
                 String kind=nz(c.getString(0)),role=nz(c.getString(1));
-                if(!"USER".equals(role)||!kind.startsWith("field_"))return false;
+                if(!FieldSessionPolicy.mayAttachMeasurement(kind,role))return false;
             }
             ContentValues v=new ContentValues();v.put("field_session_id",fs);v.put("measurement_session_id",ms);v.put("linked_ts",isoNow());
             long id=w.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);
