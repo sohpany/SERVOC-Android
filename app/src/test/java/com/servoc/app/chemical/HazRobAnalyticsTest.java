@@ -26,6 +26,13 @@ public class HazRobAnalyticsTest {
         assertNotNull(r);assertEquals(1,r.totalContributors);assertEquals(1,r.agreementContributors);assertEquals(0.0,r.agreement,0.0);assertEquals(GasEngine.SUSPECTED,r.confidence);assertTrue(r.score<55.0);
     }
 
+
+    @Test public void uncalibratedSingleSensorRemainsScreeningOnly(){
+        double[] ratios=GasEngine.simulateRatios(34,50.0);boolean[] heater={true,true,true,true,true,true,true,true};
+        ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,34,heater);
+        assertNotNull(r);assertEquals("SINGLE_SENSOR_SCREENING",r.evidenceMode);assertEquals(GasEngine.SUSPECTED,r.confidence);assertFalse(r.quantitative);
+    }
+
     @Test public void manufacturerEvidenceSeparatesTargetsFromCrossResponses(){assertEquals(ManufacturerEvidenceMatrix.TARGET,ManufacturerEvidenceMatrix.level(GasEngine.MQ7,20));assertEquals(ManufacturerEvidenceMatrix.GRAPH_RESPONSE,ManufacturerEvidenceMatrix.level(GasEngine.MQ7,75));assertEquals(ManufacturerEvidenceMatrix.TARGET,ManufacturerEvidenceMatrix.level(GasEngine.MQ8,75));}
     @Test public void mqDataScienceEnvironmentalCorrectionIsDomainGuarded(){ResearchEnvironmentalCorrection.Result mq2=ResearchEnvironmentalCorrection.factor(GasEngine.MQ2,25.0,50.0);assertTrue(mq2.valid);assertTrue(Double.isFinite(mq2.factor));assertTrue(mq2.factor>0);ResearchEnvironmentalCorrection.Result out=ResearchEnvironmentalCorrection.factor(GasEngine.MQ2,25.0,20.0);assertFalse(out.valid);assertFalse(Double.isFinite(out.factor));ResearchEnvironmentalCorrection.Result mq9=ResearchEnvironmentalCorrection.factor(GasEngine.MQ9,25.0,60.0);assertTrue(mq9.valid);}
     @Test public void mqDataScienceSourceIsPinned(){assertEquals("6.0.0",CurveProvenance.MQDATASCIENCE_VERSION);assertEquals("e88f876140587a708ee84a4d4d3acbd5720274ee",CurveProvenance.MQDATASCIENCE_COMMIT);assertEquals(CurveProvenance.MQDATASCIENCE_COMMIT,MqDataScience76Catalog.PINNED_COMMIT);}
