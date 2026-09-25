@@ -35,7 +35,7 @@ public final class FieldSessionsTab {
         Button close=UiKit.button(c,"إنهاء الجلسة");close.setOnClickListener(v->{FieldSessionRepository.FieldSession a=repo.activeFieldSession();if(a==null){host.showToast("لا توجد جلسة نشطة");return;}repo.closeFieldSession(a.id);host.syncUserLibrary();host.showToast("تم إنهاء الجلسة");refresh();});actions.addView(close,UiKit.weight(1));
         root.addView(actions,UiKit.full(c));
 
-        LinearLayout library=UiKit.card(c);library.addView(UiKit.title(c,"مكتبة HazRob الدائمة"),UiKit.full(c));Button folder=UiKit.button(c,"فتح / اختيار مجلد المكتبة");folder.setOnClickListener(v->host.requestUserLibraryFolder());library.addView(folder,UiKit.full(c));Button syncLibrary=UiKit.button(c,"مزامنة المكتبة");syncLibrary.setOnClickListener(v->host.syncUserLibrary());library.addView(syncLibrary,UiKit.full(c));root.addView(library,UiKit.full(c));
+        LinearLayout library=UiKit.card(c);library.addView(UiKit.title(c,"مكتبة HazRob الدائمة"),UiKit.full(c));Button folder=UiKit.button(c,"فتح / اختيار مجلد المكتبة");folder.setOnClickListener(v->host.requestUserLibraryFolder());library.addView(folder,UiKit.full(c));Button syncLibrary=UiKit.button(c,"مزامنة المكتبة");syncLibrary.setOnClickListener(v->host.syncUserLibrary());library.addView(syncLibrary,UiKit.full(c));Button restore=UiKit.button(c,"استعادة المواقع والجلسات");restore.setOnClickListener(v->host.restoreUserLibrary());library.addView(restore,UiKit.full(c));root.addView(library,UiKit.full(c));
         root.addView(UiKit.title(c,"مكتبة المواقع والجلسات"),UiKit.full(c));
         sites=UiKit.vbox(c);root.addView(sites,UiKit.full(c));
         sessions=UiKit.vbox(c);root.addView(sessions,UiKit.full(c));
