@@ -50,7 +50,11 @@ def main() -> int:
     ):
         forbid(cfg, retired, "Config.h")
 
-    require(hw, "void driveSet(int l,int r){curL=lim(l);curR=lim(r);cmdAt=millis();staleStop=false;driveWrite();}", "direct driveSet")
+    require(hw, "void driveSet(int l,int r){", "driveSet entry")
+    require(hw, "bool forwardRequested=(requestedL+requestedR)>0.1f;", "forward motion classification")
+    require(hw, "bool forwardBlocked=irWarning||ultraStop;", "front hazard interlock")
+    require(hw, "if(forwardBlocked&&forwardRequested){curL=curR=0;}else{curL=requestedL;curR=requestedR;}", "forward-only hazard block")
+    require(hw, "cmdAt=millis();staleStop=false;driveWrite();", "drive watchdog refresh")
     require(hw, "n-cmdAt>Cfg::CONTROL_COMMAND_TIMEOUT_MS", "stale stop timeout")
     require(hw, "staleStop=true;driveWrite();", "stale stop neutral output")
     for retired in (
