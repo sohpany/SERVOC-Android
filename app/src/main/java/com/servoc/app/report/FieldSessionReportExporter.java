@@ -67,7 +67,7 @@ public final class FieldSessionReportExporter {
 
     public static void writeXlsx(OutputStream out,ExperimentsDb db,String fieldSessionId,ChemicalRepository chemicals)throws Exception{
         Bundle b=resolve(db,fieldSessionId);
-        if(b.records.isEmpty())throw new IllegalStateException("field session has no reportable measurements");
+        if(b.records.isEmpty())throw new IllegalStateException("field session has no derived experiment report; raw measurement remains preserved");
         if(b.records.size()==1){ReportExporter.writeXlsx(out,b.records.get(0),chemicals);return;}
         try(ZipOutputStream zip=new ZipOutputStream(out)){
             putManifest(zip,b);
