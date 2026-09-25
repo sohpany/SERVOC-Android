@@ -33,8 +33,8 @@ public final class FieldSessionArchive {
     }
 
     public static final class ImportSummary {
-        public final int measurements,samples,events,decisions;
-        ImportSummary(int measurements,int samples,int events,int decisions){this.measurements=measurements;this.samples=samples;this.events=events;this.decisions=decisions;}
+        public final int measurements,experiments,samples,events,decisions;
+        ImportSummary(int measurements,int experiments,int samples,int events,int decisions){this.measurements=measurements;this.experiments=experiments;this.samples=samples;this.events=events;this.decisions=decisions;}
     }
 
     /** Restores an exact USER field archive idempotently; never creates scientific reference data. */
@@ -50,8 +50,8 @@ public final class FieldSessionArchive {
                 ContentValues mv=new ContentValues();mv.put("session_id",sid);mv.put("started_ts",req(m,"started_ts"));putNullable(mv,"ended_ts",m);mv.put("kind",kind);mv.put("operator_role","USER");putNullable(mv,"payload",m);putNullable(mv,"analytics",m);w.insertWithOnConflict("measurement_sessions",null,mv,SQLiteDatabase.CONFLICT_IGNORE);nm++;
                 ContentValues link=new ContentValues();link.put("field_session_id",fieldId);link.put("measurement_session_id",sid);link.put("linked_ts",req(m,"started_ts"));w.insertWithOnConflict("field_session_measurements",null,link,SQLiteDatabase.CONFLICT_IGNORE);
                 // Child rows are replaced by exact session identity so repeated restore cannot duplicate AUTOINCREMENT rows.
-                w.delete("telemetry_samples","session_id=?",new String[]{sid});w.delete("events","session_id=?",new String[]{sid});w.delete("chemcore_decisions","session_id=?",new String[]{sid});
-                ns+=restoreSamples(w,sid,m.optJSONArray("telemetry_samples"));ne+=restoreEvents(w,sid,m.optJSONArray("events"));nd+=restoreDecisions(w,sid,m.optJSONArray("chemcore_decisions"));
+                w.delete("experiments","session_id=?",new String[]{sid});w.delete("telemetry_samples","session_id=?",new String[]{sid});w.delete("events","session_id=?",new String[]{sid});w.delete("chemcore_decisions","session_id=?",new String[]{sid});
+                nx+=restoreExperiments(w,sid,m.optJSONArray("experiments"));ns+=restoreSamples(w,sid,m.optJSONArray("telemetry_samples"));ne+=restoreEvents(w,sid,m.optJSONArray("events"));nd+=restoreDecisions(w,sid,m.optJSONArray("chemcore_decisions"));
             }
             w.setTransactionSuccessful();
         }finally{w.endTransaction();}
