@@ -18,7 +18,7 @@ public class HazRobUserLibraryContractTest {
         assertFalse(s.contains("calibration_curves WHERE"));
         assertFalse(s.contains("reference_artifacts WHERE"));
     }
-    @Test public void portableIndexContainsOnlyUserFieldCollections() throws Exception {
+    @Test public void restoreSummaryCarriesDerivedExperimentCount() throws Exception {\n        String s=new String(Files.readAllBytes(Paths.get(\"src/main/java/com/servoc/app/field/HazRobUserLibrary.java\")),StandardCharsets.UTF_8);\n        assertTrue(s.contains(\"measurements,experiments,samples,events,decisions\"));\n        assertTrue(s.contains(\"ax+=q.experiments\"));\n        assertTrue(s.contains(\"new RestoreSummary(ns,nf,nl,skip,am,ax,as,ae,ad)\"));\n    }\n    @Test public void portableIndexContainsOnlyUserFieldCollections() throws Exception {
         String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/field/HazRobUserLibrary.java")),StandardCharsets.UTF_8);
         assertTrue(s.contains("\"sites\""));
         assertTrue(s.contains("\"field_sessions\""));
