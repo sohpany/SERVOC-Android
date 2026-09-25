@@ -12,6 +12,8 @@ import org.json.JSONArray;
 
 import com.servoc.app.data.ExperimentsDb;
 import android.database.Cursor;
+import android.content.ContentValues;
+import android.database.sqlite.SQLiteDatabase;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -105,6 +107,42 @@ public final class HazRobUserLibrary {
         root.put("sites",sites);root.put("field_sessions",sessions);root.put("measurement_links",links);
         writeText("field-index.json",root.toString(2));
     }
+
+    public static final class RestoreSummary {
+        public final int sites,sessions,links,skippedLinks;
+        RestoreSummary(int sites,int sessions,int links,int skippedLinks){this.sites=sites;this.sessions=sessions;this.links=links;this.skippedLinks=skippedLinks;}
+    }
+
+    /**
+     * Restores only the user-domain index. Upserts by immutable IDs make repeated
+     * restore idempotent. Measurement links are restored only when the exact local
+     * technical measurement_session still exists; no timestamp/nearest-session fallback.
+     */
+    public synchronized RestoreSummary restoreUserIndex(ExperimentsDb db) throws Exception {
+        if(db==null)throw new IllegalArgumentException("db required");
+        JSONObject root=readJson("field-index.json");
+        if(root==null)return new RestoreSummary(0,0,0,0);
+        if(root.optInt("schema_version",0)>SCHEMA_VERSION)throw new IllegalStateException("field index was created by a newer app");
+        if(!"HazRob User Field Index".equals(root.optString("type","")))throw new IllegalStateException("invalid HazRob field index");
+        JSONArray sites=root.optJSONArray("sites"),sessions=root.optJSONArray("field_sessions"),links=root.optJSONArray("measurement_links");
+        SQLiteDatabase w=db.getWritableDatabase();int ns=0,nf=0,nl=0,skip=0;w.beginTransaction();
+        try{
+            if(sites!=null)for(int i=0;i<sites.length();i++){JSONObject x=sites.optJSONObject(i);if(x==null)continue;String id=req(x,"site_id"),name=req(x,"name");ContentValues v=new ContentValues();v.put("site_id",id);v.put("name",name);v.put("notes",x.optString("notes",""));v.put("created_ts",req(x,"created_ts"));v.put("updated_ts",req(x,"updated_ts"));w.insertWithOnConflict("sites",null,v,SQLiteDatabase.CONFLICT_REPLACE);ns++;}
+            if(sessions!=null)for(int i=0;i<sessions.length();i++){JSONObject x=sessions.optJSONObject(i);if(x==null)continue;String id=req(x,"field_session_id"),site=req(x,"site_id"),status=req(x,"status");if(!siteExists(w,site))throw new IllegalStateException("field session references missing site");ContentValues v=new ContentValues();v.put("field_session_id",id);v.put("site_id",site);v.put("name",req(x,"name"));v.put("started_ts",req(x,"started_ts"));String ended=x.optString("ended_ts","");if(!ended.isEmpty())v.put("ended_ts",ended);v.put("status",status);v.put("created_ts",req(x,"created_ts"));v.put("updated_ts",req(x,"updated_ts"));w.insertWithOnConflict("field_sessions",null,v,SQLiteDatabase.CONFLICT_REPLACE);nf++;}
+            if(links!=null)for(int i=0;i<links.length();i++){JSONObject x=links.optJSONObject(i);if(x==null)continue;String fs=req(x,"field_session_id"),ms=req(x,"measurement_session_id");if(!fieldSessionExists(w,fs)||!measurementExists(w,ms)){skip++;continue;}ContentValues v=new ContentValues();v.put("field_session_id",fs);v.put("measurement_session_id",ms);v.put("linked_ts",req(x,"linked_ts"));long r=w.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);if(r!=-1)nl++;}
+            w.setTransactionSuccessful();
+        }finally{w.endTransaction();}
+        return new RestoreSummary(ns,nf,nl,skip);
+    }
+
+    private JSONObject readJson(String displayName) throws Exception {
+        Uri file=find(displayName);if(file==null)return null;
+        try(InputStream in=context.getContentResolver().openInputStream(file)){if(in==null)return null;byte[] b=new byte[8192];StringBuilder s=new StringBuilder();int n;while((n=in.read(b))!=-1)s.append(new String(b,0,n,StandardCharsets.UTF_8));return new JSONObject(s.toString());}
+    }
+    private static String req(JSONObject x,String k){String v=x.optString(k,"").trim();if(v.isEmpty())throw new IllegalStateException("missing "+k);return v;}
+    private static boolean siteExists(SQLiteDatabase db,String id){try(Cursor c=db.rawQuery("SELECT 1 FROM sites WHERE site_id=? LIMIT 1",new String[]{id})){return c.moveToFirst();}}
+    private static boolean fieldSessionExists(SQLiteDatabase db,String id){try(Cursor c=db.rawQuery("SELECT 1 FROM field_sessions WHERE field_session_id=? LIMIT 1",new String[]{id})){return c.moveToFirst();}}
+    private static boolean measurementExists(SQLiteDatabase db,String id){try(Cursor c=db.rawQuery("SELECT 1 FROM measurement_sessions WHERE session_id=? LIMIT 1",new String[]{id})){return c.moveToFirst();}}
 
     public synchronized void writeText(String displayName,String text) throws Exception {
         Uri root=root();if(root==null)throw new IllegalStateException("HazRob user library is not attached");
