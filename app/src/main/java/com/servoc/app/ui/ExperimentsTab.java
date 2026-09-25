@@ -2,6 +2,8 @@ package com.servoc.app.ui;
 
 import android.content.Context;
 import android.text.InputType;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -42,7 +44,7 @@ import java.util.TimeZone;
 public final class ExperimentsTab {
     private final HazRobHost host;private final ScrollView scroll;private final LinearLayout list;
     private final TextView summary,details,healthSummary,r0Status,powerStatus,modelStatus,modelResult,kindHelp;
-    private final EditText knownPpm,warmUsed,experimentNotes,githubToken;
+    private final EditText knownPpm,warmUsed,experimentNotes,githubToken,chemicalSearch;
     private final Button pdf,xlsx,approve,publish;
     private final ChemicalRepository chemicalRepo;private final Spinner chemicalSpinner,referenceKindSpinner,modelSensorSpinner;
     private final ArrayAdapter<String> chemicalAdapter;private final String[] modelSensorKeys=ManualR0Calibration.keys();
@@ -60,7 +62,7 @@ public final class ExperimentsTab {
         LinearLayout capture=UiKit.card(c);capture.addView(UiKit.title(c,"تجربة مرجعية للمادة"),UiKit.full(c));
         capture.addView(UiKit.small(c,"نوع التدريب"),UiKit.full(c));referenceKindSpinner=new Spinner(c);ArrayAdapter<String> kindAdapter=new ArrayAdapter<>(c,android.R.layout.simple_spinner_item,new String[]{"بصمة تعريفية","معايرة كمية"});kindAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);referenceKindSpinner.setAdapter(kindAdapter);capture.addView(referenceKindSpinner,UiKit.full(c));
         kindHelp=UiKit.small(c,"");kindHelp.setBackgroundColor(0xFF151A20);capture.addView(kindHelp,UiKit.full(c));referenceKindSpinner.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener(){public void onItemSelected(android.widget.AdapterView<?> p,View v,int pos,long id){updateKindHelp();}public void onNothingSelected(android.widget.AdapterView<?> p){}});
-        capture.addView(UiKit.small(c,"المادة / المركب من المكتبة"),UiKit.full(c));chemicalSpinner=new Spinner(c);chemicalAdapter=new ArrayAdapter<>(c,android.R.layout.simple_spinner_item,new ArrayList<>());chemicalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);chemicalSpinner.setAdapter(chemicalAdapter);capture.addView(chemicalSpinner,UiKit.full(c));
+        capture.addView(UiKit.small(c,"المادة / المركب من المكتبة"),UiKit.full(c));chemicalSearch=UiKit.input(c,"");chemicalSearch.setHint("بحث تفاعلي: اسم المادة أو CAS");chemicalSearch.setSingleLine(true);capture.addView(chemicalSearch,UiKit.full(c));chemicalSpinner=new Spinner(c);chemicalAdapter=new ArrayAdapter<>(c,android.R.layout.simple_spinner_item,new ArrayList<>());chemicalAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);chemicalSpinner.setAdapter(chemicalAdapter);capture.addView(chemicalSpinner,UiKit.full(c));chemicalSearch.addTextChangedListener(new TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int count,int after){}public void onTextChanged(CharSequence s,int st,int before,int count){refreshChemicalOptions(s==null?"":s.toString(),true);}public void afterTextChanged(Editable e){}});
         knownPpm=field(c,capture,"التركيز المرجعي ppm — إلزامي للمعايرة، اختياري للبصمة","");knownPpm.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL);warmUsed=field(c,capture,"زمن التسخين الفعلي المستخدم (ثانية)",String.valueOf(host.preferences().getInt("warm",60)));warmUsed.setInputType(InputType.TYPE_CLASS_NUMBER);experimentNotes=field(c,capture,"ملاحظات / مصدر المادة / ظروف الإجراء","");
         LinearLayout run=UiKit.hbox(c);Button start=UiKit.button(c,"بدء averaging");start.setOnClickListener(v->measurement(true));run.addView(start,UiKit.weight(1));Button cancel=UiKit.button(c,"إلغاء");cancel.setOnClickListener(v->measurement(false));run.addView(cancel,UiKit.weight(.7f));Button save=UiKit.button(c,"حفظ التجربة");save.setOnClickListener(v->captureReference());run.addView(save,UiKit.weight(1));capture.addView(run,UiKit.full(c));root.addView(capture,UiKit.full(c));updateKindHelp();
 
@@ -80,7 +82,9 @@ public final class ExperimentsTab {
     private String selectedKind(){return referenceKindSpinner.getSelectedItemPosition()==1?"calibration":"fingerprint";}
     private void updateKindHelp(){if(kindHelp==null)return;boolean cal="calibration".equals(selectedKind());kindHelp.setText(cal?"معايرة كمية: يجب إدخال ppm معلوم. كل تجربة معتمدة تضيف نقطة، وعند توفر مستويين صالحين على الأقل يبني HazRob منحنى فعّالاً لكل حساس مناسب.":"بصمة تعريفية: التركيز اختياري. HazRob يبني متجه استجابة من الجلسة الزمنية، يطبّعه، ثم يحدّث المتوسط والانحراف من كل التجارب المعتمدة للمادة.");}
 
-    private void refreshChemicalOptions(){int count=chemicalRepo.count();if(count==loadedChemicalCount&&chemicalAdapter.getCount()>0)return;long keep=-1;int old=chemicalSpinner.getSelectedItemPosition();if(old>=0&&old<chemicalOptions.size())keep=chemicalOptions.get(old).uid;List<ChemicalRepository.Chemical> rows=chemicalRepo.search("",5000);chemicalOptions.clear();chemicalOptions.addAll(rows);chemicalAdapter.clear();if(rows.isEmpty())chemicalAdapter.add("لا توجد مركبات في قاعدة البيانات");else for(ChemicalRepository.Chemical q:rows)chemicalAdapter.add(optionLabel(q));chemicalAdapter.notifyDataSetChanged();loadedChemicalCount=count;if(keep>0)for(int i=0;i<chemicalOptions.size();i++)if(chemicalOptions.get(i).uid==keep){chemicalSpinner.setSelection(i);break;}}
+    private void refreshChemicalOptions(){refreshChemicalOptions(chemicalSearch==null?"":chemicalSearch.getText().toString(),false);}
+    private void refreshChemicalOptions(String query,boolean force){int count=chemicalRepo.count();String q=query==null?"":query.trim();if(!force&&q.isEmpty()&&count==loadedChemicalCount&&chemicalAdapter.getCount()>0)return;long keep=-1;int old=chemicalSpinner.getSelectedItemPosition();if(old>=0&&old<chemicalOptions.size())keep=chemicalOptions.get(old).uid;List<ChemicalRepository.Chemical> rows=chemicalRepo.search(q,5000);chemicalOptions.clear();chemicalOptions.addAll(rows);chemicalAdapter.clear();if(rows.isEmpty())chemicalAdapter.add("لا توجد نتيجة مطابقة");else for(ChemicalRepository.Chemical x:rows)chemicalAdapter.add(optionLabel(x)+(hasApprovedFingerprint(x.uid)?"   ● بصمة معتمدة":""));chemicalAdapter.notifyDataSetChanged();loadedChemicalCount=count;if(keep>0)for(int i=0;i<chemicalOptions.size();i++)if(chemicalOptions.get(i).uid==keep){chemicalSpinner.setSelection(i);return;}if(!rows.isEmpty())chemicalSpinner.setSelection(0);}
+    private boolean hasApprovedFingerprint(long uid){return host.database().hasApprovedReference(uid,"fingerprint");}
     private static String optionLabel(ChemicalRepository.Chemical q){String name=q.arabicName!=null&&!q.arabicName.trim().isEmpty()?q.arabicName:q.name;StringBuilder s=new StringBuilder(name==null?"":name);if(q.formula!=null&&!q.formula.isEmpty())s.append(" • ").append(q.formula);if(q.cas!=null&&!q.cas.isEmpty())s.append(" • CAS ").append(q.cas);return s.toString();}
     private ChemicalRepository.Chemical selectedChemical(){int p=chemicalSpinner.getSelectedItemPosition();return p>=0&&p<chemicalOptions.size()?chemicalOptions.get(p):null;}
 
