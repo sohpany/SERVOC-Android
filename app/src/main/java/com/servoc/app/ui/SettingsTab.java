@@ -13,6 +13,8 @@ import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
+import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
+import com.servoc.app.ReleaseAudit;
 import org.json.JSONObject;
 import java.util.Locale;
 
@@ -21,10 +23,11 @@ public final class SettingsTab {
     private static final int DRIVE_FIRMWARE_LIMIT=100;
     private final HazRobHost host;private final ScrollView scroll;
     private final EditText robot,camera,warm,measure;
-    private final TextView compatibility,cameraState,libraryInfo;
+    private final TextView compatibility,cameraState,libraryInfo,analysisUpdateInfo;
+    private final ChemCoreLibraryManager libraryManager;
 
     public SettingsTab(Context c,HazRobHost host){
-        this.host=host;ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
+        this.host=host;this.libraryManager=new ChemCoreLibraryManager(c);ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
         LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
 
         LinearLayout net=UiKit.card(c);net.addView(UiKit.title(c,"الشبكة"),UiKit.full(c));
@@ -43,12 +46,15 @@ public final class SettingsTab {
 
         LinearLayout science=UiKit.card(c);science.addView(UiKit.title(c,"المكتبة العلمية"),UiKit.full(c));Button info=UiKit.button(c,"الحالة");science.addView(info,UiKit.full(c));libraryInfo=UiKit.small(c,"");libraryInfo.setBackgroundColor(0xFF151A20);libraryInfo.setVisibility(View.GONE);science.addView(libraryInfo,UiKit.full(c));
         info.setOnClickListener(v->{boolean show=libraryInfo.getVisibility()!=View.VISIBLE;libraryInfo.setVisibility(show?View.VISIBLE:View.GONE);if(show)libraryInfo.setText("Chemicals "+host.database().chemicalCount()+"   •   MQDataScience "+MqDataScience76Catalog.COUNT+"   •   Native "+ModelRuntimeRegistry.nativeCount()+"   •   Verified "+ModelRuntimeRegistry.verifiedCount()+"   •   Pending "+ModelRuntimeRegistry.pendingPortCount());});root.addView(science,UiKit.full(c));
+
+        LinearLayout updates=UiKit.card(c);updates.addView(UiKit.title(c,"تحديثات منظومة التحليل"),UiKit.full(c));analysisUpdateInfo=UiKit.small(c,"");analysisUpdateInfo.setBackgroundColor(0xFF151A20);updates.addView(analysisUpdateInfo,UiKit.full(c));Button checkUpdate=UiKit.button(c,"التحقق من تحديثات منظومة التحليل");checkUpdate.setOnClickListener(v->checkAnalysisUpdate());updates.addView(checkUpdate,UiKit.full(c));root.addView(updates,UiKit.full(c));
     }
 
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
     public View view(){return scroll;}
 
     public void refresh(){
+        ChemCoreLibraryManager.Status ls=libraryManager.status();analysisUpdateInfo.setText("الإصدار المثبت: "+ls.version+" • "+(ls.remoteSnapshotActive?"مكتبة Stable مثبتة":"المكتبة المدمجة")+"\nمصدر المعرفة: "+ls.sourceLabel);
         JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware —   •   API —   •   Profile —");compatibility.setTextColor(0xFFFFB74D);return;}
         JSONObject adc=d.optJSONObject("adc"),env=d.optJSONObject("env"),ldr=d.optJSONObject("ldr"),alert=d.optJSONObject("alert"),drive=d.optJSONObject("drive");
         String driver=drive==null?HazRobHardwareProfile.DRIVE_DRIVER:drive.optString("driver",HazRobHardwareProfile.DRIVE_DRIVER);boolean envOk=env!=null&&env.optBoolean("ok",false);
@@ -58,6 +64,19 @@ public final class SettingsTab {
         String envChip=env==null?"—":env.optString("chip_id","—");
         String envAck=env==null?"76:— 77:—":"76:"+(env.optBoolean("ack_0x76",false)?"ACK":"—")+" 77:"+(env.optBoolean("ack_0x77",false)?"ACK":"—");
         compatibility.setText("Firmware "+d.optString("firmware",d.optString("fw","—"))+"   •   API "+d.optInt("api_version",d.optInt("api",0))+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"\nDrive "+driver+" • L "+HazRobHardwareProfile.DRIVE_L_IN1+"/"+HazRobHardwareProfile.DRIVE_L_IN2+" • R "+HazRobHardwareProfile.DRIVE_R_IN1+"/"+HazRobHardwareProfile.DRIVE_R_IN2+"\nADS bus SDA21/SCL22 • ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+" • ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—")+"\nENV bus SDA13/SCL14 • "+(envOk?"OK":envStatus)+" • "+envType+" "+envAddr+" chip "+envChip+" • "+envAck+"\nLDR GPIO34 "+(ldr!=null&&ldr.optBoolean("installed",false)?"OK":"—")+"   •   ALERT GPIO"+(alert==null?26:alert.optInt("gpio",26))+" "+(alert!=null?"OK":"—"));compatibility.setTextColor(envOk?0xFF81C784:0xFFFFB74D);
+    }
+
+    private void checkAnalysisUpdate(){
+        host.io().execute(()->{
+            try{
+                ChemCoreLibraryManager.CheckSummary c=libraryManager.check(ReleaseAudit.VERSION);
+                if(!c.updateAvailable){host.showToast("منظومة التحليل محدثة");return;}
+                if(ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics())){host.showToast("أوقف القياس أو التحليل قبل التحديث");return;}
+                com.servoc.app.chemcore.library.ChemCoreLibraryStore.InstallResult r=libraryManager.install(c,ReleaseAudit.VERSION,false);
+                host.showToast(r.installed?"تم تحديث منظومة التحليل إلى "+r.version:"لم يتم تثبيت التحديث: "+r.message);
+                host.refreshAllTabs();
+            }catch(Exception e){host.showToast("تعذر تحديث منظومة التحليل: "+e.getClass().getSimpleName());}
+        });
     }
 
     private void saveNetwork(){host.setDriveCommand(0,0);String rh=robot.getText().toString().trim(),ch=camera.getText().toString().trim();host.robotApi().setRobotHost(rh);host.setCameraHost(ch);camera.setText(host.cameraHost());robot.setText(host.robotApi().getRobotHost());host.preferences().edit().putString("robot",host.robotApi().getRobotHost()).putString("camera",host.cameraHost()).apply();host.showToast("تم حفظ الشبكة");host.refreshAllTabs();}
