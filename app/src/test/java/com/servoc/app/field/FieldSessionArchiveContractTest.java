@@ -17,6 +17,9 @@ public class FieldSessionArchiveContractTest {
   assertFalse(s.contains("chemcore_feature_references"));
   assertFalse(s.contains("calibration_curves"));
   assertFalse(s.contains("reference_queue"));
+  assertTrue(s.contains("importSession"));
+  assertTrue(s.contains("w.delete(\"telemetry_samples\""));
+  assertTrue(s.contains("w.delete(\"chemcore_decisions\""));
  }
  @Test public void librarySyncWritesOneSourceArchivePerFieldSession() throws Exception {
   String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/field/HazRobUserLibrary.java")),StandardCharsets.UTF_8);
