@@ -28,6 +28,7 @@ import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
 import com.servoc.app.measurement.GasAlertCoordinator;
 import com.servoc.app.field.HazRobUserLibrary;
+import com.servoc.app.field.HazRobStorageBootstrap;
 import com.servoc.app.measurement.LiveGasStateEngine;
 import com.servoc.app.measurement.PhoneAlertTone;
 import com.servoc.app.measurement.SensorHealthEngine;
@@ -75,7 +76,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     private ControlTab controlTab;private FieldSessionsTab fieldSessionsTab;private MeasurementsTab measurementsTab;private ReportsTab reportsTab;private StatusTab statusTab;private SettingsTab settingsTab;private DeveloperTab developerTab;private View[] tabViews;
 
     @Override public void onCreate(Bundle b){
-        super.onCreate(b);prefs=getSharedPreferences("servoc",MODE_PRIVATE);userLibrary=new HazRobUserLibrary(this);robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));flashMode="on".equals(prefs.getString("flash_mode","off"))?"on":"off";trackingTarget=prefs.getInt("tracking_id",-1);trackingName=prefs.getString("tracking_name","");db=new ExperimentsDb(this);telemetryRecorder=new TelemetryRecorder(db);try{phoneAlertTone=new PhoneAlertTone();}catch(Exception ignored){phoneAlertTone=null;}loadSensorBaselines();
+        super.onCreate(b);HazRobStorageBootstrap.ensure(this);prefs=getSharedPreferences("servoc",MODE_PRIVATE);userLibrary=new HazRobUserLibrary(this);robotApi=new RobotApi(prefs.getString("robot","192.168.4.1"));cameraApi=new CameraApi(prefs.getString("camera","192.168.4.2"));flashMode="on".equals(prefs.getString("flash_mode","off"))?"on":"off";trackingTarget=prefs.getInt("tracking_id",-1);trackingName=prefs.getString("tracking_name","");db=new ExperimentsDb(this);telemetryRecorder=new TelemetryRecorder(db);try{phoneAlertTone=new PhoneAlertTone();}catch(Exception ignored){phoneAlertTone=null;}loadSensorBaselines();
         String mode=getIntent()==null?null:getIntent().getStringExtra("connection_mode");if(mode!=null&&!mode.trim().isEmpty())prefs.edit().putString("connection_mode",mode).apply();
         workers.execute(()->{ChemicalSeedBootstrap.ensureNiosh(getApplicationContext(),db);ExposureSeedBootstrap.ensureOshaZ1(getApplicationContext(),db);ui.post(this::refreshAllTabs);});
         enter();
