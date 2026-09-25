@@ -106,6 +106,9 @@ public final class HazRobUserLibrary {
         }
         root.put("sites",sites);root.put("field_sessions",sessions);root.put("measurement_links",links);
         writeText("field-index.json",root.toString(2));
+        // Source archives make the user library independently useful after app reinstall.
+        for(int i=0;i<sessions.length();i++){JSONObject fs=sessions.optJSONObject(i);if(fs==null)continue;String id=fs.optString("field_session_id","").trim();if(id.isEmpty())continue;JSONObject archive=FieldSessionArchive.exportSession(db,id);writeText("session-"+safeId(id)+".json",archive.toString(2));}
+
     }
 
     public static final class RestoreSummary {
@@ -134,6 +137,8 @@ public final class HazRobUserLibrary {
         }finally{w.endTransaction();}
         return new RestoreSummary(ns,nf,nl,skip);
     }
+
+    private static String safeId(String id){return id.replaceAll("[^A-Za-z0-9._-]","_");}
 
     private JSONObject readJson(String displayName) throws Exception {
         Uri file=find(displayName);if(file==null)return null;
