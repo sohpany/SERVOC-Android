@@ -129,17 +129,15 @@ public final class HazRobUserLibrary {
         if(root.optInt("schema_version",0)>SCHEMA_VERSION)throw new IllegalStateException("field index was created by a newer app");
         if(!"HazRob User Field Index".equals(root.optString("type","")))throw new IllegalStateException("invalid HazRob field index");
         JSONArray sites=root.optJSONArray("sites"),sessions=root.optJSONArray("field_sessions"),links=root.optJSONArray("measurement_links");
-        SQLiteDatabase w=db.getWritableDatabase();int ns=0,nf=0,nl=0,skip=0;w.beginTransaction();
+        SQLiteDatabase w=db.getWritableDatabase();int ns=0,nf=0,nl=0,skip=0,am=0,ax=0,as=0,ae=0,ad=0;
+        w.beginTransaction();
         try{
             if(sites!=null)for(int i=0;i<sites.length();i++){JSONObject x=sites.optJSONObject(i);if(x==null)continue;String id=req(x,"site_id"),name=req(x,"name");ContentValues v=new ContentValues();v.put("site_id",id);v.put("name",name);v.put("notes",x.optString("notes",""));v.put("created_ts",req(x,"created_ts"));v.put("updated_ts",req(x,"updated_ts"));w.insertWithOnConflict("sites",null,v,SQLiteDatabase.CONFLICT_REPLACE);ns++;}
             if(sessions!=null)for(int i=0;i<sessions.length();i++){JSONObject x=sessions.optJSONObject(i);if(x==null)continue;String id=req(x,"field_session_id"),site=req(x,"site_id"),status=req(x,"status");if(!siteExists(w,site))throw new IllegalStateException("field session references missing site");ContentValues v=new ContentValues();v.put("field_session_id",id);v.put("site_id",site);v.put("name",req(x,"name"));v.put("started_ts",req(x,"started_ts"));String ended=x.optString("ended_ts","");if(!ended.isEmpty())v.put("ended_ts",ended);v.put("status",status);v.put("created_ts",req(x,"created_ts"));v.put("updated_ts",req(x,"updated_ts"));w.insertWithOnConflict("field_sessions",null,v,SQLiteDatabase.CONFLICT_REPLACE);nf++;}
+            if(sessions!=null)for(int i=0;i<sessions.length();i++){JSONObject fs=sessions.optJSONObject(i);if(fs==null)continue;String id=fs.optString("field_session_id","").trim();if(id.isEmpty())continue;JSONObject archive=readJson("session-"+safeId(id)+".json");if(archive==null)continue;FieldSessionArchive.ImportSummary q=FieldSessionArchive.importSessionInTransaction(db,archive,w);am+=q.measurements;ax+=q.experiments;as+=q.samples;ae+=q.events;ad+=q.decisions;}
             if(links!=null)for(int i=0;i<links.length();i++){JSONObject x=links.optJSONObject(i);if(x==null)continue;String fs=req(x,"field_session_id"),ms=req(x,"measurement_session_id");if(!fieldSessionExists(w,fs)||!measurementExists(w,ms)){skip++;continue;}ContentValues v=new ContentValues();v.put("field_session_id",fs);v.put("measurement_session_id",ms);v.put("linked_ts",req(x,"linked_ts"));long r=w.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);if(r!=-1)nl++;}
             w.setTransactionSuccessful();
         }finally{w.endTransaction();}
-        int am=0,ax=0,as=0,ae=0,ad=0;
-        if(sessions!=null)for(int i=0;i<sessions.length();i++){JSONObject fs=sessions.optJSONObject(i);if(fs==null)continue;String id=fs.optString("field_session_id","").trim();if(id.isEmpty())continue;JSONObject archive=readJson("session-"+safeId(id)+".json");if(archive==null)continue;FieldSessionArchive.ImportSummary q=FieldSessionArchive.importSession(db,archive);am+=q.measurements;ax+=q.experiments;as+=q.samples;ae+=q.events;ad+=q.decisions;}
-        // Re-evaluate exact links after source archives have recreated technical sessions.
-        nl=0;skip=0;if(links!=null){SQLiteDatabase rw=db.getWritableDatabase();for(int i=0;i<links.length();i++){JSONObject x=links.optJSONObject(i);if(x==null)continue;String fs=req(x,"field_session_id"),ms=req(x,"measurement_session_id");if(!fieldSessionExists(rw,fs)||!measurementExists(rw,ms)){skip++;continue;}ContentValues v=new ContentValues();v.put("field_session_id",fs);v.put("measurement_session_id",ms);v.put("linked_ts",req(x,"linked_ts"));rw.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);nl++;}}
         return new RestoreSummary(ns,nf,nl,skip,am,ax,as,ae,ad);
     }
 
