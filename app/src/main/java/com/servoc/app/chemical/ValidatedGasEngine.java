@@ -21,14 +21,14 @@ public final class ValidatedGasEngine {
         public final double ppm,agreement,coverage,evidenceQuality,score;
         public final int totalContributors,primaryContributors,calibratedContributors,manufacturerCrossContributors,communityCrossContributors,rejectedContributors,agreementContributors,confidence,risk;
         public final boolean quantitative;
-        public final String note;
+        public final String note,evidenceMode;
 
         Result(int chemical,double ppm,double agreement,int totalContributors,int primaryContributors,int calibratedContributors,int manufacturerCrossContributors,int communityCrossContributors,int rejectedContributors,int confidence,boolean quantitative,int risk,String note){
             this(chemical,ppm,agreement,defaultCoverage(totalContributors),defaultEvidence(primaryContributors,calibratedContributors,manufacturerCrossContributors,communityCrossContributors),defaultScore(agreement,totalContributors,primaryContributors,calibratedContributors,manufacturerCrossContributors,communityCrossContributors,quantitative),totalContributors,primaryContributors,calibratedContributors,manufacturerCrossContributors,communityCrossContributors,rejectedContributors,totalContributors,confidence,quantitative,risk,note);
         }
 
         Result(int chemical,double ppm,double agreement,double coverage,double evidenceQuality,double score,int totalContributors,int primaryContributors,int calibratedContributors,int manufacturerCrossContributors,int communityCrossContributors,int rejectedContributors,int agreementContributors,int confidence,boolean quantitative,int risk,String note){
-            this.chemical=chemical;this.ppm=ppm;this.agreement=agreement;this.coverage=coverage;this.evidenceQuality=evidenceQuality;this.score=score;this.totalContributors=totalContributors;this.primaryContributors=primaryContributors;this.calibratedContributors=calibratedContributors;this.manufacturerCrossContributors=manufacturerCrossContributors;this.communityCrossContributors=communityCrossContributors;this.rejectedContributors=rejectedContributors;this.agreementContributors=agreementContributors;this.confidence=confidence;this.quantitative=quantitative;this.risk=risk;this.note=note;
+            this.chemical=chemical;this.ppm=ppm;this.agreement=agreement;this.coverage=coverage;this.evidenceQuality=evidenceQuality;this.score=score;this.totalContributors=totalContributors;this.primaryContributors=primaryContributors;this.calibratedContributors=calibratedContributors;this.manufacturerCrossContributors=manufacturerCrossContributors;this.communityCrossContributors=communityCrossContributors;this.rejectedContributors=rejectedContributors;this.agreementContributors=agreementContributors;this.confidence=confidence;this.quantitative=quantitative;this.risk=risk;this.note=note;this.evidenceMode=totalContributors==1&&primaryContributors>0&&calibratedContributors>0?"SPECIALIST_SINGLE_SENSOR":(totalContributors>=2?"MULTI_SENSOR":"SINGLE_SENSOR_SCREENING");
         }
     }
 
@@ -111,8 +111,10 @@ public final class ValidatedGasEngine {
         double score=clamp100(0.40*agreement+0.25*coverage+0.35*evidenceQuality+(quantitative?5.0:0.0));
 
         int confidence;
+        boolean specialistSingle=accepted.size()==1&&calibratedPrimary==1;
         if(accepted.size()>=3&&score>=70.0)confidence=GasEngine.HIGH;
         else if(accepted.size()>=2&&score>=45.0)confidence=GasEngine.STRONG;
+        else if(specialistSingle)confidence=GasEngine.STRONG;
         else confidence=GasEngine.SUSPECTED;
 
         int risk=-1;
@@ -123,7 +125,8 @@ public final class ValidatedGasEngine {
         else if(primary>0)note="Manufacturer-target response is present, but no accepted device-specific reference-gas calibration supports quantitative safety use.";
         else if(manufacturerCross>0)note="Manufacturer graph cross-response only: fingerprint/research evidence, not selective quantitative safety use.";
         else note="Community/MQDataScience graph-fit evidence only: fingerprint comparison; no quantitative safety interpretation.";
-        if(accepted.size()<2)note+=" Single-sensor evidence: inter-sensor agreement is not defined and is reported as 0%.";
+        if(specialistSingle)note+=" Specialist single-sensor evidence: one device-specific reference-gas calibrated manufacturer-target channel is accepted without fabricating inter-sensor agreement.";
+        else if(accepted.size()<2)note+=" Single-sensor screening evidence: inter-sensor agreement is not defined and is reported as 0%.";
 
         return new Result(chemical,ppm,agreement,coverage,evidenceQuality,score,accepted.size(),primary,calibrated,manufacturerCross,communityCross,rejected,accepted.size(),confidence,quantitative,risk,note);
     }
