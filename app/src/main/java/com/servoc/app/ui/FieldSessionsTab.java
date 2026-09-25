@@ -30,12 +30,12 @@ public final class FieldSessionsTab {
         state=UiKit.text(c,"لا توجد جلسة ميدانية نشطة");state.setBackgroundColor(0xFF151A20);root.addView(state,UiKit.full(c));
 
         LinearLayout actions=UiKit.hbox(c);
-        Button addSite=UiKit.button(c,"إضافة موقع");addSite.setOnClickListener(v->ask(c,"اسم الموقع","",name->{try{selectedSiteId=repo.createSite(name,"");host.showToast("تم إنشاء الموقع");refresh();}catch(Exception e){host.showToast("تعذر إنشاء الموقع");}}));actions.addView(addSite,UiKit.weight(1));
-        Button addSession=UiKit.button(c,"بدء جلسة");addSession.setOnClickListener(v->{if(selectedSiteId.isEmpty()){host.showToast("اختر موقعًا أولًا");return;}ask(c,"اسم الجلسة","",name->{try{repo.startFieldSession(selectedSiteId,name);host.showToast("بدأت الجلسة الميدانية");refresh();}catch(Exception e){host.showToast("تعذر بدء الجلسة: "+e.getMessage());}});});actions.addView(addSession,UiKit.weight(1));
-        Button close=UiKit.button(c,"إنهاء الجلسة");close.setOnClickListener(v->{FieldSessionRepository.FieldSession a=repo.activeFieldSession();if(a==null){host.showToast("لا توجد جلسة نشطة");return;}repo.closeFieldSession(a.id);host.showToast("تم إنهاء الجلسة");refresh();});actions.addView(close,UiKit.weight(1));
+        Button addSite=UiKit.button(c,"إضافة موقع");addSite.setOnClickListener(v->ask(c,"اسم الموقع","",name->{try{selectedSiteId=repo.createSite(name,"");host.showToast("تم إنشاء الموقع");host.syncUserLibrary();refresh();}catch(Exception e){host.showToast("تعذر إنشاء الموقع");}}));actions.addView(addSite,UiKit.weight(1));
+        Button addSession=UiKit.button(c,"بدء جلسة");addSession.setOnClickListener(v->{if(selectedSiteId.isEmpty()){host.showToast("اختر موقعًا أولًا");return;}ask(c,"اسم الجلسة","",name->{try{repo.startFieldSession(selectedSiteId,name);host.showToast("بدأت الجلسة الميدانية");host.syncUserLibrary();refresh();}catch(Exception e){host.showToast("تعذر بدء الجلسة: "+e.getMessage());}});});actions.addView(addSession,UiKit.weight(1));
+        Button close=UiKit.button(c,"إنهاء الجلسة");close.setOnClickListener(v->{FieldSessionRepository.FieldSession a=repo.activeFieldSession();if(a==null){host.showToast("لا توجد جلسة نشطة");return;}repo.closeFieldSession(a.id);host.syncUserLibrary();host.showToast("تم إنهاء الجلسة");refresh();});actions.addView(close,UiKit.weight(1));
         root.addView(actions,UiKit.full(c));
 
-        LinearLayout library=UiKit.card(c);library.addView(UiKit.title(c,"مكتبة HazRob الدائمة"),UiKit.full(c));Button folder=UiKit.button(c,"فتح / اختيار مجلد المكتبة");folder.setOnClickListener(v->host.requestUserLibraryFolder());library.addView(folder,UiKit.full(c));root.addView(library,UiKit.full(c));
+        LinearLayout library=UiKit.card(c);library.addView(UiKit.title(c,"مكتبة HazRob الدائمة"),UiKit.full(c));Button folder=UiKit.button(c,"فتح / اختيار مجلد المكتبة");folder.setOnClickListener(v->host.requestUserLibraryFolder());library.addView(folder,UiKit.full(c));Button syncLibrary=UiKit.button(c,"مزامنة المكتبة");syncLibrary.setOnClickListener(v->host.syncUserLibrary());library.addView(syncLibrary,UiKit.full(c));root.addView(library,UiKit.full(c));
         root.addView(UiKit.title(c,"مكتبة المواقع والجلسات"),UiKit.full(c));
         sites=UiKit.vbox(c);root.addView(sites,UiKit.full(c));
         sessions=UiKit.vbox(c);root.addView(sessions,UiKit.full(c));
