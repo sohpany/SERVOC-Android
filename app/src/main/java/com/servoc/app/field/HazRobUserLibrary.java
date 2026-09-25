@@ -8,6 +8,10 @@ import android.net.Uri;
 import android.provider.DocumentsContract;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
+
+import com.servoc.app.data.ExperimentsDb;
+import android.database.Cursor;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -76,6 +80,30 @@ public final class HazRobUserLibrary {
         m.put("storage_contract","SAF-persistable-tree");
         m.put("reports_are_derived",true);
         writeText(MANIFEST,m.toString(2));
+    }
+
+    /**
+     * Writes a portable user-domain snapshot. It contains sites, field sessions and
+     * mappings only; developer experiments/calibration/fingerprints/reference tables
+     * are intentionally excluded.
+     */
+    public synchronized void syncUserIndex(ExperimentsDb db) throws Exception {
+        if(db==null)throw new IllegalArgumentException("db required");
+        JSONObject root=new JSONObject();root.put("schema_version",SCHEMA_VERSION);root.put("type","HazRob User Field Index");
+        JSONArray sites=new JSONArray();
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT site_id,name,notes,created_ts,updated_ts FROM sites ORDER BY created_ts",null)){
+            while(c.moveToNext()){JSONObject x=new JSONObject();x.put("site_id",c.getString(0));x.put("name",c.getString(1));x.put("notes",c.getString(2));x.put("created_ts",c.getString(3));x.put("updated_ts",c.getString(4));sites.put(x);}
+        }
+        JSONArray sessions=new JSONArray();
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT field_session_id,site_id,name,started_ts,ended_ts,status,created_ts,updated_ts FROM field_sessions ORDER BY started_ts",null)){
+            while(c.moveToNext()){JSONObject x=new JSONObject();x.put("field_session_id",c.getString(0));x.put("site_id",c.getString(1));x.put("name",c.getString(2));x.put("started_ts",c.getString(3));x.put("ended_ts",c.getString(4));x.put("status",c.getString(5));x.put("created_ts",c.getString(6));x.put("updated_ts",c.getString(7));sessions.put(x);}
+        }
+        JSONArray links=new JSONArray();
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT field_session_id,measurement_session_id,linked_ts FROM field_session_measurements ORDER BY linked_ts",null)){
+            while(c.moveToNext()){JSONObject x=new JSONObject();x.put("field_session_id",c.getString(0));x.put("measurement_session_id",c.getString(1));x.put("linked_ts",c.getString(2));links.put(x);}
+        }
+        root.put("sites",sites);root.put("field_sessions",sessions);root.put("measurement_links",links);
+        writeText("field-index.json",root.toString(2));
     }
 
     public synchronized void writeText(String displayName,String text) throws Exception {
