@@ -25,7 +25,7 @@ def main():
     req(cfg,"ULTRA_WARN_CM=10.0f","collision warning threshold")
     req(cfg,"ULTRA_STOP_CM=5.0f","collision stop threshold")
     req(hw,"forwardBlocked=irWarning||ultraStop","forward safety interlock")
-    req(hw,'\"forward_blocked\"',"safety telemetry")
+    req(hw,'\\\"forward_blocked\\\"',"safety telemetry")
     print("HazRob 0.10.2 canonical release contract: PASS")
     return 0
 if __name__=="__main__":
