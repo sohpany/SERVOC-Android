@@ -80,7 +80,11 @@ def main():
     req(profile,"DRIVE_L_EN=17","Android profile left EN")
     req(profile,"DRIVE_R_EN=16","Android profile right EN")
 
-    req(hw,"void driveSet(int l,int r){curL=lim(l);curR=lim(r);cmdAt=millis();staleStop=false;driveWrite();}","firmware direct drive")
+    req(hw,"void driveSet(int l,int r){","firmware drive entry")
+    req(hw,"bool forwardRequested=(requestedL+requestedR)>0.1f;","front safety forward classification")
+    req(hw,"bool forwardBlocked=irWarning||ultraStop;","front safety hazard gate")
+    req(hw,"if(forwardBlocked&&forwardRequested){curL=curR=0;}else{curL=requestedL;curR=requestedR;}","front safety forward-only block")
+    req(hw,"cmdAt=millis();staleStop=false;driveWrite();","firmware drive watchdog refresh")
     req(hw,"motorWrite(Cfg::DRIVE_L_EN,Cfg::DRIVE_L_IN1,Cfg::DRIVE_L_IN2,curL,Cfg::DRIVE_L_INVERT)","left output")
     req(hw,"motorWrite(Cfg::DRIVE_R_EN,Cfg::DRIVE_R_IN1,Cfg::DRIVE_R_IN2,curR,Cfg::DRIVE_R_INVERT)","right output")
 
