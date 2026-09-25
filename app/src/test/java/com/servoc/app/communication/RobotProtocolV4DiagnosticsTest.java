@@ -26,4 +26,31 @@ public class RobotProtocolV4DiagnosticsTest {
         JSONObject env=RobotProtocolV4.normalize(diag,data,0,0).getJSONObject("env");
         assertFalse(env.getBoolean("ok"));assertTrue(env.getBoolean("i2c_found"));assertTrue(env.getBoolean("ack_0x76"));assertFalse(env.getBoolean("ack_0x77"));assertEquals("unsupported_chip_id",env.getString("status_code"));assertEquals("0x76",env.getString("last_address"));assertEquals("0x61",env.getString("last_chip_id"));assertEquals(3000,env.getLong("reprobe_ms"));
     }
+
+    @Test public void bme280DiagnosticsAndValuesSurviveNormalization()throws Exception{
+        JSONObject data=new JSONObject("{\"env\":{\"ok\":true,\"t\":26.4,\"h\":41.2,\"p\":874.6,\"type\":1,\"addr\":118,\"chip_id\":96,\"status\":\"ok\",\"ack_0x76\":true,\"ack_0x77\":false,\"last_addr\":118,\"last_chip_id\":96,\"read_failures\":0,\"last_ok_age_ms\":120},\"mq\":{},\"measurement\":{}}");
+        JSONObject env=RobotProtocolV4.normalize(new JSONObject(),data,0,0).getJSONObject("env");
+        assertTrue(env.getBoolean("ok"));assertEquals("BME280",env.getString("type"));assertEquals("0x76",env.getString("address"));assertEquals("0x60",env.getString("chip_id"));assertEquals(26.4,env.getDouble("temperature"),1e-9);assertEquals(41.2,env.getDouble("humidity"),1e-9);assertEquals(874.6,env.getDouble("pressure"),1e-9);assertEquals("ok",env.getString("status_code"));
+    }
+
+    @Test public void bmp280KeepsHumidityUnavailable()throws Exception{
+        JSONObject data=new JSONObject("{\"env\":{\"ok\":true,\"t\":24.1,\"h\":null,\"p\":900.2,\"type\":2,\"addr\":119,\"chip_id\":88,\"status\":\"ok\",\"ack_0x76\":false,\"ack_0x77\":true},\"mq\":{},\"measurement\":{}}");
+        JSONObject env=RobotProtocolV4.normalize(new JSONObject(),data,0,0).getJSONObject("env");
+        assertTrue(env.getBoolean("ok"));assertEquals("BMP280",env.getString("type"));assertEquals("0x77",env.getString("address"));assertEquals("0x58",env.getString("chip_id"));assertTrue(env.isNull("humidity"));assertFalse(env.getBoolean("humidity_available"));
+    }
+
+    @Test public void noAckAndReadFailureRemainFailClosed()throws Exception{
+        JSONObject noAck=new JSONObject("{\"env\":{\"ok\":false,\"status\":\"no_ack\",\"ack_0x76\":false,\"ack_0x77\":false,\"read_failures\":0},\"mq\":{},\"measurement\":{}}");
+        JSONObject a=RobotProtocolV4.normalize(new JSONObject(),noAck,0,0).getJSONObject("env");
+        assertFalse(a.getBoolean("ok"));assertFalse(a.getBoolean("i2c_found"));assertEquals("no_ack",a.getString("status_code"));
+        JSONObject failed=new JSONObject("{\"env\":{\"ok\":false,\"type\":1,\"addr\":118,\"chip_id\":96,\"status\":\"runtime_read_failed_reprobe\",\"ack_0x76\":true,\"ack_0x77\":false,\"read_failures\":3,\"last_addr\":118,\"last_chip_id\":96},\"mq\":{},\"measurement\":{}}");
+        JSONObject b=RobotProtocolV4.normalize(new JSONObject(),failed,0,0).getJSONObject("env");
+        assertFalse(b.getBoolean("ok"));assertTrue(b.getBoolean("i2c_found"));assertEquals(3,b.getInt("read_failures"));assertEquals("runtime_read_failed_reprobe",b.getString("status_code"));
+    }
+
+    @Test public void absentInternalTemperatureDoesNotClaimEnvSclGpio()throws Exception{
+        JSONObject data=new JSONObject("{\"device\":{\"internal_temp\":{\"installed\":false,\"c\":null,\"gpio\":null}},\"env\":{},\"mq\":{},\"measurement\":{}}");
+        JSONObject internal=RobotProtocolV4.normalize(new JSONObject(),data,0,0).getJSONObject("device").getJSONObject("internal_temp");
+        assertFalse(internal.getBoolean("installed"));assertTrue(internal.isNull("gpio"));
+    }
 }
