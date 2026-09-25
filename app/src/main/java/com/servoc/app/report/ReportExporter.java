@@ -46,6 +46,7 @@ public final class ReportExporter {
         if(resultCount(analytics)>0||analytics.optJSONObject("quality")!=null){page=page(pdf,pageNo++);c=page.getCanvas();advancedAnalysis(c,analytics,snapshot);reportChrome(c,pageNo-1,0);pdf.finishPage(page);}
 
         if(chemcore!=null){
+            page=page(pdf,pageNo++);c=page.getCanvas();identifiedCompoundMatrix(c,analytics,chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
             page=page(pdf,pageNo++);c=page.getCanvas();chemCoreProvenance(c,chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.candidateScatter(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
             page=page(pdf,pageNo++);c=page.getCanvas();AnalyticalCharts.candidateBubbleMap(c,new RectF(PDF_MARGIN,48,595-PDF_MARGIN,390),chemcore);AnalyticalCharts.candidateResiduals(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,785),chemcore);reportChrome(c,pageNo-1,0);pdf.finishPage(page);
@@ -93,6 +94,19 @@ public final class ReportExporter {
         JSONArray rs=a.optJSONArray("results");if(rs==null||rs.length()==0){text(c,"No evidence-bearing candidates recorded.",42,y,9,Color.DKGRAY,false);return;}
         for(int i=0;i<rs.length()&&y<760;i++){JSONObject r=rs.optJSONObject(i);if(r==null)continue;String name=r.optString("name_ar",r.optString("name",r.optString("name_en","Chemical #"+r.optInt("chemical_id",-1))));String agreement=r.optBoolean("agreement_defined",false)?String.format(Locale.US,"%.0f%%",r.optDouble("agreement",0)):"N/A";text(c,String.valueOf(r.optInt("rank",i+1)),36,y,8,Color.BLACK,false);text(c,name,70,y,8,Color.BLACK,false);text(c,String.format(Locale.US,"%.1f",r.optDouble("candidate_score_pct",0)),275,y,8,Color.BLACK,false);text(c,String.format(Locale.US,"%.1f",r.optDouble("coverage_pct",0)),325,y,8,Color.BLACK,false);text(c,String.format(Locale.US,"%.1f",r.optDouble("evidence_quality_pct",0)),385,y,8,Color.BLACK,false);text(c,agreement,445,y,8,Color.BLACK,false);text(c,String.valueOf(r.optInt("contributors",0)),525,y,8,Color.BLACK,false);y+=17;}
         text(c,"Agreement is intentionally undefined for a single contributing sensor and is not displayed as 100%.",36,792,8,Color.DKGRAY,false);
+    }
+
+    private static void identifiedCompoundMatrix(Canvas c,JSONObject analytics,JSONObject cc){
+        text(c,"Identified / Candidate Compound Matrix",32,44,17,Color.BLACK,true);
+        text(c,"IDENTIFIED and QUANTIFIED are separated from candidate/screening evidence. A candidate is not printed as a confirmed identity.",32,64,8,Color.DKGRAY,false);
+        float y=94;
+        text(c,"#",32,y,8,Color.DKGRAY,true);text(c,"Compound",52,y,8,Color.DKGRAY,true);text(c,"State",218,y,8,Color.DKGRAY,true);text(c,"Evidence mode",288,y,8,Color.DKGRAY,true);text(c,"Score",408,y,8,Color.DKGRAY,true);text(c,"n",458,y,8,Color.DKGRAY,true);text(c,"M4",486,y,8,Color.DKGRAY,true);text(c,"PPM",520,y,8,Color.DKGRAY,true);y+=18;
+        JSONArray cs=cc==null?null:cc.optJSONArray("candidates");
+        if(cs!=null&&cs.length()>0){String outcome=cc.optString("outcome","CANDIDATE");for(int i=0;i<cs.length()&&y<360;i++){JSONObject q=cs.optJSONObject(i);if(q==null)continue;boolean top=i==0,identified=top&&("IDENTIFIED".equals(outcome)||"QUANTIFIED".equals(outcome));String state=identified?outcome:"CANDIDATE";int n=candidateContributorCount(q),cal=q.optInt("calibrated_contributors",0);String mode=n>=2?"MULTI_SENSOR":(n==1&&cal>0?"SPECIALIST_SINGLE":"SINGLE_SCREEN");String label=q.optString("label","Chemical "+q.optLong("chemical_uid",-1));text(c,String.valueOf(i+1),32,y,8,Color.BLACK,false);text(c,label,52,y,8,Color.BLACK,false);text(c,state,218,y,8,Color.BLACK,false);text(c,mode,288,y,7,Color.BLACK,false);text(c,String.format(Locale.US,"%.1f%%",100.0*q.optDouble("posterior",0)),408,y,8,Color.BLACK,false);text(c,String.valueOf(n),458,y,8,Color.BLACK,false);text(c,String.valueOf(cal),486,y,8,Color.BLACK,false);text(c,top&&cc.optBoolean("ppm_reportable",false)?finite(cc,"ppm"):"—",520,y,8,Color.BLACK,false);y+=18;}}
+        else{text(c,"No session-bound compound candidates are available.",42,y,9,Color.DKGRAY,false);y+=24;}
+        text(c,"Analytical maps",32,390,11,Color.BLACK,true);
+        AnalyticalCharts.candidates(c,new RectF(PDF_MARGIN,410,595-PDF_MARGIN,585),cc==null?analytics:cc);
+        AnalyticalCharts.candidateScatter(c,new RectF(PDF_MARGIN,600,595-PDF_MARGIN,790),cc==null?analytics:cc);
     }
 
     private static void chemCoreProvenance(Canvas c,JSONObject q){
