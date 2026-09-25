@@ -112,8 +112,9 @@ public final class HazRobUserLibrary {
     }
 
     public static final class RestoreSummary {
-        public final int sites,sessions,links,skippedLinks;
-        RestoreSummary(int sites,int sessions,int links,int skippedLinks){this.sites=sites;this.sessions=sessions;this.links=links;this.skippedLinks=skippedLinks;}
+        public final int sites,sessions,links,skippedLinks,measurements,samples,events,decisions;
+        RestoreSummary(int sites,int sessions,int links,int skippedLinks){this(sites,sessions,links,skippedLinks,0,0,0,0);}
+        RestoreSummary(int sites,int sessions,int links,int skippedLinks,int measurements,int samples,int events,int decisions){this.sites=sites;this.sessions=sessions;this.links=links;this.skippedLinks=skippedLinks;this.measurements=measurements;this.samples=samples;this.events=events;this.decisions=decisions;}
     }
 
     /**
@@ -135,7 +136,11 @@ public final class HazRobUserLibrary {
             if(links!=null)for(int i=0;i<links.length();i++){JSONObject x=links.optJSONObject(i);if(x==null)continue;String fs=req(x,"field_session_id"),ms=req(x,"measurement_session_id");if(!fieldSessionExists(w,fs)||!measurementExists(w,ms)){skip++;continue;}ContentValues v=new ContentValues();v.put("field_session_id",fs);v.put("measurement_session_id",ms);v.put("linked_ts",req(x,"linked_ts"));long r=w.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);if(r!=-1)nl++;}
             w.setTransactionSuccessful();
         }finally{w.endTransaction();}
-        return new RestoreSummary(ns,nf,nl,skip);
+        int am=0,as=0,ae=0,ad=0;
+        if(sessions!=null)for(int i=0;i<sessions.length();i++){JSONObject fs=sessions.optJSONObject(i);if(fs==null)continue;String id=fs.optString("field_session_id","").trim();if(id.isEmpty())continue;JSONObject archive=readJson("session-"+safeId(id)+".json");if(archive==null)continue;FieldSessionArchive.ImportSummary q=FieldSessionArchive.importSession(db,archive);am+=q.measurements;as+=q.samples;ae+=q.events;ad+=q.decisions;}
+        // Re-evaluate exact links after source archives have recreated technical sessions.
+        nl=0;skip=0;if(links!=null){SQLiteDatabase rw=db.getWritableDatabase();for(int i=0;i<links.length();i++){JSONObject x=links.optJSONObject(i);if(x==null)continue;String fs=req(x,"field_session_id"),ms=req(x,"measurement_session_id");if(!fieldSessionExists(rw,fs)||!measurementExists(rw,ms)){skip++;continue;}ContentValues v=new ContentValues();v.put("field_session_id",fs);v.put("measurement_session_id",ms);v.put("linked_ts",req(x,"linked_ts"));rw.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);nl++;}}
+        return new RestoreSummary(ns,nf,nl,skip,am,as,ae,ad);
     }
 
     private static String safeId(String id){return id.replaceAll("[^A-Za-z0-9._-]","_");}
