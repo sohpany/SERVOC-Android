@@ -1,11 +1,11 @@
-# HazRob 0.10.1 Architecture
+# HazRob 0.10.2 Architecture
 
 Status: **controlled integration architecture**.  
-Authoritative branch: `dev/hazrob-0.10.1`.  
-Controlled changes: `docs/0.10.1/CONTROLLED_CHANGE_LOG.md`.  
-Canonical pin map: `docs/0.10.1/GPIO_AUTHORITY.md`.
+Authoritative branch: `release/hazrob-0.10.2`.  
+Release audit records: `docs/releases/0.10.2/`.  
+Canonical runtime mapping is defined by the 0.10.2 firmware and `HazRobHardwareProfile`.
 
-HazRob 0.10.1 separates deterministic robot I/O and safety from Android-side operator workflow, ChemCore analysis, evidence handling, persistence and reporting. Direct and Remote are two transports for the same robot/application contract; Remote capability must not weaken Direct/offline operation.
+HazRob 0.10.2 separates deterministic robot I/O and safety from Android-side operator workflow, ChemCore analysis, evidence handling, persistence and reporting. Direct and Remote are two transports for the same robot/application contract; Remote capability must not weaken Direct/offline operation.
 
 ## System components
 
@@ -30,7 +30,7 @@ The AI-Thinker ESP32-CAM is a separate Wi-Fi node at `192.168.4.2`.
 
 - Local HTTP/status: port 80.
 - Local MJPEG stream: port 81.
-- Remote video: JPEG frames published over authenticated WSS to the Render relay.
+- Remote video: JPEG frames published over authenticated WSS to the Railway relay.
 - The camera has no direct GPIO/UART control cable to the master in 0.10.1.
 - Camera GPIO assignments are occupied according to `docs/0.10.1/GPIO_AUTHORITY.md`.
 
@@ -56,12 +56,12 @@ Hardware profile: `hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-v1`.
 
 Six ESP32 GPIO lines are authoritative:
 
-- GPIO16 = ENA / left speed PWM;
-- GPIO18 = IN1;
-- GPIO27 = IN2;
-- GPIO17 = ENB / right speed PWM;
-- GPIO19 = IN3;
-- GPIO32 = IN4.
+- GPIO17 = logical LEFT speed PWM;
+- GPIO19 = logical LEFT direction IN1;
+- GPIO32 = logical LEFT direction IN2;
+- GPIO16 = logical RIGHT speed PWM;
+- GPIO18 = logical RIGHT direction IN3;
+- GPIO27 = logical RIGHT direction IN4.
 
 Two motors per side are connected in parallel to the corresponding L298N bridge outputs. ENA/ENB jumpers are removed when GPIO16/GPIO17 control enable. IN1..IN4 are direction lines; speed PWM is not applied to direction inputs.
 
@@ -95,7 +95,7 @@ Remote mode uses authenticated service identities while presenting a passwordles
 
 ### Bootstrap roles
 
-The Render bootstrap contract is role-scoped:
+The Railway bootstrap contract is role-scoped:
 
 - `android` → operator MQTT credentials + video VIEW token;
 - `esp32` → robot MQTT credentials only;
@@ -120,7 +120,7 @@ Command envelopes carry session ID, monotonically increasing sequence, nonce, se
 
 ### Remote video path
 
-ESP32-CAM publishes binary JPEG frames to the Render WSS relay with a publish-scoped token. Android views through a separate view-scoped token. The relay validates authentication, robot ID, JPEG bounds and publisher/viewer state. Video readiness is not a prerequisite for accepting a control session: control readiness requires MQTT command ACK plus telemetry.
+ESP32-CAM publishes binary JPEG frames to the Railway WSS relay with a publish-scoped token. Android views through a separate view-scoped token. The relay validates authentication, robot ID, JPEG bounds and publisher/viewer state. Video readiness is not a prerequisite for accepting a control session: control readiness requires MQTT command ACK plus telemetry.
 
 ## WAN bootstrap boundary
 
@@ -152,13 +152,13 @@ Stable scientific-library publication is separate from APK publication. Packages
 
 ## Build/release boundary
 
-Development builds may compile on `dev/hazrob-0.10.1`, but public APK/firmware distribution is quarantined during integration. Release publication is enabled only from the explicit `release/hazrob-0.10.1-ready` branch after all audit gates pass.
+The controlled 0.10.2 source is maintained on `release/hazrob-0.10.2`. APK/firmware publication remains quarantined until physical acceptance, artifact hashes and explicit release approval.
 
-Final release authority requires one final commit SHA with successful Android, master ESP32, ESP32-CAM, relay and scientific-data checks, plus live Render/HiveMQ verification and a release manifest containing artifact hashes.
+Final release authority requires one final commit SHA with successful Android, master ESP32, ESP32-CAM, relay and scientific-data checks, plus live Railway/EMQX verification and a release manifest containing artifact hashes.
 
 ## Security and safety boundary
 
 - Secrets/private deployment values must not be committed to GitHub; source control records variable names, roles and validation requirements.
 - Prototype bootstrap mechanisms are not equivalent to a production identity platform and must be listed as a known limitation until hardened.
-- HazRob 0.10.1 is a research prototype, not Ex/intrinsically-safe/SIL-certified equipment.
-- Direct/offline safety remains authoritative when Internet, Render, HiveMQ or camera video is unavailable.
+- HazRob 0.10.2 is a research prototype, not Ex/intrinsically-safe/SIL-certified equipment.
+- Direct/offline safety remains authoritative when Internet, Railway, EMQX or camera video is unavailable.
