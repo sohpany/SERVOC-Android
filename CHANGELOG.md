@@ -13,6 +13,8 @@
 - Added operator-visible BME280/BMP280 diagnostics for the dedicated ENV I²C bus (GPIO13 SDA / GPIO14 SCL, 100 kHz), including 0x76/0x77 ACK, chip/address provenance, status, read failures and last-good age.
 - Removed the stale Android internal-temperature GPIO14 fallback so the ENV SCL line is not falsely attributed to an uninstalled device-health sensor.
 - Added BME280/BMP280/no-ACK/runtime-failure normalization regression coverage and clarified developer-lab export labels as experiment-specific.
+- Added firmware-authoritative front safety interlocks: ultrasonic warning at <=10 cm, forward-motion block at <=5 cm, and downward-IR cliff forward block while preserving reverse and zero-net pivot escape commands.
+- Added video-surface Arabic warnings for collision and cliff hazards; joystick pivot truth-table remains explicitly regression-tested as counter-rotation at full left/right.
 
 ## 0.10.1 HR-0101-066 — 2026-09-18
 - Made the already-associated HazRob Wi-Fi route the Android Direct authority; temporary `WifiNetworkSpecifier` is now an explicit fallback instead of a 250 ms recurring recovery mechanism.
