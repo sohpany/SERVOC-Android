@@ -39,7 +39,7 @@ public interface HazRobHost {
     void setTrackingTarget(int chemicalId,String name);
     int trackingTargetId();
     String trackingTargetName();
-    void requestExport(String format,long experimentId);
+    void requestExport(String format,long experimentId);\n    /** Export a complete immutable field session; multi-measurement sessions are packaged losslessly. */\n    void requestFieldSessionExport(String format,String fieldSessionId);
     void requestRawExport(long experimentId);
     void requestReferenceBankExport(long experimentId);
     boolean userLibraryAttached();
