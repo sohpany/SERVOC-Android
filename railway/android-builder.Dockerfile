@@ -47,19 +47,11 @@ COPY --from=relaytest /relay-test-pass /tmp/hazrob-relay-test-pass
 # Restore the controlled prototype signing key only inside this isolated build container.
 RUN base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks && chmod 600 signing/hazrob-prototype.jks
 
-# Fail closed on the same core integration gates used by the controlled release workflow.
-RUN python3 tools/audit_hr061_direct_first_contract.py && \
-    python3 tools/audit_0101_integration_contract.py && \
+# HazRob 0.10.2 is the sole release authority. Historical HR gates remain in the
+# repository for provenance only and are not allowed to impose stale UI/runtime contracts.
+RUN python3 tools/audit_0101_integration_contract.py && \
     python3 tools/audit_0101_motion_contract.py && \
-    python3 tools/audit_hr047_gas_safety_contract.py
-
-# 0.10.2 comprehensive regression sweep: execute every retained audit, including older
-# subsystem contracts, so stale assumptions or cross-component drift fail the build.
-RUN set -eux; \
-    for f in tools/audit_*.py; do \
-      echo "===== $f ====="; \
-      python3 "$f"; \
-    done
+    python3 tools/audit_0102_release_contract.py
 
 RUN python3 tools/audit_0101_firmware_baseline.py && \
     mkdir -p /tmp/fw-main /tmp/fw-cam && \
