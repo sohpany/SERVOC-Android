@@ -44,7 +44,7 @@ public final class FieldSessionArchive {
         if(root.optInt("schema_version",0)!=1)throw new IllegalStateException("unsupported field archive schema");
         String fieldId=root.optString("field_session_id","").trim();if(fieldId.isEmpty())throw new IllegalStateException("field_session_id required");
         SQLiteDatabase w=db.getWritableDatabase();if(!exists(w,"field_sessions","field_session_id",fieldId))throw new IllegalStateException("field session metadata must be restored first");
-        JSONArray a=root.optJSONArray("measurements");int nm=0,ns=0,ne=0,nd=0;w.beginTransaction();
+        JSONArray a=root.optJSONArray("measurements");int nm=0,nx=0,ns=0,ne=0,nd=0;w.beginTransaction();
         try{
             if(a!=null)for(int i=0;i<a.length();i++){JSONObject m=a.optJSONObject(i);if(m==null)continue;String sid=req(m,"session_id"),kind=req(m,"kind"),role=req(m,"operator_role");if(!"USER".equals(role)||!kind.startsWith("field_"))throw new IllegalStateException("archive contains non-user measurement");
                 ContentValues mv=new ContentValues();mv.put("session_id",sid);mv.put("started_ts",req(m,"started_ts"));putNullable(mv,"ended_ts",m);mv.put("kind",kind);mv.put("operator_role","USER");putNullable(mv,"payload",m);putNullable(mv,"analytics",m);w.insertWithOnConflict("measurement_sessions",null,mv,SQLiteDatabase.CONFLICT_IGNORE);nm++;
@@ -55,7 +55,7 @@ public final class FieldSessionArchive {
             }
             w.setTransactionSuccessful();
         }finally{w.endTransaction();}
-        return new ImportSummary(nm,ns,ne,nd);
+        return new ImportSummary(nm,nx,ns,ne,nd);
     }
 
     private static int restoreExperiments(SQLiteDatabase w,String sid,JSONArray a){int n=0;if(a==null)return 0;for(int i=0;i<a.length();i++){JSONObject x=a.optJSONObject(i);if(x==null)continue;ContentValues v=new ContentValues();v.put("ts",x.optString("ts",""));v.put("payload",x.optString("payload","{}"));putNullable(v,"protocol",x);putNullable(v,"analytics",x);v.put("approved",x.optInt("approved",0));putNullable(v,"approved_ts",x);putNullable(v,"reference_name",x);v.put("session_id",sid);for(String k:new String[]{"capture_id","chemical_uid"})if(!x.isNull(k))v.put(k,x.optLong(k));putNullable(v,"reference_kind",x);if(!x.isNull("known_ppm"))v.put("known_ppm",x.optDouble("known_ppm"));w.insertOrThrow("experiments",null,v);n++;}return n;}
