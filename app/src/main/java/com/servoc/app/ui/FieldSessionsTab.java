@@ -35,6 +35,7 @@ public final class FieldSessionsTab {
         Button close=UiKit.button(c,"إنهاء الجلسة");close.setOnClickListener(v->{FieldSessionRepository.FieldSession a=repo.activeFieldSession();if(a==null){host.showToast("لا توجد جلسة نشطة");return;}repo.closeFieldSession(a.id);host.showToast("تم إنهاء الجلسة");refresh();});actions.addView(close,UiKit.weight(1));
         root.addView(actions,UiKit.full(c));
 
+        LinearLayout library=UiKit.card(c);library.addView(UiKit.title(c,"مكتبة HazRob الدائمة"),UiKit.full(c));Button folder=UiKit.button(c,"فتح / اختيار مجلد المكتبة");folder.setOnClickListener(v->host.requestUserLibraryFolder());library.addView(folder,UiKit.full(c));root.addView(library,UiKit.full(c));
         root.addView(UiKit.title(c,"مكتبة المواقع والجلسات"),UiKit.full(c));
         sites=UiKit.vbox(c);root.addView(sites,UiKit.full(c));
         sessions=UiKit.vbox(c);root.addView(sessions,UiKit.full(c));
@@ -44,7 +45,7 @@ public final class FieldSessionsTab {
 
     public void refresh(){
         FieldSessionRepository.FieldSession active=repo.activeFieldSession();
-        state.setText(active==null?"لا توجد جلسة ميدانية نشطة":"جلسة نشطة: "+active.name+" • القياسات الجديدة ستُربط بهذه الجلسة");
+        state.setText((host.userLibraryAttached()?"المكتبة الدائمة: مرتبطة":"المكتبة الدائمة: غير مرتبطة")+"\n"+(active==null?"لا توجد جلسة ميدانية نشطة":"جلسة نشطة: "+active.name+" • القياسات الجديدة ستُربط بهذه الجلسة"));
         state.setTextColor(active==null?0xFFFFB74D:0xFF81C784);
         sites.removeAllViews();List<FieldSessionRepository.Site> ss=repo.sites();
         if(ss.isEmpty()){selectedSiteId="";sites.addView(UiKit.small(sites.getContext(),"لا توجد مواقع محفوظة."),UiKit.full(sites.getContext()));sessions.removeAllViews();return;}
