@@ -91,6 +91,7 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
     public boolean approveExperiment(long id,String approvedTs,String referenceName){ContentValues v=new ContentValues();v.put("approved",1);v.put("approved_ts",approvedTs);v.put("reference_name",referenceName);return getWritableDatabase().update("experiments",v,"id=?",new String[]{String.valueOf(id)})==1;}
     public int count(){try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM experiments",null)){return c.moveToFirst()?c.getInt(0):0;}}
     public int approvedCount(){try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM experiments WHERE approved=1",null)){return c.moveToFirst()?c.getInt(0):0;}}
+    public boolean hasApprovedReference(long chemicalUid,String kind){try(Cursor c=getReadableDatabase().rawQuery("SELECT 1 FROM experiments WHERE chemical_uid=? AND reference_kind=? AND approved=1 LIMIT 1",new String[]{String.valueOf(chemicalUid),kind})){return c.moveToFirst();}}
     public int chemicalCount(){try(Cursor c=getReadableDatabase().rawQuery("SELECT COUNT(*) FROM chemicals WHERE active=1",null)){return c.moveToFirst()?c.getInt(0):0;}}
 
     public long saveFingerprint(int chemicalId,String label,String createdTs,String payload){ContentValues v=new ContentValues();v.put("chemical_id",chemicalId);v.put("label",label);v.put("created_ts",createdTs);v.put("payload",payload);return getWritableDatabase().insert("fingerprints",null,v);}
