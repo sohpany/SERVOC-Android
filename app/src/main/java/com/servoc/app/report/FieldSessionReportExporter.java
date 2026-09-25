@@ -1,8 +1,5 @@
 package com.servoc.app.report;
 
-import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
-
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.data.ExperimentsDb;
@@ -36,15 +33,7 @@ public final class FieldSessionReportExporter {
         FieldSessionRepository repo=new FieldSessionRepository(db);
         List<String> sessions=repo.measurementSessionIds(fs);
         List<ExperimentQueries.Record> out=new ArrayList<>();
-        SQLiteDatabase r=db.getReadableDatabase();
-        for(String sid:sessions){
-            try(Cursor c=r.rawQuery("SELECT id FROM experiments WHERE session_id=? ORDER BY id",new String[]{sid})){
-                while(c.moveToNext()){
-                    ExperimentQueries.Record q=ExperimentQueries.byId(db,c.getLong(0));
-                    if(q!=null)out.add(q);
-                }
-            }
-        }
+        for(String sid:sessions)out.addAll(ExperimentQueries.bySessionId(db,sid));
         return new Bundle(fs,out);
     }
 
@@ -89,7 +78,8 @@ public final class FieldSessionReportExporter {
     }
     private static void put(ZipOutputStream z,String name,byte[] bytes)throws Exception{ZipEntry e=new ZipEntry(name);z.putNextEntry(e);z.write(bytes);z.closeEntry();}
     private static String safe(String s){return (s==null?"unknown":s).replaceAll("[^A-Za-z0-9._-]","_");}
-    private static String json(String s){if(s==null)return "";return s.replace("\\\\","\\\\\\\\").replace("\"","\\\\\"").replace("\n","\\\\n").replace("\r","\\\\r");}
+    private static String json(String s){if(s==null)return "";return s.replace("\\\\","\\\\\\\\").replace("\"","\\\\\"").replace("\n","\\
+").replace("\r","\\\\r");}
 
     private static String required(String s){
         String v=s==null?"":s.trim();
