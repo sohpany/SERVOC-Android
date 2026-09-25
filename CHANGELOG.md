@@ -10,6 +10,9 @@
 - Corrected active README drive mapping to match executable firmware authority: logical LEFT GPIO17/19/32 and logical RIGHT GPIO16/18/27.
 - No destructive scientific-dataset refresh and no wholesale merge from divergent development branches.
 - Final field acceptance/tag remains gated on physical Direct control/camera/safety tests and optional Remote tests.
+- Added operator-visible BME280/BMP280 diagnostics for the dedicated ENV I²C bus (GPIO13 SDA / GPIO14 SCL, 100 kHz), including 0x76/0x77 ACK, chip/address provenance, status, read failures and last-good age.
+- Removed the stale Android internal-temperature GPIO14 fallback so the ENV SCL line is not falsely attributed to an uninstalled device-health sensor.
+- Added BME280/BMP280/no-ACK/runtime-failure normalization regression coverage and clarified developer-lab export labels as experiment-specific.
 
 ## 0.10.1 HR-0101-066 — 2026-09-18
 - Made the already-associated HazRob Wi-Fi route the Android Direct authority; temporary `WifiNetworkSpecifier` is now an explicit fallback instead of a 250 ms recurring recovery mechanism.
