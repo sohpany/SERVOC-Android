@@ -45,5 +45,6 @@ public interface HazRobHost {
     boolean userLibraryAttached();
     void requestUserLibraryFolder();
     void syncUserLibrary();
+    void restoreUserLibrary();
     void refreshAllTabs();
 }
