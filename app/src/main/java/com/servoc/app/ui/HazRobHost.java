@@ -42,5 +42,7 @@ public interface HazRobHost {
     void requestExport(String format,long experimentId);
     void requestRawExport(long experimentId);
     void requestReferenceBankExport(long experimentId);
+    boolean userLibraryAttached();
+    void requestUserLibraryFolder();
     void refreshAllTabs();
 }
