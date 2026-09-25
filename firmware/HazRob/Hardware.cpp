@@ -63,8 +63,8 @@ void envUpdate(){uint32_t n=millis();if(!envType){if(n-envProbeAt>=ENV_REPROBE_M
 
 /* sound / LDR / downward IR cliff */
 uint16_t isqrt(uint32_t x){uint32_t op=x,res=0,one=1UL<<30;while(one>op)one>>=2;while(one){if(op>=res+one){op-=res+one;res=(res>>1)+one;}else res>>=1;one>>=2;}return (uint16_t)res;}
-float soundRms=NAN,soundP2P=NAN;uint32_t soundAt=0;
-void soundUpdate(){uint32_t n=millis();if(n-soundAt<Cfg::SOUND_PERIOD)return;soundAt=n;uint32_t sum=0,sq=0;uint16_t lo=4095,hi=0;for(uint16_t k=0;k<Cfg::SOUND_SAMPLES;k++){uint16_t x=analogRead(Cfg::SOUND_PIN);sum+=x;sq+=(uint32_t)x*x;lo=min(lo,x);hi=max(hi,x);}uint32_t mean=sum/Cfg::SOUND_SAMPLES,var=sq/Cfg::SOUND_SAMPLES;var=var>mean*mean?var-mean*mean:0;constexpr float V=3.3f/4095.0f;soundRms=isqrt(var)*V;soundP2P=(hi-lo)*V;}
+float soundRms=NAN,soundP2P=NAN,soundDb=NAN;uint32_t soundAt=0;
+void soundUpdate(){uint32_t n=millis();if(n-soundAt<Cfg::SOUND_PERIOD)return;soundAt=n;uint32_t sum=0,sq=0;uint16_t lo=4095,hi=0;for(uint16_t k=0;k<Cfg::SOUND_SAMPLES;k++){uint16_t x=analogRead(Cfg::SOUND_PIN);sum+=x;sq+=(uint32_t)x*x;lo=min(lo,x);hi=max(hi,x);}uint32_t mean=sum/Cfg::SOUND_SAMPLES,var=sq/Cfg::SOUND_SAMPLES;var=var>mean*mean?var-mean*mean:0;constexpr float V=3.3f/4095.0f;soundRms=isqrt(var)*V;soundP2P=(hi-lo)*V;constexpr float MIC_V_PER_PA=0.00630957f,AMP_GAIN=25.0f;float micVrms=soundRms/AMP_GAIN;soundDb=micVrms>1e-7f?94.0f+20.0f*log10f(micVrms/MIC_V_PER_PA):NAN;}
 bool irWarning=false,irGroundDetected=false;uint8_t irLevel=HIGH,irLostCount=0,irGroundCount=0;uint32_t irAt=0;bool ultraWarning=false,ultraStop=false;
 void hazardAlert(){Alerts::setIr(irWarning||ultraWarning);}
 void irUpdate(){uint32_t n=millis();if(n-irAt<Cfg::IR_PERIOD)return;irAt=n;irLevel=digitalRead(Cfg::IR_PIN);bool groundNow=irLevel==Cfg::IR_GROUND_ACTIVE;if(groundNow){irLostCount=0;if(irGroundCount<255)irGroundCount++;if(irGroundCount>=Cfg::IR_CLIFF_CLEAR_SAMPLES){irGroundDetected=true;irWarning=false;}}else{irGroundCount=0;if(irLostCount<255)irLostCount++;if(irLostCount>=Cfg::IR_CLIFF_ASSERT_SAMPLES){irGroundDetected=false;irWarning=true;}}hazardAlert();}
