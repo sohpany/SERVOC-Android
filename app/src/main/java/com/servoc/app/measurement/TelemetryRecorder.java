@@ -5,6 +5,7 @@ import android.os.SystemClock;
 import com.servoc.app.chemcore.ChemCoreSchema;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.hardware.HazRobHardwareProfile;
+import com.servoc.app.field.FieldSessionRepository;
 import org.json.JSONObject;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -13,8 +14,8 @@ import java.util.TimeZone;
 
 /** Automatically records normalized telemetry across ESP32 MQ cycles and controlled ChemCore captures. */
 public final class TelemetryRecorder {
-    private final ExperimentsDb db;private String sessionId,lastCompletedSessionId="";private long startedElapsed,lastSampleElapsed;private boolean chemCoreCaptureSession=false;
-    public TelemetryRecorder(ExperimentsDb db){this.db=db;ChemCoreSchema.ensure(db.getWritableDatabase());lastCompletedSessionId=db.getMeta("last_measurement_session_id","");}
+    private final ExperimentsDb db;private final FieldSessionRepository fieldSessions;private String sessionId,lastCompletedSessionId="";private long startedElapsed,lastSampleElapsed;private boolean chemCoreCaptureSession=false;
+    public TelemetryRecorder(ExperimentsDb db){this.db=db;this.fieldSessions=new FieldSessionRepository(db);ChemCoreSchema.ensure(db.getWritableDatabase());lastCompletedSessionId=db.getMeta("last_measurement_session_id","");}
 
     public synchronized void accept(JSONObject snapshot,int left,int right,boolean developer){
         if(snapshot==null)return;JSONObject m=snapshot.optJSONObject("measurement");String state=m==null?"idle":m.optString("state","idle");long now=SystemClock.elapsedRealtime();
@@ -38,7 +39,13 @@ public final class TelemetryRecorder {
         chemCoreCaptureSession=chemCore;sessionId=(developer?"DEV":"FIELD")+(chemCore?"-CHEMCORE-":"-")+System.currentTimeMillis();startedElapsed=lastSampleElapsed=now;
         ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("started_ts",isoNow());v.put("kind",chemCore?"developer_chemcore_controlled_capture":(developer?"developer_mq_cycle":"field_mq_cycle"));v.put("operator_role",developer?"DEVELOPER":"USER");
         try{JSONObject meta=new JSONObject();meta.put("chemcore_controlled_capture",chemCore);meta.put("sample_period_ms",chemCore?200:250);meta.put("mq_scan_timing_capture",chemCore);v.put("analytics",meta.toString());}catch(Exception ignored){}
-        db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);MeasurementSessionRegistry.started(sessionId);
+        db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);
+        // Bind only ordinary USER field acquisitions. Developer/ChemCore controlled captures stay outside the user domain.
+        if(!developer&&!chemCore){
+            FieldSessionRepository.FieldSession active=fieldSessions.activeFieldSession();
+            if(active!=null)fieldSessions.linkMeasurement(active.id,sessionId);
+        }
+        MeasurementSessionRegistry.started(sessionId);
     }
 
     private void sample(JSONObject snapshot,int left,int right,long now){
