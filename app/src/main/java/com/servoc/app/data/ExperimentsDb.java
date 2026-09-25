@@ -11,7 +11,7 @@ import java.util.List;
 
 /** Offline-first HazRob database for measurements, experiments, calibration and scientific reference data. */
 public final class ExperimentsDb extends SQLiteOpenHelper {
-    public static final int DB_VERSION=8;
+    public static final int DB_VERSION=9;
     public ExperimentsDb(Context c){super(c,"servoc.db",null,DB_VERSION);}
 
     @Override public void onCreate(SQLiteDatabase db){
@@ -19,7 +19,7 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE fingerprints(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, label TEXT NOT NULL, created_ts TEXT NOT NULL, payload TEXT NOT NULL)");
         db.execSQL("CREATE TABLE captures(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, chemical_uid INTEGER, known_ppm REAL, ts TEXT NOT NULL, session_id TEXT, temp_c REAL, rh REAL, phase TEXT, sensor_payload TEXT NOT NULL, feature_payload TEXT)");
         db.execSQL("CREATE TABLE models(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, model_type TEXT NOT NULL, version TEXT NOT NULL, created_ts TEXT NOT NULL, training_count INTEGER, metrics TEXT, payload TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 0)");
-        createCalibrationTables(db);db.execSQL("CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)");createV6Tables(db);createV8Tables(db);seedLegacyChemicals(db);seedCoreSources(db);createCaptureUidIndex(db);
+        createCalibrationTables(db);db.execSQL("CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)");createV6Tables(db);createV8Tables(db);createV9UserFieldTables(db);seedLegacyChemicals(db);seedCoreSources(db);createCaptureUidIndex(db);
     }
 
     @Override public void onUpgrade(SQLiteDatabase db,int oldVersion,int newVersion){
@@ -37,6 +37,7 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
             try{db.execSQL("ALTER TABLE experiments ADD COLUMN known_ppm REAL");}catch(Exception ignored){}
             createV8Tables(db);
         }
+        if(oldVersion<9)createV9UserFieldTables(db);
     }
 
     private static void createCaptureUidIndex(SQLiteDatabase db){db.execSQL("CREATE INDEX IF NOT EXISTS idx_captures_chemical_uid ON captures(chemical_uid)");}
@@ -51,6 +52,16 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_reference_artifact_target ON reference_artifacts(chemical_uid,kind,active,id)");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_experiment_session ON experiments(session_id)");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_experiment_reference ON experiments(chemical_uid,reference_kind,approved)");
+    }
+
+    /** User field-operation layer. Developer/lab records remain in their existing scientific tables. */
+    private static void createV9UserFieldTables(SQLiteDatabase db){
+        db.execSQL("CREATE TABLE IF NOT EXISTS sites(site_id TEXT PRIMARY KEY, name TEXT NOT NULL, notes TEXT, created_ts TEXT NOT NULL, updated_ts TEXT NOT NULL)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS field_sessions(field_session_id TEXT PRIMARY KEY, site_id TEXT NOT NULL, name TEXT NOT NULL, started_ts TEXT NOT NULL, ended_ts TEXT, status TEXT NOT NULL, created_ts TEXT NOT NULL, updated_ts TEXT NOT NULL, FOREIGN KEY(site_id) REFERENCES sites(site_id))");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_field_sessions_site_time ON field_sessions(site_id,started_ts)");
+        db.execSQL("CREATE TABLE IF NOT EXISTS field_session_measurements(field_session_id TEXT NOT NULL, measurement_session_id TEXT NOT NULL UNIQUE, linked_ts TEXT NOT NULL, PRIMARY KEY(field_session_id,measurement_session_id), FOREIGN KEY(field_session_id) REFERENCES field_sessions(field_session_id), FOREIGN KEY(measurement_session_id) REFERENCES measurement_sessions(session_id))");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_field_measurements_field ON field_session_measurements(field_session_id,linked_ts)");
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_field_measurements_measurement ON field_session_measurements(measurement_session_id)");
     }
 
     private static void createV6Tables(SQLiteDatabase db){
