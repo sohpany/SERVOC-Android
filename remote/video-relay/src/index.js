@@ -5,7 +5,7 @@ import { WebSocketServer, WebSocket } from "ws";
 
 const PORT=Number(process.env.PORT||3000),SERVICE_VERSION="0.10.2",PROTOCOL=2;
 const MAX_JPEG=256*1024,MAX_VIEWER_BUFFER=512*1024,PING_MS=30000;
-const MQTT_HOST=String(process.env.MQTT_HOST||process.env.EMQX_HOST||"e96d6c3b500149bf96ccc8b91cb2ae0c.s1.eu.hivemq.cloud").trim();
+const MQTT_HOST=String(process.env.MQTT_HOST||process.env.EMQX_HOST||"hfd1d4a1.ala.asia-southeast1.emqxsl.com").trim();
 const MQTT_PORT=Number(process.env.MQTT_PORT||process.env.EMQX_PORT||8883);
 const ROBOT_ID=String(process.env.MQTT_ROBOT_ID||process.env.EMQX_ROBOT_ID||"hazrob-001").trim();
 const rooms=new Map();let mqttDiagnostic={state:"not_run"};
