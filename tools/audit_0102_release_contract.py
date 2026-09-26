@@ -28,6 +28,7 @@ def main() -> int:
     entry = txt("app/src/main/java/com/servoc/app/EntryActivity.java")
     release = txt("app/src/main/java/com/servoc/app/ReleaseAudit.java")
     db = txt("app/src/main/java/com/servoc/app/data/ExperimentsDb.java")
+    experiment_queries = txt("app/src/main/java/com/servoc/app/data/ExperimentQueries.java")
     hw = txt("firmware/HazRob/Hardware.cpp")
     cfg = txt("firmware/HazRob/Config.h")
     user_library = txt("app/src/main/java/com/servoc/app/field/HazRobUserLibrary.java")
@@ -62,8 +63,11 @@ def main() -> int:
     req(archive, "FROM experiments WHERE session_id=?", "derived report source backup")
     req(archive, 'w.delete("experiments","session_id=?"', "idempotent report source restore")
     req(report, "measurementSessionIds(fs)", "field report exact measurement binding")
-    req(report, "experiments WHERE session_id=?", "field report exact experiment binding")
+    req(report, "ExperimentQueries.bySessionId(db,sid)", "field report exact experiment binding")
+    forbid(report, "rawQuery(", "field report SQL ownership")
+    req(experiment_queries, "WHERE session_id=? ORDER BY id", "exact experiment query")
     forbid(report, "ORDER BY ABS", "field report timestamp fallback forbidden")
+    forbid(experiment_queries, "ORDER BY ABS", "experiment query timestamp fallback forbidden")
     req(sessions_tab, 'requestFieldSessionExport("pdf",q.id)', "field PDF action")
     req(sessions_tab, 'requestFieldSessionExport("xlsx",q.id)', "field XLSX action")
 
@@ -71,7 +75,7 @@ def main() -> int:
     req(cfg, "ULTRA_WARN_CM=10.0f", "collision warning threshold")
     req(cfg, "ULTRA_STOP_CM=5.0f", "collision stop threshold")
     req(hw, "forwardBlocked=irWarning||ultraStop", "forward safety interlock")
-    req(hw, '\\"forward_blocked\\"', "safety telemetry")
+    req(hw, '\"forward_blocked\"', "safety telemetry")
 
     print("HazRob 0.10.2 / HR069 canonical release contract: PASS")
     return 0
