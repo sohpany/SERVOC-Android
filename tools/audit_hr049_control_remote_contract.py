@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility control/remote gate for HazRob 0.10.1.
+"""Compatibility control/remote gate for HazRob 0.10.2.
 
 Direct is AP-only + persistent low-latency HTTP control. Remote keeps the latest-command MQTT
 architecture and bounded publish policy. Steering geometry remains delegated to DriveMixer.
@@ -94,12 +94,12 @@ def main():
     req(mqtt,"if(!quietSuccess)ack(s,q,n,ok,p,err)","critical/error ACK retention")
     req(mqtt,"while(tls.available())processPacket()","incoming commands before telemetry")
 
-    print("HazRob 0.10.1 control/remote contract: PASS")
+    print("HazRob 0.10.2 control/remote contract: PASS")
     print("Direct=existing HazRob route + HTTP 150ms keepalive / 250ms timeout; Remote=developer-authorized + explicit request + latest-command 25Hz max; watchdog=500ms")
     return 0
 
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as e:
-        print("HazRob 0.10.1 control/remote gate: FAIL:",e)
+        print("HazRob 0.10.2 control/remote gate: FAIL:",e)
         raise SystemExit(1)
