@@ -73,7 +73,7 @@ public final class SettingsTab {
                 if(!c.updateAvailable){host.showToast("منظومة التحليل محدثة");return;}
                 if(ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics())){host.showToast("أوقف القياس أو التحليل قبل التحديث");return;}
                 com.servoc.app.chemcore.library.ChemCoreLibraryStore.InstallResult r=libraryManager.install(c,ReleaseAudit.VERSION,false);
-                host.showToast(r.installed?"تم تحديث منظومة التحليل إلى "+r.version:"لم يتم تثبيت التحديث: "+r.message);
+                host.showToast(r.installed?"تم تحديث منظومة التحليل إلى "+r.version:"لم يتم تثبيت التحديث: "+r.reason);
                 host.refreshAllTabs();
             }catch(Exception e){host.showToast("تعذر تحديث منظومة التحليل: "+e.getClass().getSimpleName());}
         });
