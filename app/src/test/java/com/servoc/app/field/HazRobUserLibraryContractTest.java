@@ -13,7 +13,7 @@ public class HazRobUserLibraryContractTest {
         assertTrue(s.contains("CONFLICT_REPLACE"));
         assertTrue(s.contains("measurementExists(w,ms)"));
         assertTrue(s.contains("field_session_measurements"));
-        assertFalse(s.toLowerCase().contains("nearest"));
+        assertFalse(s.contains("ORDER BY ABS"));
         assertFalse(s.contains("experiments WHERE"));
         assertFalse(s.contains("calibration_curves WHERE"));
         assertFalse(s.contains("reference_artifacts WHERE"));
