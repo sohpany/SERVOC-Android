@@ -40,6 +40,8 @@ jobs:
           set -euo pipefail
           {
             echo "release=HazRob-0.10.2"
+            echo "engineering_revision=HR069"
+            echo "database_schema=9"
             echo "source_sha=${GITHUB_SHA}"
             echo "source_ref=${GITHUB_REF}"
             echo "source_repository=${GITHUB_REPOSITORY}"
@@ -52,6 +54,9 @@ jobs:
             echo "remote_activation=explicit-operator-only"
           } > HazRob-app-build-identity.txt
           cat HazRob-app-build-identity.txt
+
+      - name: Validate canonical HazRob 0.10.2 / HR069 release contract
+        run: python3 tools/audit_0102_release_contract.py
 
       - name: Validate HR061 Direct-first release contract
         run: python3 tools/audit_hr061_direct_first_contract.py
@@ -250,4 +255,4 @@ jobs:
             app/src/main/assets/generated/exposure/manifest.json
             app/src/main/assets/generated/exposure/osha_z1/manifest.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
