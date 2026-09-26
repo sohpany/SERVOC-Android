@@ -4,7 +4,7 @@
 namespace Cfg{
 constexpr char FW[]="HazRob 0.10.2";
 constexpr uint8_t API=4;
-constexpr char HW_PROFILE[]="hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2";
+constexpr char HW_PROFILE[]="hazrob-0.10.2-hr069-1r8mq-l298n6-batt-ultra-ir-ldr-env2-v2";
 constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
 
 // L298N 4WD differential drive: two motors per physical side in parallel.
