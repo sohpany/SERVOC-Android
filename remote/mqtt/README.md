@@ -1,83 +1,48 @@
-# HazRob 0.9 — MQTT/TLS service profile
+# HazRob 0.10.2 / HR069 — MQTT/TLS service profile
 
-Selected pilot service: **HiveMQ Cloud Serverless**.
+## Service topology
 
-As of 2026-09-03 the Serverless plan is free for development/testing, supports MQTT 3.1/3.1.1/5, TLS/SSL and WebSockets, with up to 100 connections and 10 GB monthly traffic. It has no uptime SLA, so HazRob 0.9 treats it as a pilot/development remote service rather than a guaranteed safety service.
+- **Primary MQTT broker:** EMQX Cloud Serverless, TLS port `8883`.
+- **Contingency broker:** HiveMQ Cloud Serverless. It is retained as a fallback and must not be removed from controlled recovery documentation.
+- **Bootstrap and remote video relay:** Railway.
+- Robot identity: `hazrob-001`.
+- MQTT namespace: `hazrob/hazrob-001/#`.
+- Wire protocol: `2`.
 
-## HazRob identity
+The production Android and Main ESP32 profiles use the same EMQX host defined in `RemoteServiceProfile.java` and `RemoteCloudConfig.h`. Broker credentials are role-scoped and obtained through the Railway bootstrap service. Secrets must never be committed.
 
-Reserved first robot ID:
+## MQTT topics
 
-`hazrob-001`
+- App -> robot commands: `hazrob/hazrob-001/cmd`
+- Robot -> app ACK: `hazrob/hazrob-001/ack`
+- Robot -> app telemetry: `hazrob/hazrob-001/telemetry`
+- Robot -> app retained status: `hazrob/hazrob-001/status`
 
-All MQTT traffic for this robot stays under:
+## Primary EMQX contract
 
-`hazrob/hazrob-001/#`
+Both Android and Main ESP32 must use TLS with certificate verification on port 8883. Android and robot use separate credentials. Remote readiness requires successful TLS, MQTT authentication, topic authorization, a fresh command/ACK exchange and live telemetry; Internet reachability alone is insufficient.
 
-Topics used by HazRob 0.9:
+## HiveMQ contingency contract
 
-- App → robot commands: `hazrob/hazrob-001/cmd`
-- Robot → app ACK: `hazrob/hazrob-001/ack`
-- Robot → app telemetry: `hazrob/hazrob-001/telemetry`
-- Robot → app status: `hazrob/hazrob-001/status`
-- Camera status: `hazrob/hazrob-001/camera/status`
+HiveMQ is retained only as a controlled contingency path. A switch to HiveMQ must be explicit: configure the broker host/port and corresponding role-scoped credentials in the deployment/runtime configuration. Do not silently change the canonical Android or firmware production defaults away from EMQX. The same robot ID, topic namespace, TLS verification, protocol 2 envelope, TTL/sequence/nonce and authorization rules apply.
 
-## HiveMQ Cloud Serverless setup
+The relay accepts `MQTT_HOST` / `MQTT_PORT` as provider-neutral deployment variables. Legacy `EMQX_HOST` / `EMQX_PORT` aliases remain supported for compatibility.
 
-1. Create one free Serverless cluster.
-2. Open **Access Management**.
-3. Create a custom permission named `hazrob-001`:
-   - Topic Filter: `hazrob/hazrob-001/#`
-   - Permission Type: **Publish and Subscribe**
-4. Create two access credentials and assign the `hazrob-001` permission to each:
-   - `hazrob-robot-001` — used only by the Master ESP32.
-   - `hazrob-app-001` — used only by the Android application.
-5. Use different strong passwords for the two credentials.
+## Railway bootstrap/video contract
 
-The free Serverless plan associates one permission with each credential. Using two independent credentials still lets either side be revoked without changing the other, while the custom topic filter prevents access to other HazRob robot namespaces.
+Railway is the current bootstrap and video-relay authority for 0.10.2/HR069. It returns role-scoped runtime credentials/tokens and exposes HTTPS/WSS endpoints. The Android app, Main ESP32 and ESP32-CAM must agree on service version `0.10.2`, protocol `2` and robot ID `hazrob-001`.
 
-## Master ESP32 values
+## Acceptance
 
-Copy the cluster connection values into a **private flashing copy** of:
+Remote is accepted only after:
+1. Main ESP32 obtains WAN connectivity and valid time.
+2. TLS validates the selected MQTT broker.
+3. Main and Android authenticate independently.
+4. Topic ACLs permit only the required command/ACK/telemetry/status flow.
+5. Android sends a fresh probe with session/sequence/nonce/TTL and receives the matching ACK.
+6. Live telemetry is received.
+7. ESP32-CAM authenticates to the Railway relay and publishes JPEG frames.
+8. Android receives the authenticated remote video stream.
+9. E-stop, command TTL/watchdog and Direct-mode safety remain effective.
 
-`firmware/HazRob/RemoteCloudConfig.h`
-
-Set:
-
-- `BROKER_HOST` — HiveMQ cluster hostname.
-- `BROKER_PORT` — normally `8883`.
-- `ROBOT_ID` — `hazrob-001`.
-- `USERNAME` — robot credential username.
-- `PASSWORD` — robot credential password.
-- `ROOT_CA` — PEM root CA that validates the exact broker hostname.
-
-Never use `setInsecure()` and never commit the password or private provisioning copy.
-
-## Android values
-
-Developer role → Settings → `Remote MQTT/TLS`:
-
-- Broker = same HiveMQ cluster hostname.
-- Port = `8883`.
-- Robot ID = `hazrob-001`.
-- Username = app credential username.
-- Password = app credential password.
-
-Android stores the username/password using its encrypted credential store.
-
-## Acceptance test when the modem is available
-
-Remote is accepted only after all of these pass:
-
-1. Master joins modem Wi-Fi.
-2. DHCP/IP is valid.
-3. DNS works.
-4. Network time is valid.
-5. Master TLS verifies the broker.
-6. Master MQTT authenticates.
-7. Android TLS/MQTT authenticates independently.
-8. Android sends a fresh `probe` with session/sequence/nonce/TTL.
-9. Master returns the matching ACK.
-10. Android receives live telemetry.
-
-A Wi-Fi association or an Internet ping alone never marks HazRob Remote ready.
+A cloud dashboard status or Internet ping is not an end-to-end acceptance test.
