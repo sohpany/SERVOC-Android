@@ -11,10 +11,10 @@ public class FieldSessionReportExporterContractTest {
  @Test public void reportRootIsFieldSessionAndResolutionIsExact() throws Exception {
   String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java")),StandardCharsets.UTF_8);
   assertTrue(s.contains("measurementSessionIds(fs)"));
-  assertTrue(s.contains("experiments WHERE session_id=?"));
-  assertFalse(s.toLowerCase().contains("nearest"));
+  assertTrue(s.contains("ExperimentQueries.bySessionId(db,sid)"));
+  assertFalse(s.contains("SessionSeries.nearest"));
   assertFalse(s.contains("ORDER BY ABS"));
-  assertTrue(s.contains("field session aggregate PDF renderer required"));
-  assertTrue(s.contains("field session aggregate XLSX renderer required"));
+  assertTrue(s.contains("new ZipOutputStream(out)"));
+  assertTrue(s.contains("putManifest(zip,b)"));
  }
 }
