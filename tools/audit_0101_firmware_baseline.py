@@ -20,6 +20,8 @@ cam_rv=read(CAM/"RemoteVideo.cpp")
 main_cloud=read(MAIN/"RemoteCloudConfig.h")
 
 require('constexpr char SSID[]="HazRob"' in main_cfg,"main SSID is not HazRob")
+require('constexpr char FW[]="HazRob 0.10.2"' in main_cfg,"main firmware runtime identity mismatch")
+require('constexpr char HW_PROFILE[]="hazrob-0.10.2-hr069-' in main_cfg,"HR069 hardware profile identity missing")
 require('192,168,4,1' in main_ino,"main AP IP 192.168.4.1 missing")
 require('constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.2"' in cam_ino,"camera SSID/identity mismatch")
 require('IPAddress ip(192,168,4,2),gw(192,168,4,1)' in cam_ino,"camera static IP/gateway mismatch")
@@ -33,6 +35,12 @@ require('xTaskCreatePinnedToCore(streamTask,"mj",6144,nullptr,2,nullptr,1)' in c
 require('for(;;)' in cam_rv and 'vTaskDelete(nullptr)' not in cam_rv,"remote video worker must remain persistent")
 require('CONTROL_COMMAND_TIMEOUT_MS=500' in main_cfg,"drive command timeout mismatch")
 
+# Main ESP32 Direct AP requests the ESP-IDF maximum Wi-Fi TX power after every radio-profile setup.
+# The requested ceiling remains subject to the module PHY, antenna, supply quality and regulatory limits.
+require('#include <esp_wifi.h>' in main_ino,"ESP-IDF Wi-Fi TX power API include missing")
+require('HAZROB_WIFI_TX_POWER_QDBM=80' in main_ino,"Main ESP32 Wi-Fi TX power target is not 20 dBm")
+require('esp_wifi_set_max_tx_power(HAZROB_WIFI_TX_POWER_QDBM)' in main_ino,"Main ESP32 Wi-Fi TX power is not re-applied after AP/profile setup")
+
 pins={
 "DRIVE_L_EN=17":"left PWM","DRIVE_L_IN1=19":"left IN1","DRIVE_L_IN2=32":"left IN2",
 "DRIVE_R_EN=16":"right PWM","DRIVE_R_IN1=18":"right IN1","DRIVE_R_IN2=27":"right IN2",
@@ -43,8 +51,9 @@ pins={
 }
 for token,label in pins.items(): require(token in main_cfg,f"{label} hardware contract mismatch")
 
-combined="\n".join(read(x) for d in (MAIN,CAM) for x in d.iterdir() if x.suffix in {".ino",".cpp",".h"})
-require(not re.search(r'\bHR[-_ ]?\d+|\bHR\d{2,}',combined,re.I),"experimental modification number remains in firmware source")
+# HR069 is an engineering/hardware-profile revision, not part of the runtime firmware banners.
+require('HazRob 0.10.2 HR' not in main_cfg,"engineering revision leaked into Main runtime firmware banner")
+require('HazRob-CAM 0.10.2 HR' not in cam_ino,"engineering revision leaked into CAM runtime firmware banner")
 
 def cert_from(text,macro):
     m=re.search(r'#define '+re.escape(macro)+r' R"PEM\((-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----\n)\)PEM"',text,re.S)
@@ -60,7 +69,7 @@ with tempfile.NamedTemporaryFile("w",suffix=".pem",delete=False) as f:
 r=subprocess.run(["openssl","x509","-in",cert_path,"-noout","-subject","-fingerprint","-sha256"],capture_output=True,text=True)
 require(r.returncode==0,"camera root CA is not a valid X.509 certificate")
 
-print("PASS: HazRob 0.10.2 firmware baseline contract")
+print("PASS: HazRob 0.10.2 / HR069 firmware baseline contract")
 print(r.stdout.strip())
 for directory in (MAIN,CAM):
     for f in sorted(directory.iterdir()):
