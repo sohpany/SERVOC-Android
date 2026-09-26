@@ -47,14 +47,13 @@ jobs:
           mkdir -p "$OUT/Main" "$OUT/CAM"
           cp build/main/*.bin "$OUT/Main/"
           cp build/camera/*.bin "$OUT/CAM/"
-          if [ -f firmware/FIRMWARE_BASELINE_0.10.2.md ]; then
-            cp firmware/FIRMWARE_BASELINE_0.10.2.md "$OUT/"
-          elif [ -f firmware/FIRMWARE_BASELINE_0.10.1.md ]; then
-            cp firmware/FIRMWARE_BASELINE_0.10.1.md "$OUT/FIRMWARE_BASELINE_LEGACY_REFERENCE.md"
-          fi
+          test -f firmware/FIRMWARE_BASELINE_0.10.2.md
+          cp firmware/FIRMWARE_BASELINE_0.10.2.md "$OUT/"
+          printf '%s\n' "$GITHUB_SHA" > "$OUT/SOURCE-COMMIT.txt"
           find "$OUT" -type f -name '*.bin' -print0 | sort -z | xargs -0 sha256sum > "$OUT/SHA256SUMS.txt"
           printf '%s\n' \
             'HazRob 0.10.2 / HR069 canonical firmware' \
+            "Source commit: ${GITHUB_SHA}" \
             'Erase both ESP32 flash memories before programming when replacing an unknown prior build.' \
             'Main ESP32 must advertise HazRob at 192.168.4.1 in Direct mode.' \
             'ESP32-CAM is STA-only at 192.168.4.2 and must never advertise ESP_*.' \
@@ -70,4 +69,4 @@ jobs:
           name: HazRob-0.10.2-HR069-FIRMWARE-${{ github.sha }}
           path: HazRob-0.10.2-HR069-FIRMWARE/
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 14
