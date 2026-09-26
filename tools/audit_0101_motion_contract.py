@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed source contract for HazRob 0.10.1 motion control.
+"""Fail-closed source contract for HazRob 0.10.2 motion control.
 
 This audit prevents reintroduction of retired acceleration/retrace/link-hold shaping while
 preserving the independent 500 ms stale-command neutral stop, explicit E-stop, travel-relative
@@ -115,7 +115,7 @@ def main() -> int:
     require(mqtt, "if(!fresh(j))", "Remote TTL freshness")
     require(mqtt, "if(q<=lastSeq)", "Remote sequence rejection")
 
-    print("HazRob 0.10.1 motion contract: PASS")
+    print("HazRob 0.10.2 motion contract: PASS")
     print("watchdog=500ms; direct keepalive=150ms; direct timeout=250ms; travel-relative physical-side steering; physical acceptance=PENDING")
     return 0
 
