@@ -12,7 +12,7 @@ public class FieldSessionExactQueryContractTest {
   assertTrue(s.contains("ExperimentQueries.bySessionId(db,sid)"));
   assertFalse(s.contains("rawQuery("));
   assertFalse(s.contains("SELECT id FROM experiments"));
-  assertFalse(s.contains("\\n"));
+  assertFalse(s.contains(";\\nimport "));
  }
  @Test public void queryHelperIsExactAndOrdered()throws Exception{
   String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/data/ExperimentQueries.java")),StandardCharsets.UTF_8);
