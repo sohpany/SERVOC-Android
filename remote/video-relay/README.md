@@ -1,72 +1,33 @@
-# HazRob 0.9 Remote Video Relay
+# HazRob 0.10.2 / HR069 — Remote bootstrap and video relay
 
-This service is the Internet-facing JPEG relay for the ESP32-CAM remote path. Direct/local MJPEG on `192.168.4.2:81` remains independent.
+This Node.js service is the Internet-facing bootstrap and JPEG relay for HazRob Remote mode. Direct/local ESP32-CAM MJPEG remains independent.
 
-Selected deployment platform: **Render** as a Node.js WebSocket web service. Render provides the public TLS/WSS endpoint; HazRob keeps HiveMQ responsible for control and telemetry while this service handles camera JPEG frames only.
+## Production topology
 
-## Production endpoints
+- Deployment authority: **Railway**.
+- Source branch: `release/hazrob-0.10.2`.
+- Service root: `remote/video-relay`.
+- Service version: `0.10.2`; wire protocol: `2`.
+- Primary MQTT: **EMQX Cloud Serverless** over TLS/8883.
+- Contingency MQTT: **HiveMQ Cloud Serverless**, retained for controlled fallback only.
+- Robot ID: `hazrob-001`.
 
-- Public service: `https://hazrob-video-relay.onrender.com`
-- Publisher: `wss://hazrob-video-relay.onrender.com/hazrob/video/publish/hazrob-001`
-- Viewer: `wss://hazrob-video-relay.onrender.com/hazrob/video/view/hazrob-001`
-- Health: `https://hazrob-video-relay.onrender.com/health`
-- Authenticated robot-video status: `https://hazrob-video-relay.onrender.com/hazrob/video/status/hazrob-001`
+Canonical Railway coordinates are defined by Android `RemoteServiceProfile.java`, Main ESP32 `RemoteCloudConfig.h`, and ESP32-CAM remote configuration. Do not replace them with the legacy Render endpoint.
 
-Publisher and viewer use separate Bearer tokens. Configure Render environment variables named:
+## Broker selection
 
-- `PUBLISH_TOKEN`
-- `VIEW_TOKEN`
+The relay uses provider-neutral `MQTT_HOST` and `MQTT_PORT` when supplied. Compatibility aliases `EMQX_HOST` and `EMQX_PORT` remain accepted. Production should explicitly configure EMQX; HiveMQ is a contingency target, not the canonical default.
 
-Never commit their values. The ESP32-CAM uses the publisher token; the Android app uses the viewer token.
-
-The status endpoint requires the viewer Bearer token and reports whether the selected robot currently has a live publisher. This allows the Android Remote entry gate to verify the actual video path before admitting the operator to Remote mode.
+Role-scoped MQTT credentials are separate for Android and Main ESP32. Bootstrap, publisher and viewer tokens must remain secret and must not be committed.
 
 ## Runtime behavior
 
-The relay keeps an in-memory room per robot ID. One publisher is accepted per robot; a new publisher replaces the previous publisher. Any number of viewers may subscribe to the same robot within service capacity.
+The bootstrap endpoint returns only the credentials/tokens required by the authenticated client role. Video uses separate publisher and viewer Bearer tokens. The relay validates JPEG framing and size, applies viewer backpressure, and maintains heartbeat/reconnect behavior.
 
-Only binary JPEG frames are forwarded. Invalid JPEG payloads, oversized frames and publisher text frames are discarded. Slow viewers are skipped when their WebSocket send buffer exceeds the configured backpressure limit, preventing one slow client from blocking camera ingestion. The service also sends periodic WebSocket pings and cleans up disconnected clients.
+The health endpoint reports service/protocol identity, bootstrap configuration, MQTT diagnostics and active video room state. MQTT diagnostics verify TLS/authentication and, when configured, command/ACK/telemetry/status ACL flow.
 
-Service restarts are expected during deployments. ESP32-CAM and Android clients must reconnect automatically; no video state is persisted on the server.
+## Acceptance
 
-## Render deployment
+Remote mode is not accepted solely because Railway or a broker dashboard reports healthy. Acceptance requires an end-to-end test through the actual WAN path: bootstrap, TLS/MQTT authentication, command/ACK, telemetry, retained status, ESP32-CAM publish, Android WSS viewing, reconnect behavior and safety/timeout enforcement.
 
-Repository: `sohpany/SERVOC-Android`
-
-Branch: `dev/hazrob-0.9`
-
-Service root directory:
-
-`remote/video-relay`
-
-Build command:
-
-`npm install`
-
-Start command:
-
-`npm start`
-
-Health check path:
-
-`/health`
-
-Render Auto-Deploy is enabled on commit. Changes under this service directory therefore deploy automatically from the selected branch.
-
-The repository intentionally contains no production token or private certificate material.
-
-## Field acceptance
-
-Do not mark remote video field-ready until all of these succeed over the actual 4G path:
-
-1. ESP32-CAM reaches the relay through the selected modem/NAPT path.
-2. TLS validates `hazrob-video-relay.onrender.com`.
-3. Publisher authentication succeeds.
-4. Android viewer authentication succeeds.
-5. Authenticated status reports `publisher_online=true`.
-6. First JPEG frame is received.
-7. Continuous viewing remains stable under cellular latency.
-8. Local MJPEG remains functional when Direct mode is selected.
-9. Recording, flame evidence and remote flash still operate.
-
-A successful cloud deployment is not a substitute for this end-to-end field test.
+Render is a legacy deployment path and is not the HR069 production authority.
