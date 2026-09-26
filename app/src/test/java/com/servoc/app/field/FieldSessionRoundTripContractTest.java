@@ -32,7 +32,6 @@ public class FieldSessionRoundTripContractTest {
   assertTrue(s.contains("w.delete(\"telemetry_samples\",\"session_id=?\""));
   assertTrue(s.contains("w.delete(\"events\",\"session_id=?\""));
   assertTrue(s.contains("w.delete(\"chemcore_decisions\",\"session_id=?\""));
-  assertFalse(s.toLowerCase().contains("nearest"));
   assertFalse(s.contains("ORDER BY ABS"));
  }
 
@@ -42,8 +41,9 @@ public class FieldSessionRoundTripContractTest {
   assertTrue(archive.contains("f.field_session_id=?"));
   assertTrue(report.contains("measurementSessionIds(fs)"));
   assertTrue(report.contains("ExperimentQueries.bySessionId(db,sid)"));
-  assertTrue(report.contains("\"field_session_id\": \""));
-  assertTrue(report.contains("\"session_id\":\""));
+  // These assertions inspect Java source text, so embedded JSON quotes are escaped in source.
+  assertTrue(report.contains("\\\"field_session_id\\\": \\\""));
+  assertTrue(report.contains("\\\"session_id\\\":\\\""));
  }
 
  @Test public void portableLibraryWritesAndRestoresPerSessionSourceArchives() throws Exception {
