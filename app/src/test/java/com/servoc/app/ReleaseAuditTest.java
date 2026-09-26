@@ -8,7 +8,7 @@ public class ReleaseAuditTest {
         assertEquals("0.10.2",ReleaseAudit.VERSION);
         assertEquals("HR069",ReleaseAudit.ENGINEERING_REVISION);
         assertEquals("شهاب الصهباني، مجدي ذيبان",ReleaseAudit.PROJECT_PREPARERS);
-        assertEquals(8,ReleaseAudit.DATABASE_SCHEMA);
+        assertEquals(9,ReleaseAudit.DATABASE_SCHEMA);
         assertTrue(ReleaseAudit.VIDEO_RECORDING);
         assertTrue(ReleaseAudit.DIRECT_ESP_CAM_MJPEG);
         assertTrue(ReleaseAudit.CAMERA_ENDPOINT_FALLBACK);
