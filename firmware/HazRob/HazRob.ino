@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <esp_wifi.h>
 #include <WebServer.h>
 #include "Hardware.h"
 #include "RemoteLink.h"
@@ -7,7 +8,7 @@
 
 // DIRECT is always the boot/default profile: AP-only, local HTTP control/telemetry and local camera.
 // REMOTE is AP+STA and is entered only by an explicit operator command.
-// Saved WAN credentials never auto-enable STA, MQTT or Render after boot.
+// Saved WAN credentials never auto-enable STA, MQTT or cloud transport after boot.
 // Returning to DIRECT shuts down remote transport while preserving saved WAN credentials.
 WebServer web(80);
 
@@ -17,6 +18,7 @@ int8_t pendingProfile=-1;
 bool pendingPersistMode=false;
 uint32_t pendingProfileAt=0,wifiAt=0;
 bool naptEnabled=false;
+constexpr int8_t HAZROB_WIFI_TX_POWER_QDBM=80; // 20 dBm requested maximum; actual RF output remains PHY/regulatory limited.
 
 void reply(int code,const char* type,const String& body){web.send(code,type,body);}
 void reply(int code,const char* body){reply(code,"text/plain",body);}
@@ -41,6 +43,9 @@ void configureSoftAp(wifi_mode_t mode,bool forceApRestart=true){
     WiFi.softAPConfig(ip,ip,mask,dhcp);
     WiFi.softAP(Cfg::SSID);
   }
+  // Re-apply after every radio-profile setup because Wi-Fi mode changes can restart the driver.
+  // ESP-IDF uses quarter-dBm units; 80 requests 20 dBm, subject to module/PHY/regulatory limits.
+  esp_wifi_set_max_tx_power(HAZROB_WIFI_TX_POWER_QDBM);
   wifiAt=millis();
 }
 
