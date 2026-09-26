@@ -65,6 +65,7 @@ def main() -> int:
     req(report, "measurementSessionIds(fs)", "field report exact measurement binding")
     req(report, "ExperimentQueries.bySessionId(db,sid)", "field report exact experiment binding")
     forbid(report, "rawQuery(", "field report SQL ownership")
+    forbid(report, ";\\nimport ", "field report literal-newline source corruption")
     req(experiment_queries, "WHERE session_id=? ORDER BY id", "exact experiment query")
     forbid(report, "ORDER BY ABS", "field report timestamp fallback forbidden")
     forbid(experiment_queries, "ORDER BY ABS", "experiment query timestamp fallback forbidden")
