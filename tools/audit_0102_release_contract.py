@@ -34,6 +34,7 @@ def main() -> int:
     user_library = txt("app/src/main/java/com/servoc/app/field/HazRobUserLibrary.java")
     archive = txt("app/src/main/java/com/servoc/app/field/FieldSessionArchive.java")
     report = txt("app/src/main/java/com/servoc/app/report/FieldSessionReportExporter.java")
+    host = txt("app/src/main/java/com/servoc/app/ui/HazRobHost.java")
     sessions_tab = txt("app/src/main/java/com/servoc/app/ui/FieldSessionsTab.java")
 
     # Canonical product identity.
@@ -56,6 +57,13 @@ def main() -> int:
     req(user_library, "FieldSessionArchive.exportSession", "persistent source archive")
     req(user_library, "FieldSessionArchive.importSession", "persistent source restore")
 
+    # Source-integrity guards for files previously affected by literal escape insertion.
+    forbid(main_activity, r';\nimport ', "MainActivity literal-newline import corruption")
+    forbid(main_activity, r'}\n    @Override', "MainActivity literal-newline method corruption")
+    forbid(main_activity, r'pendingFieldSessionId=\"\"', "MainActivity escaped-empty-string corruption")
+    forbid(host, r';\n    /**', "HazRobHost literal-newline corruption")
+    forbid(archive, r'Exception {\n', "FieldSessionArchive literal-newline corruption")
+
     # User archive isolation and exact report lineage.
     req(archive, "m.operator_role='USER'", "user archive isolation")
     req(archive, "m.kind LIKE 'field_%'", "field archive isolation")
@@ -71,6 +79,9 @@ def main() -> int:
     forbid(experiment_queries, "ORDER BY ABS", "experiment query timestamp fallback forbidden")
     req(sessions_tab, 'requestFieldSessionExport("pdf",q.id)', "field PDF action")
     req(sessions_tab, 'requestFieldSessionExport("xlsx",q.id)', "field XLSX action")
+    req(main_activity, "if(requestCode==EXPORT_FIELD_PDF||requestCode==EXPORT_FIELD_XLSX)", "field export result callback")
+    req(main_activity, "FieldSessionReportExporter.writePdf(out,db,fieldId,chemicals)", "field PDF result writer")
+    req(main_activity, "FieldSessionReportExporter.writeXlsx(out,db,fieldId,chemicals)", "field XLSX result writer")
 
     # Current physical safety contract.
     req(cfg, "ULTRA_WARN_CM=10.0f", "collision warning threshold")
