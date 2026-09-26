@@ -3,7 +3,7 @@
 
 This supplements audit_0101_integration_contract.py. It deliberately checks the
 cross-file scientific contract introduced by HR047 rather than re-testing numerical
-unit behaviour already covered by JUnit. On the consolidated 0.10.1 branch it also
+unit behaviour already covered by JUnit. On the consolidated 0.10.2 branch it also
 invokes HR048 drive, HR049 control/remote, HR050 field-operability and HR051 camera
 recovery contracts so the release gate cannot pass with steering, latency, Remote,
 sensor-visibility, reproducibility or camera-path drift.
