@@ -15,7 +15,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-/** End-to-end readiness probe for the authenticated Render JPEG/WSS path. */
+/** End-to-end readiness probe for the authenticated Railway JPEG/WSS path. */
 public final class RemoteVideoReadiness {
     private static final long WAKE_TIMEOUT_MS=75000L;
     private static final long RETRY_MS=3000L;
@@ -27,7 +27,7 @@ public final class RemoteVideoReadiness {
         Result(boolean service,boolean publisher,boolean wss,String detail){this.service=service;this.publisher=publisher;this.wss=wss;this.ready=service&&publisher&&wss;this.detail=detail==null?"":detail;}
     }
 
-    /** A camera status is accepted only from the exact 0.10.1 relay contract for this robot. */
+    /** A camera status is accepted only from the exact 0.10.2 relay contract for this robot. */
     private static boolean serviceContract(JSONObject status){
         return status!=null
                 && status.optBoolean("ok",false)
@@ -70,7 +70,7 @@ public final class RemoteVideoReadiness {
                 service=serviceContract(status);
                 publisher=service&&status.optBoolean("publisher_online",false);
                 if(service&&publisher)break;
-                last=service?"بانتظار اتصال ESP32-CAM بخادم الفيديو":"عقد خدمة الفيديو غير مطابق لـ HazRob 0.10.1";
+                last=service?"بانتظار اتصال ESP32-CAM بخادم الفيديو":"عقد خدمة الفيديو غير مطابق لـ HazRob 0.10.2";
             }catch(Exception e){
                 String m=String.valueOf(e.getMessage());
                 if(m.contains("HTTP 401"))return new Result(false,false,false,"VIEW_TOKEN غير صحيح");
