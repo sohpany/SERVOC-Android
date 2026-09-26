@@ -39,7 +39,19 @@ public final class FieldSessionArchive {
     }
 
     /** Restores an exact USER field archive idempotently; never creates scientific reference data. */
-    public static ImportSummary importSession(ExperimentsDb db,JSONObject root) throws Exception {\n        if(db==null)throw new IllegalArgumentException("archive required");\n        SQLiteDatabase w=db.getWritableDatabase();w.beginTransaction();\n        try{ImportSummary q=importSessionInTransaction(db,root,w);w.setTransactionSuccessful();return q;}\n        finally{w.endTransaction();}\n    }\n\n    static ImportSummary importSessionInTransaction(ExperimentsDb db,JSONObject root,SQLiteDatabase w) throws Exception {
+    public static ImportSummary importSession(ExperimentsDb db,JSONObject root) throws Exception {
+        if(db==null)throw new IllegalArgumentException("archive required");
+        SQLiteDatabase w=db.getWritableDatabase();w.beginTransaction();
+        try{
+            ImportSummary q=importSessionInTransaction(db,root,w);
+            w.setTransactionSuccessful();
+            return q;
+        }finally{
+            w.endTransaction();
+        }
+    }
+
+    static ImportSummary importSessionInTransaction(ExperimentsDb db,JSONObject root,SQLiteDatabase w) throws Exception {
         if(db==null||root==null)throw new IllegalArgumentException("archive required");
         if(!"HazRob User Field Session Archive".equals(root.optString("type","")))throw new IllegalStateException("invalid field archive");
         if(root.optInt("schema_version",0)!=1)throw new IllegalStateException("unsupported field archive schema");
@@ -47,13 +59,16 @@ public final class FieldSessionArchive {
         if(w==null)throw new IllegalArgumentException("transaction db required");if(!exists(w,"field_sessions","field_session_id",fieldId))throw new IllegalStateException("field session metadata must be restored first");
         JSONArray a=root.optJSONArray("measurements");int nm=0,nx=0,ns=0,ne=0,nd=0;
 
-            if(a!=null)for(int i=0;i<a.length();i++){JSONObject m=a.optJSONObject(i);if(m==null)continue;String sid=req(m,"session_id"),kind=req(m,"kind"),role=req(m,"operator_role");if(!"USER".equals(role)||!kind.startsWith("field_"))throw new IllegalStateException("archive contains non-user measurement");
-                ContentValues mv=new ContentValues();mv.put("session_id",sid);mv.put("started_ts",req(m,"started_ts"));putNullable(mv,"ended_ts",m);mv.put("kind",kind);mv.put("operator_role","USER");putNullable(mv,"payload",m);putNullable(mv,"analytics",m);w.insertWithOnConflict("measurement_sessions",null,mv,SQLiteDatabase.CONFLICT_IGNORE);nm++;
-                ContentValues link=new ContentValues();link.put("field_session_id",fieldId);link.put("measurement_session_id",sid);link.put("linked_ts",req(m,"started_ts"));w.insertWithOnConflict("field_session_measurements",null,link,SQLiteDatabase.CONFLICT_IGNORE);
-                // Child rows are replaced by exact session identity so repeated restore cannot duplicate AUTOINCREMENT rows.
-                w.delete("experiments","session_id=?",new String[]{sid});w.delete("telemetry_samples","session_id=?",new String[]{sid});w.delete("events","session_id=?",new String[]{sid});w.delete("chemcore_decisions","session_id=?",new String[]{sid});
-                nx+=restoreExperiments(w,sid,m.optJSONArray("experiments"));ns+=restoreSamples(w,sid,m.optJSONArray("telemetry_samples"));ne+=restoreEvents(w,sid,m.optJSONArray("events"));nd+=restoreDecisions(w,sid,m.optJSONArray("chemcore_decisions"));
-            }
+        if(a!=null)for(int i=0;i<a.length();i++){
+            JSONObject m=a.optJSONObject(i);if(m==null)continue;
+            String sid=req(m,"session_id"),kind=req(m,"kind"),role=req(m,"operator_role");
+            if(!"USER".equals(role)||!kind.startsWith("field_"))throw new IllegalStateException("archive contains non-user measurement");
+            ContentValues mv=new ContentValues();mv.put("session_id",sid);mv.put("started_ts",req(m,"started_ts"));putNullable(mv,"ended_ts",m);mv.put("kind",kind);mv.put("operator_role","USER");putNullable(mv,"payload",m);putNullable(mv,"analytics",m);w.insertWithOnConflict("measurement_sessions",null,mv,SQLiteDatabase.CONFLICT_IGNORE);nm++;
+            ContentValues link=new ContentValues();link.put("field_session_id",fieldId);link.put("measurement_session_id",sid);link.put("linked_ts",req(m,"started_ts"));w.insertWithOnConflict("field_session_measurements",null,link,SQLiteDatabase.CONFLICT_IGNORE);
+            // Child rows are replaced by exact session identity so repeated restore cannot duplicate AUTOINCREMENT rows.
+            w.delete("experiments","session_id=?",new String[]{sid});w.delete("telemetry_samples","session_id=?",new String[]{sid});w.delete("events","session_id=?",new String[]{sid});w.delete("chemcore_decisions","session_id=?",new String[]{sid});
+            nx+=restoreExperiments(w,sid,m.optJSONArray("experiments"));ns+=restoreSamples(w,sid,m.optJSONArray("telemetry_samples"));ne+=restoreEvents(w,sid,m.optJSONArray("events"));nd+=restoreDecisions(w,sid,m.optJSONArray("chemcore_decisions"));
+        }
         return new ImportSummary(nm,nx,ns,ne,nd);
     }
 
