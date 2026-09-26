@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compatibility steering/safety gate for HazRob 0.10.1.
+"""Compatibility steering/safety gate for HazRob 0.10.2.
 
 The gate locks travel-relative differential-drive geometry across the Android joystick, pure mixer,
 main-firmware side mapping, Direct HTTP and Remote MQTT transports. Physical wheel acceptance
@@ -103,7 +103,7 @@ def main():
     req(remote,"publishedDriveRevision","remote latest-command coalescing")
     req(remote_policy,"MIN_PUBLISH_MS=40","remote publish ceiling")
 
-    print("HazRob 0.10.1 steering contract: PASS")
+    print("HazRob 0.10.2 steering contract: PASS")
     print("travel-relative inside-side steering; Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
 
     if os.environ.get("HR048_SKIP_INTEGRATION") != "1":
@@ -115,5 +115,5 @@ def main():
 if __name__=="__main__":
     try: raise SystemExit(main())
     except AssertionError as e:
-        print("HazRob 0.10.1 steering/integration gate: FAIL:",e)
+        print("HazRob 0.10.2 steering/integration gate: FAIL:",e)
         raise SystemExit(1)
