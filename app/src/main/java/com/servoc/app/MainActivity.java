@@ -35,7 +35,8 @@ import com.servoc.app.measurement.SensorHealthEngine;
 import com.servoc.app.measurement.TelemetryRecorder;
 import com.servoc.app.navigation.MotionHistory;
 import com.servoc.app.report.ReferenceBankExporter;
-import com.servoc.app.report.ReportExporter;\nimport com.servoc.app.report.FieldSessionReportExporter;
+import com.servoc.app.report.ReportExporter;
+import com.servoc.app.report.FieldSessionReportExporter;
 import com.servoc.app.ui.ControlTab;
 import com.servoc.app.ui.DeveloperTab;
 import com.servoc.app.ui.HazRobHost;
@@ -72,7 +73,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     private volatile JSONObject latestDiag;private volatile int left=0,right=0;private volatile boolean foreground=false;private volatile String flashMode="off";
     private volatile int trackingTarget=-1;private volatile String trackingName="";
     private volatile int lastGasAlertLevel=GasAlertCoordinator.NONE;private volatile long gasAlertSentAt=0;
-    private boolean developerMode=false,entered=false,commsScheduled=false;private FrameLayout page;private TextView globalStatus;private Button[] tabButtons;private int selectedTab=0;private long pendingExperimentId=-1;private String pendingFieldSessionId=\"\";
+    private boolean developerMode=false,entered=false,commsScheduled=false;private FrameLayout page;private TextView globalStatus;private Button[] tabButtons;private int selectedTab=0;private long pendingExperimentId=-1;private String pendingFieldSessionId="";
     private ControlTab controlTab;private FieldSessionsTab fieldSessionsTab;private MeasurementsTab measurementsTab;private ReportsTab reportsTab;private StatusTab statusTab;private SettingsTab settingsTab;private DeveloperTab developerTab;private View[] tabViews;
 
     @Override public void onCreate(Bundle b){
@@ -164,11 +165,35 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override public int trackingTargetId(){return trackingTarget;}@Override public String trackingTargetName(){return trackingName;}
 
     @Override public void requestExport(String format,long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Report_%06d_%s%s",r.id,fileStamp(),pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_PDF:EXPORT_XLSX);}
-    @Override public void requestFieldSessionExport(String format,String fieldSessionId){String fs=fieldSessionId==null?"":fieldSessionId.trim();if(fs.isEmpty()){showToast("الجلسة غير صالحة");return;}FieldSessionReportExporter.Bundle b;try{b=FieldSessionReportExporter.resolve(db,fs);}catch(Exception e){showToast("تعذر قراءة الجلسة");return;}if(b.records.isEmpty()){showToast("لا توجد قياسات قابلة للتصدير في هذه الجلسة");return;}pendingFieldSessionId=fs;boolean pdf="pdf".equalsIgnoreCase(format);boolean packaged=b.records.size()>1;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(packaged?"application/zip":(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));i.putExtra(Intent.EXTRA_TITLE,"HazRob_FieldSession_"+fs.replaceAll("[^A-Za-z0-9._-]","_")+"_"+fileStamp()+(packaged?".zip":(pdf?".pdf":".xlsx")));startActivityForResult(i,pdf?EXPORT_FIELD_PDF:EXPORT_FIELD_XLSX);}\n    @Override public void requestRawExport(long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Raw_%06d_%s.json",r.id,fileStamp()));startActivityForResult(i,EXPORT_RAW);}
+    @Override public void requestFieldSessionExport(String format,String fieldSessionId){String fs=fieldSessionId==null?"":fieldSessionId.trim();if(fs.isEmpty()){showToast("الجلسة غير صالحة");return;}FieldSessionReportExporter.Bundle b;try{b=FieldSessionReportExporter.resolve(db,fs);}catch(Exception e){showToast("تعذر قراءة الجلسة");return;}if(b.records.isEmpty()){showToast("لا توجد قياسات قابلة للتصدير في هذه الجلسة");return;}pendingFieldSessionId=fs;boolean pdf="pdf".equalsIgnoreCase(format);boolean packaged=b.records.size()>1;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(packaged?"application/zip":(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));i.putExtra(Intent.EXTRA_TITLE,"HazRob_FieldSession_"+fs.replaceAll("[^A-Za-z0-9._-]","_")+"_"+fileStamp()+(packaged?".zip":(pdf?".pdf":".xlsx")));startActivityForResult(i,pdf?EXPORT_FIELD_PDF:EXPORT_FIELD_XLSX);}
+    @Override public void requestRawExport(long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Raw_%06d_%s.json",r.id,fileStamp()));startActivityForResult(i,EXPORT_RAW);}
     @Override public void requestReferenceBankExport(long experimentId){if(!developerMode){showToast("هذه الوظيفة متاحة للمطور فقط");return;}ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("التجربة غير موجودة");return;}pendingExperimentId=experimentId;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,r.referenceName==null||r.referenceName.isEmpty()?ReferenceBankExporter.fileName(r.id,r.ts):r.referenceName);startActivityForResult(i,EXPORT_REFERENCE);}
-    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){super.onActivityResult(requestCode,resultCode,data);if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
-        if(requestCode==USER_LIBRARY_TREE){try{userLibrary.attach(data.getData());userLibrary.syncUserIndex(db);showToast("تم ربط ومزامنة مكتبة HazRob الدائمة");refreshAllTabs();}catch(Exception e){showToast("تعذر فتح مكتبة HazRob: "+e.getClass().getSimpleName());}return;}
-        if(requestCode!=EXPORT_PDF&&requestCode!=EXPORT_XLSX&&requestCode!=EXPORT_REFERENCE&&requestCode!=EXPORT_RAW)return;final Uri uri=data.getData();final int req=requestCode;final long id=pendingExperimentId;workers.execute(()->{ExperimentQueries.Record r=ExperimentQueries.byId(db,id);if(r==null){showToast("تعذر العثور على السجل");return;}try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){if(out==null)throw new IllegalStateException("output stream");ChemicalRepository chemicals=new ChemicalRepository(db);if(req==EXPORT_PDF)ReportExporter.writePdf(out,r,chemicals);else if(req==EXPORT_XLSX)ReportExporter.writeXlsx(out,r,chemicals);else if(req==EXPORT_REFERENCE)ReferenceBankExporter.writeJson(out,r);else writeRaw(out,r);showToast(req==EXPORT_PDF?"تم تصدير PDF":req==EXPORT_XLSX?"تم تصدير Excel":req==EXPORT_RAW?"تم تصدير Raw JSON":"تم تصدير سجل البنك المرجعي");}catch(Exception e){showToast("فشل التصدير: "+e.getClass().getSimpleName());}});}
+
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+        if(requestCode==USER_LIBRARY_TREE){
+            try{userLibrary.attach(data.getData());userLibrary.syncUserIndex(db);showToast("تم ربط ومزامنة مكتبة HazRob الدائمة");refreshAllTabs();}catch(Exception e){showToast("تعذر فتح مكتبة HazRob: "+e.getClass().getSimpleName());}
+            return;
+        }
+        if(requestCode==EXPORT_FIELD_PDF||requestCode==EXPORT_FIELD_XLSX){
+            final Uri uri=data.getData();final int req=requestCode;final String fieldId=pendingFieldSessionId;
+            workers.execute(()->{
+                if(fieldId==null||fieldId.trim().isEmpty()){showToast("تعذر تحديد الجلسة");return;}
+                try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){
+                    if(out==null)throw new IllegalStateException("output stream");
+                    ChemicalRepository chemicals=new ChemicalRepository(db);
+                    if(req==EXPORT_FIELD_PDF)FieldSessionReportExporter.writePdf(out,db,fieldId,chemicals);else FieldSessionReportExporter.writeXlsx(out,db,fieldId,chemicals);
+                    showToast(req==EXPORT_FIELD_PDF?"تم تصدير تقرير الجلسة PDF":"تم تصدير تقرير الجلسة Excel");
+                }catch(Exception e){showToast("فشل تصدير الجلسة: "+e.getClass().getSimpleName());}
+            });
+            return;
+        }
+        if(requestCode!=EXPORT_PDF&&requestCode!=EXPORT_XLSX&&requestCode!=EXPORT_REFERENCE&&requestCode!=EXPORT_RAW)return;
+        final Uri uri=data.getData();final int req=requestCode;final long id=pendingExperimentId;
+        workers.execute(()->{ExperimentQueries.Record r=ExperimentQueries.byId(db,id);if(r==null){showToast("تعذر العثور على السجل");return;}try(OutputStream out=getContentResolver().openOutputStream(uri,"wt")){if(out==null)throw new IllegalStateException("output stream");ChemicalRepository chemicals=new ChemicalRepository(db);if(req==EXPORT_PDF)ReportExporter.writePdf(out,r,chemicals);else if(req==EXPORT_XLSX)ReportExporter.writeXlsx(out,r,chemicals);else if(req==EXPORT_REFERENCE)ReferenceBankExporter.writeJson(out,r);else writeRaw(out,r);showToast(req==EXPORT_PDF?"تم تصدير PDF":req==EXPORT_XLSX?"تم تصدير Excel":req==EXPORT_RAW?"تم تصدير Raw JSON":"تم تصدير سجل البنك المرجعي");}catch(Exception e){showToast("فشل التصدير: "+e.getClass().getSimpleName());}});
+    }
+
     private static void writeRaw(OutputStream out,ExperimentQueries.Record r)throws Exception{JSONObject j=new JSONObject();j.put("id",r.id);j.put("timestamp",r.ts);j.put("protocol",r.protocol);j.put("session_id",r.sessionId);j.put("capture_id",r.captureId);j.put("chemical_uid",r.chemicalUid);j.put("reference_kind",r.referenceKind);if(r.knownPpm!=null)j.put("known_ppm",r.knownPpm);try{j.put("payload",new JSONObject(r.payload));}catch(Exception e){j.put("payload_text",r.payload);}try{j.put("analytics",new JSONObject(r.analytics));}catch(Exception e){j.put("analytics_text",r.analytics);}out.write(j.toString(2).getBytes(StandardCharsets.UTF_8));}
     @Override public boolean userLibraryAttached(){return userLibrary!=null&&userLibrary.attached();}
     @Override public void requestUserLibraryFolder(){startActivityForResult(HazRobUserLibrary.createPickerIntent(),USER_LIBRARY_TREE);}
