@@ -39,7 +39,7 @@ public class FieldSessionRoundTripContractTest {
   String report=read("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
   assertTrue(archive.contains("f.field_session_id=?"));
   assertTrue(report.contains("measurementSessionIds(fs)"));
-  assertTrue(report.contains("experiments WHERE session_id=?"));
+  assertTrue(report.contains("ExperimentQueries.bySessionId(db,sid)"));
   assertTrue(report.contains("\"field_session_id\": \""));
   assertTrue(report.contains("\"session_id\":\""));
  }
@@ -47,7 +47,7 @@ public class FieldSessionRoundTripContractTest {
  @Test public void portableLibraryWritesAndRestoresPerSessionSourceArchives() throws Exception {
   String s=read("src/main/java/com/servoc/app/field/HazRobUserLibrary.java");
   assertTrue(s.contains("FieldSessionArchive.exportSession"));
-  assertTrue(s.contains("FieldSessionArchive.importSession"));
+  assertTrue(s.contains("FieldSessionArchive.importSessionInTransaction"));
   assertTrue(s.contains("\"session-\"+safeId(id)+\".json\""));
   assertTrue(s.contains("measurementExists(w,ms)"));
  }
