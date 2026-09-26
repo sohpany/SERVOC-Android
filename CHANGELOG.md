@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.2 HR069 integration candidate — 2026-09-26
+- Established HR069 as the engineering revision authority for the continuing HazRob 0.10.2 release line; application version remains 0.10.2.
+- Consolidates post-HR068 Field Session lineage, exact-session reporting, lossless multi-measurement report packaging, user-library backup/restore hardening and Reference Bank isolation.
+- Retains scoped-storage first-run workspace bootstrap and the user-owned SAF HazRob library contract.
+- Retains signed ChemCore Stable update verification, compatibility checks, atomic activation/rollback and the measurement/analysis update interlock.
+- Aligns active compatibility-gate release identity with 0.10.2 while preserving historical HR entry-point filenames required by CI.
+- Release acceptance remains gated on the complete source-contract suite, Android unit tests, signed release build verification and physical on-device acceptance.
+
 ## 0.10.2 HR068 release candidate — 2026-09-25
 - Built from the exact HR067 application / HR066 Main+CAM source-equivalent baseline at commit `2ac75492ca3dc0eafcfe8328dd2c417e2f9aa2c9`.
 - Advanced Android to versionName `0.10.2` / versionCode `26`, Main firmware to `HazRob 0.10.2`, and CAM firmware to `HazRob-CAM 0.10.2` without changing protocol 2.
