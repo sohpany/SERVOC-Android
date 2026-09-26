@@ -19,7 +19,9 @@ public class FieldSessionRoundTripContractTest {
   assertTrue(s.contains("session_id"));
   assertTrue(s.contains("telemetry_samples"));
   assertTrue(s.contains("events"));
-  assertTrue(s.contains("chemcore_decisions"));\n  assertTrue(s.contains("\"experiments\""));\n  assertTrue(s.contains("FROM experiments WHERE session_id=?"));
+  assertTrue(s.contains("chemcore_decisions"));
+  assertTrue(s.contains("\"experiments\""));
+  assertTrue(s.contains("FROM experiments WHERE session_id=?"));
   assertTrue(s.contains("ORDER BY m.started_ts"));
   assertTrue(s.contains("ORDER BY t_ms"));
  }
