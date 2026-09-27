@@ -19,10 +19,10 @@ public class RobotProtocolV4AlertTest {
         assertTrue(l.getBoolean("installed"));assertEquals(HazRobHardwareProfile.LDR_GPIO,l.getInt("gpio"));assertEquals(0,l.getInt("level"));assertFalse(l.getBoolean("quantitative_lux"));
     }
 
-    @Test public void profilePinContractMatchesFirmware010(){
-        assertEquals("hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2",HazRobHardwareProfile.ID);
+    @Test public void profilePinContractMatchesFirmware0102Hr069(){
+        assertEquals("hazrob-0.10.2-hr069-1r8mq-l298n6-batt-ultra-ir-ldr-env2-v2",HazRobHardwareProfile.ID);
         assertEquals("L298N",HazRobHardwareProfile.DRIVE_DRIVER);
-        // HR-0101-048: logical LEFT is physical L298N channel B; RIGHT is channel A.
+        // HR069 preserves the accepted physical mapping: logical LEFT is L298N channel B; RIGHT is channel A.
         assertEquals(17,HazRobHardwareProfile.DRIVE_L_EN);
         assertEquals(19,HazRobHardwareProfile.DRIVE_L_IN1);
         assertEquals(32,HazRobHardwareProfile.DRIVE_L_IN2);
