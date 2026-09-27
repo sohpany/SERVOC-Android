@@ -8,7 +8,7 @@ import static org.junit.Assert.*;
 
 public class MqRelayPlannerTest {
     @Test public void hardwareProfileUsesOneRelayForAllEightMq(){
-        assertEquals("hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2",HazRobHardwareProfile.ID);
+        assertEquals("hazrob-0.10.2-hr069-1r8mq-l298n6-batt-ultra-ir-ldr-env2-v2",HazRobHardwareProfile.ID);
         assertEquals(1,HazRobHardwareProfile.MQ_GROUPS);
         assertEquals(1,HazRobHardwareProfile.RELAY_CHANNELS);
         assertEquals(1,HazRobHardwareProfile.INSTALLED_RELAY_MASK);
