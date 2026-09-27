@@ -29,6 +29,9 @@ def main() -> int:
     release = txt("app/src/main/java/com/servoc/app/ReleaseAudit.java")
     db = txt("app/src/main/java/com/servoc/app/data/ExperimentsDb.java")
     experiment_queries = txt("app/src/main/java/com/servoc/app/data/ExperimentQueries.java")
+    hardware_profile = txt("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
+    measurements_tab = txt("app/src/main/java/com/servoc/app/ui/MeasurementsTab.java")
+    analytical_lab = txt("app/src/main/java/com/servoc/app/ui/AnalyticalLabTab.java")
     hw = txt("firmware/HazRob/Hardware.cpp")
     cfg = txt("firmware/HazRob/Config.h")
     user_library = txt("app/src/main/java/com/servoc/app/field/HazRobUserLibrary.java")
@@ -40,6 +43,16 @@ def main() -> int:
     # Canonical product identity.
     req(release, 'VERSION="0.10.2"', "app release identity")
     req(release, 'ENGINEERING_REVISION="HR069"', "engineering revision authority")
+    req(
+        hardware_profile,
+        'ID="hazrob-0.10.2-hr069-1r8mq-l298n6-batt-ultra-ir-ldr-env2-v2"',
+        "Android HR069 hardware profile identity",
+    )
+    req(measurements_tab, '"HazRob "+ReleaseAudit.VERSION+" acquisition session', "measurement provenance release identity")
+    req(analytical_lab, '"المختبر الكيميائي التحليلي الموسع • HazRob "+ReleaseAudit.VERSION', "analytical lab release identity")
+    forbid(hardware_profile, "0.10.1", "stale hardware profile identity")
+    forbid(measurements_tab, "0.10.1", "stale measurement identity")
+    forbid(analytical_lab, "0.10.1", "stale analytical lab identity")
 
     # Database authority must agree with the actual SQLiteOpenHelper schema.
     req(release, "DATABASE_SCHEMA=9", "release database schema")
