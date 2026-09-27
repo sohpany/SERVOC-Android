@@ -9,6 +9,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.servoc.app.ReleaseAudit;
 import com.servoc.app.calibration.FieldR0Baseline;
 import com.servoc.app.chemcore.ChemCoreAnalysisPresenter;
 import com.servoc.app.chemcore.ChemCoreDecisionRepository;
@@ -40,7 +41,7 @@ public final class AnalyticalLabTab {
         sessionView=session.view();
 
         ScrollView scroll=new ScrollView(c);scroll.setFillViewport(true);LinearLayout dash=UiKit.vbox(c);dash.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));scroll.addView(dash);dashboardView=scroll;
-        dash.addView(UiKit.title(c,"المختبر الكيميائي التحليلي الموسع • HazRob 0.10.1"),UiKit.full(c));
+        dash.addView(UiKit.title(c,"المختبر الكيميائي التحليلي الموسع • HazRob "+ReleaseAudit.VERSION),UiKit.full(c));
         TextView scope=UiKit.small(c,"طبقتان منفصلتان: (1) Screening/التعرف والترتيب والبصمة والبواقي — متاحة بعد جلسة صالحة، (2) PPM كمي قابل للتقرير — محجوب فقط حتى اكتمال M4. حجب PPM لا يعني أن التحليل النوعي مقيد.");scope.setTextColor(0xFF81C784);scope.setBackgroundColor(0xFF13251A);dash.addView(scope,UiKit.full(c));
 
         LinearLayout readyCard=UiKit.card(c);readyCard.addView(UiKit.title(c,"جاهزية المختبر"),UiKit.full(c));readiness=box(c);readyCard.addView(readiness,UiKit.full(c));dash.addView(readyCard,UiKit.full(c));
