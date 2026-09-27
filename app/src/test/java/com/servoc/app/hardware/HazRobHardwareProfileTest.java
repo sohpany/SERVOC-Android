@@ -5,10 +5,10 @@ import org.junit.Test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
-/** Locks the Android hardware identity to the controlled HazRob 0.10.1 GPIO/firmware profile. */
+/** Locks the Android hardware identity to the controlled HazRob 0.10.2 / HR069 GPIO/firmware profile. */
 public final class HazRobHardwareProfileTest {
     @Test public void profileIdentityMatchesCanonicalContract(){
-        assertEquals("hazrob-0.10.1-1r8mq-l298n6-batt-ultra-ldr-env2-v2",HazRobHardwareProfile.ID);
+        assertEquals("hazrob-0.10.2-hr069-1r8mq-l298n6-batt-ultra-ir-ldr-env2-v2",HazRobHardwareProfile.ID);
     }
 
     @Test public void driveAndMqAuthorityRemainPinned(){
