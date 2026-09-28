@@ -1,5 +1,6 @@
 package com.servoc.app.calibration;
 
+import com.servoc.app.chemical.ManufacturerEvidenceMatrix;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -41,6 +42,19 @@ public final class CalibrationQualityReport {
         if(policy.requireHeaterProtocolMetadata&&!session.allHeaterMetadataValid()) fail.add("Invalid or missing heater protocol metadata in an exposure capture.");
         if(levels.size()<policy.minDistinctConcentrations)
             fail.add("Insufficient distinct reference concentrations: "+levels.size()+" < "+policy.minDistinctConcentrations+".");
+
+        // Manufacturer ranges are evidence boundaries, not a substitute for device-specific calibration.
+        // A controlled research calibration may intentionally probe outside them, so this is a warning
+        // rather than an automatic rejection. The resulting model must carry its own validated domain.
+        ManufacturerEvidenceMatrix.Evidence manufacturer=ManufacturerEvidenceMatrix.get(session.sensorId,session.chemicalId);
+        if(manufacturer.level==ManufacturerEvidenceMatrix.NONE){
+            warn.add("No registered manufacturer target/graph evidence for this sensor/analyte pair; treat calibration as experimental evidence requiring independent validation.");
+        }else{
+            for(CalibrationSession.Level l:levels){
+                if(l.ppm<manufacturer.minPpm||l.ppm>manufacturer.maxPpm)
+                    warn.add("Reference level "+l.ppm+" ppm is outside the registered manufacturer evidence range "+manufacturer.minPpm+"-"+manufacturer.maxPpm+" ppm; do not label this point manufacturer-supported.");
+            }
+        }
 
         double worstCv=0;
         for(CalibrationSession.Level l:levels){
