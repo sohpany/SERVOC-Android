@@ -54,14 +54,14 @@ public final class MqManufacturerOperatingContract {
 
     public static Spec get(int sensor){
         switch(sensor){
-            case GasEngine.MQ2:return normal(sensor,"MQ-2",300,10000,"Winsen MQ-2 manual");
-            case GasEngine.MQ3:return normal(sensor,"MQ-3B",25,500,"Winsen MQ-3B manual");
-            case GasEngine.MQ4:return normal(sensor,"MQ-4",300,10000,"Winsen MQ-4 manual");
-            case GasEngine.MQ5:return normal(sensor,"MQ-5",300,10000,"Winsen MQ-5 manual");
-            case GasEngine.MQ8:return normal(sensor,"MQ-8",100,1000,"Winsen MQ-8 manual");
-            case GasEngine.MQ135:return normal(sensor,"MQ135",10,1000,"Winsen MQ135 manual");
-            case GasEngine.MQ7:return cycled(sensor,"MQ-7B",10,500,"Winsen MQ-7B manual");
-            case GasEngine.MQ9:return cycled(sensor,"MQ-9B",10,10000,"Winsen MQ-9B manual");
+            case GasEngine.MQ2:return normal(sensor,"MQ-2",300,10000,"https://www.winsen-sensor.com/product/mq-2.html");
+            case GasEngine.MQ3:return normal(sensor,"MQ-3B",25,500,"https://www.winsen-sensor.com/product/mq-3b.html");
+            case GasEngine.MQ4:return normal(sensor,"MQ-4",300,10000,"https://www.winsen-sensor.com/product/mq-4.html");
+            case GasEngine.MQ5:return normal(sensor,"MQ-5",300,10000,"https://www.winsen-sensor.com/product/mq-5.html");
+            case GasEngine.MQ8:return normal(sensor,"MQ-8",100,1000,"https://www.winsen-sensor.com/product/mq-8.html");
+            case GasEngine.MQ135:return normal(sensor,"MQ135",10,1000,"https://www.winsen-sensor.com/product/mq135.html");
+            case GasEngine.MQ7:return cycled(sensor,"MQ-7B",10,500,"https://www.winsen-sensor.com/product/mq-7b.html");
+            case GasEngine.MQ9:return cycled(sensor,"MQ-9B",10,10000,"https://www.winsen-sensor.com/product/mq-9b.html");
             default:return null;
         }
     }
