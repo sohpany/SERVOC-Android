@@ -38,9 +38,10 @@ public final class SensorOperatingEnvelope {
         if(!Double.isFinite(ppm)||ppm<=0)
             return new Check(UNKNOWN,Double.NaN,Double.NaN,"Non-finite or non-positive concentration.");
 
-        if((sensor==GasEngine.MQ7||sensor==GasEngine.MQ9)&&!heaterCycleValid)
+        MqManufacturerOperatingContract.Spec operating=MqManufacturerOperatingContract.get(sensor);
+        if(operating!=null&&operating.heaterCycleRequired&&!heaterCycleValid)
             return new Check(HEATER_PROTOCOL_REQUIRED,Double.NaN,Double.NaN,
-                    "MQ-7/MQ-9 use requires a validated heater phase/cycle for the exact sensor revision/module.");
+                    operating.model+" use requires the manufacturer high/low heater phase/cycle for the exact sensor revision/module.");
 
         ManufacturerEvidenceMatrix.Evidence m=ManufacturerEvidenceMatrix.get(sensor,chemical);
         if(m.level!=ManufacturerEvidenceMatrix.NONE){
