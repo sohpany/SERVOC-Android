@@ -24,6 +24,13 @@ public final class HazRobHardwareProfile {
     public static final int INSTALLED_RELAY_MASK=0x01;
     public static final int MQ_RELAY_GPIO=25;
 
+    /**
+     * HR069 currently powers all eight MQ heaters from one switched 5 V rail.
+     * No dedicated 5.0 V/1.5 V cyclic heater driver is installed for MQ-7/MQ-9.
+     * This is a physical-qualification flag, not a software preference.
+     */
+    public static final boolean CYCLIC_MQ_HEATER_DRIVER_INSTALLED=false;
+
     /** Reserved alert signal. The measured ~8 ohm speaker is not installed and must not be driven directly. */
     public static final int ALERT_GPIO=26;
     public static final boolean SPEAKER_INSTALLED=false;
@@ -81,6 +88,22 @@ public final class HazRobHardwareProfile {
 
     public static Channel forKey(String key){if(key==null)return null;for(Channel c:MQ)if(c.key.equalsIgnoreCase(key))return c;return null;}
     public static Channel forSensor(int sensorId){for(Channel c:MQ)if(c.sensorId==sensorId)return c;return null;}
+
+    /**
+     * True only when the field-wired hardware can execute the manufacturer's heater protocol.
+     * Continuous-5 V MQ sensors are valid when installed; MQ-7/MQ-9 remain invalid until a
+     * dedicated cyclic heater driver has been physically installed and qualified.
+     */
+    public static boolean manufacturerHeaterProtocolValid(int sensorId){
+        if(forSensor(sensorId)==null)return false;
+        if(sensorId==GasEngine.MQ7||sensorId==GasEngine.MQ9)return CYCLIC_MQ_HEATER_DRIVER_INSTALLED;
+        return true;
+    }
+
+    public static boolean manufacturerHeaterProtocolValid(String sensorKey){
+        Channel c=forKey(sensorKey);
+        return c!=null&&manufacturerHeaterProtocolValid(c.sensorId);
+    }
 
     /** Any useful installed MQ channel requires the single MQ power relay. */
     public static int relayMaskForSensorMask(int sensorMask){
