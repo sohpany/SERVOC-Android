@@ -83,6 +83,8 @@ public final class RobotApi {
     public JSONObject data()throws Exception{RemoteConnection r=remote();if(r!=null){if(!r.isConnected())throw new IllegalStateException("remote MQTT disconnected");JSONObject s=r.snapshot(0,0);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return dataRaw();}
 
     public JSONObject config()throws Exception{RemoteConnection r=remote();if(r!=null){JSONObject a=r.command("config_get",new JSONObject(),3000,true,2500);JSONObject p=a.optJSONObject("payload");return p==null?new JSONObject():p;}return getJson("/cfg",1200);}
+    public JSONObject safetyAutoStopStatus()throws Exception{RemoteConnection r=remote();if(r!=null){JSONObject a=r.command("safety_auto_stop_get",new JSONObject(),3000,true,2500);JSONObject p=a.optJSONObject("payload");return p==null?new JSONObject():p;}return getJson("/safety/auto_stop",1200);}
+    public JSONObject setSafetyAutoStop(boolean enabled)throws Exception{RemoteConnection r=remote();if(r!=null){JSONObject p=new JSONObject();p.put("enabled",enabled?1:0);JSONObject a=r.command("safety_auto_stop_set",p,3000,true,2500);JSONObject q=a.optJSONObject("payload");return q==null?p:q;}return getJson("/safety/auto_stop?enabled="+(enabled?"1":"0"),1200);}
 
     /** Local endpoints bootstrap or switch the robot WAN transport. */
     public JSONObject remoteStatus()throws Exception{return getJson("/remote/status",1800);}
