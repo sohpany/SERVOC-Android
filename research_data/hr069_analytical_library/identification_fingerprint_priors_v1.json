@@ -83,7 +83,7 @@
     {"legacy_id":102,"name":"Methanol","status":"TRANSFER_DATA_AVAILABLE","numeric_fingerprint":false,"note":"External MQ3 dynamic-heater discrimination measurements are accepted as transfer evidence; exact present-protocol HR069 vector is pending."},
     {"legacy_id":103,"name":"Ethanol","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true},
     {"legacy_id":110,"name":"Acetone","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true},
-    {"legacy_id":115,"name":"Ethyl Acetate","status":"TRANSFER_DATA_AVAILABLE","numeric_fingerprint":false,"note":"External known-concentration MOS-array measurements are accepted as transfer evidence; exact HR069 vector is pending."},
+    {"legacy_id":115,"name":"Ethyl Acetate","status":"TRANSFER_FINGERPRINT_AVAILABLE","numeric_fingerprint":false,"note":"UCI MQ135 known-concentration transfer fingerprints are stored at 0.05/0.10/0.20 ppm; exact multi-channel HR069 vector remains pending."},
     {"legacy_id":23,"name":"Carbon Dioxide","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true,"note":"MQ135 cross-response prior; not a selective CO2 instrument."},
     {"legacy_id":21,"name":"Ammonia","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true},
     {"legacy_id":76,"name":"Methane","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true}
@@ -94,6 +94,41 @@
     "acceptance_state": "ACCEPTED_FOR_HEADSPACE_IDENTIFICATION",
     "policy": "Measured Food Freshness headspace records are accepted as mixture/class identity references. They are not relabelled as pure ethanol, acetone, ammonia, methane or any other analyte without independent chemical labels."
   },
+  "transfer_fingerprint_assets": [
+    {
+      "source_id": "MQDS-001",
+      "asset": "research_data/hr069_analytical_library/multimodal_mq_transfer_fingerprints_v1.json",
+      "derived_file_sha256": "6e41294da4fbaed3e390dc2d5daff576dff07d1c67887d1d794012dea602ff8f",
+      "source_file_sha256": "13c2c85cfbb23357a71555b9bc2cbe7dd68e931ffc94df30389c1a4631203745",
+      "classes": ["NoGas", "Smoke", "Perfume", "Mixture"],
+      "samples": 6400,
+      "hr069_overlap_channels": 6,
+      "acceptance_state": "ACCEPTED_TRANSFER_CLASS_FINGERPRINT",
+      "direct_hr069_named_identity": false,
+      "m4": false
+    },
+    {
+      "source_id": "MQDS-003",
+      "asset": "research_data/hr069_analytical_library/uci_mq135_lowconcentration_transfer_fingerprints_v1.json",
+      "derived_file_sha256": "d58c12398380dd1ebf075c98b14b2e0758e801699d5b690680816a27bbac0417",
+      "source_file_sha256": "813ebb7d00ed9172114b68d27ab3213170d6c220b8b23907dce91e9838cd48ab",
+      "analytes": [
+        {"legacy_id":110,"name":"Acetone"},
+        {"legacy_id":103,"name":"Ethanol"},
+        {"legacy_id":115,"name":"Ethyl Acetate"},
+        {"legacy_id":84,"name":"n-Hexane"},
+        {"legacy_id":105,"name":"Isopropanol"},
+        {"legacy_id":95,"name":"Toluene"}
+      ],
+      "concentrations_ppm": [0.05, 0.1, 0.2],
+      "records": 18,
+      "replicates_per_analyte_concentration": 5,
+      "hr069_overlap_channels": 1,
+      "acceptance_state": "ACCEPTED_TRANSFER_REFERENCE",
+      "direct_hr069_named_identity": false,
+      "m4": false
+    }
+  ],
   "implementation": {
     "conditioning": "app/src/main/java/com/servoc/app/chemical/MqConditioningProfile.java",
     "registry": "app/src/main/java/com/servoc/app/fingerprint/ResearchIdentificationFingerprintRegistry.java",
