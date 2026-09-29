@@ -1,6 +1,7 @@
 package com.servoc.app.chemcore;
 
 import com.servoc.app.chemical.GasEngine;
+import com.servoc.app.chemical.LinearLiteratureResponseRegistry;
 import com.servoc.app.chemical.LiteratureCurveRegistry;
 import com.servoc.app.chemical.ManufacturerEvidenceMatrix;
 import com.servoc.app.chemical.MqConditioningProfile;
@@ -17,7 +18,7 @@ import com.servoc.app.chemical.SensorOperatingEnvelope;
  * being enabled here.
  *
  * Source priority for the same physical sensor/analyte at a requested concentration:
- *  1) peer-reviewed literature curve inside its declared domain;
+ *  1) peer-reviewed literature relation inside its declared domain;
  *  2) inherited GasEngine curve only when a finite manufacturer envelope exists;
  *  3) pinned ResearchCurveRegistry datasheet/community fit inside its declared domain.
  *
@@ -26,7 +27,7 @@ import com.servoc.app.chemical.SensorOperatingEnvelope;
  * valid. Their completed 48 h preheat still makes them available for raw/empirical captures.
  */
 public final class AcceptedReferenceResponseModel implements ChemCoreResponseModel {
-    public static final String VERSION="accepted-reference-ppm/1";
+    public static final String VERSION="accepted-reference-ppm/2";
     public static final String ACCEPTANCE_STATE="ACCEPTED_PROVISIONAL_REFERENCE_PPM";
     public static final boolean M4=false;
 
@@ -52,11 +53,21 @@ public final class AcceptedReferenceResponseModel implements ChemCoreResponseMod
         if(MqManufacturerOperatingContract.requiresHeaterCycle(sensor)&&!MqConditioningProfile.manufacturerReferenceProtocolReady(sensor))
             return unavailable("manufacturer high/low heater-cycle protocol unavailable for this MQ channel");
 
-        // Highest provenance: peer-reviewed fitted response relation.
+        // Highest provenance: peer-reviewed fitted power-law response relation.
         for(LiteratureCurveRegistry.Curve c:LiteratureCurveRegistry.CURVES){
             if(c.sensor!=sensor||c.chemical!=chemical||!c.inDeclaredRange(ppm))continue;
             double ratio=c.ratioFromPpm(ppm);
             if(valid(ratio))return estimate(ratio,0.20,"peer-reviewed "+c.sourceId+" • "+ACCEPTANCE_STATE+" • provisional reference PPM; not M4");
+        }
+
+        // Peer-reviewed exact-model non-power relation (e.g. MQ135 NOx linear Rs/R0 relation).
+        for(LinearLiteratureResponseRegistry.Curve c:LinearLiteratureResponseRegistry.CURVES){
+            if(c.sensor!=sensor||c.chemical!=chemical||!c.inDeclaredRange(ppm))continue;
+            double ratio=c.ratioFromPpm(ppm);
+            if(valid(ratio)){
+                String env="reference "+c.refTempC+" C/"+c.refRhPercent+"%RH/"+c.refO2Percent+"%O2; RL="+c.loadResistanceKohm+" kOhm";
+                return estimate(ratio,0.25,"peer-reviewed "+c.sourceId+" • "+env+" • BME280 T/RH/P retained for transfer context • "+ACCEPTANCE_STATE+" • provisional reference PPM; not M4");
+            }
         }
 
         // Manufacturer-bounded inherited curve. Do not let a community fallback in
@@ -109,6 +120,9 @@ public final class AcceptedReferenceResponseModel implements ChemCoreResponseMod
             return new double[]{Double.NaN,Double.NaN};
 
         for(LiteratureCurveRegistry.Curve c:LiteratureCurveRegistry.CURVES)if(c.sensor==sensor&&c.chemical==chemical){
+            min=Math.min(min,c.minPpm);max=Math.max(max,c.maxPpm);
+        }
+        for(LinearLiteratureResponseRegistry.Curve c:LinearLiteratureResponseRegistry.CURVES)if(c.sensor==sensor&&c.chemical==chemical){
             min=Math.min(min,c.minPpm);max=Math.max(max,c.maxPpm);
         }
         if(GasEngine.hasCurve(sensor,chemical)){
