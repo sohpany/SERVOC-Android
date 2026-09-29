@@ -12,10 +12,11 @@ public final class MqCalibrationSeriesBootstrap {
     private MqCalibrationSeriesBootstrap() {}
 
     public static final String META_KEY="mq_calibration_series_hr069_version";
-    public static final String SEED_VERSION="1";
+    public static final String SEED_VERSION="2";
 
     public static final String SRC_GHAZY_2017="GHAZY_MORSI_SHARKAS_2017_MQ2_MQ5_LPG_CO";
     public static final String SRC_KIRAN_2024="KIRAN_JES_2024_MQ5_MULTI_GAS";
+    public static final String SRC_MQ9_LPG_2024="PEREZ_RIISDS_2024_MQ9_LPG";
 
     public static void ensure(SQLiteDatabase db){
         if(db==null||db.isReadOnly())return;
@@ -23,9 +24,10 @@ public final class MqCalibrationSeriesBootstrap {
         db.beginTransaction();
         try{
             seedSources(db);
-            db.delete("sensor_evidence","source_id IN (?,?)",new String[]{SRC_GHAZY_2017,SRC_KIRAN_2024});
+            db.delete("sensor_evidence","source_id IN (?,?,?)",new String[]{SRC_GHAZY_2017,SRC_KIRAN_2024,SRC_MQ9_LPG_2024});
             seedGhazySeries(db);
             seedKiranMq5(db);
+            seedMq9LpgComparison(db);
             putMeta(db,META_KEY,SEED_VERSION);
             db.setTransactionSuccessful();
         }finally{db.endTransaction();}
@@ -44,10 +46,15 @@ public final class MqCalibrationSeriesBootstrap {
                 "https://doi.org/10.52783/jes.5540",
                 "B","2024 / Journal of Electrical Systems",
                 "MQ5 was exposed in a controlled environment to known methane, LPG and hydrogen concentrations at 200, 400 and 600 ppm. A clean-air baseline and calibration curves were established. Source gives the controlled concentration protocol but not complete tabulated raw values for every gas.");
+        source(db,SRC_MQ9_LPG_2024,
+                "Elaboracion de un prototipo detector de Gas LP para uso comercial y residencial con sistema de monitoreo",
+                "Perez-Arteaga et al.","",
+                "https://revista-riisds.mx/index.php/RIISDS/article/view/32",
+                "B","2024 / RIISDS",
+                "Exact MQ9 LPG prototype comparison against a commercial BITWO B2 detector. Three paired field readings were published: MQ9 system 418/771/1023 ppm versus reference 420/775/1028 ppm. The article reports a 5% measurement-error margin and recommends MQ9 calibration in the 500-10000 ppm LPG domain with 10-47 kOhm load resistance (20 kOhm proposed).");
     }
 
     private static void seedGhazySeries(SQLiteDatabase db){
-        // LPG: exact published Rs/R0 series at 25 C / 33% RH.
         series(db,"MQ2",chemicalUid(db,135),"LPG",
                 new double[]{200,400,700,1000},
                 new double[]{1.6633,1.2109,0.9371,0.7959},
@@ -58,8 +65,6 @@ public final class MqCalibrationSeriesBootstrap {
                 new double[]{0.68749,0.52356,0.42019,0.36523},
                 new double[]{0.6201,0.5120,0.4532,0.4205},
                 2.0,91.94,"standard_ratio vs best measured series",200.0,1000.0);
-
-        // CO: best-load measured series and source sensitivity-curve references.
         series(db,"MQ2",chemicalUid(db,20),"Carbon Monoxide",
                 new double[]{50,100,200,500},
                 new double[]{8.241,6.59,5.27,3.92},
@@ -105,6 +110,25 @@ public final class MqCalibrationSeriesBootstrap {
         }catch(Exception ignored){}
         evidence(db,"MQ5",uid,"CONTROLLED_MQ5_MULTI_GAS_KNOWN_PPM_LEVELS",p.toString(),200.0,600.0,SRC_KIRAN_2024,
                 "B_PEER_REVIEWED_EXACT_SENSOR_KNOWN_CONCENTRATION","ACCEPTED_KNOWN_CONCENTRATION_REFERENCE");
+    }
+
+    private static void seedMq9LpgComparison(SQLiteDatabase db){
+        Long uid=chemicalUid(db,135);if(uid==null)return;
+        JSONObject p=new JSONObject();
+        try{
+            p.put("analyte","LPG");p.put("sensor","MQ9");p.put("installed_hr069",true);
+            p.put("measurement_levels",new JSONArray().put("low").put("medium").put("high"));
+            p.put("mq9_system_ppm",new JSONArray().put(418).put(771).put(1023));
+            p.put("commercial_reference_ppm",new JSONArray().put(420).put(775).put(1028));
+            p.put("reference_instrument","BITWO B2 LPG detector");
+            p.put("reported_measurement_error_margin_percent",5.0);
+            p.put("field_test_environment","open-space simulated LPG leak from 3 kg cylinder/stove");
+            p.put("recommended_calibration_domain_ppm",new JSONArray().put(500).put(10000));
+            p.put("recommended_load_resistance_kohm",20.0);
+            p.put("identity_fingerprint_accepted",true);p.put("ppm_reference_accepted",true);p.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"MQ9",uid,"PUBLISHED_MQ9_LPG_REFERENCE_COMPARISON",p.toString(),418.0,1028.0,SRC_MQ9_LPG_2024,
+                "B_PUBLISHED_EXACT_SENSOR_REFERENCE_COMPARISON","ACCEPTED_IDENTITY_AND_PPM_REFERENCE");
     }
 
     private static JSONArray array(double[] x){JSONArray a=new JSONArray();for(double v:x)a.put(v);return a;}
