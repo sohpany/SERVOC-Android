@@ -44,10 +44,11 @@ public final class ChemicalCoverage {
                         "Unsupported aggregate with current MQ array",
                         plan.reason);
             }
+            String ext=external==null?"":" "+ExternalEvidenceCoverage.summary(chem)+" Use it as a classifier/operational-index benchmark only; it does not turn the composite class into a pure-gas ppm model.";
             return new Status(AGGREGATE,
                     "Composite/mixture fingerprint • "+plan.className,
                     "Recommended installed channels: "+sensorNames(plan.mask)+". "+plan.reason+
-                    " A mixture/operational metric must not be assigned a single universal pure-gas MQ equation.");
+                    " A mixture/operational metric must not be assigned a single universal pure-gas MQ equation."+ext);
         }
 
         if(plan.mask==0){
@@ -106,6 +107,24 @@ public final class ChemicalCoverage {
         int n=0;
         for(int i=0;i<ChemicalCatalog.COUNT;i++){
             if(forChemical(i).level==FINGERPRINT_CANDIDATE&&ExternalEvidenceCoverage.hasAny(i))n++;
+        }
+        return n;
+    }
+
+    /** Generic/inherited library curve exists but is not target-backed; validate it rather than rediscovering from zero. */
+    public static int genericCurveValidationCandidateCount(){
+        int n=0;
+        for(int i=0;i<ChemicalCatalog.COUNT;i++){
+            if(forChemical(i).level==FINGERPRINT_CANDIDATE&&CurveEligibility.hasAnyLibraryCurve(i))n++;
+        }
+        return n;
+    }
+
+    /** Fingerprint candidates whose existing generic curve AND external evidence both point to transfer-validation work. */
+    public static int corroboratedTransferCandidateCount(){
+        int n=0;
+        for(int i=0;i<ChemicalCatalog.COUNT;i++){
+            if(forChemical(i).level==FINGERPRINT_CANDIDATE&&CurveEligibility.hasAnyLibraryCurve(i)&&ExternalEvidenceCoverage.hasAny(i))n++;
         }
         return n;
     }
