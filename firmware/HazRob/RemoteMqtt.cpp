@@ -4,6 +4,7 @@
 #include "Hardware.h"
 #include "Alerts.h"
 #include "SafetyInterlock.h"
+#include "SafetyOptions.h"
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <time.h>
@@ -20,6 +21,7 @@ int kp(const String&j,const char*k){String x="\""+String(k)+"\":";return j.index
 int64_t ji(const String&j,const char*k,int64_t d=0){int p=kp(j,k);if(p<0)return d;p+=strlen(k)+3;while(p<(int)j.length()&&(j[p]==' '||j[p]=='\t'))p++;bool neg=p<(int)j.length()&&j[p]=='-';if(neg)p++;if(p>=(int)j.length()||j[p]<'0'||j[p]>'9')return d;int64_t v=0;while(p<(int)j.length()&&j[p]>='0'&&j[p]<='9')v=v*10+(j[p++]-'0');return neg?-v:v;}
 void writeUtf(const String&s){uint16_t n=s.length();tls.write((uint8_t)(n>>8));tls.write((uint8_t)n);tls.write((const uint8_t*)s.c_str(),n);}void writeRemaining(size_t n){do{uint8_t d=n%128;n/=128;if(n)d|=0x80;tls.write(d);}while(n);}bool readRemaining(size_t&v){v=0;size_t m=1;for(uint8_t i=0;i<4;i++){int d=tls.read();if(d<0)return false;v+=(d&127)*m;if(!(d&128))return true;m*=128;}return false;}
 String u64s(uint64_t v){char b[21];uint8_t p=20;b[p]=0;do{b[--p]='0'+v%10;v/=10;}while(v&&p);return String(b+p);}
+String safetyAutoStopPayload(){return String("{\"enabled\":")+(safetyAutoStopEnabled()?"true":"false")+",\"warnings_active\":true,\"estop_independent\":true,\"watchdog_independent\":true}";}
 
 bool bootstrapCredentials(bool force=false){
   if(!force&&credsReady&&cloudUser.length()&&cloudPass.length())return true;
@@ -56,6 +58,8 @@ else if(t=="measure_cancel")measureCancel();
 else if(t=="alert"){int severity=(int)ji(j,"severity",-1);uint32_t ttlMs=(uint32_t)constrain((long)ji(j,"ttl",3000),500L,10000L);if(severity<0||severity>2)ok=false;else Alerts::setGas((uint8_t)severity,ttlMs);}
 else if(t=="alert_test")Alerts::test();
 else if(t=="camera_flash"){String m=js(j,"mode","off");ok=setCameraFlash(m);p="{\"mode\":\""+m+"\"}";}
+else if(t=="safety_auto_stop_get")p=safetyAutoStopPayload();
+else if(t=="safety_auto_stop_set"){motionStop();bool enabled=ji(j,"enabled",0)!=0;safetyAutoStopSet(enabled,true);p=safetyAutoStopPayload();}
 else if(t=="config_get")p=settingsJson();
 else if(t=="config_set"){SettingsPatch patch;String cam=js(j,"cam");if(kp(j,"cam")>=0&&cam.length()){patch.hasCam=true;patch.cam=cam;}if(kp(j,"speed")>=0){patch.hasSpeed=true;patch.speed=(int)ji(j,"speed",settings.speed);}if(kp(j,"warm")>=0){patch.hasWarm=true;patch.warm=(int)ji(j,"warm",settings.warm);}if(kp(j,"measure")>=0){patch.hasMeasure=true;patch.measure=(int)ji(j,"measure",settings.measure);}applySettings(patch,true);p=settingsJson();}
 else{ok=false;err="unknown_command";}
