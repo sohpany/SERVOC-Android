@@ -1,0 +1,75 @@
+{
+  "schema": "hazrob.ethylene-mq3-transfer-evidence.v1",
+  "project": "HazRob",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "chemical": {
+    "legacy_id": 89,
+    "name": "Ethylene",
+    "formula": "C2H4"
+  },
+  "source": {
+    "source_id": "KRIVEC_ETHYLENE_MQ3_2015",
+    "title": "Quantitative Ethylene Measurements with MOx Chemiresistive Sensors at Different Relative Air Humidities",
+    "authors": "Matic Krivec et al.",
+    "journal": "Sensors",
+    "year": 2015,
+    "doi": "10.3390/s151128088",
+    "url": "https://doi.org/10.3390/s151128088",
+    "license": "CC BY 4.0",
+    "evidence_tier": "B_PEER_REVIEWED_EXACT_SENSOR_KNOWN_CONCENTRATION"
+  },
+  "exact_sensor_overlap": {
+    "sensor": "MQ3",
+    "installed_hr069": true,
+    "source_sensor_manufacturer": "Henan Hanwei Electronics Co., Ltd.",
+    "sensing_layer": "SnO2-based MOx",
+    "heater_supply_v": 5.0,
+    "readout": "sensor resistance"
+  },
+  "experiment": {
+    "measurement_chamber_l": 0.17,
+    "pre_chamber_l": 0.05,
+    "carrier": "synthetic air",
+    "source_ethlyene_mix_ppm": 200,
+    "flow_ml_min": 500,
+    "concentrations_ppm": [10, 25, 40, 50],
+    "relative_humidity_percent": [0, 33, 64],
+    "initial_air_stabilization_s": 1200,
+    "ethylene_exposure_s": 600,
+    "smoothing": "five-point moving average",
+    "equilibrium_sampling": "sample points taken immediately before flushing",
+    "baseline_sampling": "middle of flush phase between 25 ppm and 40 ppm concentration phases"
+  },
+  "published_response": {
+    "direction": "MQ3 resistance decreases as ethylene concentration rises",
+    "humidity_effect": "increasing RH reduces ethylene sensitivity",
+    "minimum_reported_discernible_ppm_at_64rh": 10,
+    "correlation_domain_ppm": [10, 40],
+    "reported_r2_gt": 0.97,
+    "sorption_time_constant_s": 80,
+    "desorption_time_constant_s": 165,
+    "prediction_model_form": "C2H4_hat = beta0 + beta1*S_MQ3 + beta2*RH + beta3*S_MQ3*RH",
+    "reported_prediction_accuracy_ppm_all": 9.2,
+    "reported_prediction_accuracy_ppm_below_50": 6.7,
+    "published_numeric_beta_coefficients_available_in_current_source_text": false,
+    "numeric_response_table_available_in_current_source_text": false
+  },
+  "hazrob_acceptance": {
+    "status": "ACCEPTED_EXACT_SENSOR_KNOWN_CONCENTRATION_TRANSFER_AWAITING_NUMERIC_RESPONSE",
+    "identity_reference": true,
+    "numeric_hr069_fingerprint": false,
+    "direct_hr069_named_identity": false,
+    "provisional_source_domain_ppm": [10, 50],
+    "quantitative_ppm": false,
+    "m4": false,
+    "raw_or_tabulated_data_request": "REQ-006",
+    "requirements_before_numeric_promotion": [
+      "Obtain source tabulated MQ3 response values or published regression coefficients",
+      "Validate response direction and humidity dependence on the installed HR069 MQ3 module",
+      "Define the HR069 resistance/ratio normalization and transfer transform",
+      "Do not extrapolate beyond the source 10-50 ppm domain",
+      "Require M4 device/reference calibration before reportable occupational or safety-grade ppm"
+    ]
+  }
+}
