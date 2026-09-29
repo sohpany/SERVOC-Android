@@ -72,6 +72,13 @@ public final class ChemicalSeedBootstrap {
         }
 
         try{
+            MqVocFingerprintEvidenceBootstrap.ensure(db.getWritableDatabase());
+            db.putMeta("mq_voc_fingerprint_evidence_seed_status","available:"+MqVocFingerprintEvidenceBootstrap.SEED_VERSION);
+        }catch(Exception e){
+            db.putMeta("mq_voc_fingerprint_evidence_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
+        }
+
+        try{
             OperationalHazardTransferBootstrap.ensure(db.getWritableDatabase());
             db.putMeta("operational_hazard_transfer_seed_status","available:"+OperationalHazardTransferBootstrap.SEED_VERSION);
         }catch(Exception e){
