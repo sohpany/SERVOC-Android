@@ -34,7 +34,7 @@ MQ-7/MQ-9 remain a separate hardware-protocol case: their 48 h initial preheat d
 Asset: `research_data/hr069_analytical_library/multimodal_mq_transfer_fingerprints_v1.json`
 
 - source file SHA-256: `13c2c85cfbb23357a71555b9bc2cbe7dd68e931ffc94df30389c1a4631203745`
-- derived asset SHA-256: `6e41294da4fbaed3e390dc2d5daff576dff07d1c67887d1d794012dea602ff8f`
+- committed derived asset SHA-256: `6e41294da4fbaed3e390dc2d5daff576dff07d1c67887d1d794012dea602ff8f`
 - 6400 measurements, 1600/class
 - classes: NoGas, Smoke, Perfume, Mixture
 - HR069 overlap: MQ2, MQ3, MQ5, MQ7, MQ8, MQ135 = 6 channels
@@ -50,7 +50,9 @@ Asset: `research_data/hr069_analytical_library/uci_mq135_lowconcentration_transf
 
 - DOI: `10.24432/C5CK6F`
 - source archive SHA-256: `813ebb7d00ed9172114b68d27ab3213170d6c220b8b23907dce91e9838cd48ab`
-- derived asset SHA-256: `d58c12398380dd1ebf075c98b14b2e0758e801699d5b690680816a27bbac0417`
+- original generated-artifact SHA-256 before repository JSON reserialization: `d58c12398380dd1ebf075c98b14b2e0758e801699d5b690680816a27bbac0417`
+- committed repository asset SHA-256: `93434b1a3eb84d13d736ca066fb68501374d58d6ca9e845c6111de5cc8e52372`
+- semantic data are unchanged; the byte-level difference is JSON whitespace/serialization only
 - 6 analytes: acetone, ethanol, ethyl acetate, n-hexane, isopropanol, toluene
 - concentrations: 0.05 / 0.10 / 0.20 ppm
 - 5 replicates per analyte/concentration
@@ -79,13 +81,15 @@ The transfer seed does not write into local `reference_artifacts`, because that 
 
 Organization harness Run #7 (`36623895675`) successfully verified generation of both derived assets from canonical/public inputs and passed Android unit regression tests against source SHA `47a507534d7571d1531f166ccd900df24b274f3c`.
 
-After that successful generation qualification, the two derived JSON assets, their central registry entries and the offline transfer bootstrap were committed to the source branch. Therefore a final qualification must be run against the new source HEAD after this checkpoint; Run #7 is evidence for derivation correctness but is not the final qualified source SHA.
+Transfer qualification Run #2 (`36625327777`) checked source SHA `8cc5583aa60f624e8225a7a3ab644640f0f7aec3`, verified both committed asset structures, printed the committed byte hashes, and completed Android unit regression tests with `BUILD SUCCESSFUL`. This exposed and resolved the UCI JSON byte-hash difference caused only by repository reserialization.
+
+After aligning the registry/bootstrap to the committed UCI hash, one final exact-SHA qualification is required. No source edits should be made after that final pass if the qualified SHA is to remain the branch checkpoint.
 
 ## Resume point
 
 1. Fetch the current `release/hazrob-0.10.2` HEAD.
-2. Point `HazRob/build-harness` analytical qualification at that exact SHA.
-3. Verify the two committed transfer JSON assets, their hashes/counts, `AnalyticalTransferBootstrap`, and its call from `ChemicalSeedBootstrap`.
+2. Point `HazRob/build-harness` final transfer qualification at that exact SHA.
+3. Verify both committed transfer JSON byte hashes, counts, `AnalyticalTransferBootstrap`, and its call from `ChemicalSeedBootstrap`.
 4. Run Android unit regression tests.
-5. Record the final qualified SHA/run in this checkpoint or a succeeding qualification record.
+5. Record the final qualified SHA/run in the organization harness without modifying the qualified source SHA.
 6. Continue ingesting additional pure-analyte datasets; prioritize multi-channel HR069-compatible fingerprints for methanol, ethyl acetate, H2S, acetaldehyde and ethylene.
