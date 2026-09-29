@@ -1,0 +1,155 @@
+name: Publish ChemCore Stable Library Bundle — 0.10.2 HR069
+
+on:
+  workflow_dispatch:
+    inputs:
+      library_version:
+        description: 'Semantic ChemCore library version'
+        required: true
+  push:
+    branches: ['release/hazrob-0.10.2']
+    paths: ['chemcore/stable/VERSION']
+
+permissions:
+  contents: write
+
+jobs:
+  publish-stable-0102:
+    if: github.ref == 'refs/heads/release/hazrob-0.10.2'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Resolve publication version
+        env:
+          INPUT_LIBRARY_VERSION: ${{ inputs.library_version }}
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = push ]; then V=$(tr -d '[:space:]' < chemcore/stable/VERSION); else V="$INPUT_LIBRARY_VERSION"; fi
+          python3 - "$V" <<'PY'
+          import re,sys
+          v=sys.argv[1]
+          assert re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?',v), 'invalid semantic version'
+          PY
+          echo "LIB_VERSION=$V" >> "$GITHUB_ENV"
+
+      - name: Build HR069 response priors from the 43 pinned curves plus preferred literature overlays
+        run: |
+          set -euo pipefail
+          python3 tools/build_hr069_research_priors.py --out "$RUNNER_TEMP/hr069-response-priors.json"
+          python3 - <<'PY'
+          import json,os
+          p=json.load(open(os.environ['RUNNER_TEMP']+'/hr069-response-priors.json',encoding='utf-8'))
+          assert p['source_curve_count']==43
+          assert p['preferred_literature_overlay_count']==6
+          assert p['record_count']==49
+          assert p['policy']['external_m4'] is False
+          assert all(not r.get('device_validated',False) for r in p['records'])
+          print('HR069 response priors:',p['record_count'])
+          PY
+
+      - name: Validate 76-model registry and external-source registry
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          m=json.load(open('research_data/hr069_analytical_library/mq_models_76.json',encoding='utf-8'))
+          e=json.load(open('research_data/external_mq_fingerprints/manifest.json',encoding='utf-8'))
+          assert m['model_count']==76 and len(m['models'])==76
+          assert m['android_native_count']==14 and m['upstream_verified_count']==12 and m['approximation_count']==2
+          assert e['release']=='0.10.2' and e['hardware_revision']=='HR069'
+          assert e['authoritative_quantification_allowed'] is False
+          assert any(s['id']=='MQDS-002' for s in e['sources'])
+          PY
+
+      - name: Build canonical Stable snapshot with HR069 research knowledge
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/chemcore-stable-snapshot.json"
+          python3 tools/build_chemcore_stable_snapshot.py \
+            --source-commit "$GITHUB_SHA" \
+            --response-priors "$RUNNER_TEMP/hr069-response-priors.json" \
+            --model-artifacts research_data/hr069_analytical_library/mq_models_76.json \
+            --reference-artifacts research_data/external_mq_fingerprints/manifest.json \
+            --out "$OUT"
+          echo "CHEMCORE_PAYLOAD=$OUT" >> "$GITHUB_ENV"
+          python3 - <<'PY'
+          import json,os
+          d=json.load(open(os.environ['CHEMCORE_PAYLOAD'],encoding='utf-8')); c=d['content_counts']; p=d['policy']
+          assert d['schema']=='chemcore-stable-snapshot-v1'
+          assert d['source_commit_sha']==os.environ['GITHUB_SHA']
+          assert c['chemical_identities']==652 and c['molecularly_resolved']==615 and c['identity_curation_records']==37
+          assert c['response_priors']==49 and c['model_artifacts']==76 and c['reference_artifacts']>=4
+          assert p['m4_requires_device_specific_validation'] is True and p['external_research_packaging_does_not_promote_m4'] is True
+          env=open(os.environ['GITHUB_ENV'],'a',encoding='utf-8')
+          env.write(f"CHEMICAL_COUNT={c['chemical_identities']}\nMODEL_COUNT={c['model_artifacts']}\nCALIBRATION_COUNT={c['calibrations']}\nSOURCE_COUNT={c['reference_artifacts']}\n")
+          env.close(); print(c)
+          PY
+
+      - name: Require publication signing key and provisioned APK public key
+        env:
+          PRIVATE_KEY_PEM: ${{ secrets.CHEMCORE_PUBLICATION_PRIVATE_KEY_PEM }}
+        run: |
+          set -euo pipefail
+          test -n "$PRIVATE_KEY_PEM" || { echo 'CHEMCORE_PUBLICATION_PRIVATE_KEY_PEM is not configured'; exit 1; }
+          PUB=app/src/main/assets/chemcore/publication_key.pem
+          test -s "$PUB"
+          ! grep -q NOT_PROVISIONED "$PUB" || { echo 'APK ChemCore publication public key is still NOT_PROVISIONED'; exit 1; }
+          umask 077
+          printf '%s\n' "$PRIVATE_KEY_PEM" > "$RUNNER_TEMP/private.pem"
+          openssl pkey -in "$RUNNER_TEMP/private.pem" -check -noout
+          openssl pkey -pubin -in "$PUB" -pubout -out "$RUNNER_TEMP/pub1.pem"
+          openssl pkey -in "$RUNNER_TEMP/private.pem" -pubout -out "$RUNNER_TEMP/pub2.pem"
+          cmp "$RUNNER_TEMP/pub1.pem" "$RUNNER_TEMP/pub2.pem"
+
+      - name: Build signed immutable publication bundle
+        run: |
+          set -euo pipefail
+          python3 tools/publish_chemcore_library.py \
+            --payload "$CHEMCORE_PAYLOAD" --out-dir "$RUNNER_TEMP/chemcore-stable" \
+            --library-version "$LIB_VERSION" --source-commit "$GITHUB_SHA" --channel stable \
+            --payload-format json --min-app-version 0.10.2 \
+            --feature-schema chemcore-features/1 --sampling-profile hazrob-chemcore-chamber-v2 \
+            --chemical-count "$CHEMICAL_COUNT" --source-count "$SOURCE_COUNT" \
+            --model-count "$MODEL_COUNT" --calibration-count "$CALIBRATION_COUNT" \
+            --private-key "$RUNNER_TEMP/private.pem"
+
+      - name: Verify publication signature with APK public key
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64,json,pathlib,subprocess,tempfile,os
+          r=pathlib.Path(os.environ['RUNNER_TEMP'])/'chemcore-stable'; m=json.loads((r/'manifest.json').read_text(encoding='utf-8'))
+          assert m['channel']=='stable' and m['min_app_version']=='0.10.2' and m['model_count']==76 and m['chemical_count']==652
+          rows=[('library_version',m['library_version']),('schema_version',str(m['schema_version'])),('channel',m['channel'].lower()),('created_utc',m['created_utc']),('source_commit_sha',m['source_commit_sha']),('payload_file',m['payload_file']),('payload_format',m['payload_format'].lower()),('payload_sha256',m['payload_sha256'].lower()),('payload_size_bytes',str(m['payload_size_bytes'])),('chemical_count',str(m['chemical_count'])),('source_count',str(m['source_count'])),('model_count',str(m['model_count'])),('calibration_count',str(m['calibration_count'])),('min_app_version',m['min_app_version']),('max_app_version',m.get('max_app_version','')),('feature_schema_version',m['feature_schema_version']),('sampling_profile_compatibility',','.join(sorted(m.get('sampling_profile_compatibility',[])))),('signature_algorithm',m['signature_algorithm'])]
+          text='chemcore-manifest-v1\n'+''.join(f'{k}={v}\n' for k,v in rows)
+          with tempfile.TemporaryDirectory() as d:
+              d=pathlib.Path(d); (d/'m').write_text(text,encoding='utf-8'); (d/'s').write_bytes(base64.b64decode(m['signature']))
+              subprocess.run(['openssl','dgst','-sha256','-verify','app/src/main/assets/chemcore/publication_key.pem','-signature',str(d/'s'),str(d/'m')],check=True)
+          PY
+
+      - name: Publish Stable snapshot to app-update distribution branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin app-update-distribution
+          rm -rf /tmp/hazrob-dist
+          git worktree add -B app-update-distribution /tmp/hazrob-dist origin/app-update-distribution
+          rm -rf /tmp/hazrob-dist/public/chemcore; mkdir -p /tmp/hazrob-dist/public/chemcore
+          cp "$RUNNER_TEMP/chemcore-stable/manifest.json" "$RUNNER_TEMP/chemcore-stable/publication_audit.json" /tmp/hazrob-dist/public/chemcore/
+          P=$(python3 -c 'import json,os;print(json.load(open(os.environ["RUNNER_TEMP"]+"/chemcore-stable/manifest.json"))["payload_file"])')
+          cp "$RUNNER_TEMP/chemcore-stable/$P" "/tmp/hazrob-dist/public/chemcore/$P"
+          git -C /tmp/hazrob-dist add -A public/chemcore
+          git -C /tmp/hazrob-dist diff --cached --quiet || { git -C /tmp/hazrob-dist commit -m "dist(chemcore): publish HR069 Stable $LIB_VERSION"; git -C /tmp/hazrob-dist push origin HEAD:app-update-distribution; }
+
+      - name: Upload signed bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChemCore-Stable-0.10.2-HR069-${{ env.LIB_VERSION }}
+          path: ${{ runner.temp }}/chemcore-stable/
+          if-no-files-found: error
+          retention-days: 90
