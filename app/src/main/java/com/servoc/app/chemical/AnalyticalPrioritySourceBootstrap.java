@@ -10,23 +10,25 @@ import org.json.JSONObject;
 /**
  * Adds high-priority external evidence discovered after the initial HR069 analytical seed.
  *
- * These records reduce discovery work for H2S, methanol, ethylene and acetaldehyde, but remain
- * transfer/research evidence. Nothing seeded here is device-specific M4 calibration.
+ * These records reduce discovery work for H2S, methanol, ethylene, 1-propanol and acetaldehyde,
+ * but remain transfer/research evidence. Nothing seeded here is device-specific M4 calibration.
  */
 public final class AnalyticalPrioritySourceBootstrap {
     private AnalyticalPrioritySourceBootstrap() {}
 
     public static final String META_KEY="analytical_priority_sources_hr069_version";
-    // v4 locks the source-backed ethylene MQ3 transfer contract and source-domain limits.
-    public static final String SEED_VERSION="4";
+    // v5 adds same-array 1-propanol known-concentration transfer evidence from SJTU-G919.
+    public static final String SEED_VERSION="5";
 
     public static final String SRC_TOZLU="TOZLU_METHANOL_MQ_2024";
     public static final String SRC_KRIVEC="KRIVEC_ETHYLENE_MQ3_2015";
     public static final String SRC_UCI270="UCI_GAS_DRIFT_270";
     public static final String SRC_WINSEN_MQ135_H2S="WINSEN_MQ135_H2S";
     public static final String SRC_WINSEN_MQ136_H2S="WINSEN_MQ136_H2S";
+    public static final String SRC_SJTU_G919_VOC8="ZHANG_SJTU_G919_VOC8_2024";
     public static final String METHANOL_ASSET="research_data/hr069_analytical_library/methanol_mq_transfer_evidence_v1.json";
     public static final String ETHYLENE_ASSET="research_data/hr069_analytical_library/ethylene_mq3_transfer_evidence_v1.json";
+    public static final String PROPANOL_ASSET="research_data/hr069_analytical_library/1_propanol_sjtu_mq_transfer_evidence_v1.json";
 
     public static void ensure(SQLiteDatabase db){
         if(db==null||db.isReadOnly())return;
@@ -38,6 +40,7 @@ public final class AnalyticalPrioritySourceBootstrap {
             seedH2sEvidence(db);
             seedMethanolEvidence(db);
             seedEthyleneEvidence(db);
+            seedPropanolEvidence(db);
             seedUciDriftEvidence(db);
             putMeta(db,META_KEY,SEED_VERSION);
             putMeta(db,"analytical_priority_sources_hr069_release","0.10.2/HR069");
@@ -45,6 +48,7 @@ public final class AnalyticalPrioritySourceBootstrap {
             putMeta(db,"analytical_priority_sources_hr069_h2s_policy","H2S_PRIORITY_MQ135_QUALITATIVE_PLUS_MQ136_REFERENCE_NO_HR069_PPM");
             putMeta(db,"analytical_priority_sources_hr069_methanol_policy","METHANOL_SAME_ARRAY_TRANSFER_MQ3_MQ4_PRIORITY_NO_HR069_NUMERIC_VECTOR_NO_PPM_NO_M4");
             putMeta(db,"analytical_priority_sources_hr069_ethylene_policy","ETHYLENE_EXACT_MQ3_10_50PPM_TRANSFER_HUMIDITY_COVARIATE_NO_NUMERIC_CURVE_NO_M4");
+            putMeta(db,"analytical_priority_sources_hr069_propanol_policy","1PROPANOL_SJTU_7CHANNEL_10_100PPM_TRANSFER_NO_SYNTHETIC_MQ135_NO_M4");
             db.setTransactionSuccessful();
         }finally{db.endTransaction();}
     }
@@ -74,6 +78,12 @@ public final class AnalyticalPrioritySourceBootstrap {
                 "https://doi.org/10.3390/s151128088","B","2015 / CC BY 4.0",
                 "Exact installed-model overlap on MQ3. Ethylene measurements at 10/25/40/50 ppm and RH 0/33/64%, 500 mL/min synthetic-air flow, 1200 s initial air stabilization and 600 s exposure. R2 > 0.97 is reported over 10-40 ppm; increasing RH reduces sensitivity. Published numeric beta coefficients/full response table are not available in the current source text, so REQ-006 remains open and no curve is invented.");
 
+        source(db,SRC_SJTU_G919_VOC8,
+                "Sensor array optimization for the electronic nose via different deep learning methods",
+                "Xijia Zhang et al.","10.1016/j.snb.2024.135579",
+                "https://doi.org/10.1016/j.snb.2024.135579","B","2024 / peer reviewed",
+                "SJTU-G919 same-array evidence using MQ2/MQ3/MQ4/MQ5/MQ6/MQ7/MQ8/MQ9. Eight VOCs were measured from 10 to 100 ppm with ten independent repeats per VOC at atmospheric pressure, RH 50+/-10% and 26+/-2 C. n-Propanol is an explicit source class. HR069 overlaps on seven channels; MQ6 is source-only and MQ135 is missing. Source response/recovery CSVs are described but not present in the HazRob repository, so no numeric vector or ppm model is invented.");
+
         source(db,SRC_UCI270,
                 "Gas Sensor Array Drift Dataset at Different Concentrations",
                 "UCI Machine Learning Repository","10.24432/C5MK6M",
@@ -82,8 +92,8 @@ public final class AnalyticalPrioritySourceBootstrap {
     }
 
     private static void clearManagedEvidence(SQLiteDatabase db){
-        db.delete("sensor_evidence","source_id IN (?,?,?,?,?)",
-                new String[]{SRC_TOZLU,SRC_KRIVEC,SRC_UCI270,SRC_WINSEN_MQ135_H2S,SRC_WINSEN_MQ136_H2S});
+        db.delete("sensor_evidence","source_id IN (?,?,?,?,?,?)",
+                new String[]{SRC_TOZLU,SRC_KRIVEC,SRC_UCI270,SRC_WINSEN_MQ135_H2S,SRC_WINSEN_MQ136_H2S,SRC_SJTU_G919_VOC8});
     }
 
     private static void seedH2sEvidence(SQLiteDatabase db){
@@ -175,6 +185,29 @@ public final class AnalyticalPrioritySourceBootstrap {
         }catch(Exception ignored){}
         evidence(db,"MQ3",ethylene,"EXTERNAL_EXACT_MQ3_KNOWN_CONCENTRATION_TRANSFER_DESCRIPTOR",p.toString(),10.0,50.0,
                 SRC_KRIVEC,"B_PEER_REVIEWED_EXACT_SENSOR_KNOWN_CONCENTRATION","ACCEPTED_EXACT_SENSOR_TRANSFER_AWAITING_NUMERIC_RESPONSE");
+    }
+
+    private static void seedPropanolEvidence(SQLiteDatabase db){
+        Long propanol=chemicalUid(db,104);if(propanol==null)return;
+        JSONObject p=new JSONObject();
+        try{
+            p.put("asset",PROPANOL_ASSET);
+            p.put("source_name","n-propanol");p.put("catalog_name","1-Propanol");
+            p.put("source_array",new JSONArray().put("MQ2").put("MQ3").put("MQ4").put("MQ5").put("MQ6").put("MQ7").put("MQ8").put("MQ9"));
+            p.put("hr069_overlap",new JSONArray().put("MQ2").put("MQ3").put("MQ4").put("MQ5").put("MQ7").put("MQ8").put("MQ9"));
+            p.put("hr069_overlap_count",7);p.put("missing_hr069_channels",new JSONArray().put("MQ135"));
+            p.put("source_only_channels",new JSONArray().put("MQ6"));
+            p.put("concentration_min_ppm",10);p.put("concentration_max_ppm",100);
+            p.put("independent_repeats_per_voc",10);
+            p.put("relative_humidity_nominal_percent",50);p.put("relative_humidity_tolerance_percent",10);
+            p.put("room_temperature_nominal_c",26);p.put("room_temperature_tolerance_c",2);
+            p.put("n_propanol_boiling_point_c_reported",97.1);
+            p.put("source_csv_described",true);p.put("raw_numeric_csv_available_in_hr069_repository",false);
+            p.put("direct_hr069_named_identity",false);p.put("quantitative_ppm",false);p.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"ARRAY:MQ2,MQ3,MQ4,MQ5,MQ7,MQ8,MQ9",propanol,
+                "EXTERNAL_SAME_ARRAY_1PROPANOL_KNOWN_CONCENTRATION_TRANSFER_DESCRIPTOR",p.toString(),10.0,100.0,
+                SRC_SJTU_G919_VOC8,"B_PEER_REVIEWED_SAME_ARRAY_KNOWN_CONCENTRATION","ACCEPTED_7CHANNEL_TRANSFER_AWAITING_RAW_NUMERIC_VECTOR");
     }
 
     private static void seedUciDriftEvidence(SQLiteDatabase db){
