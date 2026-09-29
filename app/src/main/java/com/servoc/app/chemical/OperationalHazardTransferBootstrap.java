@@ -125,7 +125,7 @@ public final class OperationalHazardTransferBootstrap {
     }
 
     private static JSONArray array(String[] a){JSONArray out=new JSONArray();for(String v:a)out.put(v);return out;}
-    private static JSONArray array(double[] a){JSONArray out=new JSONArray();for(double v:a)out.put(v);return out;}
+    private static JSONArray array(double[] a){JSONArray out=new JSONArray();for(double v:a)out.put(Double.valueOf(v));return out;}
     private static String meta(SQLiteDatabase db,String key){
         try(Cursor c=db.rawQuery("SELECT v FROM meta WHERE k=?",new String[]{key})){return c.moveToFirst()?c.getString(0):null;}
     }
