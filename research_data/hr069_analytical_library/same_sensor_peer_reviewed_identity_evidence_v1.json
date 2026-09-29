@@ -1,0 +1,129 @@
+{
+  "schema": "hazrob.same-sensor-peer-reviewed-identity-evidence.v1",
+  "project": "HazRob",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "generated_date": "2026-09-30",
+  "installed_sensor_models": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ9","MQ135"],
+  "acceptance_policy": {
+    "identity_fingerprint_accepted_when": [
+      "target chemical identity is explicit and unambiguous",
+      "experiment is peer reviewed or a traceable scientific dataset tied to peer-reviewed work",
+      "at least one sensor model used by the source is exactly one of the installed HR069 MQ models",
+      "the source contains experimental analyte-response or classification evidence rather than only a manufacturer sensitivity list"
+    ],
+    "full_eight_channel_overlap_not_required": true,
+    "same_model_subset_is_valid_identity_evidence": true,
+    "cross_sensor_model_substitution_forbidden": true,
+    "missing_hr069_channels_must_not_be_synthesized": true,
+    "identity_acceptance_state": "IDENTITY_FINGERPRINT_ACCEPTED",
+    "runtime_numeric_state_rule": "RUNTIME_NUMERIC_READY only when source numeric vectors/time series/response curves can be reproduced without inventing values",
+    "quantitative_ppm": false,
+    "m4": false,
+    "note": "Peer-reviewed same-sensor fingerprints are accepted for chemical identity evidence. Device-specific occupational/safety ppm remains gated by HR069 M4 calibration."
+  },
+  "sources": [
+    {
+      "source_id": "WANG_SNB_2022_MTL12",
+      "title": "Target discrimination, concentration prediction, and status judgment of electronic nose system based on large-scale measurement and multi-task deep learning",
+      "journal": "Sensors and Actuators B: Chemical",
+      "year": 2022,
+      "doi": "10.1016/j.snb.2021.130915",
+      "peer_reviewed": true,
+      "source_sensors": ["MQ2","MQ3","MQ4","MQ5","MQ6","MQ7","MQ8","MQ9"],
+      "hr069_overlap": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ9"],
+      "hr069_overlap_count": 7,
+      "concentration_domain_ppm": [10,100],
+      "measurement_scale": ">10 million sensing data points; thousands of response processes",
+      "reported_type_recognition_accuracy": 0.952,
+      "reported_concentration_prediction_accuracy": 0.921,
+      "source_numeric_raw_public_in_hazrob": false,
+      "runtime_numeric_ready": false,
+      "chemicals": [
+        {"legacy_id":102,"name":"Methanol","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"legacy_id":103,"name":"Ethanol","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"extended_name":"Ethylene glycol","cas":"107-21-1","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"legacy_id":104,"name":"1-Propanol","source_name":"n-propanol","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"legacy_id":105,"name":"Isopropanol","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"legacy_id":110,"name":"Acetone","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"source_name":"butyl acetate","mapping":"ISOMER_REVIEW_REQUIRED","candidate_legacy_id":119,"candidate_name":"n-Butyl Acetate","identity_fingerprint_accepted":true,"direct_legacy_mapping":false},
+        {"legacy_id":115,"name":"Ethyl Acetate","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"legacy_id":95,"name":"Toluene","source_name":"methylbenzene","mapping":"EXACT_SYNONYM","identity_fingerprint_accepted":true},
+        {"source_name":"dimethylbenzene","mapping":"XYLENE_ISOMER_UNRESOLVED","candidate_legacy_ids":[97,98,99],"identity_fingerprint_accepted":true,"direct_legacy_mapping":false},
+        {"extended_name":"Benzaldehyde","cas":"100-52-7","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"source_name":"hexane","mapping":"ISOMER_OR_REAGENT_IDENTITY_REVIEW_REQUIRED","candidate_legacy_id":84,"candidate_name":"n-Hexane","identity_fingerprint_accepted":true,"direct_legacy_mapping":false}
+      ]
+    },
+    {
+      "source_id": "MEI_SENSORS_2025_BINARY_VOC",
+      "title": "Research on Binary Mixed VOCs Gas Identification Method Based on Multi-Task Learning",
+      "journal": "Sensors",
+      "year": 2025,
+      "doi": "10.3390/s25082355",
+      "peer_reviewed": true,
+      "source_sensors": ["MQ2","MQ3","MQ4","MQ5","MQ6","MQ7","MQ8","MQ9"],
+      "hr069_overlap": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ9"],
+      "hr069_overlap_count": 7,
+      "pure_target_gases": ["Ethanol","1-Propanol"],
+      "pure_and_mixture_concentration_protocol": "0-100 ppm in 20 ppm increments; target exposure 300 s; recovery 300 s; 2 Hz; at least five repeats",
+      "total_sensor_responses": 175,
+      "reported_identification_accuracy": 0.9486,
+      "reported_concentration_r2": 0.95,
+      "runtime_numeric_ready": false,
+      "chemicals": [
+        {"legacy_id":103,"name":"Ethanol","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"legacy_id":104,"name":"1-Propanol","mapping":"EXACT","identity_fingerprint_accepted":true}
+      ]
+    },
+    {
+      "source_id": "PAREDES_RCQ_2016_LINEAR_ALCOHOLS",
+      "title": "Implementacion y evaluacion de una nariz electronica para la deteccion de alcoholes lineales",
+      "journal": "Revista Colombiana de Quimica",
+      "year": 2016,
+      "doi": "10.15446/rev.colomb.quim.v45n2.60393",
+      "peer_reviewed": true,
+      "source_sensors": ["MQ2","MQ3","CUSTOM_SN02","CUSTOM_PD_SN02"],
+      "hr069_overlap": ["MQ2","MQ3"],
+      "hr069_overlap_count": 2,
+      "method": "four-sensor electronic nose; vapor samples; PCA discrimination; response increases with concentration",
+      "reported_detection_order": ["Methanol","Ethanol","n-Butanol","1-Octanol"],
+      "runtime_numeric_ready": false,
+      "chemicals": [
+        {"legacy_id":102,"name":"Methanol","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"legacy_id":103,"name":"Ethanol","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"legacy_id":106,"name":"1-Butanol","source_name":"n-butanol","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"extended_name":"1-Octanol","cas":"111-87-5","mapping":"EXACT","identity_fingerprint_accepted":true}
+      ]
+    },
+    {
+      "source_id": "OSHOVSKY_FOODHUM_2026_VISUAL_FP",
+      "title": "Visual smell fingerprinting with sensor arrays",
+      "journal": "Food and Humanity",
+      "year": 2026,
+      "doi": "10.1016/j.foohum.2026.101079",
+      "peer_reviewed": true,
+      "open_access": true,
+      "source_sensors": ["MQ2","MQ3","MQ4","MQ5","MQ6","MQ7","MQ8","MQ9","MQ135"],
+      "hr069_overlap": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ9","MQ135"],
+      "hr069_overlap_count": 8,
+      "fingerprint_features": ["end-signal magnitude","response rate","pairwise sensor response ratios","pairwise response-rate ratios"],
+      "pure_chemicals": ["Acetone","Ethanol"],
+      "acetone_example_ppm": 1.5,
+      "runtime_numeric_ready": false,
+      "chemicals": [
+        {"legacy_id":110,"name":"Acetone","mapping":"EXACT","identity_fingerprint_accepted":true},
+        {"legacy_id":103,"name":"Ethanol","mapping":"EXACT","identity_fingerprint_accepted":true}
+      ]
+    }
+  ],
+  "current_unique_legacy_ids_with_same_sensor_peer_reviewed_identity_support": [95,102,103,104,105,106,110,115],
+  "current_unique_extended_exact_names": ["Ethylene glycol","Benzaldehyde","1-Octanol"],
+  "identity_mapping_review_queue": ["butyl acetate -> n-Butyl Acetate?","dimethylbenzene -> xylene isomer/family","hexane -> n-Hexane?"],
+  "research_scope": {
+    "primary_catalog_target_count": 144,
+    "molecular_library_record_count": 652,
+    "molecular_library_resolved_count": 615,
+    "molecular_library_unresolved_count": 37,
+    "continuation": "Search the complete 144 catalogue and the 652-record molecular library for additional peer-reviewed same-model MQ fingerprints; record negative/no-evidence findings rather than inventing fingerprints."
+  }
+}
