@@ -21,7 +21,7 @@ import java.util.List;
  * governed exclusively by the ChemCore quantitative gate.
  *
  * Numeric templates are deterministic expectations in log10(Rs/R0) space and are generated only
- * where a source-backed response relation exists for the exact MQ channel and analyte.
+ * where a source-backed response relation exists for the exact MQ channel and analyte/class.
  */
 public final class ResearchIdentificationFingerprintRegistry {
     private ResearchIdentificationFingerprintRegistry() {}
@@ -30,7 +30,9 @@ public final class ResearchIdentificationFingerprintRegistry {
     public static final String HARDWARE_REVISION="HR069";
     public static final String EVIDENCE_TIER="RESEARCH_EXTERNAL";
     public static final String IDENTITY_ACCEPTANCE_STATE="ACCEPTED_FOR_IDENTIFICATION";
+    public static final String REFERENCE_PPM_ACCEPTANCE_STATE="ACCEPTED_PROVISIONAL_REFERENCE_PPM";
     public static final boolean IDENTITY_REFERENCE_ACCEPTED=true;
+    public static final boolean REFERENCE_PPM_ACCEPTED=true;
     public static final boolean M4=false;
     public static final int SENSOR_COUNT=8;
 
@@ -44,6 +46,9 @@ public final class ResearchIdentificationFingerprintRegistry {
 
     /** Pure analytes with source-backed numeric response relations on at least one installed MQ channel. */
     public static final int[] NUMERIC_ANALYTES={20,21,23,34,75,76,78,84,95,103,110};
+
+    /** Composite operational classes that also have source-backed numerical MQ response relations. */
+    public static final int[] OPERATIONAL_CLASS_ANALYTES={135,139}; // LPG, Smoke
 
     public static final class TargetStatus {
         public final int chemicalId;
@@ -89,6 +94,18 @@ public final class ResearchIdentificationFingerprintRegistry {
         return false;
     }
 
+    public static boolean isOperationalClass(int chemicalId){
+        for(int id:OPERATIONAL_CLASS_ANALYTES)if(id==chemicalId)return true;
+        return false;
+    }
+
+    public static int[] allNumericFingerprintIds(){
+        int[] out=new int[NUMERIC_ANALYTES.length+OPERATIONAL_CLASS_ANALYTES.length];
+        System.arraycopy(NUMERIC_ANALYTES,0,out,0,NUMERIC_ANALYTES.length);
+        System.arraycopy(OPERATIONAL_CLASS_ANALYTES,0,out,NUMERIC_ANALYTES.length,OPERATIONAL_CLASS_ANALYTES.length);
+        return out;
+    }
+
     public static int templateCountForChemical(int chemicalId){
         int n=0;for(ChemicalFingerprint f:LIBRARY)if(f.chemicalId==chemicalId)n++;return n;
     }
@@ -97,7 +114,7 @@ public final class ResearchIdentificationFingerprintRegistry {
 
     private static List<ChemicalFingerprint> buildLibrary(){
         List<ChemicalFingerprint> out=new ArrayList<>();
-        for(int chemical:NUMERIC_ANALYTES){
+        for(int chemical:allNumericFingerprintIds()){
             String name=chemical>=0&&chemical<ChemicalCatalog.COUNT?ChemicalCatalog.NAMES[chemical]:String.valueOf(chemical);
             for(double ppm:CONCENTRATION_GRID_PPM){
                 ChemicalFingerprint f=buildTemplate(chemical,name,ppm);
@@ -124,7 +141,8 @@ public final class ResearchIdentificationFingerprintRegistry {
             contributors++;
         }
         if(contributors==0)return null;
-        String label="RESEARCH_PRIOR|"+name+"|"+formatPpm(ppm)+"ppm|"+RELEASE+"-"+HARDWARE_REVISION+"|"+IDENTITY_ACCEPTANCE_STATE;
+        String kind=isOperationalClass(chemical)?"OPERATIONAL_CLASS":"PURE_ANALYTE";
+        String label="RESEARCH_PRIOR|"+name+"|"+formatPpm(ppm)+"ppm|"+kind+"|"+RELEASE+"-"+HARDWARE_REVISION+"|"+IDENTITY_ACCEPTANCE_STATE;
         return new ChemicalFingerprint(chemical,label,0,mean,sigma);
     }
 
