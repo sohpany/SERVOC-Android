@@ -27,7 +27,7 @@ public final class AnalyticalTransferBootstrap {
 
     public static final String UCI_ASSET="research_data/hr069_analytical_library/uci_mq135_lowconcentration_transfer_fingerprints_v1.json";
     public static final String UCI_SOURCE_SHA256="813ebb7d00ed9172114b68d27ab3213170d6c220b8b23907dce91e9838cd48ab";
-    public static final String UCI_DERIVED_SHA256="d58c12398380dd1ebf075c98b14b2e0758e801699d5b690680816a27bbac0417";
+    public static final String UCI_DERIVED_SHA256="93434b1a3eb84d13d736ca066fb68501374d58d6ca9e845c6111de5cc8e52372";
 
     private static final int[] UCI_ANALYTES={110,103,115,84,105,95};
     private static final String[] UCI_NAMES={"Acetone","Ethanol","Ethyl Acetate","n-Hexane","Isopropanol","Toluene"};
