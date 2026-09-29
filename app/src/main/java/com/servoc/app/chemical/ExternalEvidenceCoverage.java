@@ -46,6 +46,25 @@ public final class ExternalEvidenceCoverage {
         e(110,KNOWN_CONCENTRATION_RESPONSE,"UCI_GSALC_2023","public CC BY 4.0 known-concentration time series","MQ135 + 9 MOS sensors","50/100/200 ppb; 1 Hz; baseline+injection","Acetone response evidence below nominal detection limit."),
         e(115,KNOWN_CONCENTRATION_RESPONSE,"UCI_GSALC_2023","public CC BY 4.0 known-concentration time series","MQ135 + 9 MOS sensors","50/100/200 ppb; 1 Hz; baseline+injection","Ethyl acetate external concentration-labelled evidence."),
 
+        // UCI 270 drift/concentration benchmark. No HR069 MQ channel overlaps, so these are cross-array
+        // identity/concentration priors and model/drift evidence only; they still prevent re-discovery from zero.
+        e(21,KNOWN_CONCENTRATION_RESPONSE,"UCI_GAS_DRIFT_270","public CC BY 4.0 pure-gas concentration-labelled drift benchmark","16-channel TGS2600/TGS2602/TGS2610/TGS2620 array","NH3 approx. 50-1000 ppm; 36-month dataset","Cross-array concentration/identity evidence; no direct HR069 sensor transfer."),
+        e(54,KNOWN_CONCENTRATION_RESPONSE,"UCI_GAS_DRIFT_270","public CC BY 4.0 pure-gas concentration-labelled drift benchmark","16-channel TGS2600/TGS2602/TGS2610/TGS2620 array","Acetaldehyde 5-500 ppm; 36-month dataset","13,910-measurement benchmark contains pure acetaldehyde with concentration labels. Use for feature/model transfer and drift methods; HR069 MQ validation remains required."),
+        e(89,KNOWN_CONCENTRATION_RESPONSE,"UCI_GAS_DRIFT_270","public CC BY 4.0 pure-gas concentration-labelled drift benchmark","16-channel TGS2600/TGS2602/TGS2610/TGS2620 array","Ethylene 10-300 ppm; 36-month dataset","Pure ethylene concentration-labelled cross-array evidence; no direct MQ response vector is implied."),
+        e(103,KNOWN_CONCENTRATION_RESPONSE,"UCI_GAS_DRIFT_270","public CC BY 4.0 pure-gas concentration-labelled drift benchmark","16-channel TGS2600/TGS2602/TGS2610/TGS2620 array","Ethanol 10-600 ppm; 36-month dataset","Cross-array pure-ethanol concentration/drift evidence."),
+        e(110,KNOWN_CONCENTRATION_RESPONSE,"UCI_GAS_DRIFT_270","public CC BY 4.0 pure-gas concentration-labelled drift benchmark","16-channel TGS2600/TGS2602/TGS2610/TGS2620 array","Acetone 12-1000 ppm; 36-month dataset","Cross-array pure-acetone concentration/drift evidence."),
+        e(95,KNOWN_CONCENTRATION_RESPONSE,"UCI_GAS_DRIFT_270","public CC BY 4.0 pure-gas concentration-labelled drift benchmark","16-channel TGS2600/TGS2602/TGS2610/TGS2620 array","Toluene 10-100 ppm; 36-month dataset","Cross-array pure-toluene concentration/drift evidence."),
+
+        // Peer-reviewed MQ3 ethylene study with controlled ppm and humidity. Numerical raw response/model
+        // coefficients are requested from the authors; until received, this is known-concentration evidence,
+        // not a fabricated Rs/R0 equation.
+        e(89,KNOWN_CONCENTRATION_RESPONSE,"KRIVEC_ETHYLENE_MQ3_2015","peer-reviewed open-access MQ3 known-concentration experiment","MQ3 + MiCS-5914","MQ3 at 10/25/40/50 ppm; RH 0/33/64%; 500 mL/min; 600 s exposure","MQ3 response correlates with ethylene over 10-40 ppm (reported R2 > 0.97); prediction accuracy reported +/-9.2 ppm overall and +/-6.7 ppm below 50 ppm. Raw/tabulated coefficients requested; no equation invented."),
+
+        // Peer-reviewed 2024 methanol/ethanol e-nose experiment. The array contains all eight HR069 MQ
+        // models plus MQ6/MQ131/MQ137. Raw data are not public and have been requested from the author.
+        e(102,SAME_ARRAY_FINGERPRINT,"TOZLU_METHANOL_MQ_2024","peer-reviewed CC BY 4.0 exact/superset MQ-array methanol fingerprint study","MQ2/MQ3/MQ4/MQ5/MQ6/MQ7/MQ8/MQ9/MQ131/MQ135/MQ137","168 odor recordings; 8 methanol/ethanol mixture classes from 0% to 100% methanol; 40 s at 10 Hz","All eight HR069 MQ models are present. Strong identity/feature-transfer evidence; classes are liquid mixture ratios rather than gas ppm. Raw 11-channel time series requested from author."),
+        e(103,SAME_ARRAY_FINGERPRINT,"TOZLU_METHANOL_MQ_2024","peer-reviewed CC BY 4.0 exact/superset MQ-array methanol fingerprint study","MQ2/MQ3/MQ4/MQ5/MQ6/MQ7/MQ8/MQ9/MQ131/MQ135/MQ137","168 odor recordings; 8 methanol/ethanol mixture classes including pure ethanol","Corroborating exact/superset MQ-array ethanol/methanol-discrimination evidence; not gas-phase ppm calibration."),
+
         // Peer-reviewed 2026 VOC array includes both MQ135 and MQ3 among 16 channels.
         e(103,KNOWN_CONCENTRATION_RESPONSE,"FRONTIERS_VOC_2026","peer-reviewed concentration-labelled e-nose experiment","MQ135 + MQ3 + 14 other MOS channels","1,3,5,7,9,11,13,15 ppm; 25+/-3 C; 50+/-10% RH","Ethanol pure and equimolar-mixture series; source data/model evidence is external, not HR069 calibration."),
         e(105,KNOWN_CONCENTRATION_RESPONSE,"FRONTIERS_VOC_2026","peer-reviewed concentration-labelled e-nose experiment","MQ135 + MQ3 + 14 other MOS channels","1,3,5,7,9,11,13,15 ppm; 25+/-3 C; 50+/-10% RH","Isopropanol pure and mixture concentration series."),
