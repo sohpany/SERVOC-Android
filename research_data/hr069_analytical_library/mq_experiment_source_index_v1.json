@@ -1,0 +1,149 @@
+{
+  "schema": "hazrob.mq-experiment-source-index.v1",
+  "project": "HazRob",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "generated_date": "2026-09-30",
+  "installed_sensors": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ9","MQ135"],
+  "grading": {
+    "A": "peer-reviewed or traceable scientific dataset; explicit analyte; same MQ model(s) as HR069; known concentration and/or raw numeric response suitable for fingerprint construction",
+    "B": "peer-reviewed or traceable dataset; same MQ model(s) as HR069; explicit analyte or strongly labelled source class, but numeric response vectors are incomplete or source is a complex mixture/class",
+    "C": "different MQ/TGS sensor models or non-analyte source classes; useful for transfer, preprocessing, drift, protocol or feature engineering only"
+  },
+  "policy": {
+    "same_mq_model_experimental_identity": "may be accepted as identification fingerprint evidence",
+    "different_sensor_model": "transfer/reference evidence only",
+    "missing_channels": "must remain missing; never synthesize a sensor response",
+    "runtime_numeric": "requires reproducible numeric vector, raw time series, or source response curve",
+    "reportable_ppm": "requires HR069 device/reference M4 calibration",
+    "m4": false
+  },
+  "sources": [
+    {
+      "grade": "A",
+      "source_id": "WANG_SNB_2022_MTL12",
+      "title": "Target discrimination, concentration prediction, and status judgment of electronic nose system based on large-scale measurement and multi-task deep learning",
+      "doi": "10.1016/j.snb.2021.130915",
+      "sensors": ["MQ2","MQ3","MQ4","MQ5","MQ6","MQ7","MQ8","MQ9"],
+      "hr069_overlap": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ9"],
+      "overlap_count": 7,
+      "analytes": ["methanol","ethanol","ethylene glycol","n-propanol","isopropanol","acetone","butyl acetate","ethyl acetate","toluene/methylbenzene","xylene/dimethylbenzene","benzaldehyde","hexane"],
+      "concentration_domain_ppm": [10,100],
+      "scale": "more than ten million sensing data points and thousands of response processes",
+      "use_for_hazrob": ["same-sensor chemical identity fingerprints","multi-analyte classifier training","sensor importance","concentration-shape priors"],
+      "raw_numeric_local": false,
+      "next_action": "locate/download original SJTU dataset or supplementary response files; map chemically unambiguous labels to 144/652 library"
+    },
+    {
+      "grade": "A",
+      "source_id": "MEI_SENSORS_2025_BINARY_VOC",
+      "title": "Research on Binary Mixed VOCs Gas Identification Method Based on Multi-Task Learning",
+      "doi": "10.3390/s25082355",
+      "sensors": ["MQ2","MQ3","MQ4","MQ5","MQ6","MQ7","MQ8","MQ9"],
+      "hr069_overlap": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ9"],
+      "overlap_count": 7,
+      "analytes": ["ethanol","1-propanol"],
+      "concentration_protocol": "0-100 ppm in 20 ppm increments; pure gases and binary mixtures; 300 s exposure; 300 s recovery; 2 Hz; at least five repeats",
+      "use_for_hazrob": ["pure and mixed VOC fingerprints","mixture recognition methodology","dynamic/transient features"],
+      "raw_numeric_local": false
+    },
+    {
+      "grade": "B",
+      "source_id": "PAREDES_RCQ_2016_LINEAR_ALCOHOLS",
+      "title": "Implementacion y evaluacion de una nariz electronica para la deteccion de alcoholes lineales",
+      "doi": "10.15446/rev.colomb.quim.v45n2.60393",
+      "sensors": ["MQ2","MQ3","CUSTOM_SN02","CUSTOM_PD_SN02"],
+      "hr069_overlap": ["MQ2","MQ3"],
+      "overlap_count": 2,
+      "analytes": ["methanol","ethanol","n-butanol","1-octanol"],
+      "use_for_hazrob": ["accept 1-butanol identity support on MQ2/MQ3","extend molecular library with 1-octanol if present","alcohol-series discrimination"],
+      "runtime_numeric_local": false
+    },
+    {
+      "grade": "A",
+      "source_id": "OSHOVSKY_FOODHUM_2026_VISUAL_FP",
+      "title": "Visual smell fingerprinting with sensor arrays",
+      "doi": "10.1016/j.foohum.2026.101079",
+      "sensors": ["MQ2","MQ3","MQ4","MQ5","MQ6","MQ7","MQ8","MQ9","MQ135"],
+      "hr069_overlap": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ9","MQ135"],
+      "overlap_count": 8,
+      "analytes": ["acetone","ethanol"],
+      "features": ["steady/end response","response rate","pairwise response ratios","pairwise response-rate ratios"],
+      "use_for_hazrob": ["eight-channel exact-model fingerprint feature design","ratio-based normalization resilient to source/device scale","transient-response fingerprinting"],
+      "runtime_numeric_local": false
+    },
+    {
+      "grade": "A",
+      "source_id": "KUMAR_ELECTRONICS_2026_CO",
+      "title": "A Novel E-Nose Architecture Based on Virtual Sensor-Augmented Embedded Intelligence for a Real-Time In-Vehicle Carbon Monoxide Concentration Estimation System",
+      "doi": "10.3390/electronics15081671",
+      "sensors": ["MQ2","MQ3","MQ4","MQ5","MQ6","MQ7","MQ8","MQ135"],
+      "hr069_overlap": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ135"],
+      "overlap_count": 7,
+      "analytes": ["carbon monoxide"],
+      "samples": 2484,
+      "concentration_classes": 6,
+      "concentration_description": "fresh air through high CO; top class reported as 1332++ ppm",
+      "use_for_hazrob": ["seven-channel CO array fingerprint","CO concentration-class modelling","cross-sensitivity exploitation rather than MQ7-only inference"],
+      "runtime_numeric_local": false,
+      "priority": "HIGH because CO is safety critical and already in the 144 list"
+    },
+    {
+      "grade": "B",
+      "source_id": "MAHDIAN_ZENODO_2025_FOOD_FRESHNESS",
+      "title": "Food Freshness Electronic Nose Dataset",
+      "doi": "10.5281/zenodo.17285312",
+      "sensors": ["MQ2","MQ3","MQ4","MQ5","MQ6","MQ7","MQ8","MQ9","MQ135"],
+      "hr069_overlap": ["MQ2","MQ3","MQ4","MQ5","MQ7","MQ8","MQ9","MQ135"],
+      "overlap_count": 8,
+      "sampling": "3-minute time series; repeated at 24-hour intervals; mean room temperature about 23 C",
+      "use_for_hazrob": ["food/source headspace fingerprints","freshness-state recognition","source separation","time-series feature engineering"],
+      "not_for": "pure chemical identity labels unless independent analyte labels are present"
+    },
+    {
+      "grade": "B",
+      "source_id": "WIJNEN_BEEF_MQ_DATASET",
+      "title": "Electronic nose dataset for beef quality monitoring in uncontrolled ambient conditions",
+      "sensors": ["MQ135","MQ136","MQ2","MQ3","MQ4","MQ5","MQ6","MQ8","MQ9"],
+      "hr069_overlap": ["MQ135","MQ2","MQ3","MQ4","MQ5","MQ8","MQ9"],
+      "overlap_count": 7,
+      "classes": ["excellent","good","acceptable","spoiled"],
+      "use_for_hazrob": ["spoilage/headspace fingerprints","temperature/humidity robustness","drift/time-series validation"],
+      "not_for": "pure analyte identity"
+    },
+    {
+      "grade": "B",
+      "source_id": "BACTERIA_ODOR_2026_MQ",
+      "title": "Determination of bacteria-specific odor signatures using low-cost metal oxide gas sensors",
+      "year": 2026,
+      "sensors": ["MQ3","MQ4","MQ5","MQ8","MQ9","MQ135"],
+      "hr069_overlap": ["MQ3","MQ4","MQ5","MQ8","MQ9","MQ135"],
+      "overlap_count": 6,
+      "classes": ["Enterococcus faecalis","Pseudomonas luteola","Proteus mirabilis","Proteus vulgaris/related bacterial odor classes"],
+      "feature": "AUC normalized to blank to form VOC fingerprint",
+      "use_for_hazrob": ["microbial/source fingerprint layer","AUC/blank normalization method","food-spoilage source attribution"],
+      "not_for": "pure chemical identity"
+    },
+    {
+      "grade": "B",
+      "source_id": "MULTIMODALGASDATA_2022",
+      "title": "MultimodalGasData: Multimodal Dataset for Gas Detection and Classification",
+      "doi": "10.3390/data7080112",
+      "sensors": ["MQ2","MQ3","MQ5","MQ6","MQ7","MQ8","MQ135"],
+      "hr069_overlap": ["MQ2","MQ3","MQ5","MQ7","MQ8","MQ135"],
+      "overlap_count": 6,
+      "classes": ["NoGas","Perfume","Smoke","Mixture"],
+      "samples": 6400,
+      "raw_numeric_local": true,
+      "use_for_hazrob": ["already imported as transfer class fingerprints","multimodal fusion benchmark"],
+      "status": "ALREADY_INGESTED"
+    }
+  ],
+  "research_next_priorities": [
+    "locate raw or supplementary files for WANG_SNB_2022_MTL12/SJTU-G919",
+    "locate raw CO dataset from KUMAR_ELECTRONICS_2026_CO",
+    "search same-model MQ experiments for methane, propane, butane/isobutane, hydrogen, LPG, benzene, toluene/xylene isomers, ketones and esters",
+    "mine the full 652-record molecular library for names/CAS matching analytes found in MQ literature",
+    "keep biological/food/source fingerprints in a separate class library from pure-analyte fingerprints"
+  ]
+}
