@@ -12,11 +12,16 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Research-only identification fingerprint priors for the eight HR069 MQ channels.
+ * Source-backed identification fingerprint references for the eight HR069 MQ channels.
  *
- * The vectors are deterministic model-derived expectations in log10(Rs/R0) space. They are
- * generated only where a source-backed response relation exists for the exact MQ channel and
- * analyte. They are NOT empirical HR069 fingerprints and can never be treated as M4.
+ * Project decision 2026-09-29: the available external/uploaded measurements and source-backed
+ * response relations are accepted now as identification references so HazRob can use them for
+ * candidate identity ranking. They may be transfer-recalibrated later. This acceptance does NOT
+ * convert them into device/reference calibration: M4 remains false and reportable ppm remains
+ * governed exclusively by the ChemCore quantitative gate.
+ *
+ * Numeric templates are deterministic expectations in log10(Rs/R0) space and are generated only
+ * where a source-backed response relation exists for the exact MQ channel and analyte.
  */
 public final class ResearchIdentificationFingerprintRegistry {
     private ResearchIdentificationFingerprintRegistry() {}
@@ -24,6 +29,8 @@ public final class ResearchIdentificationFingerprintRegistry {
     public static final String RELEASE="0.10.2";
     public static final String HARDWARE_REVISION="HR069";
     public static final String EVIDENCE_TIER="RESEARCH_EXTERNAL";
+    public static final String IDENTITY_ACCEPTANCE_STATE="ACCEPTED_FOR_IDENTIFICATION";
+    public static final boolean IDENTITY_REFERENCE_ACCEPTED=true;
     public static final boolean M4=false;
     public static final int SENSOR_COUNT=8;
 
@@ -65,13 +72,13 @@ public final class ResearchIdentificationFingerprintRegistry {
         out.add(status(4,MANUFACTURER_AFFINITY_ONLY,false,"MQ135 manufacturer documentation supports a sulfide response category, but no exact H2S Rs/R0 numerical fingerprint is registered for HR069."));
         out.add(status(54,SOURCE_PENDING,false,"Acetaldehyde is a relevant food/headspace VOC, but no exact HR069 MQ response relation has yet been pinned."));
         out.add(status(89,SOURCE_PENDING,false,"Ethylene is a key fruit-ripening gas, but no exact HR069 MQ response relation has yet been pinned."));
-        out.add(status(102,TRANSFER_DATA_AVAILABLE,false,"Methanol has external MQ3 dynamic-heater discrimination data; transfer to the present HR069 acquisition protocol is still required."));
-        out.add(status(103,MODEL_DERIVED_NUMERIC,true,"Ethanol/alcohol has multi-channel source-backed response relations including the MQ3 target channel and a peer-reviewed MQ135 curve."));
-        out.add(status(110,MODEL_DERIVED_NUMERIC,true,"Acetone has an MQ135 peer-reviewed Rs/R0 prior and registered research relation."));
-        out.add(status(115,TRANSFER_DATA_AVAILABLE,false,"Ethyl acetate has external known-concentration MOS-array evidence, but not an exact HR069 MQ response vector yet."));
-        out.add(status(23,MODEL_DERIVED_NUMERIC,true,"CO2 has a peer-reviewed MQ135 cross-response prior; this is identification/screening evidence, not a selective CO2 meter."));
-        out.add(status(21,MODEL_DERIVED_NUMERIC,true,"Ammonia has an MQ135 manufacturer target range and peer-reviewed response prior."));
-        out.add(status(76,MODEL_DERIVED_NUMERIC,true,"Methane has multiple HR069 MQ response channels and manufacturer target channels."));
+        out.add(status(102,TRANSFER_DATA_AVAILABLE,false,"Methanol has external MQ3 dynamic-heater discrimination data; accepted as transfer evidence, but an exact present-protocol numeric vector is still required before direct classifier use."));
+        out.add(status(103,MODEL_DERIVED_NUMERIC,true,"Ethanol/alcohol has multi-channel source-backed response relations including the MQ3 target channel and a peer-reviewed MQ135 curve; accepted for identity ranking."));
+        out.add(status(110,MODEL_DERIVED_NUMERIC,true,"Acetone has an MQ135 peer-reviewed Rs/R0 prior and registered research relation; accepted as an identity prior, with multi-channel transfer evidence retained separately."));
+        out.add(status(115,TRANSFER_DATA_AVAILABLE,false,"Ethyl acetate has external known-concentration MOS-array evidence accepted for transfer/reference use, but not an exact HR069 Rs/R0 vector yet."));
+        out.add(status(23,MODEL_DERIVED_NUMERIC,true,"CO2 has a peer-reviewed MQ135 cross-response prior; accepted for identity screening, not as a selective CO2 meter."));
+        out.add(status(21,MODEL_DERIVED_NUMERIC,true,"Ammonia has an MQ135 manufacturer target range and peer-reviewed response prior; accepted for identity screening."));
+        out.add(status(76,MODEL_DERIVED_NUMERIC,true,"Methane has multiple HR069 MQ response channels and manufacturer target channels; accepted for identity ranking."));
         return Collections.unmodifiableList(out);
     }
 
@@ -117,7 +124,7 @@ public final class ResearchIdentificationFingerprintRegistry {
             contributors++;
         }
         if(contributors==0)return null;
-        String label="RESEARCH_PRIOR|"+name+"|"+formatPpm(ppm)+"ppm|"+RELEASE+"-"+HARDWARE_REVISION;
+        String label="RESEARCH_PRIOR|"+name+"|"+formatPpm(ppm)+"ppm|"+RELEASE+"-"+HARDWARE_REVISION+"|"+IDENTITY_ACCEPTANCE_STATE;
         return new ChemicalFingerprint(chemical,label,0,mean,sigma);
     }
 
