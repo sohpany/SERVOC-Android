@@ -1,0 +1,58 @@
+{
+  "schema": "hazrob.identification-fingerprint-priors.v1",
+  "project": "HazRob",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "evidence_tier": "RESEARCH_EXTERNAL",
+  "m4": false,
+  "vector_space": "log10(Rs/R0)",
+  "installed_sensor_order": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ7", "MQ8", "MQ9", "MQ135"],
+  "concentration_grid_ppm": [10, 25, 50, 100, 200, 300, 500, 1000, 3000, 5000, 10000],
+  "derivation_policy": {
+    "priority": [
+      "peer-reviewed exact sensor/analyte curve inside published domain",
+      "registered GasEngine relation accepted by SensorOperatingEnvelope",
+      "MQDataScience/datasheet-derived ResearchCurveRegistry relation inside declared domain"
+    ],
+    "duplicate_policy": "Use the highest-provenance relation for a physical sensor/analyte channel. Do not average regression coefficients.",
+    "unsupported_channels": "NaN",
+    "heater_policy": "MQ7/MQ9 channels are excluded from research-prior classification unless the current heater-cycle validity is explicitly true.",
+    "uncertainty_log10_sigma": {
+      "peer_reviewed_literature": 0.20,
+      "manufacturer_target": 0.22,
+      "manufacturer_graph": 0.27,
+      "community_or_digitized_research": 0.32
+    },
+    "quantitative_policy": "These templates are identification/screening priors only. They cannot set M4 or safety-grade quantitative status."
+  },
+  "numeric_source_backed_analytes": [
+    {"legacy_id":20,"name":"Carbon Monoxide"},
+    {"legacy_id":21,"name":"Ammonia"},
+    {"legacy_id":23,"name":"Carbon Dioxide"},
+    {"legacy_id":34,"name":"Benzene"},
+    {"legacy_id":75,"name":"Hydrogen"},
+    {"legacy_id":76,"name":"Methane"},
+    {"legacy_id":78,"name":"Propane"},
+    {"legacy_id":84,"name":"n-Hexane"},
+    {"legacy_id":95,"name":"Toluene"},
+    {"legacy_id":103,"name":"Ethanol"},
+    {"legacy_id":110,"name":"Acetone"}
+  ],
+  "food_spoilage_identity_targets": [
+    {"legacy_id":4,"name":"Hydrogen Sulfide","status":"MANUFACTURER_AFFINITY_ONLY","numeric_fingerprint":false,"note":"MQ135 sulfide response category exists, but no exact H2S HR069 numeric Rs/R0 relation is pinned."},
+    {"legacy_id":54,"name":"Acetaldehyde","status":"SOURCE_PENDING","numeric_fingerprint":false},
+    {"legacy_id":89,"name":"Ethylene","status":"SOURCE_PENDING","numeric_fingerprint":false},
+    {"legacy_id":102,"name":"Methanol","status":"TRANSFER_DATA_AVAILABLE","numeric_fingerprint":false,"note":"External MQ3 dynamic-heater discrimination data exists; transfer to HR069 acquisition protocol is pending."},
+    {"legacy_id":103,"name":"Ethanol","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true},
+    {"legacy_id":110,"name":"Acetone","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true},
+    {"legacy_id":115,"name":"Ethyl Acetate","status":"TRANSFER_DATA_AVAILABLE","numeric_fingerprint":false,"note":"External known-concentration MOS-array evidence exists, but no exact HR069 vector is pinned."},
+    {"legacy_id":23,"name":"Carbon Dioxide","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true,"note":"MQ135 cross-response prior; not a selective CO2 instrument."},
+    {"legacy_id":21,"name":"Ammonia","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true},
+    {"legacy_id":76,"name":"Methane","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true}
+  ],
+  "food_freshness_dataset_policy": "Food Freshness E-Nose headspace records are mixture/class fingerprints and are not relabelled as pure ethanol, acetone, ammonia, methane or any other individual analyte without independent chemical labels.",
+  "implementation": {
+    "registry": "app/src/main/java/com/servoc/app/fingerprint/ResearchIdentificationFingerprintRegistry.java",
+    "classifier": "FingerprintClassifier.classifyResearchPriors"
+  }
+}
