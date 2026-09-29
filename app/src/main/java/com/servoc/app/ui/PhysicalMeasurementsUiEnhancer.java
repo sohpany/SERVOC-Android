@@ -2,6 +2,8 @@ package com.servoc.app.ui;
 
 import android.app.Activity;
 import android.graphics.Color;
+import android.graphics.Typeface;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TableLayout;
@@ -17,8 +19,9 @@ import java.util.Locale;
  *
  * The original four-column table allowed Android to shrink every column, which made Arabic labels
  * and engineering units wrap character-by-character on narrow phones. This enhancer applies fixed
- * proportional column weights and restores the MAX4466 dB SPL value from the raw API4 payload when
- * an older normalization layer has omitted db_spl.
+ * proportional column weights, keeps the unit column on one line, emphasizes the measured value,
+ * and restores the MAX4466 dB SPL value from the raw API4 payload if a staged normalization layer
+ * ever omits db_spl.
  */
 public final class PhysicalMeasurementsUiEnhancer implements Runnable {
     private static final String TAG="hazrob_physical_measurements_enhancer";
@@ -98,13 +101,36 @@ public final class PhysicalMeasurementsUiEnhancer implements Runnable {
             for(int i=0;i<Math.min(4,row.getChildCount());i++){
                 View cell=row.getChildAt(i);
                 cell.setLayoutParams(new TableRow.LayoutParams(0,TableRow.LayoutParams.WRAP_CONTENT,WEIGHTS[i]));
-                if(cell instanceof TextView){
-                    TextView tv=(TextView)cell;
+                if(!(cell instanceof TextView))continue;
+                TextView tv=(TextView)cell;
+                tv.setHorizontallyScrolling(false);
+                tv.setPadding(dp(6),dp(r==0?8:9),dp(6),dp(r==0?8:9));
+                if(r==0){
+                    tv.setSingleLine(i==2);
+                    tv.setGravity(Gravity.CENTER_VERTICAL|(i==1||i==2?Gravity.CENTER_HORIZONTAL:Gravity.START));
+                    continue;
+                }
+                if(i==0){
                     tv.setSingleLine(false);
-                    tv.setHorizontallyScrolling(false);
-                    tv.setPadding(dp(6),dp(r==0?8:9),dp(6),dp(r==0?8:9));
-                    if(r>0&&i==1){tv.setTextSize(14);tv.setTextColor(0xFFECEFF1);}
-                    else if(r>0&&i==3)tv.setTextSize(10);
+                    tv.setTextSize(11.5f);
+                    tv.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
+                }else if(i==1){
+                    tv.setSingleLine(true);
+                    tv.setTextSize(14);
+                    tv.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                    tv.setTextColor(0xFFECEFF1);
+                    tv.setGravity(Gravity.CENTER);
+                }else if(i==2){
+                    tv.setSingleLine(true);
+                    tv.setTextSize(10.5f);
+                    tv.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
+                    tv.setGravity(Gravity.CENTER);
+                    tv.setMinWidth(dp(44));
+                }else{
+                    tv.setSingleLine(false);
+                    tv.setMaxLines(3);
+                    tv.setTextSize(10);
+                    tv.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);
                 }
             }
         }
@@ -132,6 +158,7 @@ public final class PhysicalMeasurementsUiEnhancer implements Runnable {
         if(Double.isFinite(db)){
             value.setText(String.format(Locale.US,"%.1f",db));
             value.setTextColor(Color.WHITE);
+            value.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
             String g=Double.isFinite(gain)?String.format(Locale.US,"%.0f×",gain):"25×";
             state.setText("MAX4466 • dB SPL تقديري • Gain "+g);
             state.setTextColor(0xFF81C784);
