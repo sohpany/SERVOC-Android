@@ -19,13 +19,16 @@ public final class MqUsefulEvidenceBootstrap {
     private MqUsefulEvidenceBootstrap() {}
 
     public static final String META_KEY="mq_useful_evidence_hr069_version";
-    public static final String SEED_VERSION="2";
+    public static final String SEED_VERSION="3";
 
     public static final String SRC_PAREDES="PAREDES_RCQ_2016_LINEAR_ALCOHOLS";
     public static final String SRC_KUMAR_CO="KUMAR_ELECTRONICS_2026_CO";
     public static final String SRC_MARQUES_H2="MARQUES_MQ8_H2_2026";
     public static final String SRC_ALVEAR_CO7="ALVEAR_MQ7_CO_2022";
     public static final String SRC_HONEYCUTT_CH4="HONEYCUTT_MQ4_CH4_2019";
+    public static final String SRC_PUTRA_CH4_MQ5="PUTRA_MQ5_CH4_GC_2019";
+    public static final String SRC_KHAKIM_LPG="KHAKIM_MQ_LPG_2026";
+    public static final String SRC_WINSEN_MQ5_PROPANE="WINSEN_MQ5_PROPANE_CURRENT";
 
     public static void ensure(SQLiteDatabase db){
         if(db==null||db.isReadOnly())return;
@@ -33,13 +36,17 @@ public final class MqUsefulEvidenceBootstrap {
         db.beginTransaction();
         try{
             seedSources(db);
-            db.delete("sensor_evidence","source_id IN (?,?,?,?,?)",
-                    new String[]{SRC_PAREDES,SRC_KUMAR_CO,SRC_MARQUES_H2,SRC_ALVEAR_CO7,SRC_HONEYCUTT_CH4});
+            db.delete("sensor_evidence","source_id IN (?,?,?,?,?,?,?,?)",
+                    new String[]{SRC_PAREDES,SRC_KUMAR_CO,SRC_MARQUES_H2,SRC_ALVEAR_CO7,SRC_HONEYCUTT_CH4,
+                            SRC_PUTRA_CH4_MQ5,SRC_KHAKIM_LPG,SRC_WINSEN_MQ5_PROPANE});
             seedButanol(db);
             seedCarbonMonoxideArray(db);
             seedHydrogenMq8Curve(db);
             seedCarbonMonoxideMq7Curve(db);
             seedMethaneMq4Experiment(db);
+            seedMethaneMq5GcValidation(db);
+            seedLpgMultiMqValidation(db);
+            seedPropaneMq5ManufacturerAnchor(db);
             putMeta(db,META_KEY,SEED_VERSION);
             putMeta(db,"mq_useful_evidence_hr069_policy","USE_ANY_TRACEABLE_SAME_MQ_FINGERPRINT_CURVE_OR_PPM_EVIDENCE_NO_SYNTHETIC_CHANNELS_M4_SEPARATE");
             db.setTransactionSuccessful();
@@ -72,6 +79,21 @@ public final class MqUsefulEvidenceBootstrap {
                 "Honeycutt et al.","10.3390/s19143157",
                 "https://doi.org/10.3390/s19143157","B","2019 / peer reviewed",
                 "Controlled MQ4 methane calibration using known gas mixtures and a precision NDIR analyzer. Calibration concentrations were generated from 1.85-995 ppm, additional responses included 500-2200 ppm, settling time was about 78+/-10 s, and the calibration-corrected MQ4 detection limit was 82 ppm.");
+        source(db,SRC_PUTRA_CH4_MQ5,
+                "Sistem Pendeteksi Kadar Gas Methana (CH4) Berbasis IoT Menggunakan NodeMCU ESP8266 dan Sensor Gas MQ-5",
+                "Putra et al.","10.14710/transient.v8i2.181-186",
+                "https://doi.org/10.14710/transient.v8i2.181-186","B","2019 / peer reviewed",
+                "Exact MQ5 methane validation. Fifteen-minute field measurement averaged 201.4 ppm and was compared with gas chromatography used as the calibration/reference method; reported delta error was 2.14 percent.");
+        source(db,SRC_KHAKIM_LPG,
+                "An Experimental Evaluation of Low-Cost MQ-Series LPG Sensors under Varying Temperature Conditions",
+                "Khakim et al.","10.48084/etasr.15843",
+                "https://doi.org/10.48084/etasr.15843","B","2026 / peer reviewed / CC BY 4.0",
+                "Controlled LPG evaluation of MQ2/MQ4/MQ5/MQ6 from 15-31 C against a Bosean BTY-S100 reference instrument. HR069 overlaps MQ2/MQ4/MQ5. MQ2 was most stable overall; exact per-temperature ranges and fit metrics are preserved in sensor evidence.");
+        source(db,SRC_WINSEN_MQ5_PROPANE,
+                "MQ-5 Semiconductor Sensor for Flammable Gas",
+                "Zhengzhou Winsen Electronics Technology Co., Ltd.","",
+                "https://www.winsen-sensor.com/product/mq-5.html","A","current manufacturer documentation",
+                "Exact installed MQ5 model. Target LPG/CH4, with CH4 and C3H8 detection range 300-10000 ppm. Sensitivity specification Rs(air)/Rs(2000 ppm C3H8)>=5 and concentration slope alpha<=0.6 for R3000/R1000 C3H8.");
     }
 
     private static void seedButanol(SQLiteDatabase db){
@@ -159,6 +181,66 @@ public final class MqUsefulEvidenceBootstrap {
         }catch(Exception ignored){}
         evidence(db,"MQ4",uid,"PEER_REVIEWED_KNOWN_CONCENTRATION_CALIBRATION_EXPERIMENT",p.toString(),1.85,995.0,
                 SRC_HONEYCUTT_CH4,"B_PEER_REVIEWED_EXACT_MQ_KNOWN_CONCENTRATION","ACCEPTED_IDENTITY_AND_QUANTITATIVE_REFERENCE_EXPERIMENT");
+    }
+
+    private static void seedMethaneMq5GcValidation(SQLiteDatabase db){
+        Long uid=chemicalUid(db,76);if(uid==null)return;
+        JSONObject p=new JSONObject();
+        try{
+            p.put("analyte","Methane");p.put("sensor","MQ5");
+            p.put("measurement_duration_min",15);p.put("mean_sensor_ppm",201.4);
+            p.put("reference_method","gas chromatography");p.put("reported_delta_error_percent",2.14);
+            p.put("identity_fingerprint_accepted",true);p.put("quantitative_reference",true);
+            p.put("full_curve_available",false);p.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"MQ5",uid,"PEER_REVIEWED_GC_VALIDATED_PPM_POINT",p.toString(),null,null,
+                SRC_PUTRA_CH4_MQ5,"B_PEER_REVIEWED_EXACT_MQ_REFERENCE_COMPARISON","ACCEPTED_QUANTITATIVE_VALIDATION_POINT");
+    }
+
+    private static void seedLpgMultiMqValidation(SQLiteDatabase db){
+        Long uid=chemicalUid(db,135);if(uid==null)return;
+        JSONObject p=new JSONObject();
+        try{
+            p.put("analyte_class","LPG");
+            p.put("sensors",new JSONArray().put("MQ2").put("MQ4").put("MQ5"));
+            p.put("reference_instrument","Bosean BTY-S100");p.put("temperature_c_min",15);p.put("temperature_c_max",31);
+            JSONArray schemes=new JSONArray();
+            schemes.put(lpgScheme("15-20", "MQ2",63,357,7.87,4.15,0.96,4.30));
+            schemes.put(lpgScheme("15-20", "MQ4",36,313,34.85,18.36,0.98,16.21));
+            schemes.put(lpgScheme("15-20", "MQ5",41,338,9.80,5.16,0.94,3.92));
+            schemes.put(lpgScheme("21-25", "MQ2",409,703,12.38,2.22,0.96,2.31));
+            schemes.put(lpgScheme("21-25", "MQ4",188,465,239.67,43.05,0.98,41.47));
+            schemes.put(lpgScheme("21-25", "MQ5",397,694,20.47,3.68,0.94,3.81));
+            schemes.put(lpgScheme("26-31", "MQ2",5,273,7.09,7.03,0.96,9.09));
+            schemes.put(lpgScheme("26-31", "MQ4",10,204,41.20,40.83,0.86,69.83));
+            schemes.put(lpgScheme("26-31", "MQ5",45,298,11.25,11.15,0.93,9.96));
+            p.put("schemes",schemes);p.put("best_overall_sensor","MQ2");
+            p.put("identity_fingerprint_accepted",true);p.put("quantitative_reference",true);p.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"ARRAY:MQ2,MQ4,MQ5",uid,"PEER_REVIEWED_MULTI_MQ_LPG_REFERENCE_VALIDATION",p.toString(),5.0,703.0,
+                SRC_KHAKIM_LPG,"B_PEER_REVIEWED_MULTI_MQ_REFERENCE_COMPARISON","ACCEPTED_LPG_FINGERPRINT_AND_QUANTITATIVE_REFERENCE");
+    }
+
+    private static JSONObject lpgScheme(String tempBand,String sensor,double min,double max,double rmse,double rrmse,double r2,double deviation){
+        JSONObject o=new JSONObject();
+        try{o.put("temperature_c",tempBand);o.put("sensor",sensor);o.put("min_ppm",min);o.put("max_ppm",max);
+            o.put("rmse",rmse);o.put("rrmse_percent",rrmse);o.put("r2",r2);o.put("relative_deviation_percent",deviation);}catch(Exception ignored){}
+        return o;
+    }
+
+    private static void seedPropaneMq5ManufacturerAnchor(SQLiteDatabase db){
+        Long uid=chemicalUid(db,78);if(uid==null)return;
+        JSONObject p=new JSONObject();
+        try{
+            p.put("analyte","Propane");p.put("sensor","MQ5");p.put("formula","C3H8");
+            p.put("detection_min_ppm",300);p.put("detection_max_ppm",10000);
+            p.put("sensitivity_reference_ppm",2000);p.put("rs_air_over_rs_2000ppm_min",5.0);
+            p.put("slope_low_ppm",1000);p.put("slope_high_ppm",3000);p.put("r3000_over_r1000_max",0.6);
+            p.put("manufacturer_target",true);p.put("identity_fingerprint_accepted",true);
+            p.put("full_numeric_curve_available",false);p.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"MQ5",uid,"MANUFACTURER_PROPANE_KNOWN_CONCENTRATION_ANCHORS",p.toString(),300.0,10000.0,
+                SRC_WINSEN_MQ5_PROPANE,"A_MANUFACTURER_EXACT_MQ_KNOWN_CONCENTRATION","ACCEPTED_PROPANE_IDENTITY_AND_EXPERIMENT_ANCHORS");
     }
 
     private static void evidence(SQLiteDatabase db,String sensorKey,Long chemicalUid,String type,String payload,
