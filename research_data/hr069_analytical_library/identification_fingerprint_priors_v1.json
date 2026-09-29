@@ -110,7 +110,7 @@
     {
       "source_id": "MQDS-003",
       "asset": "research_data/hr069_analytical_library/uci_mq135_lowconcentration_transfer_fingerprints_v1.json",
-      "derived_file_sha256": "d58c12398380dd1ebf075c98b14b2e0758e801699d5b690680816a27bbac0417",
+      "derived_file_sha256": "93434b1a3eb84d13d736ca066fb68501374d58d6ca9e845c6111de5cc8e52372",
       "source_file_sha256": "813ebb7d00ed9172114b68d27ab3213170d6c220b8b23907dce91e9838cd48ab",
       "analytes": [
         {"legacy_id":110,"name":"Acetone"},
