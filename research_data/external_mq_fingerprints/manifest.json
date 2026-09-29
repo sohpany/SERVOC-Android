@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "project": "HazRob",
   "release": "0.10.2",
   "hardware_revision": "HR069",
@@ -76,12 +76,38 @@
       "mirror_policy": "fetch-with-attribution"
     }
   ],
+  "candidate_sources": [
+    {
+      "id": "MQ-CAND-001",
+      "title": "RoboSense: Real-World Industrial Hazard Monitoring Dataset",
+      "canonical_url": "https://github.com/Amr-Khamis-84/RoboSense-Dataset",
+      "license": "CC0 1.0 Universal",
+      "license_verified": true,
+      "sensors": ["MQ2", "MQ3", "MQ5", "MQ7", "MQ8", "MQ135"],
+      "hr069_overlap": ["MQ2", "MQ3", "MQ5", "MQ7", "MQ8", "MQ135"],
+      "platform_notes": "ESP32-based fixed suites and autonomous mobile robots; documented industrial hazard classes and 1 sample/min acquisition",
+      "admission_status": "pending-raw-data-location",
+      "reason": "repository documentation names Real_Dataset.csv but the current repository root does not expose the raw CSV"
+    }
+  ],
   "excluded_non_mq_fingerprint_sources": [
     {
       "title": "UCI Gas Sensor Array Drift at Different Concentrations",
       "reason": "valuable for drift methodology but not an MQ-series HazRob fingerprint array",
       "canonical_url": "https://archive.ics.uci.edu/dataset/270/gas%2Bsensor%2Barray%2Bdrift%2Bdataset",
       "doi": "10.24432/C5MK6M"
+    },
+    {
+      "title": "UCI Gas sensor array under flow modulation",
+      "reason": "16-sensor Figaro TGS array; method reference only, not MQ fingerprint data",
+      "canonical_url": "https://archive.ics.uci.edu/dataset/308/gas%2Bsensor%2Barray%2Bunder%2Bflow%2Bmodulation",
+      "doi": "10.24432/C5BG7G"
+    },
+    {
+      "title": "UCI Gas sensor array exposed to turbulent gas mixtures",
+      "reason": "8-sensor Figaro TGS array; useful for plume/mixture methodology but not MQ fingerprint data",
+      "canonical_url": "https://archive.ics.uci.edu/dataset/309/gas%2Bsensor%2Barray%2Bexposed%2Bto%2Bturbulent%2Bgas%2Bmixtures",
+      "doi": "10.24432/C5JS5P"
     }
   ]
 }
