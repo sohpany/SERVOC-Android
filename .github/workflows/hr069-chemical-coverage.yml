@@ -1,0 +1,29 @@
+name: HR069 Chemical Coverage Audit
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'release/hazrob-0.10.2'
+    paths:
+      - 'app/src/main/java/com/servoc/app/chemical/**'
+      - 'app/src/test/java/com/servoc/app/chemical/**'
+      - 'app/src/main/assets/generated/niosh/**'
+      - 'research_data/chemical_coverage_hr069/**'
+      - 'tools/audit_hr069_chemical_coverage.py'
+      - '.github/workflows/hr069-chemical-coverage.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Validate 144/652 evidence coverage and M4 isolation
+        run: python3 tools/audit_hr069_chemical_coverage.py --check
+      - name: Emit coverage report
+        run: python3 tools/audit_hr069_chemical_coverage.py
