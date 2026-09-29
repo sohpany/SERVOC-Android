@@ -99,6 +99,8 @@ def main() -> int:
     # Current physical safety contract.
     req(cfg, "ULTRA_WARN_CM=10.0f", "collision warning threshold")
     req(cfg, "ULTRA_STOP_CM=5.0f", "collision stop threshold")
+    req(cfg, "IR_GROUND_ACTIVE=LOW", "IR ground-detected polarity contract")
+    req(hw, "bool irWarning=true,irGroundDetected=false", "IR startup fail-safe gate")
     req(hw, "forwardBlocked=irWarning||ultraStop", "forward safety interlock")
     req(hw, r'\"forward_blocked\"', "safety telemetry")
 
