@@ -1,11 +1,12 @@
 {
-  "schema_version": "1.1.0",
+  "schema_version": "1.2.0",
   "project": "HazRob",
   "release": "0.10.2",
   "hardware_revision": "HR069",
   "evidence_class": "RESEARCH_EXTERNAL",
   "authoritative_quantification_allowed": false,
   "installed_mq_array": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ7", "MQ8", "MQ9", "MQ135"],
+  "duplicate_source_policy": "Prefer the original peer-reviewed/dataset-hosted source over later mirrors or repackaged tables. Never count duplicate or derivative copies as independent fingerprint evidence.",
   "sources": [
     {
       "id": "MQDS-001",
@@ -27,7 +28,11 @@
       "known_reference_concentration": false,
       "research_uses": ["classification benchmark", "fingerprint prototype", "cross-sensitivity study"],
       "quantitative_ppm_eligible": false,
-      "mirror_policy": "pin-upstream-and-fetch"
+      "provenance_status": "secondary-copy-or-derivative-pending-equivalence-check",
+      "independent_evidence_weight": 0,
+      "possible_parent_source": "MQDS-004",
+      "reason": "The same seven-sensor ordering and the same four labels occur in the earlier peer-reviewed MultimodalGasData source. Example values are also closely aligned, with at least one observed row-level discrepancy. Treat as non-independent until provenance/equivalence is proven.",
+      "mirror_policy": "pin-for-audit-do-not-double-count"
     },
     {
       "id": "MQDS-002",
@@ -50,6 +55,7 @@
       "known_reference_concentration": false,
       "research_uses": ["eight-channel HR069 fingerprint benchmark", "transient feature extraction", "source separation", "classification"],
       "quantitative_ppm_eligible": false,
+      "independent_evidence_weight": 1,
       "mirror_policy": "canonical-link-only-until-license-confirmed"
     },
     {
@@ -73,6 +79,31 @@
       "known_reference_concentration": true,
       "research_uses": ["MQ135 low-concentration behavior", "time-series feature engineering", "classification/regression methodology"],
       "quantitative_ppm_eligible": false,
+      "independent_evidence_weight": 1,
+      "mirror_policy": "fetch-with-attribution"
+    },
+    {
+      "id": "MQDS-004",
+      "title": "MultimodalGasData: Multimodal Dataset for Gas Detection and Classification",
+      "canonical_url": "https://data.mendeley.com/datasets/zkwgkjkjn9/2",
+      "doi_dataset": "10.17632/zkwgkjkjn9.2",
+      "doi_article": "10.3390/data7080112",
+      "published": "2022-06-10",
+      "license": "CC BY 4.0",
+      "license_verified": true,
+      "samples": 6400,
+      "samples_per_class": 1600,
+      "sensors": ["MQ2", "MQ3", "MQ5", "MQ6", "MQ7", "MQ8", "MQ135"],
+      "hr069_overlap": ["MQ2", "MQ3", "MQ5", "MQ7", "MQ8", "MQ135"],
+      "hr069_missing_from_source": ["MQ4", "MQ9"],
+      "source_extra_sensors": ["MQ6"],
+      "labels": ["NoGas", "Smoke", "Perfume", "Mixture"],
+      "known_reference_concentration": false,
+      "raw_measurement_type": "10-bit ADC-equivalent sensor outputs",
+      "research_uses": ["canonical smoke/perfume fingerprint benchmark", "classifier validation", "feature attribution", "mixture rejection"],
+      "quantitative_ppm_eligible": false,
+      "independent_evidence_weight": 1,
+      "provenance_status": "preferred-canonical-source-for-this-four-class-seven-sensor-dataset",
       "mirror_policy": "fetch-with-attribution"
     }
   ],
@@ -90,7 +121,7 @@
       "reason": "repository documentation names Real_Dataset.csv but the current repository root does not expose the raw CSV"
     }
   ],
-  "excluded_non_mq_fingerprint_sources": [
+  "excluded_or_method_only_sources": [
     {
       "title": "UCI Gas Sensor Array Drift at Different Concentrations",
       "reason": "valuable for drift methodology but not an MQ-series HazRob fingerprint array",
@@ -108,6 +139,11 @@
       "reason": "8-sensor Figaro TGS array; useful for plume/mixture methodology but not MQ fingerprint data",
       "canonical_url": "https://archive.ics.uci.edu/dataset/309/gas%2Bsensor%2Barray%2Bexposed%2Bto%2Bturbulent%2Bgas%2Bmixtures",
       "doi": "10.24432/C5JS5P"
+    },
+    {
+      "title": "Advanced Gas Detection and Classification using MQ Series Sensors Integrated with Machine Learning and Deep Learning Techniques",
+      "doi": "10.17632/jmhr42p7sf.1",
+      "reason": "uses MQ135/MQ5/MQ6 and publishes PPM-labelled data, but the sensors were simulated in Proteus. Retained as algorithm/UI test material only; excluded from empirical fingerprint/calibration evidence."
     }
   ]
 }
