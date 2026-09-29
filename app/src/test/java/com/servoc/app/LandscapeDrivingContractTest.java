@@ -22,10 +22,10 @@ public class LandscapeDrivingContractTest {
         assertTrue(manifest.contains("android:name=\".HazRobApplication\""));
     }
 
-    @Test public void landscapeSuppressesTabbedShellButRetainsControlPage() throws Exception {
+    @Test public void landscapeSuppressesNavigationButRetainsSafetyStatusAndControlPage() throws Exception {
         String app=source("src/main/java/com/servoc/app/HazRobApplication.java");
         assertTrue(app.contains("Configuration.ORIENTATION_LANDSCAPE"));
-        assertTrue(app.contains("root.getChildAt(0).setVisibility(View.GONE)"));
+        assertTrue(app.contains("root.getChildAt(0).setVisibility(View.VISIBLE)"));
         assertTrue(app.contains("root.getChildAt(1).setVisibility(View.GONE)"));
         assertTrue(app.contains("root.getChildAt(3).setVisibility(View.GONE)"));
         assertTrue(app.contains("box.getChildAt(0).setVisibility(View.GONE)"));
