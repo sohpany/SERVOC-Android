@@ -1,0 +1,100 @@
+{
+  "schema": "hazrob.external-mox-numeric-transfer-batch.v1",
+  "project": "HazRob",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "policy": {
+    "role": "cross-device numeric identification/transfer evidence",
+    "direct_hr069_fingerprint": false,
+    "quantitative_hr069_ppm": false,
+    "m4": false,
+    "requirements": [
+      "Preserve source-device feature definitions and concentration domains",
+      "Do not interpret source sensor channels as MQ2/MQ3/MQ4/MQ5/MQ7/MQ8/MQ9/MQ135 channels",
+      "Require explicit source-to-HR069 transfer validation before promoting a numeric HR069 vector",
+      "Require device/reference calibration before reportable HR069 ppm"
+    ]
+  },
+  "repository_source": {
+    "repository": "camberbatch/Breath_analysis",
+    "pinned_commit": "ccae9327801bebdc9b880b9043af839d0dcdff35",
+    "chapter2_file": "Chapter 2/MS_1_calibration_data.csv",
+    "chapter4_file": "Chapter 4/MS_2.1 - 2.2. Samples_indidual VOCs.csv",
+    "feature_units_chapter2": "microSiemens*second integrated sensor response",
+    "feature_units_chapter4": "Siemens*second integrated sensor response",
+    "source_sensor_count": 6,
+    "chapter4_operating_states": [2.6, 3.0, 3.4],
+    "chapter4_features_per_sample": 18
+  },
+  "peer_reviewed_sources": [
+    {
+      "source_id": "KONONOV_JBR_2020",
+      "title": "Online breath analysis using metal oxide semiconductor sensors (electronic nose) for diagnosis of lung cancer",
+      "journal": "Journal of Breath Research",
+      "doi": "10.1088/1752-7163/ab433d",
+      "evidence_tier": "B_PEER_REVIEWED_MOX_CALIBRATION",
+      "relevance": "Six MOX chemoresistive sensors operated in three temperature regimes; published calibration curves include heptane, 1-propanol and ethylbenzene at 210 C."
+    },
+    {
+      "source_id": "KONONOV_RESULTS_CHEM_2023",
+      "title": "Accuracy calibration transfer between multi-sensor systems based on metal-oxide gas sensors used for analysis of exhaled air",
+      "journal": "Results in Chemistry",
+      "doi": "10.1016/j.rechem.2023.101188",
+      "evidence_tier": "B_PEER_REVIEWED_CALIBRATION_TRANSFER",
+      "relevance": "Two independent MOX multisensor systems; one- and three-component mixtures; UDS/UDSwoi classification accuracy 0.985/0.990 with four transfer samples."
+    }
+  ],
+  "chemicals": [
+    {
+      "legacy_id": 85,
+      "catalog_name": "n-Heptane",
+      "formula": "C7H16",
+      "status": "NUMERIC_CROSS_DEVICE_TRANSFER_DATA_AVAILABLE",
+      "chapter2": {
+        "source_name": "n-Heptane",
+        "observed_concentrations_ppm": [0, 1.7, 17, 168, 300, 500],
+        "source_channels": 6,
+        "replicates_observed": 3,
+        "numeric_matrix_available": true
+      },
+      "chapter4": {
+        "source_name": "n-heptane",
+        "concentrations_ppm": [1.2, 2.4, 6.1, 12.1, 24.3, 60.7, 121.5],
+        "source_systems": 2,
+        "parallel_repeats_per_system": 2,
+        "operating_states": 3,
+        "channels_per_state": 6,
+        "numeric_matrix_available": true
+      }
+    },
+    {
+      "legacy_id": 97,
+      "catalog_name": "o-Xylene",
+      "formula": "C8H10",
+      "status": "NUMERIC_CROSS_DEVICE_TRANSFER_DATA_AVAILABLE",
+      "chapter4": {
+        "source_name": "o-xylene",
+        "concentrations_ppm": [1.5, 3.0, 7.4, 14.9, 29.7, 74.3, 148.5],
+        "source_systems": 2,
+        "parallel_repeats_per_system": 2,
+        "operating_states": 3,
+        "channels_per_state": 6,
+        "numeric_matrix_available": true
+      }
+    },
+    {
+      "legacy_id": 96,
+      "catalog_name": "Ethylbenzene",
+      "formula": "C8H10",
+      "status": "NUMERIC_CROSS_DEVICE_CALIBRATION_DATA_AVAILABLE",
+      "chapter2": {
+        "source_name": "Ethylbenzene",
+        "observed_concentrations_ppm": [0.48, 4.8, 48, 96, 192, 384],
+        "source_channels": 6,
+        "replicates_observed": 3,
+        "numeric_matrix_available": true,
+        "peer_reviewed_calibration_curve_at_210c": true
+      }
+    }
+  ]
+}
