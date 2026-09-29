@@ -9,8 +9,9 @@ import java.util.Set;
 import static org.junit.Assert.*;
 
 public class ResearchIdentificationFingerprintRegistryTest {
-    @Test public void sourceBackedLibraryCoversAllDeclaredNumericAnalytesWithoutM4(){
+    @Test public void sourceBackedLibraryCoversAllDeclaredNumericFamiliesWithoutM4(){
         assertFalse(ResearchIdentificationFingerprintRegistry.M4);
+        assertTrue(ResearchIdentificationFingerprintRegistry.REFERENCE_PPM_ACCEPTED);
         List<ChemicalFingerprint> library=ResearchIdentificationFingerprintRegistry.library();
         assertFalse(library.isEmpty());
         Set<Integer> found=new HashSet<>();
@@ -18,7 +19,7 @@ public class ResearchIdentificationFingerprintRegistryTest {
             found.add(f.chemicalId);
             assertEquals(8,f.meanLogRatio.length);
             assertEquals(8,f.sigmaLogRatio.length);
-            assertEquals(0,f.sampleCount); // deterministic research prior, not empirical captures
+            assertEquals(0,f.sampleCount); // deterministic source-backed reference, not HR069 empirical captures
             assertTrue(f.label.startsWith("RESEARCH_PRIOR|"));
             boolean finite=false;
             for(int i=0;i<8;i++){
@@ -30,11 +31,17 @@ public class ResearchIdentificationFingerprintRegistryTest {
             }
             assertTrue(finite);
         }
-        for(int id:ResearchIdentificationFingerprintRegistry.NUMERIC_ANALYTES){
-            assertTrue("missing research fingerprint for chemical "+id,found.contains(id));
+        int[] expected=ResearchIdentificationFingerprintRegistry.allNumericFingerprintIds();
+        for(int id:expected){
+            assertTrue("missing research fingerprint for chemical/class "+id,found.contains(id));
             assertTrue(ResearchIdentificationFingerprintRegistry.templateCountForChemical(id)>0);
         }
-        assertEquals(ResearchIdentificationFingerprintRegistry.NUMERIC_ANALYTES.length,found.size());
+        assertEquals(expected.length,found.size());
+        assertEquals(13,found.size());
+        assertTrue(found.contains(135)); // LPG operational class
+        assertTrue(found.contains(139)); // Smoke operational class
+        assertTrue(ResearchIdentificationFingerprintRegistry.isOperationalClass(135));
+        assertTrue(ResearchIdentificationFingerprintRegistry.isOperationalClass(139));
     }
 
     @Test public void foodSpoilageTargetsDoNotInventUnsupportedNumericFingerprints(){
