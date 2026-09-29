@@ -17,6 +17,11 @@ public final class LiteratureCurveRegistry {
     public static final String UMBU_2023_DOI="10.23960/jtaf.v11i2.314";
     public static final String UMBU_2023_TITLE="Analisis Grafik Karakteristik Sensitivitas Sensor MQ-135 untuk Menentukan Persamaan Hubungan antara ppm dan Rs/Ro";
 
+    public static final String MQ8_H2_2026_ID="MARQUES_MQ8_H2_2026";
+    public static final String MQ8_H2_2026_DOI="10.3390/app16104863";
+    public static final String MQ7_CO_2022_ID="ALVEAR_MQ7_CO_2022";
+    public static final String MQ7_CO_2022_DOI="10.3390/s22187015";
+
     public static final int PEER_REVIEWED_DATASHEET_GRAPH_FIT=3;
 
     public static final class Curve {
@@ -51,14 +56,8 @@ public final class LiteratureCurveRegistry {
     }
 
     /**
-     * Umbu (2023) digitized ten points per gas from the MQ-135 typical sensitivity graph
-     * and fitted power regressions in log-log space. The published analyzed interval is
-     * 10-100 ppm. R2 values are retained to make the provenance/audit trail explicit.
-     *
-     * Where GasEngine/MQDataScience contain a duplicate MQ135/analyte equation, this
-     * peer-reviewed fit is preferred INSIDE ITS DECLARED 10-100 ppm domain. Outside that
-     * domain HazRob may fall back to lower-tier research evidence; it must not extrapolate
-     * this peer-reviewed equation beyond the source data.
+     * Highest-provenance exact-model response relations currently accepted for research identity/reference use.
+     * No relation in this registry is HR069 M4 calibration; source domains are enforced and extrapolation is forbidden.
      */
     public static final Curve[] CURVES={
             c(GasEngine.MQ135,110,"Acetone",2.7295,-0.2822,10,100,0.9996,"Published Eq. 16"),
@@ -66,11 +65,28 @@ public final class LiteratureCurveRegistry {
             c(GasEngine.MQ135,103,"Alcohol / ethanol mapping",3.8659,-0.3091,10,100,0.9996,"Published Eq. 18; source labels alcohol; HazRob legacy mapping uses ethanol for comparison"),
             c(GasEngine.MQ135,23,"Carbon dioxide",4.9999,-0.3387,10,100,0.9998,"Published Eq. 19; cross-response prior, not a selective CO2 instrument"),
             c(GasEngine.MQ135,21,"Ammonia",6.4835,-0.4060,10,100,0.9996,"Published Eq. 20"),
-            c(GasEngine.MQ135,20,"Carbon monoxide",5.2629,-0.2668,10,100,0.9992,"Published Eq. 21; cross-response prior")
+            c(GasEngine.MQ135,20,"Carbon monoxide",5.2629,-0.2668,10,100,0.9992,"Published Eq. 21; cross-response prior"),
+
+            // Marques et al. (2026), Applied Sciences: C(ppm)=1000*(Rs/R0)^(-0.68).
+            // Algebraically: Rs/R0 = 25808.6154 * ppm^(-1.470588...). Source table spans 200-10000 ppm H2.
+            cSource(GasEngine.MQ8,75,"Hydrogen",25808.615404180728,-1.4705882352941175,
+                    200,10000,Double.NaN,MQ8_H2_2026_ID,MQ8_H2_2026_DOI,
+                    "Peer-reviewed MQ8 H2 Eq. 16 converted algebraically to ratio=a*ppm^b; source also reports experimental validation; approximate reference curve, non-M4"),
+
+            // Alvear-Puertas et al. (2022), Sensors: CO(ppm)=10^((log10(17.5)-log10(Rs/R0))/0.63).
+            // Therefore Rs/R0 = 17.5 * ppm^(-0.63), using the published MQ7 conversion relation.
+            cSource(GasEngine.MQ7,20,"Carbon monoxide",17.5,-0.63,
+                    20,2000,Double.NaN,MQ7_CO_2022_ID,MQ7_CO_2022_DOI,
+                    "Peer-reviewed MQ7 CO conversion curve; exact-model reference relation inside published 20-2000 ppm domain; heater-cycle validity still required; non-M4")
     };
 
     private static Curve c(int sensor,int chemical,String label,double a,double b,double min,double max,double r2,String note){
         return new Curve(sensor,chemical,label,a,b,min,max,r2,UMBU_2023_ID,UMBU_2023_DOI,PEER_REVIEWED_DATASHEET_GRAPH_FIT,note);
+    }
+
+    private static Curve cSource(int sensor,int chemical,String label,double a,double b,double min,double max,double r2,
+                                 String sourceId,String doi,String note){
+        return new Curve(sensor,chemical,label,a,b,min,max,r2,sourceId,doi,PEER_REVIEWED_DATASHEET_GRAPH_FIT,note);
     }
 
     public static int count(){return CURVES.length;}
