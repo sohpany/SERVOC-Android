@@ -11,6 +11,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
 import com.servoc.app.ui.EchoDistanceBadge;
+import com.servoc.app.ui.GasHazardBadge;
 import com.servoc.app.ui.HazRobHost;
 
 /**
@@ -26,6 +27,7 @@ import com.servoc.app.ui.HazRobHost;
  */
 public final class HazRobApplication extends Application implements Application.ActivityLifecycleCallbacks {
     private static final String ECHO_BADGE_TAG="hazrob_echo_distance_badge";
+    private static final String GAS_BADGE_TAG="hazrob_gas_hazard_badge";
 
     @Override public void onCreate(){
         super.onCreate();
@@ -40,24 +42,37 @@ public final class HazRobApplication extends Application implements Application.
         return Math.round(value*activity.getResources().getDisplayMetrics().density);
     }
 
-    private static void installEchoDistanceBadge(Activity activity,ViewGroup pageGroup){
-        if(!(activity instanceof HazRobHost)||pageGroup.getChildCount()<1)return;
+    private static FrameLayout drivingCameraBox(Activity activity,ViewGroup pageGroup){
+        if(!(activity instanceof HazRobHost)||pageGroup.getChildCount()<1)return null;
         View wrapped=pageGroup.getChildAt(0);
-        if(!(wrapped instanceof LinearLayout))return;
+        if(!(wrapped instanceof LinearLayout))return null;
         LinearLayout box=(LinearLayout)wrapped;
-        if(box.getChildCount()<2)return;
+        if(box.getChildCount()<2)return null;
         View control=box.getChildAt(1);
-        if(!(control instanceof LinearLayout))return;
+        if(!(control instanceof LinearLayout))return null;
         LinearLayout controlRoot=(LinearLayout)control;
-        if(controlRoot.getChildCount()<1)return;
+        if(controlRoot.getChildCount()<1)return null;
         View camera=controlRoot.getChildAt(0);
-        if(!(camera instanceof FrameLayout))return;
-        FrameLayout cameraBox=(FrameLayout)camera;
-        if(cameraBox.findViewWithTag(ECHO_BADGE_TAG)!=null)return;
+        return camera instanceof FrameLayout?(FrameLayout)camera:null;
+    }
+
+    private static void installEchoDistanceBadge(Activity activity,ViewGroup pageGroup){
+        FrameLayout cameraBox=drivingCameraBox(activity,pageGroup);
+        if(cameraBox==null||cameraBox.findViewWithTag(ECHO_BADGE_TAG)!=null)return;
         EchoDistanceBadge badge=new EchoDistanceBadge(activity,(HazRobHost)activity);
         badge.setTag(ECHO_BADGE_TAG);
         FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-2,-2,Gravity.CENTER_HORIZONTAL|Gravity.TOP);
         p.setMargins(0,dp(activity,48),0,0);
+        cameraBox.addView(badge,p);
+    }
+
+    private static void installGasHazardBadge(Activity activity,ViewGroup pageGroup){
+        FrameLayout cameraBox=drivingCameraBox(activity,pageGroup);
+        if(cameraBox==null||cameraBox.findViewWithTag(GAS_BADGE_TAG)!=null)return;
+        GasHazardBadge badge=new GasHazardBadge(activity,(HazRobHost)activity);
+        badge.setTag(GAS_BADGE_TAG);
+        FrameLayout.LayoutParams p=new FrameLayout.LayoutParams(-2,-2,Gravity.CENTER_HORIZONTAL|Gravity.TOP);
+        p.setMargins(0,dp(activity,88),0,0);
         cameraBox.addView(badge,p);
     }
 
@@ -89,6 +104,7 @@ public final class HazRobApplication extends Application implements Application.
                         if(box.getChildCount()>=2)box.getChildAt(0).setVisibility(View.GONE);
                     }
                     installEchoDistanceBadge(activity,pageGroup);
+                    installGasHazardBadge(activity,pageGroup);
                 }
             }
         }
