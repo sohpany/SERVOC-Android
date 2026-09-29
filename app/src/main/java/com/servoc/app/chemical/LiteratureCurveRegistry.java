@@ -21,7 +21,7 @@ public final class LiteratureCurveRegistry {
     public static final String MQ8_H2_2026_DOI="10.3390/app16104863";
     public static final String MQ7_CO_2022_ID="ALVEAR_MQ7_CO_2022";
     public static final String MQ7_CO_2022_DOI="10.3390/s22187015";
-    public static final String MQ4_CH4_ENERGIES_2021_ID="FARAHANI_MQ4_CH4_2021";
+    public static final String MQ4_CH4_ENERGIES_2021_ID="DAUGELA_MQ4_CH4_2021";
     public static final String MQ4_CH4_ENERGIES_2021_DOI="10.3390/en14133967";
 
     public static final int PEER_REVIEWED_DATASHEET_GRAPH_FIT=3;
@@ -81,7 +81,7 @@ public final class LiteratureCurveRegistry {
                     20,2000,Double.NaN,MQ7_CO_2022_ID,MQ7_CO_2022_DOI,
                     "Peer-reviewed MQ7 CO conversion curve; exact-model reference relation inside published 20-2000 ppm domain; heater-cycle validity still required; non-M4"),
 
-            // Energies 2021 low-cost landfill study, Eq. 6, derived from the MQ4 CH4 data table and used inversely in field tests.
+            // Daugela et al. (2021), Energies, Eq. 6, derived from the MQ4 CH4 data table and used inversely in field tests.
             cSource(GasEngine.MQ4,76,"Methane",11.531,-0.355,
                     200,10000,0.9998,MQ4_CH4_ENERGIES_2021_ID,MQ4_CH4_ENERGIES_2021_DOI,
                     "Peer-reviewed MQ4 CH4 power fit (Eq. 6) over 200-10000 ppm; field application used the inverse relation; exact installed-model reference curve, non-M4")
