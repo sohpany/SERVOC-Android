@@ -40,6 +40,15 @@ public final class ChemicalSeedBootstrap {
             db.putMeta("analytical_research_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
         }
 
+        // Seed accepted external transfer fingerprints independently so an already-installed 0.10.2 database
+        // receives newly derived assets without forcing a destructive schema migration or rewriting local M4 data.
+        try{
+            AnalyticalTransferBootstrap.ensure(db.getWritableDatabase());
+            db.putMeta("analytical_transfer_seed_status","available:"+AnalyticalTransferBootstrap.SEED_VERSION);
+        }catch(Exception e){
+            db.putMeta("analytical_transfer_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
+        }
+
         // Molecular intelligence prefers an activated, verified Stable snapshot and falls back to the APK seed.
         // The importer is hash-idempotent, so startup remains cheap after the same content is installed once.
         ChemCoreMolecularSeedImporter.Result molecular=ChemCoreMolecularSeedImporter.importBestAvailable(context,db);
