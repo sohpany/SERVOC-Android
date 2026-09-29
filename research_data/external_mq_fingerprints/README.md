@@ -16,6 +16,24 @@ Scientific review and compatibility notes: [`../../docs/EXTERNAL_MQ_FINGERPRINT_
 - `MQDS-002` — Food Freshness Electronic Nose Dataset: MQ2, MQ3, MQ4, MQ5, MQ6, MQ7, MQ8, MQ9, MQ135. It covers every installed HR069 MQ channel plus MQ6. The published Zenodo archive MD5 is `008b8ccb62d7a7d51ff9ffcfd698a1e5`. Raw mirroring is deferred until redistribution/license metadata is explicit.
 - `MQDS-003` — UCI Gas sensor array low-concentration: includes MQ135 plus other MOS sensors, with known 50/100/200 ppb labels; CC BY 4.0. This is partial hardware overlap and is retained for low-concentration/time-series methodology, not as an eight-channel HazRob signature.
 
+## Reproducible local fetch
+
+The manual research utility `fetch_sources.py` fetches canonical source files into the ignored `raw/` directory and writes a local `FETCHED_SOURCE.json` containing retrieval time, MD5/SHA-256 and provenance.
+
+Default verified-license fetch:
+
+```bash
+python research_data/external_mq_fingerprints/fetch_sources.py MQDS-001 MQDS-003
+```
+
+The public Zenodo MQDS-002 archive is deliberately blocked by default because the reviewed record did not explicitly render its license field. It can be fetched for inspection only when the operator makes that choice:
+
+```bash
+python research_data/external_mq_fingerprints/fetch_sources.py MQDS-002 --include-unverified-license
+```
+
+For MQDS-002 the fetcher verifies the published MD5 before accepting the local archive. Raw and derived third-party data are excluded from normal Git commits by `.gitignore`.
+
 ## Evidence boundary
 
 External records are `RESEARCH_EXTERNAL` only. They can support:
