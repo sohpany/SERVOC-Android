@@ -10,7 +10,7 @@ import com.servoc.app.exposure.GasFlammabilitySeedBootstrap;
 
 import java.io.InputStream;
 
-/** Loads versioned offline NIOSH scientific seeds and the best available ChemCore molecular snapshot. */
+/** Loads versioned offline NIOSH scientific seeds, HR069 analytical research priors and the best available ChemCore molecular snapshot. */
 public final class ChemicalSeedBootstrap {
     private ChemicalSeedBootstrap(){}
 
@@ -29,6 +29,16 @@ public final class ChemicalSeedBootstrap {
         // Import exposure/flammability data only after the identity table has been populated so CAS matching is deterministic.
         ExposureSeedBootstrap.ensureNioshIdlh(context,db);
         GasFlammabilitySeedBootstrap.ensure(context,db);
+
+        // Seed the complete HR069 research layer into the existing offline database. This is deliberately
+        // non-M4: 43 MQ research curves, six preferred literature curves, external evidence descriptors and
+        // the complete 76-model MQDataScience catalogue are stored for research/transfer work only.
+        try{
+            AnalyticalResearchBootstrap.ensure(db.getWritableDatabase());
+            db.putMeta("analytical_research_seed_status","available:"+AnalyticalResearchBootstrap.SEED_VERSION);
+        }catch(Exception e){
+            db.putMeta("analytical_research_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
+        }
 
         // Molecular intelligence prefers an activated, verified Stable snapshot and falls back to the APK seed.
         // The importer is hash-idempotent, so startup remains cheap after the same content is installed once.
