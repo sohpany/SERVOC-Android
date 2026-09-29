@@ -31,7 +31,7 @@
     "measurement_chamber_l": 0.17,
     "pre_chamber_l": 0.05,
     "carrier": "synthetic air",
-    "source_ethlyene_mix_ppm": 200,
+    "source_ethylene_mix_ppm": 200,
     "flow_ml_min": 500,
     "concentrations_ppm": [10, 25, 40, 50],
     "relative_humidity_percent": [0, 33, 64],
