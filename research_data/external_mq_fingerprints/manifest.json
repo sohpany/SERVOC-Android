@@ -1,11 +1,20 @@
 {
-  "schema_version": "1.3.0",
+  "schema_version": "1.4.0",
   "project": "HazRob",
   "release": "0.10.2",
   "hardware_revision": "HR069",
   "evidence_class": "RESEARCH_EXTERNAL",
   "authoritative_quantification_allowed": false,
-  "installed_mq_array": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ7", "MQ8", "MQ9", "MQ135"],
+  "installed_mq_array": [
+    "MQ2",
+    "MQ3",
+    "MQ4",
+    "MQ5",
+    "MQ7",
+    "MQ8",
+    "MQ9",
+    "MQ135"
+  ],
   "duplicate_source_policy": "Prefer the original peer-reviewed/dataset-hosted source over later mirrors or repackaged tables. Never count duplicate or derivative copies as independent fingerprint evidence.",
   "sources": [
     {
@@ -19,14 +28,43 @@
       "license": "MIT",
       "license_verified": true,
       "data_file": "Gas_Sensors_Measurements.csv",
-      "sensors": ["MQ2", "MQ3", "MQ5", "MQ6", "MQ7", "MQ8", "MQ135"],
-      "hr069_overlap": ["MQ2", "MQ3", "MQ5", "MQ7", "MQ8", "MQ135"],
-      "hr069_missing_from_source": ["MQ4", "MQ9"],
-      "source_extra_sensors": ["MQ6"],
-      "labels": ["NoGas", "Smoke", "Perfume", "Mixture"],
+      "sensors": [
+        "MQ2",
+        "MQ3",
+        "MQ5",
+        "MQ6",
+        "MQ7",
+        "MQ8",
+        "MQ135"
+      ],
+      "hr069_overlap": [
+        "MQ2",
+        "MQ3",
+        "MQ5",
+        "MQ7",
+        "MQ8",
+        "MQ135"
+      ],
+      "hr069_missing_from_source": [
+        "MQ4",
+        "MQ9"
+      ],
+      "source_extra_sensors": [
+        "MQ6"
+      ],
+      "labels": [
+        "NoGas",
+        "Smoke",
+        "Perfume",
+        "Mixture"
+      ],
       "time_series": false,
       "known_reference_concentration": false,
-      "research_uses": ["classification benchmark", "fingerprint prototype", "cross-sensitivity study"],
+      "research_uses": [
+        "classification benchmark",
+        "fingerprint prototype",
+        "cross-sensitivity study"
+      ],
       "quantitative_ppm_eligible": false,
       "provenance_status": "secondary-copy-or-derivative-pending-equivalence-check",
       "independent_evidence_weight": 0,
@@ -51,13 +89,39 @@
       "license_verified": false,
       "access_status": "public archive confirmed; direct ZIP retrieval from the current execution environment failed/rate-limited on 2026-09-29; retryable with fetch_sources.py --include-unverified-license",
       "access_request": "REQ-001",
-      "sensors": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ6", "MQ7", "MQ8", "MQ9", "MQ135"],
-      "hr069_overlap": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ7", "MQ8", "MQ9", "MQ135"],
-      "source_extra_sensors": ["MQ6"],
+      "sensors": [
+        "MQ2",
+        "MQ3",
+        "MQ4",
+        "MQ5",
+        "MQ6",
+        "MQ7",
+        "MQ8",
+        "MQ9",
+        "MQ135"
+      ],
+      "hr069_overlap": [
+        "MQ2",
+        "MQ3",
+        "MQ4",
+        "MQ5",
+        "MQ7",
+        "MQ8",
+        "MQ9",
+        "MQ135"
+      ],
+      "source_extra_sensors": [
+        "MQ6"
+      ],
       "time_series": true,
       "sampling_interval_description": "3-minute measurement interval per sample; samples taken at 24-hour intervals; mean room temperature approximately 23 C",
       "known_reference_concentration": false,
-      "research_uses": ["eight-channel HR069 fingerprint benchmark", "transient feature extraction", "source separation", "classification"],
+      "research_uses": [
+        "eight-channel HR069 fingerprint benchmark",
+        "transient feature extraction",
+        "source separation",
+        "classification"
+      ],
       "quantitative_ppm_eligible": false,
       "independent_evidence_weight": 1,
       "raw_archive_git_policy": "research cache only until exact redistribution terms are confirmed",
@@ -70,10 +134,34 @@
       "doi": "10.24432/C5CK6F",
       "license": "CC BY 4.0",
       "license_verified": true,
-      "sensors": ["TGS2603", "TGS2630", "TGS813", "TGS822", "MQ135", "MQ137", "MQ138", "2M012", "VOCS-P", "2SH12"],
-      "hr069_overlap": ["MQ135"],
-      "gases": ["ethanol", "acetone", "toluene", "ethyl acetate", "isopropanol", "n-hexane"],
-      "concentration_levels_ppb": [50, 100, 200],
+      "sensors": [
+        "TGS2603",
+        "TGS2630",
+        "TGS813",
+        "TGS822",
+        "MQ135",
+        "MQ137",
+        "MQ138",
+        "2M012",
+        "VOCS-P",
+        "2SH12"
+      ],
+      "hr069_overlap": [
+        "MQ135"
+      ],
+      "gases": [
+        "ethanol",
+        "acetone",
+        "toluene",
+        "ethyl acetate",
+        "isopropanol",
+        "n-hexane"
+      ],
+      "concentration_levels_ppb": [
+        50,
+        100,
+        200
+      ],
       "samples": 90,
       "replicates_per_gas_concentration": 5,
       "sampling_hz": 1,
@@ -82,7 +170,11 @@
       "cleaning_minutes": 15,
       "time_series": true,
       "known_reference_concentration": true,
-      "research_uses": ["MQ135 low-concentration behavior", "time-series feature engineering", "classification/regression methodology"],
+      "research_uses": [
+        "MQ135 low-concentration behavior",
+        "time-series feature engineering",
+        "classification/regression methodology"
+      ],
       "quantitative_ppm_eligible": false,
       "independent_evidence_weight": 1,
       "mirror_policy": "fetch-with-attribution"
@@ -98,18 +190,113 @@
       "license_verified": true,
       "samples": 6400,
       "samples_per_class": 1600,
-      "sensors": ["MQ2", "MQ3", "MQ5", "MQ6", "MQ7", "MQ8", "MQ135"],
-      "hr069_overlap": ["MQ2", "MQ3", "MQ5", "MQ7", "MQ8", "MQ135"],
-      "hr069_missing_from_source": ["MQ4", "MQ9"],
-      "source_extra_sensors": ["MQ6"],
-      "labels": ["NoGas", "Smoke", "Perfume", "Mixture"],
+      "sensors": [
+        "MQ2",
+        "MQ3",
+        "MQ5",
+        "MQ6",
+        "MQ7",
+        "MQ8",
+        "MQ135"
+      ],
+      "hr069_overlap": [
+        "MQ2",
+        "MQ3",
+        "MQ5",
+        "MQ7",
+        "MQ8",
+        "MQ135"
+      ],
+      "hr069_missing_from_source": [
+        "MQ4",
+        "MQ9"
+      ],
+      "source_extra_sensors": [
+        "MQ6"
+      ],
+      "labels": [
+        "NoGas",
+        "Smoke",
+        "Perfume",
+        "Mixture"
+      ],
       "known_reference_concentration": false,
       "raw_measurement_type": "10-bit ADC-equivalent sensor outputs",
-      "research_uses": ["canonical smoke/perfume fingerprint benchmark", "classifier validation", "feature attribution", "mixture rejection"],
+      "research_uses": [
+        "canonical smoke/perfume fingerprint benchmark",
+        "classifier validation",
+        "feature attribution",
+        "mixture rejection"
+      ],
       "quantitative_ppm_eligible": false,
       "independent_evidence_weight": 1,
       "provenance_status": "preferred-canonical-source-for-this-four-class-seven-sensor-dataset",
       "mirror_policy": "fetch-with-attribution"
+    },
+    {
+      "id": "MQDS-005",
+      "title": "RoboFusion real H1 operational gas-leak dataset",
+      "canonical_url": "https://github.com/Amr-Khamis-84/RoboFusion-Dataset",
+      "pinned_commit": "d3907eda585cf202fc00c462b550d2512d5b9e6f",
+      "data_file": "Real_Dataset_12_Days_5_H1.csv",
+      "source_sha256": "ae4637a1fbffbb0d7e0750f6623b17bcfecc184043df58702cea07a158546528",
+      "license": "CC0 1.0 Universal",
+      "license_verified": true,
+      "sensors": [
+        "MQ2",
+        "MQ4",
+        "MQ5",
+        "MQ7",
+        "MQ8",
+        "MQ135"
+      ],
+      "hr069_overlap": [
+        "MQ2",
+        "MQ4",
+        "MQ5",
+        "MQ7",
+        "MQ8",
+        "MQ135"
+      ],
+      "hr069_missing_from_source": [
+        "MQ3",
+        "MQ9"
+      ],
+      "labels": [
+        "Normal",
+        "Hazard_1"
+      ],
+      "label_semantics": {
+        "Normal": "source operational normal state",
+        "Hazard_1": "source operational gas-leak hazard label; gas identity unspecified"
+      },
+      "time_series": true,
+      "sampling_interval_description": "1 sample/minute in source documentation; four suites/robots represented in the pinned H1 file",
+      "quality_column": "Status",
+      "quality_policy": "Status=Original only for canonical prototypes; Interpolation excluded",
+      "total_rows": 69120,
+      "original_rows_used": 42704,
+      "interpolated_rows_excluded": 26416,
+      "original_class_counts": {
+        "Hazard_1": 1167,
+        "Normal": 41537
+      },
+      "known_reference_concentration": false,
+      "pure_analyte_identity": false,
+      "research_uses": [
+        "operational gas-leak benchmark",
+        "six-channel anomaly-pattern transfer validation",
+        "classifier feature/prototype evaluation"
+      ],
+      "quantitative_ppm_eligible": false,
+      "m4": false,
+      "derived_asset": "research_data/hr069_analytical_library/robofusion_hr069_gasleak_operational_transfer_v1.json",
+      "derived_asset_sha256": "052a6669d22a56c3d7d3ee1119fd5619a8c6e301b74b22e37784dd06d99669e6",
+      "independent_evidence_weight": 1,
+      "provenance_status": "admitted-public-real-data-source; relationship-to-RoboSense-pending-REQ-002",
+      "access_request": "REQ-002",
+      "reason": "Real H1 CSV is publicly accessible and pinned. It is admitted only as an operational Normal-vs-gas-leak benchmark; Hazard_1 is not mapped to a named chemical or ppm calibration.",
+      "mirror_policy": "pin-source-commit-and-derived-prototype; do-not-relabel-operational-class-as-pure-analyte"
     }
   ],
   "candidate_sources": [
@@ -120,12 +307,26 @@
       "public_contact": "amr.khamis@aast.edu",
       "license": "CC0 1.0 Universal",
       "license_verified": true,
-      "sensors": ["MQ2", "MQ3", "MQ5", "MQ7", "MQ8", "MQ135"],
-      "hr069_overlap": ["MQ2", "MQ3", "MQ5", "MQ7", "MQ8", "MQ135"],
+      "sensors": [
+        "MQ2",
+        "MQ3",
+        "MQ5",
+        "MQ7",
+        "MQ8",
+        "MQ135"
+      ],
+      "hr069_overlap": [
+        "MQ2",
+        "MQ3",
+        "MQ5",
+        "MQ7",
+        "MQ8",
+        "MQ135"
+      ],
       "platform_notes": "ESP32-based fixed suites and autonomous mobile robots; documented industrial hazard classes and 1 sample/min acquisition",
       "access_request": "REQ-002",
-      "admission_status": "pending-raw-data-location",
-      "reason": "repository documentation names Real_Dataset.csv but the current repository root does not expose the raw CSV"
+      "admission_status": "pending-provenance-relationship-clarification",
+      "reason": "The RoboSense repository still does not expose the documented Real_Dataset.csv. A separate public RoboFusion real H1 source is now admitted as MQDS-005; equivalence, parent/derivative relationship, and calibration provenance between RoboSense and RoboFusion remain unresolved pending REQ-002."
     }
   ],
   "excluded_or_method_only_sources": [
