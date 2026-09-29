@@ -4,6 +4,10 @@
   "release": "0.10.2",
   "hardware_revision": "HR069",
   "evidence_tier": "RESEARCH_EXTERNAL",
+  "identity_acceptance_state": "ACCEPTED_FOR_IDENTIFICATION",
+  "identity_reference_accepted": true,
+  "acceptance_date": "2026-09-29",
+  "acceptance_policy": "Available uploaded/external measurements and source-backed response relations are accepted as identification references now; transfer recalibration may revise them later. Acceptance for identity does not constitute device/reference calibration.",
   "m4": false,
   "vector_space": "log10(Rs/R0)",
   "installed_sensor_order": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ7", "MQ8", "MQ9", "MQ135"],
@@ -23,7 +27,17 @@
       "manufacturer_graph": 0.27,
       "community_or_digitized_research": 0.32
     },
-    "quantitative_policy": "These templates are identification/screening priors only. They cannot set M4 or safety-grade quantitative status."
+    "quantitative_policy": "These accepted templates are identification/screening references only. They cannot set M4 or safety-grade quantitative status."
+  },
+  "runtime_identity_gate": {
+    "engine": "AcceptedFingerprintIdentityEngine",
+    "version": "accepted-id-fp-v1",
+    "minimum_overlapping_hr069_channels": 2,
+    "maximum_standardized_distance": 1.5,
+    "minimum_score_margin_or_distance_margin": "score margin >= 5 points OR runner distance - top distance >= 0.20",
+    "promotion": "SCREENING/INSUFFICIENT_EVIDENCE -> IDENTIFIED + M3_ARRAY_CONSISTENT only",
+    "never_overrides": ["UNKNOWN", "POSSIBLE_MIXTURE_OR_INTERFERENCE", "OUT_OF_VALIDATED_DOMAIN", "INVALID_MEASUREMENT", "QUANTIFIED"],
+    "ppm_policy": "fingerprint promotion sets no reportable ppm; M4 remains required"
   },
   "numeric_source_backed_analytes": [
     {"legacy_id":20,"name":"Carbon Monoxide"},
@@ -42,17 +56,24 @@
     {"legacy_id":4,"name":"Hydrogen Sulfide","status":"MANUFACTURER_AFFINITY_ONLY","numeric_fingerprint":false,"note":"MQ135 sulfide response category exists, but no exact H2S HR069 numeric Rs/R0 relation is pinned."},
     {"legacy_id":54,"name":"Acetaldehyde","status":"SOURCE_PENDING","numeric_fingerprint":false},
     {"legacy_id":89,"name":"Ethylene","status":"SOURCE_PENDING","numeric_fingerprint":false},
-    {"legacy_id":102,"name":"Methanol","status":"TRANSFER_DATA_AVAILABLE","numeric_fingerprint":false,"note":"External MQ3 dynamic-heater discrimination data exists; transfer to HR069 acquisition protocol is pending."},
+    {"legacy_id":102,"name":"Methanol","status":"TRANSFER_DATA_AVAILABLE","numeric_fingerprint":false,"note":"External MQ3 dynamic-heater discrimination measurements are accepted as transfer evidence; exact present-protocol HR069 vector is pending."},
     {"legacy_id":103,"name":"Ethanol","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true},
     {"legacy_id":110,"name":"Acetone","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true},
-    {"legacy_id":115,"name":"Ethyl Acetate","status":"TRANSFER_DATA_AVAILABLE","numeric_fingerprint":false,"note":"External known-concentration MOS-array evidence exists, but no exact HR069 vector is pinned."},
+    {"legacy_id":115,"name":"Ethyl Acetate","status":"TRANSFER_DATA_AVAILABLE","numeric_fingerprint":false,"note":"External known-concentration MOS-array measurements are accepted as transfer evidence; exact HR069 vector is pending."},
     {"legacy_id":23,"name":"Carbon Dioxide","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true,"note":"MQ135 cross-response prior; not a selective CO2 instrument."},
     {"legacy_id":21,"name":"Ammonia","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true},
     {"legacy_id":76,"name":"Methane","status":"MODEL_DERIVED_NUMERIC","numeric_fingerprint":true}
   ],
-  "food_freshness_dataset_policy": "Food Freshness E-Nose headspace records are mixture/class fingerprints and are not relabelled as pure ethanol, acetone, ammonia, methane or any other individual analyte without independent chemical labels.",
+  "food_freshness_dataset": {
+    "asset": "research_data/hr069_analytical_library/food_freshness_headspace_fingerprints_v1.json",
+    "session_count": 59,
+    "acceptance_state": "ACCEPTED_FOR_HEADSPACE_IDENTIFICATION",
+    "policy": "Measured Food Freshness headspace records are accepted as mixture/class identity references. They are not relabelled as pure ethanol, acetone, ammonia, methane or any other analyte without independent chemical labels."
+  },
   "implementation": {
     "registry": "app/src/main/java/com/servoc/app/fingerprint/ResearchIdentificationFingerprintRegistry.java",
-    "classifier": "FingerprintClassifier.classifyResearchPriors"
+    "classifier": "FingerprintClassifier.classifyResearchPriors",
+    "runtime_fusion": "app/src/main/java/com/servoc/app/chemcore/AcceptedFingerprintIdentityEngine.java",
+    "chemcore_entry": "ChemCoreInferenceEngine.analyze"
   }
 }
