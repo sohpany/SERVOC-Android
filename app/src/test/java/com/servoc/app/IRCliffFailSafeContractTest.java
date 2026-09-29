@@ -9,7 +9,7 @@ import java.nio.file.Paths;
 
 import static org.junit.Assert.assertTrue;
 
-/** Source-level guard for the HR069 downward-IR cliff fail-safe contract. */
+/** Source-level guard for the HR069 downward-IR ground/cliff recognition contract. */
 public class IRCliffFailSafeContractTest {
     private static String source(String relative) throws Exception {
         Path p=Paths.get(relative);
@@ -27,19 +27,21 @@ public class IRCliffFailSafeContractTest {
         assertTrue(cfg.contains("IR_PERIOD=50"));
     }
 
-    @Test public void startupIsBlockedUntilGroundIsConfirmed() throws Exception {
+    @Test public void startupWarningPersistsUntilGroundIsConfirmed() throws Exception {
         String hw=source("firmware/HazRob/Hardware.cpp");
         assertTrue(hw.contains("irWarning=Cfg::IR_FAIL_SAFE_STARTUP,irGroundDetected=false"));
         assertTrue(hw.contains("groundNow=irLevel==Cfg::IR_GROUND_ACTIVE"));
         assertTrue(hw.contains("irGroundDetected=true;irWarning=false"));
         assertTrue(hw.contains("irGroundDetected=false;irWarning=true"));
+        assertTrue(hw.contains("Alerts::setIr(irWarning||ultraWarning)"));
     }
 
-    @Test public void cliffBlocksOnlyNetForwardComponent() throws Exception {
+    @Test public void cliffBlocksNetForwardOnlyWhenAutoStopIsEnabled() throws Exception {
         String hw=source("firmware/HazRob/Hardware.cpp");
         assertTrue(hw.contains("forwardRequested=(requestedL+requestedR)>0.1f"));
-        assertTrue(hw.contains("forwardBlocked=irWarning||ultraStop"));
+        assertTrue(hw.contains("forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop)"));
         assertTrue(hw.contains("if(forwardBlocked&&forwardRequested){curL=curR=0;}else{curL=requestedL;curR=requestedR;}"));
-        assertTrue(hw.contains("irWarning?\"cliff\":ultraStop?\"collision\""));
+        assertTrue(hw.contains("forward_hazard"));
+        assertTrue(hw.contains("safety_auto_stop"));
     }
 }
