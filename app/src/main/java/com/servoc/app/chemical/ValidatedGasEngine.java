@@ -40,6 +40,7 @@ public final class ValidatedGasEngine {
         Set<Integer> chemicals=new LinkedHashSet<>();
         for(int chem:GasEngine.SUPPORTED)chemicals.add(chem);
         for(ResearchCurveRegistry.Curve c:ResearchCurveRegistry.CURVES)chemicals.add(c.chemical);
+        for(LiteratureCurveRegistry.Curve c:LiteratureCurveRegistry.CURVES)chemicals.add(c.chemical);
         if(calibration!=null)for(int chem:calibration.chemicalIds())chemicals.add(chem);
         for(int chem:chemicals){Result r=analyzeOne(ratios,chem,heaterCycleValid,calibration,identityConfirmed);if(r!=null)out.add(r);}
         return out;
@@ -47,12 +48,14 @@ public final class ValidatedGasEngine {
     public static Result analyzeOne(double[] ratios,int chemical,boolean[] heaterCycleValid){return analyzeOne(ratios,chemical,heaterCycleValid,null,false);}
 
     public static Result analyzeOne(double[] ratios,int chemical,boolean[] heaterCycleValid,CalibrationCurveProvider calibration,boolean identityConfirmed){
-        List<GasEngine.Estimate> raw=GasEngine.estimatesForChemical(ratios,chemical);if(raw.isEmpty()&&calibration==null&&!hasResearchCurve(chemical))return null;
+        List<GasEngine.Estimate> raw=GasEngine.estimatesForChemical(ratios,chemical);
+        if(raw.isEmpty()&&calibration==null&&!hasResearchCurve(chemical)&&!LiteratureCurveRegistry.hasAnyCurve(chemical))return null;
         List<WeightedValue> accepted=new ArrayList<>();
-        int primary=0,calibrated=0,calibratedPrimary=0,manufacturerCross=0,communityCross=0,rejected=0;
+        int primary=0,calibrated=0,calibratedPrimary=0,manufacturerCross=0,communityCross=0,rejected=0,literatureAccepted=0;
         double evidencePoints=0;
         boolean[] usedSensor=new boolean[Math.max(INSTALLED_SENSOR_COUNT,ratios==null?0:ratios.length)];
 
+        // Tier 1: HR069 device-specific reference-gas calibration always has first priority.
         if(calibration!=null&&ratios!=null){
             for(int sensor=0;sensor<ratios.length&&sensor<usedSensor.length;sensor++){
                 double ratio=ratios[sensor];if(!Double.isFinite(ratio)||ratio<=0)continue;
@@ -68,7 +71,30 @@ public final class ValidatedGasEngine {
             }
         }
 
-        // Inherited manufacturer/research power-law equations are the generic fingerprint layer.
+        // Tier 2: peer-reviewed Rs/R0 graph fits. Prefer these over duplicate community
+        // coefficients for the same physical channel, but never treat them as M4 calibration.
+        if(ratios!=null){
+            for(LiteratureCurveRegistry.Curve lc:LiteratureCurveRegistry.CURVES){
+                if(lc.chemical!=chemical||lc.sensor>=ratios.length)continue;
+                if(lc.sensor<usedSensor.length&&usedSensor[lc.sensor])continue;
+                double ratio=ratios[lc.sensor];if(!Double.isFinite(ratio)||ratio<=0)continue;
+                boolean heaterOk=heaterCycleValid==null||lc.sensor>=heaterCycleValid.length||heaterCycleValid[lc.sensor];
+                if((lc.sensor==GasEngine.MQ7||lc.sensor==GasEngine.MQ9)&&!heaterOk){rejected++;continue;}
+                double ppm=lc.ppmFromRatio(ratio);
+                if(!Double.isFinite(ppm)||ppm<=0||!lc.inDeclaredRange(ppm)){rejected++;continue;}
+                SensorOperatingEnvelope.Check envelope=SensorOperatingEnvelope.check(lc.sensor,chemical,ppm,heaterOk);
+                if(envelope.status==SensorOperatingEnvelope.OUT_OF_RANGE||envelope.status==SensorOperatingEnvelope.HEATER_PROTOCOL_INVALID){rejected++;continue;}
+                if(envelope.status==SensorOperatingEnvelope.PRIMARY_TARGET){accepted.add(new WeightedValue(Math.log10(ppm),1.10));primary++;evidencePoints+=75.0;}
+                else if(envelope.status==SensorOperatingEnvelope.MANUFACTURER_GRAPH_RESPONSE){accepted.add(new WeightedValue(Math.log10(ppm),0.35));manufacturerCross++;evidencePoints+=55.0;}
+                else{accepted.add(new WeightedValue(Math.log10(ppm),0.15));communityCross++;evidencePoints+=35.0;}
+                if(lc.sensor<usedSensor.length)usedSensor[lc.sensor]=true;
+                literatureAccepted++;
+            }
+        }
+
+        // Tier 3: inherited manufacturer/community power-law equations. A physical MQ channel
+        // already represented by a device calibration or accepted peer-reviewed curve is skipped,
+        // preventing duplicate source equations from masquerading as independent sensors.
         for(GasEngine.Estimate e:raw){
             if(e.sensor<usedSensor.length&&usedSensor[e.sensor])continue;
             boolean heaterOk=heaterCycleValid==null||e.sensor>=heaterCycleValid.length||heaterCycleValid[e.sensor];
@@ -79,7 +105,7 @@ public final class ValidatedGasEngine {
             else rejected++;
         }
 
-        // Additional MQDataScience/digitized graph fits are low-weight fingerprint evidence only.
+        // Tier 4: additional MQDataScience/digitized graph fits are low-weight fingerprint evidence only.
         if(ratios!=null){
             for(ResearchCurveRegistry.Curve c:ResearchCurveRegistry.CURVES){
                 if(c.chemical!=chemical||c.sensor>=ratios.length)continue;
@@ -94,6 +120,8 @@ public final class ValidatedGasEngine {
         }
         if(accepted.isEmpty())return null;
 
+        // Never average regression coefficients from heterogeneous sources. Consensus is taken
+        // over source predictions in log10(ppm) space, robustly using an evidence-weighted median.
         double center=weightedMedian(accepted),ppm=Math.pow(10.0,center);
         double agreement;
         if(accepted.size()<2){
@@ -125,6 +153,7 @@ public final class ValidatedGasEngine {
         else if(primary>0)note="Manufacturer-target response is present, but no accepted device-specific reference-gas calibration supports quantitative safety use.";
         else if(manufacturerCross>0)note="Manufacturer graph cross-response only: fingerprint/research evidence, not selective quantitative safety use.";
         else note="Community/MQDataScience graph-fit evidence only: fingerprint comparison; no quantitative safety interpretation.";
+        if(literatureAccepted>0)note+=" Peer-reviewed datasheet-graph fit preferred over duplicate lower-tier coefficients on "+literatureAccepted+" channel(s) inside its published domain; this remains external prior evidence, not M4.";
         if(specialistSingle)note+=" Specialist single-sensor evidence: one device-specific reference-gas calibrated manufacturer-target channel is accepted without fabricating inter-sensor agreement.";
         else if(accepted.size()<2)note+=" Single-sensor screening evidence: inter-sensor agreement is not defined and is reported as 0%.";
 
