@@ -65,6 +65,13 @@ public final class ChemicalSeedBootstrap {
         }
 
         try{
+            MqCalibrationSeriesBootstrap.ensure(db.getWritableDatabase());
+            db.putMeta("mq_calibration_series_seed_status","available:"+MqCalibrationSeriesBootstrap.SEED_VERSION);
+        }catch(Exception e){
+            db.putMeta("mq_calibration_series_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
+        }
+
+        try{
             OperationalHazardTransferBootstrap.ensure(db.getWritableDatabase());
             db.putMeta("operational_hazard_transfer_seed_status","available:"+OperationalHazardTransferBootstrap.SEED_VERSION);
         }catch(Exception e){
