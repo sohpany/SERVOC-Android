@@ -5,6 +5,7 @@ import com.servoc.app.chemical.CandidateRanker;
 import com.servoc.app.chemical.ChemicalCatalog;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.chemical.ValidatedGasEngine;
+import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.sensors.RobotTelemetry;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -23,7 +24,7 @@ public final class AnalyticsSnapshot {
     public static Map<Integer,ValidatedGasEngine.Result> analyze(JSONObject diag,CalibrationCurveProvider calibration,boolean identityConfirmed){
         Map<Integer,ValidatedGasEngine.Result> out=new HashMap<>();if(diag==null)return out;
         double[] ratios=RobotTelemetry.extractRatios(diag);
-        boolean[] heater={true,true,true,true,false,true,false,true};
+        boolean[] heater=manufacturerHeaterValidity();
         List<ValidatedGasEngine.Result> rows=ValidatedGasEngine.analyze(ratios,heater,calibration,identityConfirmed);
         for(ValidatedGasEngine.Result x:rows)out.put(x.chemical,x);return out;
     }
@@ -48,13 +49,38 @@ public final class AnalyticsSnapshot {
         AnalysisDecision.Summary decision=AnalysisDecision.evaluate(rows,validChannelCount(diag),calibratedR0Count(diag),environmentAvailable(diag));
         JSONObject root=new JSONObject();try{
             root.put("analysis_version",ANALYSIS_VERSION);root.put("results",a);root.put("result_count",a.length());root.put("result_scope","all evidence-bearing results; ranked deterministically");root.put("candidate_target_count",ChemicalCatalog.COUNT);
-            root.put("device_calibration_provider",calibration==null?"none":"active");root.put("identity_confirmed",identityConfirmed);root.put("safety_interpretation_enabled",false);root.put("mq7_mq9_heater_validation",false);root.put("quality",qualityJson(decision));
+            root.put("device_calibration_provider",calibration==null?"none":"active");root.put("identity_confirmed",identityConfirmed);root.put("safety_interpretation_enabled",false);
+            root.put("mq7_mq9_heater_validation",HazRobHardwareProfile.manufacturerHeaterProtocolValid("mq7")&&HazRobHardwareProfile.manufacturerHeaterProtocolValid("mq9"));
+            root.put("manufacturer_heater_protocol",manufacturerHeaterProtocolJson());
+            root.put("quality",qualityJson(decision));
         }catch(Exception ignored){}return root.toString();
     }
 
     public static AnalysisDecision.Summary decision(JSONObject diag,CalibrationCurveProvider calibration,boolean identityConfirmed){
         Map<Integer,ValidatedGasEngine.Result> map=analyze(diag,calibration,identityConfirmed);
         return AnalysisDecision.evaluate(new ArrayList<>(map.values()),validChannelCount(diag),calibratedR0Count(diag),environmentAvailable(diag));
+    }
+
+    static boolean[] manufacturerHeaterValidity(){
+        boolean[] out=new boolean[RobotTelemetry.MQ_KEYS.length];
+        for(int i=0;i<out.length;i++)out[i]=HazRobHardwareProfile.manufacturerHeaterProtocolValid(RobotTelemetry.MQ_KEYS[i]);
+        return out;
+    }
+
+    private static JSONObject manufacturerHeaterProtocolJson(){
+        JSONObject o=new JSONObject();JSONArray valid=new JSONArray(),invalid=new JSONArray();
+        try{
+            o.put("authority",HazRobHardwareProfile.ID);
+            o.put("cyclic_driver_installed",HazRobHardwareProfile.CYCLIC_MQ_HEATER_DRIVER_INSTALLED);
+            for(String key:RobotTelemetry.MQ_KEYS){
+                if(HazRobHardwareProfile.manufacturerHeaterProtocolValid(key))valid.put(key);else invalid.put(key);
+            }
+            o.put("valid_channels",valid);o.put("invalid_channels",invalid);
+            o.put("note",HazRobHardwareProfile.CYCLIC_MQ_HEATER_DRIVER_INSTALLED
+                    ?"Installed hardware declares manufacturer cyclic-heater capability; physical qualification still governs use."
+                    :"HR069 common 5 V MQ rail cannot execute the MQ-7/MQ-9 5.0 V/1.5 V manufacturer heater cycle; those channels are withheld from heater-qualified inference.");
+        }catch(Exception ignored){}
+        return o;
     }
 
     private static JSONObject qualityJson(AnalysisDecision.Summary d){JSONObject q=new JSONObject();try{q.put("outcome",d.outcome.name());q.put("valid_channels",d.validChannels);q.put("calibrated_r0_channels",d.calibratedR0Channels);q.put("environment_available",d.environmentAvailable);q.put("quantitative_permitted",d.quantitativePermitted);q.put("top_score_pct",d.topScore);q.put("runner_up_score_pct",d.runnerUpScore);q.put("separation_margin_pct",d.separationMargin);q.put("top_chemical_id",d.topChemical>=0?d.topChemical:JSONObject.NULL);q.put("top_contributors",d.topContributors);q.put("note",d.note);}catch(Exception ignored){}return q;}
