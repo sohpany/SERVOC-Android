@@ -78,11 +78,18 @@ The asset contains 59 measured headspace/session vectors over the eight HR069-ov
 
 ## Qualification status
 
-Code integration committed. Unit/qualification workflow must pass before this checkpoint is treated as release-qualified. Record the workflow run and final source SHA below after qualification.
+The organization-controlled qualification workflow completed successfully against the exact source snapshot below. The workflow verified release identity, chemical-coverage audit, 43 curves, 76 models, 11 accepted pure-analyte reference families, 59 Food Freshness headspace fingerprints, research/M4 isolation, Android compilation, and the unit regression suite.
 
-- qualification: PENDING
-- qualified source SHA: PENDING
-- workflow run: PENDING
+- qualification: **PASS**
+- qualified source SHA: `0cf64c2d53919fe0aa9fe629a7697e79fef77dcc`
+- organization harness commit: `36609f8f82c263bf886f80fb1330687f34c720d3`
+- workflow: `HazRob HR069 Analytical Integration Qualification`
+- workflow run: `36619035483`
+- unit regression tests: **PASS**
+- research-library verification: **PASS**
+- external M4: **false**
+
+The source-repository lightweight chemical-coverage workflow produced immediate no-step failures during this sequence; release qualification therefore used the organization-controlled harness, which checked out the exact source SHA and completed all compile/unit-test gates successfully.
 
 ## Next work
 
