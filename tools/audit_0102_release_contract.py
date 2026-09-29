@@ -24,6 +24,8 @@ def forbid(source: str, needle: str, label: str) -> None:
 
 
 def main() -> int:
+    manifest = txt("app/src/main/AndroidManifest.xml")
+    app_lifecycle = txt("app/src/main/java/com/servoc/app/HazRobApplication.java")
     main_activity = txt("app/src/main/java/com/servoc/app/MainActivity.java")
     entry = txt("app/src/main/java/com/servoc/app/EntryActivity.java")
     release = txt("app/src/main/java/com/servoc/app/ReleaseAudit.java")
@@ -59,12 +61,18 @@ def main() -> int:
     req(db, "DB_VERSION=9", "database implementation schema")
     req(db, "if(oldVersion<9)createV9UserFieldTables(db);", "schema-9 migration")
 
-    # User-facing navigation and durable field library.
+    # User-facing navigation, landscape driving presentation and durable field library.
     req(
         main_activity,
         'String[] names={"القيادة","الجلسات","القياسات","التقارير","الحالة","الإعدادات","المطور"}',
         "0.10.2 navigation",
     )
+    req(manifest, 'android:name=".HazRobApplication"', "landscape lifecycle application registration")
+    req(app_lifecycle, "root.getChildAt(1).setVisibility(View.GONE)", "landscape navigation tabs hidden")
+    req(app_lifecycle, "root.getChildAt(0).setVisibility(View.VISIBLE)", "landscape global safety status retained")
+    req(app_lifecycle, "root.getChildAt(3).setVisibility(View.GONE)", "landscape footer hidden")
+    req(app_lifecycle, "box.getChildAt(0).setVisibility(View.GONE)", "landscape generic refresh row hidden")
+    req(app_lifecycle, "((HazRobHost)activity).setDriveCommand(0,0)", "rotation/background drive neutralization")
     req(entry, "showFirstRunLibrarySetup()", "first-run durable library")
     req(entry, "HazRobUserLibrary.createPickerIntent()", "SAF library picker")
     req(user_library, "FieldSessionArchive.exportSession", "persistent source archive")
@@ -100,7 +108,8 @@ def main() -> int:
     req(cfg, "ULTRA_WARN_CM=10.0f", "collision warning threshold")
     req(cfg, "ULTRA_STOP_CM=5.0f", "collision stop threshold")
     req(cfg, "IR_GROUND_ACTIVE=LOW", "IR ground-detected polarity contract")
-    req(hw, "bool irWarning=true,irGroundDetected=false", "IR startup fail-safe gate")
+    req(cfg, "IR_FAIL_SAFE_STARTUP=true", "IR fail-safe startup policy")
+    req(hw, "irWarning=Cfg::IR_FAIL_SAFE_STARTUP,irGroundDetected=false", "IR startup fail-safe gate")
     req(hw, "forwardBlocked=irWarning||ultraStop", "forward safety interlock")
     req(hw, r'\"forward_blocked\"', "safety telemetry")
 
