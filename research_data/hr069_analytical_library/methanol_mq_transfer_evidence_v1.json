@@ -1,0 +1,74 @@
+{
+  "schema": "hazrob.methanol-mq-transfer-evidence.v1",
+  "project": "HazRob",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "chemical": {
+    "legacy_id": 102,
+    "name": "Methanol",
+    "formula": "CH3OH"
+  },
+  "source": {
+    "source_id": "TOZLU_METHANOL_MQ_2024",
+    "title": "A Fast and Cost-Effective Electronic Nose Model for Methanol Detection Using Ensemble Learning",
+    "authors": "Bilge Han Tozlu et al.",
+    "journal": "Chemosensors",
+    "year": 2024,
+    "doi": "10.3390/chemosensors12110225",
+    "url": "https://doi.org/10.3390/chemosensors12110225",
+    "evidence_tier": "B_PEER_REVIEWED_SAME_ARRAY",
+    "data_availability": "not publicly available; may be made available on reasonable request"
+  },
+  "experiment": {
+    "sensor_array": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ6", "MQ7", "MQ8", "MQ9", "MQ131", "MQ135", "MQ137"],
+    "hr069_overlap": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ7", "MQ8", "MQ9", "MQ135"],
+    "hr069_overlap_count": 8,
+    "recordings": 168,
+    "mixture_classes": [
+      "0% MeOH / 100% EtOH",
+      "10% MeOH / 90% EtOH",
+      "20% MeOH / 80% EtOH",
+      "30% MeOH / 70% EtOH",
+      "40% MeOH / 60% EtOH",
+      "50% MeOH / 50% EtOH",
+      "60% MeOH / 40% EtOH",
+      "100% MeOH / 0% EtOH"
+    ],
+    "recording_duration_s": 40,
+    "sampling_hz": 10,
+    "samples_per_sensor_per_recording_reported": 401,
+    "raw_matrix_shape_reported": [168, 11, 401],
+    "headspace_method": "100 mL alcohol mixture in chamber; passive evaporation; no pump or fan; constant windless temperature environment",
+    "gas_phase_ppm_defined": false
+  },
+  "reported_model_results": {
+    "all_features_accuracy": 0.8588,
+    "selected_features_accuracy": 0.8185,
+    "selected_sensor_models": ["MQ3", "MQ4", "MQ137"],
+    "selected_hr069_sensor_models": ["MQ3", "MQ4"],
+    "selected_features": [
+      {"sensor": "MQ3", "feature": "Energy", "reported_usage_percent": 16.86, "installed_hr069": true},
+      {"sensor": "MQ4", "feature": "Energy", "reported_usage_percent": 41.55, "installed_hr069": true},
+      {"sensor": "MQ137", "feature": "Energy", "reported_usage_percent": 21.87, "installed_hr069": false},
+      {"sensor": "MQ137", "feature": "Signal-to-Noise Ratio", "reported_usage_percent": 19.72, "installed_hr069": false}
+    ],
+    "interpretation": "The full 11-sensor array contains all eight HR069 MQ models, but the published feature-selection result concentrates discriminative information in MQ3, MQ4 and MQ137. Only MQ3 and MQ4 of those selected sensors are installed on HR069."
+  },
+  "hazrob_acceptance": {
+    "status": "ACCEPTED_TRANSFER_DATA_AWAITING_RAW",
+    "identity_reference": true,
+    "numeric_hr069_fingerprint": false,
+    "direct_hr069_named_identity": false,
+    "quantitative_ppm": false,
+    "m4": false,
+    "selected_hr069_channels_for_future_transfer": ["MQ3", "MQ4"],
+    "raw_data_request": "REQ-005",
+    "requirements_before_numeric_promotion": [
+      "Obtain source raw 11-channel time series or equivalent tabulated class statistics",
+      "Define a source-to-HR069 transfer transform without synthesizing missing or unmeasured values",
+      "Validate MQ3/MQ4 response on the installed HR069 hardware under controlled methanol exposures",
+      "Keep mixture-ratio classification separate from gas-phase ppm calibration",
+      "Require M4 device/reference calibration before reportable occupational or safety-grade ppm"
+    ]
+  }
+}
