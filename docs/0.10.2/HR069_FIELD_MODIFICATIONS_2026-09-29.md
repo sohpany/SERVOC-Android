@@ -31,18 +31,18 @@ This log records field-requested corrections one by one. No APK or firmware ZIP 
 - Rotate while a non-zero command is being issued only in a raised/safe test: motion must neutralize during the lifecycle transition and must not resume by itself.
 - Confirm camera, E-STOP, gas/cliff/proximity/connection alerts remain visible and usable in landscape.
 
-## MOD-02 — IR cliff fail-safe semantics
+## MOD-02 — IR ground/cliff recognition semantics
 
 **Requested behavior**
 - The downward IR sensor represents `ground present`, not `obstacle ahead`.
-- Ground present permits forward motion.
-- Loss of ground detection means cliff/fall risk and blocks any command with a net forward component.
-- Reverse and zero-net pivot remain available for escape.
-- At boot, forward motion remains blocked until ground presence is positively confirmed; firmware must not begin in an optimistic/unverified-safe state.
+- Ground present is the normal state.
+- Loss of ground detection means cliff/fall risk and must generate the cliff warning state.
+- At boot, IR hazard state starts conservatively as warning until ground presence is positively confirmed; firmware must not report an unverified safe-ground state.
+- Actual automatic blocking of Forward is governed separately by MOD-03 and is no longer unconditional.
 
 **Electrical assumption to verify physically**
 - `IR_GROUND_ACTIVE=LOW`: raw LOW means ground detected; raw HIGH means no ground/cliff.
-- If the assembled module proves opposite, only the active-level configuration changes; the safety semantics remain unchanged.
+- If the assembled module proves opposite, only the active-level configuration changes; the warning semantics remain unchanged.
 
 **Debounce contract**
 - Ground confirmation / cliff clear: 2 consecutive ground samples.
@@ -54,14 +54,52 @@ This log records field-requested corrections one by one. No APK or firmware ZIP 
 **Implementation**
 - `Config.h` explicitly defines `IR_FAIL_SAFE_STARTUP=true` and documents ground-present semantics.
 - `Hardware.cpp` initializes `irWarning` from the fail-safe startup policy.
-- `driveSet()` continues to block only commands with a net forward component when `irWarning || ultraStop`, preserving reverse/pivot escape.
-- `IRCliffFailSafeContractTest` and the canonical release audit protect polarity, startup, debounce and forward-block contracts.
+- `hazardAlert()` continues to publish IR/proximity warning state independently from the optional drive block.
+- `IRCliffFailSafeContractTest` and the canonical release audit protect polarity, startup warning and debounce behavior.
 
 **Verification requirements still pending**
 - With robot over floor: verify `raw_level=0`, `ground_detected=true`, `cliff_warning=false` under the present LOW-active assumption.
-- Lift the front/downward sensor away from floor: verify `raw_level=1`, then `cliff_warning=true` and `forward_blocked=true` after debounce.
-- Verify Forward is blocked while Reverse and zero-net Pivot remain available.
+- Lift the front/downward sensor away from floor: verify `raw_level=1`, then `cliff_warning=true` after debounce.
+- Confirm the cliff warning remains visible whether MOD-03 automatic stopping is OFF or ON.
 - If raw electrical polarity is opposite, change `IR_GROUND_ACTIVE` only and rerun these tests.
+
+## MOD-03 — Optional automatic stop for cliff/collision hazards
+
+**Requested behavior**
+- During the current robot-build phase, IR cliff and ultrasonic collision hazards must continue to generate warnings but must not automatically stop/block Forward by default.
+- Automatic stopping is an operator-selectable setting in the application Settings tab.
+- Default after first use/clean firmware storage is **OFF**.
+- When OFF: cliff/collision warnings remain active, including ultrasonic stop-zone detection, but the robot does not automatically suppress a Forward drive command because of those two hazards.
+- When ON: a cliff warning or ultrasonic stop-zone condition blocks only commands with a net Forward component; Reverse and zero-net Pivot remain available for escape.
+- E-STOP, explicit Stop and command-loss watchdog remain active and independent regardless of this setting.
+- The setting must be authoritative in the robot, persist across reboot, and work identically in Direct and Remote modes.
+
+**Implementation status:** IMPLEMENTED IN SOURCE — INTEGRATED/PHYSICAL ACCEPTANCE PENDING
+
+**Implementation**
+- Added `SafetyOptions.h/.cpp` with dedicated NVS namespace `hazsafe` and key `autoStop`.
+- Firmware default is `autoStop=false`.
+- `Hardware.cpp` preserves `irWarning` / `ultraWarning` / ultrasonic stop-zone detection at all times, while actual `forwardBlocked` is calculated as `safetyAutoStopEnabled() && (irWarning || ultraStop)`.
+- Drive telemetry now distinguishes `forward_hazard` from actual `forward_blocked` and reports `safety_auto_stop`.
+- Proximity telemetry preserves warning/stop-zone information even when automatic blocking is disabled.
+- Direct mode exposes `/safety/auto_stop` for read/set, persisting the robot-side value.
+- Remote MQTT exposes `safety_auto_stop_get` and `safety_auto_stop_set` using the same robot-side persistent value.
+- `RobotApi` exposes one Direct/Remote facade for reading and setting the option.
+- Settings tab now contains the checkbox `تفعيل التوقف التلقائي عند خطر السقوط أو الاصطدام` and explicitly states that warnings remain active when automatic stop is disabled.
+- Applying a changed safety option first neutralizes motion, then changes the policy.
+- `SafetyAutoStopOptionContractTest`, updated `IRCliffFailSafeContractTest`, and the canonical release audit guard the cross-layer contract.
+
+**Physical/UI acceptance still pending**
+1. Auto-stop OFF + no floor/cliff: cliff warning must appear, `forward_hazard=true`, but `forward_blocked=false`; perform only with robot safely supported because Forward is intentionally permitted.
+2. Auto-stop OFF + obstacle within ultrasonic stop zone (`<=5 cm`): collision warning/stop-zone must appear but `forward_blocked=false`.
+3. Auto-stop ON + no floor/cliff: cliff warning remains visible and Forward is blocked.
+4. Auto-stop ON + obstacle within stop zone: collision warning remains visible and Forward is blocked.
+5. Auto-stop ON: Reverse and zero-net Pivot remain available for escape.
+6. E-STOP must stop/lock movement with Auto-stop OFF and ON.
+7. Command-loss watchdog must stop motion with Auto-stop OFF and ON.
+8. Explicit Stop must work with Auto-stop OFF and ON.
+9. Change the option, reboot Main ESP32, and verify the robot-side value persists.
+10. Verify the same value and behavior from Direct and Remote modes.
 
 ## DISC-01 — Environmental I2C read-bus defect discovered during diff verification
 
@@ -69,7 +107,7 @@ This log records field-requested corrections one by one. No APK or firmware ZIP 
 
 The existing ENV helper issued `EnvWire.requestFrom(...)` on the dedicated GPIO13/14 environmental bus but then consumed bytes using `Wire.read()` from the analytical GPIO21/22 bus. The corrected implementation consumes the requested bytes using `EnvWire.read()`.
 
-This is a correctness defect in the pre-existing ENV path and is kept separate from MOD-02 in this log. It can materially affect BME/BMP communication and must be covered by the final regression/physical ENV tests before release.
+This is a correctness defect in the pre-existing ENV path and is kept separate from the requested field changes in this log. It can materially affect BME/BMP communication and must be covered by the final regression/physical ENV tests before release.
 
 ## DISC-02 — Measurement JSON state quoting defect discovered during diff verification
 
@@ -77,7 +115,7 @@ This is a correctness defect in the pre-existing ENV path and is kept separate f
 
 The previous `measurementJson()` serialization did not close the quoted `state` value before emitting the `mask` field. The corrected serializer closes the quote so the embedded measurement object is valid JSON.
 
-This is a pre-existing data-path defect and is kept separate from MOD-02. Final regression must verify `/data` and `/diag` JSON parsing in all measurement states (`idle`, `measuring`, `ready`, `error`).
+This is a pre-existing data-path defect and is kept separate from the requested field changes. Final regression must verify `/data` and `/diag` JSON parsing in all measurement states (`idle`, `measuring`, `ready`, `error`).
 
 ## Release hold
 
