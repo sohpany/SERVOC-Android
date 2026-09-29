@@ -53,7 +53,14 @@ public final class EchoDistanceBadge extends TextView implements Runnable {
         JSONObject d=host.latestDiagnostics();
         JSONObject device=d==null?null:d.optJSONObject("device");
         JSONObject proximity=device==null?null:device.optJSONObject("proximity");
-        double cm=proximity==null?Double.NaN:proximity.optDouble("cm",Double.NaN);
+        double cm=proximity==null?Double.NaN:proximity.optDouble("distance_cm",proximity.optDouble("cm",Double.NaN));
+        // Raw API4 fallback protects the overlay if an intermediate normalizer omits/renames the field.
+        if((Double.isNaN(cm)||Double.isInfinite(cm)||cm<=0)&&d!=null){
+            JSONObject raw=d.optJSONObject("_data_api");
+            JSONObject rawDevice=raw==null?null:raw.optJSONObject("device");
+            JSONObject rawProximity=rawDevice==null?null:rawDevice.optJSONObject("proximity");
+            if(rawProximity!=null)cm=rawProximity.optDouble("cm",rawProximity.optDouble("distance_cm",Double.NaN));
+        }
         if(Double.isNaN(cm)||Double.isInfinite(cm)||cm<=0){
             setText("ECHO — cm");
             setTextColor(0xFF90A4AE);
