@@ -1,0 +1,140 @@
+{
+  "schema": "hazrob.external-chemical-evidence.v1",
+  "project": "HazRob",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "generated_for": "chemical-analysis coverage audit",
+  "catalogues": {
+    "legacy": {
+      "name": "HazRob ChemicalCatalog",
+      "record_count": 144,
+      "identity_role": "legacy analytical/exposure catalogue"
+    },
+    "niosh": {
+      "name": "NIOSH Pocket Guide identity seed",
+      "record_count": 652,
+      "asset": "app/src/main/assets/generated/niosh/niosh_chemicals.json",
+      "manifest": "app/src/main/assets/generated/niosh/manifest.json",
+      "role": "authoritative chemical identity/exposure source; not sensor-response evidence"
+    }
+  },
+  "policy": {
+    "external_m4_allowed": false,
+    "m4_definition": "HR069 device-specific reference-gas calibration/validation under a valid operating and heater protocol",
+    "duplicate_curve_rule": "Prefer the highest-provenance curve for the same sensor/analyte inside its declared domain. Do not arithmetic-average regression coefficients. If independent compatible sensor/source predictions are combined, combine concentration predictions in log10(ppm) space using evidence-weighted robust consensus.",
+    "same_sensor_double_counting": false,
+    "extrapolation_allowed": false
+  },
+  "evidence_rank": [
+    {"rank": 5, "class": "HAZROB_M4", "description": "device-specific accepted reference-gas calibration; authoritative only when the operating envelope is valid"},
+    {"rank": 4, "class": "MANUFACTURER_TABULATED", "description": "manufacturer tabulated/explicit target evidence"},
+    {"rank": 3, "class": "PEER_REVIEWED_GRAPH_OR_KNOWN_CONCENTRATION", "description": "peer-reviewed datasheet graph fit or independent known-concentration experiment; external prior, not M4"},
+    {"rank": 2, "class": "PINNED_COMMUNITY_DATASHEET_FIT", "description": "version-pinned community/library digitization or regression"},
+    {"rank": 1, "class": "FINGERPRINT_OR_METHOD", "description": "classification/fingerprint/method evidence without transferable device quantitation"}
+  ],
+  "sources": [
+    {
+      "id": "UMBU_MQ135_2023",
+      "title": "Analisis Grafik Karakteristik Sensitivitas Sensor MQ-135 untuk Menentukan Persamaan Hubungan antara ppm dan Rs/Ro",
+      "year": 2023,
+      "doi": "10.23960/jtaf.v11i2.314",
+      "type": "peer-reviewed datasheet graph regression",
+      "sensor_models": ["MQ135"],
+      "equation": "Rs/R0 = a * ppm^b",
+      "published_domain_ppm": [10, 100],
+      "m4": false,
+      "notes": "Ten digitized points per analyte from the typical sensitivity graph; power regression in log-log space. Source itself states calibration against a standard gas instrument is still required for accurate measurement."
+    },
+    {
+      "id": "UCI_GSALC_2023",
+      "title": "Gas sensor array low-concentration",
+      "doi": "10.24432/C5CK6F",
+      "license": "CC BY 4.0",
+      "type": "public known-concentration time-series dataset",
+      "sensor_models": ["TGS2603", "TGS2630", "TGS813", "TGS822", "MQ135", "MQ137", "MQ138", "2M012", "VOCS-P", "2SH12"],
+      "concentrations_ppb": [50, 100, 200],
+      "sampling_hz": 1,
+      "phases": {"baseline_min": 5, "injection_min": 10, "cleaning_min": 15},
+      "m4": false,
+      "notes": "UCI explicitly describes these concentrations as below the sensors' minimum detection limit. Use for response-shape/classification evidence and method validation, not direct HR069 ppm transfer."
+    },
+    {
+      "id": "FRONTIERS_VOC_2026",
+      "title": "A lightweight intelligent model for VOC mixture analysis: toward preclinical breath biomarker analysis",
+      "doi": "10.3389/fbioe.2026.1821312",
+      "type": "peer-reviewed known-concentration e-nose experiment",
+      "sensor_models": ["MQ135", "MQ3", "TGS2600", "WSP2110", "TGS2610", "TGS822", "TGS2620", "TGS2602"],
+      "concentrations_ppm": [1, 3, 5, 7, 9, 11, 13, 15],
+      "temperature_c": "25 +/- 3",
+      "relative_humidity_percent": "50 +/- 10",
+      "m4": false,
+      "notes": "Pure acetone/ethanol/isopropanol and equimolar mixtures. Strong concentration-labelled external evidence; different array/circuit means transfer validation remains required."
+    },
+    {
+      "id": "VISUAL_SMELL_2026",
+      "title": "Visual smell fingerprinting with sensor arrays",
+      "doi": "10.1016/j.foohum.2026.101079",
+      "type": "peer-reviewed exact/superset MQ-array fingerprint study",
+      "sensor_models": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ6", "MQ7", "MQ8", "MQ9", "MQ135"],
+      "hr069_overlap": "8/8 installed MQ models plus MQ6",
+      "m4": false,
+      "notes": "Pure acetone and ethanol repeated measurements; uses response magnitude, slope and response ratios. Paper explicitly shows response rate is setup/diffusion dependent."
+    },
+    {
+      "id": "MQ3_MEOH_ETOH_2026",
+      "title": "Research on binary gas mixtures identification method: Humidity interference suppression using linear discriminant analysis",
+      "doi": "10.1016/j.snb.2026.139758",
+      "type": "peer-reviewed dynamic-temperature-modulation mixture study",
+      "sensor_models": ["MQ3"],
+      "analytes": ["methanol", "ethanol"],
+      "m4": false,
+      "transfer_constraint": "HR069 currently uses a shared fixed 5 V MQ heater rail and cannot reproduce the published MQ3 dynamic temperature modulation."
+    },
+    {
+      "id": "MQ135_ENV_ETHANOL_2026",
+      "title": "Bio-Inspired Swarm Navigation on Resource-Constrained Robots for GPS-Denied Environments",
+      "doi": "10.3390/s26113525",
+      "type": "peer-reviewed known-concentration environmental calibration",
+      "sensor_models": ["MQ135"],
+      "analytes": ["ethanol"],
+      "concentration_ppm": [0, 500],
+      "temperature_c": [15, 25, 35],
+      "relative_humidity_percent": [30, 60, 90],
+      "reported_r2_min": 0.999,
+      "m4": false,
+      "notes": "Voltage/log-linear model is platform-specific. Use for environmental-compensation design and corroboration, not direct Rs/R0 replacement."
+    },
+    {
+      "id": "WINSEN_MQ5",
+      "title": "Winsen MQ-5 Semiconductor Sensor for Flammable Gas",
+      "type": "manufacturer",
+      "sensor_models": ["MQ5"],
+      "target_gases": ["LPG", "methane", "propane"],
+      "qualitative_sensitivity": ["butane", "propane", "methane"],
+      "documented_quantitative_range": "300-10000 ppm for CH4 and C3H8",
+      "m4": false,
+      "notes": "Butane is a manufacturer qualitative sensitivity statement; HazRob must not invent a butane-specific Rs/R0 curve."
+    }
+  ],
+  "chemical_crosswalk": [
+    {"legacy_id": 20, "name": "Carbon Monoxide", "cas": "630-08-0", "best_external_level": "PUBLISHED_RS_R0_CURVE", "sources": ["UMBU_MQ135_2023"], "local_work": "validate/transfer rather than curve discovery"},
+    {"legacy_id": 21, "name": "Ammonia", "cas": "7664-41-7", "best_external_level": "PUBLISHED_RS_R0_CURVE", "sources": ["UMBU_MQ135_2023"], "local_work": "validate/transfer; current MQ135 manufacturer target evidence also exists"},
+    {"legacy_id": 23, "name": "Carbon Dioxide", "cas": "124-38-9", "best_external_level": "PUBLISHED_RS_R0_CURVE", "sources": ["UMBU_MQ135_2023"], "local_work": "research cross-response only; do not treat MQ135 as selective CO2 meter"},
+    {"legacy_id": 79, "name": "n-Butane", "cas": "106-97-8", "best_external_level": "MANUFACTURER_QUALITATIVE_TARGET", "sources": ["WINSEN_MQ5"], "local_work": "compound-specific controlled curve/fingerprint still required"},
+    {"legacy_id": 84, "name": "n-Hexane", "cas": "110-54-3", "best_external_level": "KNOWN_CONCENTRATION_RESPONSE", "sources": ["UCI_GSALC_2023"], "local_work": "HR069 transfer validation; current MQ3 community curve is also available"},
+    {"legacy_id": 95, "name": "Toluene", "cas": "108-88-3", "best_external_level": "PUBLISHED_RS_R0_CURVE", "sources": ["UMBU_MQ135_2023", "UCI_GSALC_2023"], "local_work": "validate/transfer; use published curve as preferred generic MQ135 prior"},
+    {"legacy_id": 102, "name": "Methanol", "cas": "67-56-1", "best_external_level": "SAME_ARRAY_FINGERPRINT", "sources": ["MQ3_MEOH_ETOH_2026"], "local_work": "local fixed-heater transfer experiment required; no direct HR069 quantitative curve"},
+    {"legacy_id": 103, "name": "Ethanol", "cas": "64-17-5", "best_external_level": "PUBLISHED_RS_R0_CURVE", "sources": ["UMBU_MQ135_2023", "UCI_GSALC_2023", "FRONTIERS_VOC_2026", "VISUAL_SMELL_2026", "MQ3_MEOH_ETOH_2026", "MQ135_ENV_ETHANOL_2026"], "local_work": "high external coverage; prioritize HR069 transfer/M4 validation rather than discovery"},
+    {"legacy_id": 105, "name": "Isopropanol", "cas": "67-63-0", "best_external_level": "KNOWN_CONCENTRATION_RESPONSE", "sources": ["UCI_GSALC_2023", "FRONTIERS_VOC_2026"], "local_work": "transfer/repeatability experiment, not discovery from zero"},
+    {"legacy_id": 110, "name": "Acetone", "cas": "67-64-1", "best_external_level": "PUBLISHED_RS_R0_CURVE", "sources": ["UMBU_MQ135_2023", "UCI_GSALC_2023", "FRONTIERS_VOC_2026", "VISUAL_SMELL_2026"], "local_work": "high external coverage; validate HR069 transfer/M4"},
+    {"legacy_id": 115, "name": "Ethyl Acetate", "cas": "141-78-6", "best_external_level": "KNOWN_CONCENTRATION_RESPONSE", "sources": ["UCI_GSALC_2023"], "local_work": "transfer/repeatability experiment; no direct generic Rs/R0 equation promoted"}
+  ],
+  "preferred_mq135_curves": [
+    {"legacy_id": 110, "name": "Acetone", "a": 2.7295, "b": -0.2822, "r2": 0.9996, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"},
+    {"legacy_id": 95, "name": "Toluene", "a": 2.9630, "b": -0.2838, "r2": 0.9998, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"},
+    {"legacy_id": 103, "name": "Ethanol/alcohol", "a": 3.8659, "b": -0.3091, "r2": 0.9996, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"},
+    {"legacy_id": 23, "name": "Carbon Dioxide", "a": 4.9999, "b": -0.3387, "r2": 0.9998, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"},
+    {"legacy_id": 21, "name": "Ammonia", "a": 6.4835, "b": -0.4060, "r2": 0.9996, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"},
+    {"legacy_id": 20, "name": "Carbon Monoxide", "a": 5.2629, "b": -0.2668, "r2": 0.9992, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"}
+  ]
+}
