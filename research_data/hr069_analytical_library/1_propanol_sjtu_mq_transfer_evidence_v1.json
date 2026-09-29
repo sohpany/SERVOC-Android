@@ -1,0 +1,71 @@
+{
+  "schema": "hazrob.sjtu-mq-transfer-evidence.v1",
+  "project": "HazRob",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "chemical": {
+    "legacy_id": 104,
+    "catalog_name": "1-Propanol",
+    "source_name": "n-propanol",
+    "formula": "C3H8O"
+  },
+  "source": {
+    "source_id": "ZHANG_SJTU_G919_VOC8_2024",
+    "title": "Sensor array optimization for the electronic nose via different deep learning methods",
+    "authors": "Xijia Zhang et al.",
+    "journal": "Sensors and Actuators B: Chemical",
+    "year": 2024,
+    "doi": "10.1016/j.snb.2024.135579",
+    "evidence_tier": "B_PEER_REVIEWED_SAME_ARRAY_KNOWN_CONCENTRATION"
+  },
+  "experiment": {
+    "source_sensor_array": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ6", "MQ7", "MQ8", "MQ9"],
+    "hr069_overlap": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ7", "MQ8", "MQ9"],
+    "hr069_overlap_count": 7,
+    "missing_hr069_channels": ["MQ135"],
+    "source_only_channels": ["MQ6"],
+    "source_sensor_vendor": "Weisheng Electronics Co., Ltd.",
+    "concentration_min_ppm": 10,
+    "concentration_max_ppm": 100,
+    "exact_intermediate_concentration_schedule_available_in_current_text": false,
+    "independent_repeats_per_voc": 10,
+    "pressure": "atmospheric",
+    "relative_humidity_percent": {"nominal": 50, "tolerance": 10},
+    "room_temperature_c": {"nominal": 26, "tolerance": 2},
+    "evaporation_control": "heating table adjusted to 5 C below solvent boiling point",
+    "n_propanol_boiling_point_c_reported": 97.1,
+    "response_recovery_curves_saved_as_csv_by_source": true,
+    "supporting_figure": "Fig. S2(b)"
+  },
+  "dataset_context": {
+    "voc_count": 8,
+    "source_labels": [
+      "butyl acetate",
+      "acetone",
+      "ethanol",
+      "methanol",
+      "ethyl acetate",
+      "n-propanol",
+      "isopropanol",
+      "ethylene glycol"
+    ],
+    "classification_accuracy_cnn_full_array": 0.986,
+    "concentration_r2_cnn_full_array": 0.979,
+    "raw_numeric_n_propanol_csv_available_in_current_repository": false
+  },
+  "hazrob_acceptance": {
+    "status": "ACCEPTED_SAME_ARRAY_KNOWN_CONCENTRATION_TRANSFER_AWAITING_RAW_NUMERIC_VECTOR",
+    "identity_reference": true,
+    "numeric_hr069_fingerprint": false,
+    "direct_hr069_named_identity": false,
+    "quantitative_ppm": false,
+    "m4": false,
+    "requirements_before_numeric_promotion": [
+      "Obtain source n-propanol CSV or tabulated seven-overlap-channel response values",
+      "Preserve the source 10-100 ppm domain and environmental conditions",
+      "Validate source-to-HR069 transfer on installed MQ2/MQ3/MQ4/MQ5/MQ7/MQ8/MQ9 channels",
+      "Do not synthesize the missing MQ135 channel",
+      "Require M4 device/reference calibration before reportable occupational or safety-grade ppm"
+    ]
+  }
+}
