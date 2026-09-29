@@ -17,14 +17,15 @@ public final class AnalyticalPrioritySourceBootstrap {
     private AnalyticalPrioritySourceBootstrap() {}
 
     public static final String META_KEY="analytical_priority_sources_hr069_version";
-    // v2 adds H2S manufacturer evidence and intentionally re-runs on already-installed 0.10.2 databases.
-    public static final String SEED_VERSION="2";
+    // v3 locks the source-backed methanol transfer contract and selected HR069 channels.
+    public static final String SEED_VERSION="3";
 
     public static final String SRC_TOZLU="TOZLU_METHANOL_MQ_2024";
     public static final String SRC_KRIVEC="KRIVEC_ETHYLENE_MQ3_2015";
     public static final String SRC_UCI270="UCI_GAS_DRIFT_270";
     public static final String SRC_WINSEN_MQ135_H2S="WINSEN_MQ135_H2S";
     public static final String SRC_WINSEN_MQ136_H2S="WINSEN_MQ136_H2S";
+    public static final String METHANOL_ASSET="research_data/hr069_analytical_library/methanol_mq_transfer_evidence_v1.json";
 
     public static void ensure(SQLiteDatabase db){
         if(db==null||db.isReadOnly())return;
@@ -41,6 +42,7 @@ public final class AnalyticalPrioritySourceBootstrap {
             putMeta(db,"analytical_priority_sources_hr069_release","0.10.2/HR069");
             putMeta(db,"analytical_priority_sources_hr069_policy","TRANSFER_EVIDENCE_ONLY_NEVER_M4");
             putMeta(db,"analytical_priority_sources_hr069_h2s_policy","H2S_PRIORITY_MQ135_QUALITATIVE_PLUS_MQ136_REFERENCE_NO_HR069_PPM");
+            putMeta(db,"analytical_priority_sources_hr069_methanol_policy","METHANOL_SAME_ARRAY_TRANSFER_MQ3_MQ4_PRIORITY_NO_HR069_NUMERIC_VECTOR_NO_PPM_NO_M4");
             db.setTransactionSuccessful();
         }finally{db.endTransaction();}
     }
@@ -62,7 +64,7 @@ public final class AnalyticalPrioritySourceBootstrap {
                 "A Fast and Cost-Effective Electronic Nose Model for Methanol Detection Using Ensemble Learning",
                 "Bilge Han Tozlu et al.","10.3390/chemosensors12110225",
                 "https://doi.org/10.3390/chemosensors12110225","B","2024 / CC BY 4.0",
-                "168 recordings; 11-sensor array includes MQ2/MQ3/MQ4/MQ5/MQ6/MQ7/MQ8/MQ9/MQ131/MQ135/MQ137. Eight methanol/ethanol mixture classes; all eight installed HR069 MQ models are present. Raw time series requested from author as REQ-005.");
+                "168 recordings; 11-sensor array includes MQ2/MQ3/MQ4/MQ5/MQ6/MQ7/MQ8/MQ9/MQ131/MQ135/MQ137, therefore all eight installed HR069 MQ models are present. Eight methanol/ethanol mixture classes were recorded for 40 s at 10 Hz. Published feature selection retained four features from MQ3, MQ4 and MQ137; only MQ3 and MQ4 of those selected sensors are installed on HR069. Raw time series are not public and remain requested as REQ-005. Mixture-ratio classification is not gas-phase ppm calibration.");
 
         source(db,SRC_KRIVEC,
                 "Quantitative Ethylene Measurements with MOx Chemiresistive Sensors at Different Relative Air Humidities",
@@ -120,11 +122,26 @@ public final class AnalyticalPrioritySourceBootstrap {
         Long methanol=chemicalUid(db,102);if(methanol==null)return;
         JSONObject p=new JSONObject();
         try{
+            p.put("asset",METHANOL_ASSET);
             p.put("array",new JSONArray().put("MQ2").put("MQ3").put("MQ4").put("MQ5").put("MQ6").put("MQ7").put("MQ8").put("MQ9").put("MQ131").put("MQ135").put("MQ137"));
             p.put("hr069_overlap",new JSONArray().put("MQ2").put("MQ3").put("MQ4").put("MQ5").put("MQ7").put("MQ8").put("MQ9").put("MQ135"));
             p.put("hr069_overlap_count",8);p.put("recordings",168);p.put("duration_s",40);p.put("sampling_hz",10);
+            p.put("reported_raw_matrix_shape",new JSONArray().put(168).put(11).put(401));
             p.put("mixture_classes",new JSONArray().put("0% MeOH / 100% EtOH").put("10/90").put("20/80").put("30/70").put("40/60").put("50/50").put("60/40").put("100% MeOH / 0% EtOH"));
-            p.put("raw_data_request","REQ-005");p.put("direct_gas_ppm",false);p.put("m4",false);
+            p.put("selected_sensor_models",new JSONArray().put("MQ3").put("MQ4").put("MQ137"));
+            p.put("selected_hr069_sensor_models",new JSONArray().put("MQ3").put("MQ4"));
+            p.put("selected_feature_count",4);
+            p.put("mq3_energy_usage_percent",16.86);
+            p.put("mq4_energy_usage_percent",41.55);
+            p.put("mq137_energy_usage_percent",21.87);
+            p.put("mq137_snr_usage_percent",19.72);
+            p.put("accuracy_all_features",0.8588);
+            p.put("accuracy_selected_features",0.8185);
+            p.put("gas_phase_ppm_defined",false);
+            p.put("raw_data_request","REQ-005");
+            p.put("raw_data_public",false);
+            p.put("direct_hr069_named_identity",false);
+            p.put("direct_gas_ppm",false);p.put("m4",false);
         }catch(Exception ignored){}
         evidence(db,"ARRAY:MQ2,MQ3,MQ4,MQ5,MQ7,MQ8,MQ9,MQ135",methanol,
                 "EXTERNAL_SAME_ARRAY_METHANOL_FINGERPRINT_DESCRIPTOR",p.toString(),null,null,
@@ -149,7 +166,6 @@ public final class AnalyticalPrioritySourceBootstrap {
     }
 
     private static void seedUciDriftEvidence(SQLiteDatabase db){
-        // legacy id, name, minimum ppm, maximum ppm
         Object[][] rows={
                 {21,"Ammonia",50.0,1000.0},
                 {54,"Acetaldehyde",5.0,500.0},
