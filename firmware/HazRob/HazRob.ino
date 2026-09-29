@@ -5,6 +5,7 @@
 #include "RemoteLink.h"
 #include "RemoteMqtt.h"
 #include "SafetyInterlock.h"
+#include "SafetyOptions.h"
 
 // DIRECT is always the boot/default profile: AP-only, local HTTP control/telemetry and local camera.
 // REMOTE is AP+STA and is entered only by an explicit operator command.
@@ -131,6 +132,13 @@ void setup(){
   web.on("/estop/reset",[]{motionStop();safetyResetEstop();reply(200,"ESTOP RESET");});
   web.on("/sensor/off",[]{sensorPowerOff();reply(200,"OK");});
   web.on("/heartbeat",[]{if(web.hasArg("arm")&&web.arg("arm")=="0"){linkSetArmed(false);return reply(200,"DISARMED");}linkHeartbeat();reply(200,"OK");});
+  web.on("/safety/auto_stop",[]{
+    if(web.hasArg("enabled")){
+      String v=web.arg("enabled");if(v!="0"&&v!="1")return reply(400,"application/json","{\"ok\":false,\"error\":\"enabled_must_be_0_or_1\"}");
+      motionStop();safetyAutoStopSet(v=="1",true);
+    }
+    reply(200,"application/json",String("{\"ok\":true,\"enabled\":")+(safetyAutoStopEnabled()?"true":"false")+",\"warnings_active\":true,\"estop_independent\":true,\"watchdog_independent\":true}");
+  });
 
   // Direct is the boot/default authority. Re-selecting it never restarts a healthy HazRob AP.
   web.on("/connection/direct",HTTP_POST,[]{
