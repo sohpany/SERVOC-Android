@@ -36,7 +36,10 @@ public final class ChemCoreInferenceEngine {
         if(observedChannels==0)return envelope(context,ChemCoreDecision.Outcome.INVALID_MEASUREMENT,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no valid MQ ratios",Collections.emptyList());
         List<InverseMolecularSolver.Result> ranked=InverseMolecularSolver.solve(observedRatios,candidates,context.temperatureC,context.rh,samplingProfile);
         List<InverseMolecularSolver.Result> solvable=new ArrayList<>();for(InverseMolecularSolver.Result r:ranked)if(r!=null&&r.solvable)solvable.add(r);
-        if(solvable.isEmpty())return envelope(context,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no candidate has enough overlapping response evidence",summaries(ranked,observedChannels));
+        if(solvable.isEmpty()){
+            ChemCoreResultEnvelope base=envelope(context,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no candidate has enough overlapping response evidence",summaries(ranked,observedChannels));
+            return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios);
+        }
 
         InverseMolecularSolver.Result top=solvable.get(0);double[] p=new double[solvable.size()];for(int i=0;i<p.length;i++)p[i]=solvable.get(i).posterior;double entropy=ChemCoreOpenSetGate.normalizedEntropy(p);
         MixtureResidualGuard.Result consistency=MixtureResidualGuard.evaluate(solvable,2.5,.80,.25);
@@ -67,7 +70,11 @@ public final class ChemCoreInferenceEngine {
 
         // A fitted ppm helps explain/rank hypotheses at M1-M3, but only M4 QUANTIFIED exposes it as a measurement result.
         double reportablePpm=outcome==ChemCoreDecision.Outcome.QUANTIFIED?top.bestPpm:Double.NaN;
-        return envelope(context,outcome,tier,top.chemicalUid,top.label,reportablePpm,Double.NaN,Double.NaN,ood,top.posterior,entropy,note,summaries(solvable,observedChannels));
+        ChemCoreResultEnvelope base=envelope(context,outcome,tier,top.chemicalUid,top.label,reportablePpm,Double.NaN,Double.NaN,ood,top.posterior,entropy,note,summaries(solvable,observedChannels));
+        // Source-backed/uploaded fingerprint measurements are accepted for identity ranking in HR069.
+        // The fusion layer can promote only SCREENING/INSUFFICIENT_EVIDENCE to IDENTIFIED/M3;
+        // it cannot override UNKNOWN/mixture/domain failures and can never create M4 or reportable ppm.
+        return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios);
     }
 
     public static ChemCoreResultEnvelope analyzeLegacyManufacturerPriors(Map<String,Double> observedRatios,SamplingProfile samplingProfile,Context context){
@@ -98,5 +105,5 @@ public final class ChemCoreInferenceEngine {
         }
     }
 
-    private static ChemCoreResultEnvelope envelope(Context c,ChemCoreDecision.Outcome outcome,ChemCoreDecision.EvidenceTier tier,Long uid,String label,double ppm,double lo,double hi,double ood,double posterior,double entropy,String note,List<ChemCoreResultEnvelope.CandidateSummary> candidates){return new ChemCoreResultEnvelope(c.sessionId,outcome,tier,uid,label,ppm,lo,hi,ood,posterior,entropy,c.samplingProfileId,ChemCoreFeaturePipeline.SCHEMA_VERSION,c.modelVersion,note,candidates);}
+    private static ChemCoreResultEnvelope envelope(ChemCoreInferenceEngine.Context c,ChemCoreDecision.Outcome outcome,ChemCoreDecision.EvidenceTier tier,Long uid,String label,double ppm,double lo,double hi,double ood,double posterior,double entropy,String note,List<ChemCoreResultEnvelope.CandidateSummary> candidates){return new ChemCoreResultEnvelope(c.sessionId,outcome,tier,uid,label,ppm,lo,hi,ood,posterior,entropy,c.samplingProfileId,ChemCoreFeaturePipeline.SCHEMA_VERSION,c.modelVersion,note,candidates);}
 }
