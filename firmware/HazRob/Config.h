@@ -35,9 +35,11 @@ constexpr uint8_t BATTERY_PIN=33;        // ADC1, divider required
 constexpr uint8_t ULTRA_TRIG_PIN=23;      // front ultrasonic trigger
 constexpr uint8_t ULTRA_ECHO_PIN=39;      // input only; reduce 5 V echo to <=3.3 V
 
-// The configured active level represents ground detected. Physical polarity must be confirmed
-// after flashing. A cliff warning means the sensor has persistently lost ground detection.
+// The configured active level represents GROUND PRESENT, not an obstacle-ahead event.
+// Physical polarity must be confirmed after flashing: with this configuration LOW=ground present
+// and HIGH=no ground/cliff. Forward motion starts fail-safe blocked until ground is confirmed.
 constexpr uint8_t IR_GROUND_ACTIVE=LOW;
+constexpr bool IR_FAIL_SAFE_STARTUP=true;
 constexpr uint8_t IR_CLIFF_ASSERT_SAMPLES=3;
 constexpr uint8_t IR_CLIFF_CLEAR_SAMPLES=2;
 // Digital IR is calibrated physically at the installed downward reference height; it does not measure distance.
