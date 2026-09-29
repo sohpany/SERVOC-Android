@@ -1,0 +1,219 @@
+{
+  "schema": "hazrob.external-mq-class-transfer-fingerprints/1",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "source_id": "MQDS-001",
+  "source_file": "Gas_Sensors_Measurements.csv",
+  "source_file_md5": "7cec94274169a6fb2f27bc0d3758904b",
+  "source_file_sha256": "13c2c85cfbb23357a71555b9bc2cbe7dd68e931ffc94df30389c1a4631203745",
+  "source_sensor_order": [
+    "MQ2",
+    "MQ3",
+    "MQ5",
+    "MQ6",
+    "MQ7",
+    "MQ8",
+    "MQ135"
+  ],
+  "hr069_sensor_order": [
+    "MQ2",
+    "MQ3",
+    "MQ4",
+    "MQ5",
+    "MQ7",
+    "MQ8",
+    "MQ9",
+    "MQ135"
+  ],
+  "overlap_sensors": [
+    "MQ2",
+    "MQ3",
+    "MQ5",
+    "MQ7",
+    "MQ8",
+    "MQ135"
+  ],
+  "overlap_count": 6,
+  "missing_hr069_channels": [
+    "MQ4",
+    "MQ9"
+  ],
+  "class_count": 4,
+  "total_samples": 6400,
+  "records": [
+    {
+      "class": "Mixture",
+      "sample_count": 1600,
+      "source_mean_raw": {
+        "MQ2": 593.400625,
+        "MQ3": 419.058125,
+        "MQ5": 407.490625,
+        "MQ7": 460.115625,
+        "MQ8": 315.2525,
+        "MQ135": 403.390625
+      },
+      "source_sd_raw": {
+        "MQ2": 66.17760041250436,
+        "MQ3": 16.350132285411913,
+        "MQ5": 39.511936903080574,
+        "MQ7": 69.1266686312664,
+        "MQ8": 71.99517038732138,
+        "MQ135": 31.354185768612027
+      },
+      "log10_cross_sensor_geomean_shape_hr069_order": [
+        0.14451613138166264,
+        -0.006557602534055202,
+        null,
+        -0.018714246497049322,
+        0.034035113638107184,
+        -0.13017332874094964,
+        null,
+        -0.023106067247713295
+      ],
+      "log10_class_mean_over_nogas_mean_hr069_order": [
+        -0.10078106448469856,
+        -0.10112804005375722,
+        null,
+        -0.0240786770560068,
+        -0.11980312634069774,
+        -0.30558144410860255,
+        null,
+        -0.07048066877423846
+      ]
+    },
+    {
+      "class": "NoGas",
+      "sample_count": 1600,
+      "source_mean_raw": {
+        "MQ2": 748.391875,
+        "MQ3": 528.935,
+        "MQ5": 430.72125,
+        "MQ7": 606.275625,
+        "MQ8": 637.1475,
+        "MQ135": 474.4675
+      },
+      "source_sd_raw": {
+        "MQ2": 49.57352386003857,
+        "MQ3": 4.0566069611836255,
+        "MQ5": 32.90414449793085,
+        "MQ7": 44.5644718464577,
+        "MQ8": 63.72412197179081,
+        "MQ135": 30.249724749237437
+      },
+      "log10_cross_sensor_geomean_shape_hr069_order": [
+        0.12498835906336048,
+        -0.02573839928329876,
+        null,
+        -0.11494440624404334,
+        0.03352940317580413,
+        0.055099278564652104,
+        null,
+        -0.07293423527647566
+      ],
+      "log10_class_mean_over_nogas_mean_hr069_order": [
+        0.0,
+        0.0,
+        null,
+        0.0,
+        0.0,
+        0.0,
+        null,
+        0.0
+      ]
+    },
+    {
+      "class": "Perfume",
+      "sample_count": 1600,
+      "source_mean_raw": {
+        "MQ2": 745.330625,
+        "MQ3": 527.711875,
+        "MQ5": 439.8875,
+        "MQ7": 617.203125,
+        "MQ8": 633.794375,
+        "MQ135": 480.941875
+      },
+      "source_sd_raw": {
+        "MQ2": 44.32295274117785,
+        "MQ3": 4.138485640786902,
+        "MQ5": 54.62814054896431,
+        "MQ7": 71.61177116117084,
+        "MQ8": 102.49350670985419,
+        "MQ135": 38.97034354842219
+      },
+      "log10_cross_sensor_geomean_shape_hr069_order": [
+        0.12025620912805247,
+        -0.029695890125608568,
+        null,
+        -0.10875113617345523,
+        0.03833535904155618,
+        0.049855623197665344,
+        null,
+        -0.07000016506821004
+      ],
+      "log10_class_mean_over_nogas_mean_hr069_order": [
+        -0.0017800975000977148,
+        -0.0010054384070995557,
+        null,
+        0.009145322505798362,
+        0.007758008300962309,
+        -0.002291602931776464,
+        null,
+        0.00588612264347589
+      ]
+    },
+    {
+      "class": "Smoke",
+      "sample_count": 1600,
+      "source_mean_raw": {
+        "MQ2": 623.250625,
+        "MQ3": 372.39375,
+        "MQ5": 340.216875,
+        "MQ7": 580.21375,
+        "MQ8": 583.700625,
+        "MQ135": 308.108125
+      },
+      "source_sd_raw": {
+        "MQ2": 78.05174795742168,
+        "MQ3": 28.007815597107463,
+        "MQ5": 26.276060584385007,
+        "MQ7": 9.893203885215675,
+        "MQ8": 29.091707654730286,
+        "MQ135": 25.8607457421637
+      },
+      "log10_cross_sensor_geomean_shape_hr069_order": [
+        0.14201234214440056,
+        -0.08164799707385735,
+        null,
+        -0.12089452941781541,
+        0.11093763602489017,
+        0.11353977778801395,
+        null,
+        -0.16394722946563162
+      ],
+      "log10_class_mean_over_nogas_mean_hr069_order": [
+        -0.07946634119749144,
+        -0.15239992206909012,
+        null,
+        -0.1024404474523036,
+        -0.019082091429445468,
+        -0.0380498250551697,
+        null,
+        -0.1875033184676875
+      ]
+    }
+  ],
+  "acceptance_state": "ACCEPTED_TRANSFER_CLASS_FINGERPRINT",
+  "identity_reference_accepted": true,
+  "direct_hr069_named_identity": false,
+  "reason_direct_identity_withheld": "Source uses a different instrument/ADC chain and lacks MQ4/MQ9; no missing channels are synthesized. A local transfer transform is required before direct HR069 classification.",
+  "vector_semantics": "source ADC class means normalized within-source by cross-sensor geomean and by NoGas class means; not Rs/R0",
+  "class_semantics": {
+    "NoGas": "neutral/source baseline",
+    "Perfume": "perfume source; not a pure chemical label",
+    "Smoke": "composite smoke class",
+    "Mixture": "perfume + smoke composite class"
+  },
+  "quantitative_ppm": false,
+  "m4": false,
+  "generated_utc": "2026-09-29T20:05:56.888752+00:00"
+}
