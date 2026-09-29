@@ -1,0 +1,163 @@
+{
+  "schema": "hazrob.external-operational-transfer-fingerprints.v1",
+  "project": "HazRob",
+  "release": "0.10.2",
+  "hardware_revision": "HR069",
+  "source": {
+    "repository": "Amr-Khamis-84/RoboFusion-Dataset",
+    "commit": "d3907eda585cf202fc00c462b550d2512d5b9e6f",
+    "file": "Real_Dataset_12_Days_5_H1.csv",
+    "sha256": "ae4637a1fbffbb0d7e0750f6623b17bcfecc184043df58702cea07a158546528",
+    "license": "CC0-1.0",
+    "fieldnames": [
+      "Date",
+      "Time",
+      "Suite_ID",
+      "T1",
+      "H%",
+      "P",
+      "AL",
+      "T2",
+      "Dust",
+      "MQ2",
+      "MQ4",
+      "MQ5",
+      "MQ7",
+      "MQ8",
+      "MQ135",
+      "Condition",
+      "Status"
+    ],
+    "source_scope": "real H1 gas-leak dataset: Normal versus Hazard_1 only",
+    "source_column_claim": "MQ columns are source-reported sensor values/ppm; HazRob does not adopt them as device ppm calibration"
+  },
+  "hr069_overlap_channels": [
+    "MQ2",
+    "MQ4",
+    "MQ5",
+    "MQ7",
+    "MQ8",
+    "MQ135"
+  ],
+  "overlap_count": 6,
+  "missing_hr069_channels": [
+    "MQ3",
+    "MQ9"
+  ],
+  "transform": "for each row z_i=log10(1+x_i); prototype space is z_i-mean(z) across six overlapping MQ channels",
+  "prototype_statistic": "component-wise median; sigma=max(0.05,1.4826*MAD)",
+  "quality_column_name": "Status",
+  "quality_policy": "Status == Original only; Interpolation excluded",
+  "quality_tier": "EXTERNAL_OPERATIONAL_ORIGINAL_ONLY",
+  "observed_classes": [
+    "Hazard_1",
+    "Normal"
+  ],
+  "expected_source_classes": [
+    "Hazard_1",
+    "Normal"
+  ],
+  "missing_expected_classes": [],
+  "unexpected_classes": [],
+  "total_rows": 69120,
+  "selected_rows": 42704,
+  "interpolated_rows_excluded": 26416,
+  "class_counts_total": {
+    "Hazard_1": 1684,
+    "Normal": 67436
+  },
+  "class_counts_selected": {
+    "Hazard_1": 1167,
+    "Normal": 41537
+  },
+  "records": [
+    {
+      "class": "Hazard_1",
+      "operational_semantics": "source operational gas-leak hazard label; gas identity unspecified",
+      "rows_used": 1167,
+      "total_rows": 1684,
+      "interpolated_rows_excluded": 517,
+      "rejected_selected_rows": 0,
+      "prototype_clr_log10_1plus": [
+        -0.16218385913659927,
+        0.6895123557707743,
+        -0.4128213009720952,
+        -0.6769106258203069,
+        0.29794005163845416,
+        -0.23639028919702562
+      ],
+      "sigma_robust_clr_log10_1plus": [
+        0.8886916640838581,
+        0.5262006722158789,
+        0.2560133917667277,
+        0.41780831256948464,
+        0.39548286634707874,
+        0.5210604240378981
+      ],
+      "median_source_log10_1plus": [
+        0.44404479591807633,
+        1.6766936096248666,
+        0.19589965240923368,
+        0.0,
+        0.9722028383790645,
+        0.09342168516223506
+      ],
+      "suite_row_counts": {
+        "AMR_1": 421,
+        "AMR_2": 421,
+        "Suite_1": 421,
+        "Suite_2": 421
+      }
+    },
+    {
+      "class": "Normal",
+      "operational_semantics": "source operational normal state",
+      "rows_used": 41537,
+      "total_rows": 67436,
+      "interpolated_rows_excluded": 25899,
+      "rejected_selected_rows": 0,
+      "prototype_clr_log10_1plus": [
+        0.8011661207651951,
+        0.402437045582265,
+        -0.39388039777911077,
+        -0.4590498997274038,
+        0.2211885748434197,
+        -0.19371184833674884
+      ],
+      "sigma_robust_clr_log10_1plus": [
+        1.0517744348091893,
+        0.29324754503949085,
+        0.2631175161079973,
+        0.29760337032955236,
+        0.15955579247931517,
+        0.21871404741378692
+      ],
+      "median_source_log10_1plus": [
+        1.3289908554494287,
+        1.000867721531227,
+        0.05307844348341968,
+        0.0,
+        0.5670263661590604,
+        0.146128035678238
+      ],
+      "suite_row_counts": {
+        "AMR_1": 16859,
+        "AMR_2": 16859,
+        "Suite_1": 16859,
+        "Suite_2": 16859
+      }
+    }
+  ],
+  "operational_hazard_class": true,
+  "gas_leak_operational_benchmark": true,
+  "pure_analyte_identity": false,
+  "direct_hr069_named_identity": false,
+  "quantitative_ppm": false,
+  "m4": false,
+  "notes": [
+    "Hazard_1 is not assigned to a chemical identity; it is retained as the source gas-leak operational class.",
+    "This pinned H1 real-data file does not contain Hazard_2/high-temperature or Hazard_3/fire classes; they are not synthesized into this asset.",
+    "Source interpolated rows are excluded from canonical prototypes when the quality/status column identifies them.",
+    "External module calibration, load resistance, heater state and source environment differ from HR069; local transfer validation is required."
+  ]
+}
