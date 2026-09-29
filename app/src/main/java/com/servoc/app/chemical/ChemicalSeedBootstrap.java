@@ -49,6 +49,16 @@ public final class ChemicalSeedBootstrap {
             db.putMeta("analytical_transfer_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
         }
 
+        // Seed high-priority source descriptors discovered after the initial transfer package. These include
+        // same-array methanol evidence, MQ-3 ethylene known-concentration evidence and the UCI drift dataset
+        // for acetaldehyde/ethylene and corroborating VOCs. They remain transfer evidence only and never M4.
+        try{
+            AnalyticalPrioritySourceBootstrap.ensure(db.getWritableDatabase());
+            db.putMeta("analytical_priority_sources_seed_status","available:"+AnalyticalPrioritySourceBootstrap.SEED_VERSION);
+        }catch(Exception e){
+            db.putMeta("analytical_priority_sources_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
+        }
+
         // Molecular intelligence prefers an activated, verified Stable snapshot and falls back to the APK seed.
         // The importer is hash-idempotent, so startup remains cheap after the same content is installed once.
         ChemCoreMolecularSeedImporter.Result molecular=ChemCoreMolecularSeedImporter.importBestAvailable(context,db);
