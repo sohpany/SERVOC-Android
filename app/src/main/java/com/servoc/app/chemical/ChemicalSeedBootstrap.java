@@ -59,6 +59,16 @@ public final class ChemicalSeedBootstrap {
             db.putMeta("analytical_priority_sources_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
         }
 
+        // Seed operational hazard-pattern evidence separately from chemical identity. RoboFusion H1 is a
+        // Normal-vs-gas-leak benchmark on six overlapping MQ channels; it must never promote a named analyte,
+        // ppm result or M4 state merely by being present in the offline evidence database.
+        try{
+            OperationalHazardTransferBootstrap.ensure(db.getWritableDatabase());
+            db.putMeta("operational_hazard_transfer_seed_status","available:"+OperationalHazardTransferBootstrap.SEED_VERSION);
+        }catch(Exception e){
+            db.putMeta("operational_hazard_transfer_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
+        }
+
         // Molecular intelligence prefers an activated, verified Stable snapshot and falls back to the APK seed.
         // The importer is hash-idempotent, so startup remains cheap after the same content is installed once.
         ChemCoreMolecularSeedImporter.Result molecular=ChemCoreMolecularSeedImporter.importBestAvailable(context,db);
