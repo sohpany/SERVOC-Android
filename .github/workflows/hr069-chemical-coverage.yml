@@ -7,10 +7,17 @@ on:
       - 'release/hazrob-0.10.2'
     paths:
       - 'app/src/main/java/com/servoc/app/chemical/**'
+      - 'app/src/main/java/com/servoc/app/models/**'
+      - 'app/src/main/java/com/servoc/app/chemcore/**'
       - 'app/src/test/java/com/servoc/app/chemical/**'
       - 'app/src/main/assets/generated/niosh/**'
       - 'research_data/chemical_coverage_hr069/**'
+      - 'research_data/external_mq_fingerprints/**'
+      - 'research_data/hr069_analytical_library/**'
+      - 'tools/build_hr069_research_priors.py'
+      - 'tools/build_chemcore_stable_snapshot.py'
       - 'tools/audit_hr069_chemical_coverage.py'
+      - '.github/workflows/chemcore-library-publish-0102.yml'
       - '.github/workflows/hr069-chemical-coverage.yml'
 
 permissions:
@@ -23,7 +30,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Validate 144/652 evidence coverage and M4 isolation
+      - name: Validate 144/652 evidence coverage, 43 curves, 76 models and M4 isolation
         run: python3 tools/audit_hr069_chemical_coverage.py --check
+      - name: Build and validate non-M4 HR069 response priors
+        run: |
+          python3 tools/build_hr069_research_priors.py --out "$RUNNER_TEMP/hr069-response-priors.json"
+          python3 - <<'PY'
+          import json,os
+          d=json.load(open(os.environ['RUNNER_TEMP']+'/hr069-response-priors.json',encoding='utf-8'))
+          assert d['source_curve_count']==43
+          assert d['preferred_literature_overlay_count']==6
+          assert d['record_count']==49
+          assert d['policy']['external_m4'] is False
+          assert all(r.get('evidence_tier') in ('M1','M2') and not r.get('device_validated',False) for r in d['records'])
+          PY
       - name: Emit coverage report
         run: python3 tools/audit_hr069_chemical_coverage.py
