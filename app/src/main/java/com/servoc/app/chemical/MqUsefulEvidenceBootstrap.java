@@ -19,10 +19,13 @@ public final class MqUsefulEvidenceBootstrap {
     private MqUsefulEvidenceBootstrap() {}
 
     public static final String META_KEY="mq_useful_evidence_hr069_version";
-    public static final String SEED_VERSION="1";
+    public static final String SEED_VERSION="2";
 
     public static final String SRC_PAREDES="PAREDES_RCQ_2016_LINEAR_ALCOHOLS";
     public static final String SRC_KUMAR_CO="KUMAR_ELECTRONICS_2026_CO";
+    public static final String SRC_MARQUES_H2="MARQUES_MQ8_H2_2026";
+    public static final String SRC_ALVEAR_CO7="ALVEAR_MQ7_CO_2022";
+    public static final String SRC_HONEYCUTT_CH4="HONEYCUTT_MQ4_CH4_2019";
 
     public static void ensure(SQLiteDatabase db){
         if(db==null||db.isReadOnly())return;
@@ -30,9 +33,13 @@ public final class MqUsefulEvidenceBootstrap {
         db.beginTransaction();
         try{
             seedSources(db);
-            db.delete("sensor_evidence","source_id IN (?,?)",new String[]{SRC_PAREDES,SRC_KUMAR_CO});
+            db.delete("sensor_evidence","source_id IN (?,?,?,?,?)",
+                    new String[]{SRC_PAREDES,SRC_KUMAR_CO,SRC_MARQUES_H2,SRC_ALVEAR_CO7,SRC_HONEYCUTT_CH4});
             seedButanol(db);
             seedCarbonMonoxideArray(db);
+            seedHydrogenMq8Curve(db);
+            seedCarbonMonoxideMq7Curve(db);
+            seedMethaneMq4Experiment(db);
             putMeta(db,META_KEY,SEED_VERSION);
             putMeta(db,"mq_useful_evidence_hr069_policy","USE_ANY_TRACEABLE_SAME_MQ_FINGERPRINT_CURVE_OR_PPM_EVIDENCE_NO_SYNTHETIC_CHANNELS_M4_SEPARATE");
             db.setTransactionSuccessful();
@@ -50,6 +57,21 @@ public final class MqUsefulEvidenceBootstrap {
                 "Kumar et al.","10.3390/electronics15081671",
                 "https://doi.org/10.3390/electronics15081671","B","2026 / peer reviewed",
                 "Controlled CO experiment with MQ2/MQ3/MQ4/MQ5/MQ6/MQ7/MQ8/MQ135. 2484 eight-dimensional samples across six CO concentration classes from fresh air through a reported 1332++ ppm high class. Seven of those sensors are installed on HR069; MQ6 is source-only.");
+        source(db,SRC_MARQUES_H2,
+                "Quantification of Hydrogen from Electrolysis by Combining a Resistive Electronic Sensor with the Standard Volumetric Method",
+                "Marques et al.","10.3390/app16104863",
+                "https://doi.org/10.3390/app16104863","B","2026 / peer reviewed",
+                "Exact MQ8 H2 study. Published Eq. 16: C(ppm)=1000*(Rs/R0)^-0.68, with source-table points spanning 200-10000 ppm and experimental validation against a volumetric method. Reference curve only until HR069 M4 calibration.");
+        source(db,SRC_ALVEAR_CO7,
+                "Smart and Portable Air-Quality Monitoring IoT Low-Cost Devices in Ibarra City, Ecuador",
+                "Alvear-Puertas et al.","10.3390/s22187015",
+                "https://doi.org/10.3390/s22187015","B","2022 / peer reviewed",
+                "Exact MQ7 CO conversion relation published for 20-2000 ppm. Equivalent response form Rs/R0=17.5*ppm^-0.63. MQ7 heater-cycle validity is still required on HR069.");
+        source(db,SRC_HONEYCUTT_CH4,
+                "Precision and Limits of Detection for Selected Commercially Available, Low-Cost Carbon Dioxide and Methane Gas Sensors",
+                "Honeycutt et al.","10.3390/s19143157",
+                "https://doi.org/10.3390/s19143157","B","2019 / peer reviewed",
+                "Controlled MQ4 methane calibration using known gas mixtures and a precision NDIR analyzer. Calibration concentrations were generated from 1.85-995 ppm, additional responses included 500-2200 ppm, settling time was about 78+/-10 s, and the calibration-corrected MQ4 detection limit was 82 ppm.");
     }
 
     private static void seedButanol(SQLiteDatabase db){
@@ -90,6 +112,53 @@ public final class MqUsefulEvidenceBootstrap {
         evidence(db,"ARRAY:MQ2,MQ3,MQ4,MQ5,MQ7,MQ8,MQ135",uid,
                 "PEER_REVIEWED_SAME_MQ_KNOWN_CONCENTRATION_ARRAY_EVIDENCE",p.toString(),
                 null,null,SRC_KUMAR_CO,"B_PEER_REVIEWED_SAME_MQ_KNOWN_CONCENTRATION","ACCEPTED_FINGERPRINT_AND_PPM_CLASS_REFERENCE");
+    }
+
+    private static void seedHydrogenMq8Curve(SQLiteDatabase db){
+        Long uid=chemicalUid(db,75);if(uid==null)return;
+        JSONObject p=new JSONObject();
+        try{
+            p.put("analyte","Hydrogen");p.put("sensor","MQ8");
+            p.put("ppm_equation","C=1000*(Rs/R0)^-0.68");
+            p.put("ratio_equation","Rs/R0=25808.615404180728*ppm^-1.4705882352941175");
+            p.put("published_points_ppm",new JSONArray().put(200).put(300).put(500).put(700).put(1000).put(1500).put(2000).put(3000).put(5000).put(8000).put(10000));
+            p.put("experimental_validation",true);p.put("identity_fingerprint_accepted",true);
+            p.put("reference_ppm_accepted",true);p.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"MQ8",uid,"PEER_REVIEWED_RS_R0_PPM_CURVE",p.toString(),200.0,10000.0,
+                SRC_MARQUES_H2,"B_PEER_REVIEWED_EXACT_MQ_CURVE","ACCEPTED_IDENTITY_AND_REFERENCE_PPM_CURVE");
+    }
+
+    private static void seedCarbonMonoxideMq7Curve(SQLiteDatabase db){
+        Long uid=chemicalUid(db,20);if(uid==null)return;
+        JSONObject p=new JSONObject();
+        try{
+            p.put("analyte","Carbon Monoxide");p.put("sensor","MQ7");
+            p.put("ratio_equation","Rs/R0=17.5*ppm^-0.63");
+            p.put("published_domain_ppm",new JSONArray().put(20).put(2000));
+            p.put("heater_cycle_required",true);p.put("identity_fingerprint_accepted",true);
+            p.put("reference_ppm_accepted",true);p.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"MQ7",uid,"PEER_REVIEWED_RS_R0_PPM_CURVE",p.toString(),20.0,2000.0,
+                SRC_ALVEAR_CO7,"B_PEER_REVIEWED_EXACT_MQ_CURVE","ACCEPTED_IDENTITY_AND_REFERENCE_PPM_CURVE_HEATER_GATED");
+    }
+
+    private static void seedMethaneMq4Experiment(SQLiteDatabase db){
+        Long uid=chemicalUid(db,76);if(uid==null)return;
+        JSONObject p=new JSONObject();
+        try{
+            p.put("analyte","Methane");p.put("sensor","MQ4");
+            p.put("controlled_known_gas",true);p.put("reference_analyzer","California Analytical Instruments ZRE NDIR");
+            p.put("calibration_generation_min_ppm",1.85);p.put("calibration_generation_max_ppm",995.0);
+            p.put("additional_exposure_range_ppm",new JSONArray().put(500).put(2200));
+            p.put("settling_time_s_mean",78);p.put("settling_time_s_sd",10);
+            p.put("calibration_corrected_lod_ppm",82.0);
+            p.put("curve_model","Langmuir-like nonlinear fit; source coefficients not available in current text");
+            p.put("identity_fingerprint_accepted",true);p.put("quantitative_reference",true);
+            p.put("numeric_curve_coefficients_available",false);p.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"MQ4",uid,"PEER_REVIEWED_KNOWN_CONCENTRATION_CALIBRATION_EXPERIMENT",p.toString(),1.85,995.0,
+                SRC_HONEYCUTT_CH4,"B_PEER_REVIEWED_EXACT_MQ_KNOWN_CONCENTRATION","ACCEPTED_IDENTITY_AND_QUANTITATIVE_REFERENCE_EXPERIMENT");
     }
 
     private static void evidence(SQLiteDatabase db,String sensorKey,Long chemicalUid,String type,String payload,
