@@ -1,10 +1,15 @@
 package com.servoc.app.fingerprint;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import com.servoc.app.chemical.MqManufacturerOperatingContract;
 
-/** Distance-based classifier for user-trained chemical fingerprints. */
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+/** Distance-based classifier for user-trained and explicitly separated research-prior fingerprints. */
 public final class FingerprintClassifier {
     private FingerprintClassifier() {}
 
@@ -18,6 +23,7 @@ public final class FingerprintClassifier {
         }
     }
 
+    /** Existing empirical/user-trained fingerprint path. */
     public static List<Match> classify(double[] ratios, List<ChemicalFingerprint> library) {
         List<Match> out = new ArrayList<>();
         if (ratios == null || library == null) return out;
@@ -39,6 +45,38 @@ public final class FingerprintClassifier {
             out.add(new Match(f, score, d, n));
         }
         out.sort(Comparator.comparingDouble((Match m) -> m.score).reversed());
+        return out;
+    }
+
+    /**
+     * Classifies against source-backed, model-derived HR069 research priors. Heater-cycled
+     * channels are fail-closed when heater phase validity is unknown.
+     */
+    public static List<Match> classifyResearchPriors(double[] ratios) {
+        return classifyResearchPriors(ratios,null);
+    }
+
+    /**
+     * Returns at most one best concentration-template match per chemical. The result is an
+     * identification/screening prior only; it never represents M4 device validation.
+     */
+    public static List<Match> classifyResearchPriors(double[] ratios, boolean[] heaterCycleValid) {
+        List<Match> out=new ArrayList<>();
+        if(ratios==null)return out;
+        double[] usable=Arrays.copyOf(ratios,ratios.length);
+        for(int i=0;i<usable.length;i++){
+            if(!MqManufacturerOperatingContract.requiresHeaterCycle(i))continue;
+            boolean valid=heaterCycleValid!=null&&i<heaterCycleValid.length&&heaterCycleValid[i];
+            if(!valid)usable[i]=Double.NaN;
+        }
+        List<Match> all=classify(usable,ResearchIdentificationFingerprintRegistry.library());
+        Map<Integer,Match> best=new LinkedHashMap<>();
+        for(Match m:all){
+            int chemical=m.fingerprint.chemicalId;
+            if(!best.containsKey(chemical))best.put(chemical,m);
+        }
+        out.addAll(best.values());
+        out.sort(Comparator.comparingDouble((Match m)->m.score).reversed());
         return out;
     }
 }
