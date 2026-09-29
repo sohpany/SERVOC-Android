@@ -15,7 +15,7 @@ This log records field-requested corrections one by one. No APK or firmware ZIP 
 - Application navigation tabs, footer and the generic per-tab refresh row are hidden in landscape.
 - The global safety/connection/gas status header is deliberately retained in landscape so critical alerts are not suppressed.
 - Pausing/leaving MainActivity neutralizes the drive command so orientation/background transitions cannot preserve a non-zero drive request.
-- Portrait keeps the normal tabbed application shell.
+- Portrait keeps the normal tabbed shell.
 
 **Implementation status:** IMPLEMENTED IN SOURCE — PHYSICAL/UI ACCEPTANCE PENDING
 
@@ -100,6 +100,33 @@ This log records field-requested corrections one by one. No APK or firmware ZIP 
 8. Explicit Stop must work with Auto-stop OFF and ON.
 9. Change the option, reboot Main ESP32, and verify the robot-side value persists.
 10. Verify the same value and behavior from Direct and Remote modes.
+
+## MOD-04 — Ultrasonic distance overlay in landscape driving view
+
+**Requested behavior**
+- The landscape driving view shall show a dedicated box with the live front ultrasonic/ECHO distance in centimeters.
+- Valid distance values greater than `10 cm` are displayed in green.
+- Valid distance values at or below `10 cm` are displayed in red.
+- Missing, timed-out or invalid distance must display `ECHO — cm` in neutral gray rather than a fabricated zero.
+- The distance display is informational and remains active whether MOD-03 automatic stopping is OFF or ON.
+
+**Implementation status:** IMPLEMENTED IN SOURCE — PHYSICAL/UI ACCEPTANCE PENDING
+
+**Implementation**
+- Added `EchoDistanceBadge` as a self-refreshing `250 ms` landscape overlay bound to `device.proximity.cm` from the unified diagnostics/telemetry snapshot.
+- `HazRobApplication` injects the badge into the landscape camera `FrameLayout`, centered near the top and below the primary safety-warning overlay.
+- Display format is `ECHO %.1f cm`.
+- Color policy is green for `>10.0 cm`, red for `<=10.0 cm`, and gray for unavailable/invalid data.
+- The badge has no authority over drive commands and does not alter MOD-03 warning/auto-stop behavior.
+- `EchoDistanceOverlayContractTest` protects the threshold, colors, unavailable state and landscape installation contract.
+
+**Physical/UI acceptance still pending**
+1. With a target farther than 10 cm, verify the displayed value tracks the measured distance and is green.
+2. Move the target to exactly/approximately 10 cm and below; verify the displayed value becomes red.
+3. Remove the echo/no valid return; verify `ECHO — cm` appears in gray rather than `0 cm`.
+4. Verify the box remains readable in landscape without covering E-STOP, joystick/tank controls, or the primary warning banner.
+5. Repeat with Auto-stop OFF and ON; the displayed distance and color must remain identical for the same measured distance.
+6. Repeat in Direct and Remote; the badge must use the same unified proximity telemetry.
 
 ## DISC-01 — Environmental I2C read-bus defect discovered during diff verification
 
