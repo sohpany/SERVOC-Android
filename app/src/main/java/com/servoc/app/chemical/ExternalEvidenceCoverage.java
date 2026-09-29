@@ -55,6 +55,9 @@ public final class ExternalEvidenceCoverage {
         e(103,SAME_ARRAY_FINGERPRINT,"VISUAL_SMELL_2026","peer-reviewed exact/superset MQ-array fingerprint study","MQ2/MQ3/MQ4/MQ5/MQ6/MQ7/MQ8/MQ9/MQ135","pure ethanol, repeated array measurements","All eight HR069 MQ models are present; response magnitudes/slopes/ratios are setup-dependent."),
         e(110,SAME_ARRAY_FINGERPRINT,"VISUAL_SMELL_2026","peer-reviewed exact/superset MQ-array fingerprint study","MQ2/MQ3/MQ4/MQ5/MQ6/MQ7/MQ8/MQ9/MQ135","pure acetone, repeated array measurements","All eight HR069 MQ models are present; strong source for feature design/fingerprint transfer validation."),
 
+        // Canonical public seven-MQ fingerprint dataset. The later TakMashhido copy is not counted independently.
+        e(139,SAME_ARRAY_FINGERPRINT,"MULTIMODALGASDATA_2022","peer-reviewed public MQ-array dataset","MQ2/MQ3/MQ5/MQ6/MQ7/MQ8/MQ135","6400 samples; 1600/class; Smoke/Perfume/Mixture/NoGas","Canonical CC BY 4.0 smoke fingerprint benchmark. Six of eight HR069 sensors overlap; MQ4/MQ9 are missing and MQ6 is extra. Composite class only, not pure-gas ppm."),
+
         // Dynamic MQ3 methanol/ethanol evidence. HR069 cannot reproduce this heater modulation today.
         e(102,SAME_ARRAY_FINGERPRINT,"MQ3_MEOH_ETOH_2026","peer-reviewed dynamic-temperature-modulation mixture study","MQ3","methanol/ethanol mixtures across humidity levels","Useful methanol identity/concentration-method prior. HR069 shared heater rail does not reproduce the published modulation protocol."),
         e(103,SAME_ARRAY_FINGERPRINT,"MQ3_MEOH_ETOH_2026","peer-reviewed dynamic-temperature-modulation mixture study","MQ3","methanol/ethanol mixtures across humidity levels","Humidity-suppressed dynamic fingerprint method; hardware/protocol transfer required."),
