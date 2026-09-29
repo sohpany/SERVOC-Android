@@ -30,6 +30,14 @@ public final class ExternalEvidenceCoverage {
     }
 
     public static final Evidence[] RECORDS={
+        // H2S priority evidence. The installed MQ135 is manufacturer-listed for the broader "sulfide"
+        // category, but Winsen does not publish an H2S-specific MQ135 Rs/R0 curve. The specialized MQ136
+        // provides a quantitative 1-200 ppm H2S reference domain and anchor specifications, but it is NOT
+        // installed on HR069. These records therefore prioritize H2S transfer experiments without inventing
+        // an HR069 ppm equation. High H2S exposure is also corrosive to MQ135 and must not be used casually.
+        e(4,MANUFACTURER_QUALITATIVE_TARGET,"WINSEN_MQ135_H2S","manufacturer installed-sensor sulfide target-family evidence","MQ135 (installed HR069)","manufacturer target category: sulfide; no H2S-specific MQ135 ppm curve","Hydrogen sulfide priority. MQ135 is documented as sensitive to sulfide, but no H2S-specific numeric Rs/R0 vector is promoted. Winsen also warns that high-concentration H2S can corrode the sensor and attenuate sensitivity."),
+        e(4,KNOWN_CONCENTRATION_RESPONSE,"WINSEN_MQ136_H2S","manufacturer quantitative H2S reference specification on specialized noninstalled sensor","MQ136 (reference sensor; NOT installed on HR069)","H2S 1-200 ppm; S=Rs(air)/Rs(50ppm H2S)>=3; alpha=R200ppm/R50ppm H2S<=0.6","Provides a quantitative H2S reference domain for experiment planning and model validation only. It cannot be transferred as an MQ135/MQ-array ppm equation; HR069 reference-gas calibration remains required."),
+
         // Peer-reviewed MQ135 Rs/R0 graph regressions (Umbu 2023, 10-100 ppm).
         e(20,PUBLISHED_RS_R0_CURVE,"UMBU_MQ135_2023","peer-reviewed datasheet graph regression","MQ135","10-100 ppm","CO; published Eq. 21; generic graph prior only"),
         e(21,PUBLISHED_RS_R0_CURVE,"UMBU_MQ135_2023","peer-reviewed datasheet graph regression","MQ135","10-100 ppm","NH3; published Eq. 20"),
