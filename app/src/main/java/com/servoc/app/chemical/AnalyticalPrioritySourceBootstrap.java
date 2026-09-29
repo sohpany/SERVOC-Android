@@ -10,18 +10,21 @@ import org.json.JSONObject;
 /**
  * Adds high-priority external evidence discovered after the initial HR069 analytical seed.
  *
- * These records reduce discovery work for methanol, ethylene and acetaldehyde, but remain
+ * These records reduce discovery work for H2S, methanol, ethylene and acetaldehyde, but remain
  * transfer/research evidence. Nothing seeded here is device-specific M4 calibration.
  */
 public final class AnalyticalPrioritySourceBootstrap {
     private AnalyticalPrioritySourceBootstrap() {}
 
     public static final String META_KEY="analytical_priority_sources_hr069_version";
-    public static final String SEED_VERSION="1";
+    // v2 adds H2S manufacturer evidence and intentionally re-runs on already-installed 0.10.2 databases.
+    public static final String SEED_VERSION="2";
 
     public static final String SRC_TOZLU="TOZLU_METHANOL_MQ_2024";
     public static final String SRC_KRIVEC="KRIVEC_ETHYLENE_MQ3_2015";
     public static final String SRC_UCI270="UCI_GAS_DRIFT_270";
+    public static final String SRC_WINSEN_MQ135_H2S="WINSEN_MQ135_H2S";
+    public static final String SRC_WINSEN_MQ136_H2S="WINSEN_MQ136_H2S";
 
     public static void ensure(SQLiteDatabase db){
         if(db==null||db.isReadOnly())return;
@@ -30,17 +33,31 @@ public final class AnalyticalPrioritySourceBootstrap {
         try{
             seedSources(db);
             clearManagedEvidence(db);
+            seedH2sEvidence(db);
             seedMethanolEvidence(db);
             seedEthyleneEvidence(db);
             seedUciDriftEvidence(db);
             putMeta(db,META_KEY,SEED_VERSION);
             putMeta(db,"analytical_priority_sources_hr069_release","0.10.2/HR069");
             putMeta(db,"analytical_priority_sources_hr069_policy","TRANSFER_EVIDENCE_ONLY_NEVER_M4");
+            putMeta(db,"analytical_priority_sources_hr069_h2s_policy","H2S_PRIORITY_MQ135_QUALITATIVE_PLUS_MQ136_REFERENCE_NO_HR069_PPM");
             db.setTransactionSuccessful();
         }finally{db.endTransaction();}
     }
 
     private static void seedSources(SQLiteDatabase db){
+        source(db,SRC_WINSEN_MQ135_H2S,
+                "MQ135 Semiconductor Sensor for Air Quality",
+                "Zhengzhou Winsen Electronics Technology Co., Ltd.","",
+                "https://www.winsen-sensor.com/product/mq135.html","A","manufacturer current documentation",
+                "Installed HR069 sensor. Manufacturer lists ammonia, sulfide and benzene-series vapours as target categories. The published 10-1000 ppm range is specified for ammonia/toluene/hydrogen/smoke, not an H2S-specific MQ135 curve. Manufacturer also warns that high-concentration H2S is corrosive and can attenuate sensor sensitivity.");
+
+        source(db,SRC_WINSEN_MQ136_H2S,
+                "MQ136 Gas Sensor for Hydrogen Sulfide",
+                "Zhengzhou Winsen Electronics Technology Co., Ltd.","",
+                "https://www.winsen-sensor.com/product/mq136.html","A","manufacturer current documentation",
+                "Specialized H2S reference sensor, not installed on HR069. Manufacturer specifies H2S 1-200 ppm, Rs(air)/Rs(50 ppm H2S)>=3 and alpha=R200ppm/R50ppm H2S<=0.6. Use as H2S experiment/reference-domain evidence only; never transfer its ppm equation to MQ135 or the HR069 array.");
+
         source(db,SRC_TOZLU,
                 "A Fast and Cost-Effective Electronic Nose Model for Methanol Detection Using Ensemble Learning",
                 "Bilge Han Tozlu et al.","10.3390/chemosensors12110225",
@@ -61,7 +78,42 @@ public final class AnalyticalPrioritySourceBootstrap {
     }
 
     private static void clearManagedEvidence(SQLiteDatabase db){
-        db.delete("sensor_evidence","source_id IN (?,?,?)",new String[]{SRC_TOZLU,SRC_KRIVEC,SRC_UCI270});
+        db.delete("sensor_evidence","source_id IN (?,?,?,?,?)",
+                new String[]{SRC_TOZLU,SRC_KRIVEC,SRC_UCI270,SRC_WINSEN_MQ135_H2S,SRC_WINSEN_MQ136_H2S});
+    }
+
+    private static void seedH2sEvidence(SQLiteDatabase db){
+        Long h2s=chemicalUid(db,4);if(h2s==null)return;
+
+        JSONObject installed=new JSONObject();
+        try{
+            installed.put("analyte","Hydrogen Sulfide");installed.put("formula","H2S");installed.put("cas","7783-06-4");
+            installed.put("sensor","MQ135");installed.put("installed_hr069",true);
+            installed.put("manufacturer_target_category","sulfide");
+            installed.put("h2s_specific_rs_r0_curve_registered",false);
+            installed.put("h2s_specific_ppm_domain_registered",false);
+            installed.put("high_concentration_h2s_corrosion_warning",true);
+            installed.put("role","qualitative installed-channel affinity and compatibility guard");
+            installed.put("direct_hr069_ppm",false);installed.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"MQ135",h2s,"MANUFACTURER_H2S_SULFIDE_AFFINITY_DESCRIPTOR",installed.toString(),null,null,
+                SRC_WINSEN_MQ135_H2S,"A_MANUFACTURER_QUALITATIVE_INSTALLED","ACCEPTED_H2S_PRIORITY_COMPATIBILITY_GUARD");
+
+        JSONObject reference=new JSONObject();
+        try{
+            reference.put("analyte","Hydrogen Sulfide");reference.put("formula","H2S");reference.put("cas","7783-06-4");
+            reference.put("sensor","MQ136");reference.put("installed_hr069",false);
+            reference.put("detection_min_ppm",1.0);reference.put("detection_max_ppm",200.0);
+            reference.put("sensitivity_reference_ppm",50.0);reference.put("rs_air_over_rs_50ppm_min",3.0);
+            reference.put("slope_reference_low_ppm",50.0);reference.put("slope_reference_high_ppm",200.0);
+            reference.put("r200_over_r50_max",0.6);
+            reference.put("role","quantitative H2S reference-domain and experiment-planning evidence; noninstalled sensor");
+            reference.put("curve_coefficients_registered",false);
+            reference.put("transfer_to_mq135_forbidden",true);
+            reference.put("direct_hr069_ppm",false);reference.put("m4",false);
+        }catch(Exception ignored){}
+        evidence(db,"REFERENCE:MQ136",h2s,"MANUFACTURER_H2S_KNOWN_CONCENTRATION_REFERENCE",reference.toString(),1.0,200.0,
+                SRC_WINSEN_MQ136_H2S,"A_MANUFACTURER_QUANTITATIVE_REFERENCE_NONINSTALLED","ACCEPTED_REFERENCE_DOMAIN_HR069_TRANSFER_REQUIRED");
     }
 
     private static void seedMethanolEvidence(SQLiteDatabase db){
