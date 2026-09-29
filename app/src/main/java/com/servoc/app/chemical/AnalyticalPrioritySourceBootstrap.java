@@ -17,8 +17,8 @@ public final class AnalyticalPrioritySourceBootstrap {
     private AnalyticalPrioritySourceBootstrap() {}
 
     public static final String META_KEY="analytical_priority_sources_hr069_version";
-    // v3 locks the source-backed methanol transfer contract and selected HR069 channels.
-    public static final String SEED_VERSION="3";
+    // v4 locks the source-backed ethylene MQ3 transfer contract and source-domain limits.
+    public static final String SEED_VERSION="4";
 
     public static final String SRC_TOZLU="TOZLU_METHANOL_MQ_2024";
     public static final String SRC_KRIVEC="KRIVEC_ETHYLENE_MQ3_2015";
@@ -26,6 +26,7 @@ public final class AnalyticalPrioritySourceBootstrap {
     public static final String SRC_WINSEN_MQ135_H2S="WINSEN_MQ135_H2S";
     public static final String SRC_WINSEN_MQ136_H2S="WINSEN_MQ136_H2S";
     public static final String METHANOL_ASSET="research_data/hr069_analytical_library/methanol_mq_transfer_evidence_v1.json";
+    public static final String ETHYLENE_ASSET="research_data/hr069_analytical_library/ethylene_mq3_transfer_evidence_v1.json";
 
     public static void ensure(SQLiteDatabase db){
         if(db==null||db.isReadOnly())return;
@@ -43,6 +44,7 @@ public final class AnalyticalPrioritySourceBootstrap {
             putMeta(db,"analytical_priority_sources_hr069_policy","TRANSFER_EVIDENCE_ONLY_NEVER_M4");
             putMeta(db,"analytical_priority_sources_hr069_h2s_policy","H2S_PRIORITY_MQ135_QUALITATIVE_PLUS_MQ136_REFERENCE_NO_HR069_PPM");
             putMeta(db,"analytical_priority_sources_hr069_methanol_policy","METHANOL_SAME_ARRAY_TRANSFER_MQ3_MQ4_PRIORITY_NO_HR069_NUMERIC_VECTOR_NO_PPM_NO_M4");
+            putMeta(db,"analytical_priority_sources_hr069_ethylene_policy","ETHYLENE_EXACT_MQ3_10_50PPM_TRANSFER_HUMIDITY_COVARIATE_NO_NUMERIC_CURVE_NO_M4");
             db.setTransactionSuccessful();
         }finally{db.endTransaction();}
     }
@@ -69,8 +71,8 @@ public final class AnalyticalPrioritySourceBootstrap {
         source(db,SRC_KRIVEC,
                 "Quantitative Ethylene Measurements with MOx Chemiresistive Sensors at Different Relative Air Humidities",
                 "Matic Krivec et al.","10.3390/s151128088",
-                "https://doi.org/10.3390/s151128088","B","2015 / open access",
-                "MQ-3 ethylene measurements at 10/25/40/50 ppm and RH 0/33/64%. Raw/tabulated response values and fitted coefficients requested from author as REQ-006; no curve coefficients are invented meanwhile.");
+                "https://doi.org/10.3390/s151128088","B","2015 / CC BY 4.0",
+                "Exact installed-model overlap on MQ3. Ethylene measurements at 10/25/40/50 ppm and RH 0/33/64%, 500 mL/min synthetic-air flow, 1200 s initial air stabilization and 600 s exposure. R2 > 0.97 is reported over 10-40 ppm; increasing RH reduces sensitivity. Published numeric beta coefficients/full response table are not available in the current source text, so REQ-006 remains open and no curve is invented.");
 
         source(db,SRC_UCI270,
                 "Gas Sensor Array Drift Dataset at Different Concentrations",
@@ -152,17 +154,27 @@ public final class AnalyticalPrioritySourceBootstrap {
         Long ethylene=chemicalUid(db,89);if(ethylene==null)return;
         JSONObject p=new JSONObject();
         try{
-            p.put("sensor","MQ3");
+            p.put("asset",ETHYLENE_ASSET);
+            p.put("sensor","MQ3");p.put("installed_hr069",true);
             p.put("concentrations_ppm",new JSONArray().put(10).put(25).put(40).put(50));
             p.put("relative_humidity_percent",new JSONArray().put(0).put(33).put(64));
-            p.put("flow_ml_min",500);p.put("exposure_s",600);
+            p.put("measurement_chamber_l",0.17);p.put("pre_chamber_l",0.05);
+            p.put("source_ethylene_mix_ppm",200);p.put("flow_ml_min",500);
+            p.put("initial_air_stabilization_s",1200);p.put("exposure_s",600);
+            p.put("sorption_time_constant_s",80);p.put("desorption_time_constant_s",165);
+            p.put("minimum_reported_discernible_ppm_at_64rh",10);
             p.put("reported_mq3_correlation","R2 > 0.97 over 10-40 ppm");
             p.put("reported_prediction_accuracy_ppm_all","+/-9.2");
             p.put("reported_prediction_accuracy_ppm_below_50","+/-6.7");
-            p.put("raw_data_request","REQ-006");p.put("curve_coefficients_registered",false);p.put("m4",false);
+            p.put("humidity_covariate_required",true);
+            p.put("numeric_response_table_available",false);
+            p.put("raw_data_request","REQ-006");
+            p.put("curve_coefficients_registered",false);
+            p.put("direct_hr069_named_identity",false);
+            p.put("quantitative_ppm",false);p.put("m4",false);
         }catch(Exception ignored){}
-        evidence(db,"MQ3",ethylene,"EXTERNAL_KNOWN_CONCENTRATION_RESPONSE_DESCRIPTOR",p.toString(),10.0,50.0,
-                SRC_KRIVEC,"B_PEER_REVIEWED_KNOWN_CONCENTRATION","ACCEPTED_SOURCE_DESCRIPTOR_AWAITING_RAW");
+        evidence(db,"MQ3",ethylene,"EXTERNAL_EXACT_MQ3_KNOWN_CONCENTRATION_TRANSFER_DESCRIPTOR",p.toString(),10.0,50.0,
+                SRC_KRIVEC,"B_PEER_REVIEWED_EXACT_SENSOR_KNOWN_CONCENTRATION","ACCEPTED_EXACT_SENSOR_TRANSFER_AWAITING_NUMERIC_RESPONSE");
     }
 
     private static void seedUciDriftEvidence(SQLiteDatabase db){
