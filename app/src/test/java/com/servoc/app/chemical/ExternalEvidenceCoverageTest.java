@@ -9,6 +9,7 @@ public class ExternalEvidenceCoverageTest {
         assertEquals(ExternalEvidenceCoverage.KNOWN_CONCENTRATION_RESPONSE,ExternalEvidenceCoverage.bestLevel(105)); // isopropanol
         assertEquals(ExternalEvidenceCoverage.KNOWN_CONCENTRATION_RESPONSE,ExternalEvidenceCoverage.bestLevel(115)); // ethyl acetate
         assertEquals(ExternalEvidenceCoverage.MANUFACTURER_QUALITATIVE_TARGET,ExternalEvidenceCoverage.bestLevel(79)); // n-butane
+        assertEquals(ExternalEvidenceCoverage.SAME_ARRAY_FINGERPRINT,ExternalEvidenceCoverage.bestLevel(139)); // smoke canonical public dataset
         assertEquals(ExternalEvidenceCoverage.NONE,ExternalEvidenceCoverage.bestLevel(14)); // NO2 remains unsupported by this registry
     }
 
@@ -22,10 +23,22 @@ public class ExternalEvidenceCoverageTest {
         assertEquals(ChemicalCoverage.FINGERPRINT_CANDIDATE,iso.level);
         assertTrue(iso.method.contains("External evidence"));
         assertTrue(iso.note.contains("transfer"));
+        ChemicalCoverage.Status smoke=ChemicalCoverage.forChemical(139);
+        assertEquals(ChemicalCoverage.AGGREGATE,smoke.level);
+        assertTrue(smoke.note.contains("MULTIMODALGASDATA_2022"));
         ChemicalCoverage.Status no2=ChemicalCoverage.forChemical(14);
         assertEquals(ChemicalCoverage.UNVALIDATED_OR_WEAK,no2.level);
-        assertTrue(ChemicalCoverage.externalEvidenceChemicalCount()>0);
-        assertTrue(ChemicalCoverage.externalKnownConcentrationOrBetterCount()>0);
-        assertTrue(ChemicalCoverage.labDiscoveryCandidateCount()>0);
+
+        // Locked HR069 planning counts for the 144-entry legacy catalogue.
+        assertEquals(8,ChemicalCoverage.directCurveCount());
+        assertEquals(94,ChemicalCoverage.fingerprintCandidateCount());
+        assertEquals(6,ChemicalCoverage.aggregateCount());
+        assertEquals(36,ChemicalCoverage.weakOrUnvalidatedCount());
+        assertEquals(12,ChemicalCoverage.externalEvidenceChemicalCount());
+        assertEquals(9,ChemicalCoverage.externalKnownConcentrationOrBetterCount());
+        assertEquals(7,ChemicalCoverage.transferValidationCandidateCount());
+        assertEquals(4,ChemicalCoverage.genericCurveValidationCandidateCount());
+        assertEquals(3,ChemicalCoverage.corroboratedTransferCandidateCount());
+        assertEquals(86,ChemicalCoverage.labDiscoveryCandidateCount());
     }
 }
