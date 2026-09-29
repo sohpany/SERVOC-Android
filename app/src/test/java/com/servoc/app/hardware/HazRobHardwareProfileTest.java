@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /** Locks the Android hardware identity to the controlled HazRob 0.10.2 / HR069 GPIO/firmware profile. */
 public final class HazRobHardwareProfileTest {
@@ -41,5 +42,14 @@ public final class HazRobHardwareProfileTest {
         assertEquals(33,HazRobHardwareProfile.BATTERY_ADC_GPIO);
         assertEquals(23,HazRobHardwareProfile.ULTRASONIC_TRIG_GPIO);
         assertEquals(39,HazRobHardwareProfile.ULTRASONIC_ECHO_GPIO);
+    }
+
+    @Test public void manufacturerHeaterQualificationMatchesInstalledHardware(){
+        assertFalse(HazRobHardwareProfile.CYCLIC_MQ_HEATER_DRIVER_INSTALLED);
+        for(String key:new String[]{"mq2","mq3","mq4","mq5","mq8","mq135"})
+            assertTrue(key,HazRobHardwareProfile.manufacturerHeaterProtocolValid(key));
+        assertFalse(HazRobHardwareProfile.manufacturerHeaterProtocolValid("mq7"));
+        assertFalse(HazRobHardwareProfile.manufacturerHeaterProtocolValid("mq9"));
+        assertFalse(HazRobHardwareProfile.manufacturerHeaterProtocolValid("mq6"));
     }
 }
