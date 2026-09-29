@@ -18,7 +18,7 @@ import com.servoc.app.chemical.SensorOperatingEnvelope;
  *
  * Source priority for the same physical sensor/analyte at a requested concentration:
  *  1) peer-reviewed literature curve inside its declared domain;
- *  2) inherited GasEngine curve when a finite manufacturer envelope exists;
+ *  2) inherited GasEngine curve only when a finite manufacturer envelope exists;
  *  3) pinned ResearchCurveRegistry datasheet/community fit inside its declared domain.
  *
  * The model never extrapolates a source outside its declared concentration range and never
@@ -59,17 +59,20 @@ public final class AcceptedReferenceResponseModel implements ChemCoreResponseMod
             if(valid(ratio))return estimate(ratio,0.20,"peer-reviewed "+c.sourceId+" • "+ACCEPTANCE_STATE+" • provisional reference PPM; not M4");
         }
 
-        // Manufacturer-bounded inherited curve. No extrapolation beyond the evidence matrix.
+        // Manufacturer-bounded inherited curve. Do not let a community fallback in
+        // SensorOperatingEnvelope promote a different GasEngine coefficient at this tier.
         if(GasEngine.hasCurve(sensor,chemical)){
-            SensorOperatingEnvelope.Check env=SensorOperatingEnvelope.check(sensor,chemical,ppm,
-                    MqConditioningProfile.manufacturerReferenceProtocolReady(sensor));
-            if(env.usableAsFingerprintEvidence()){
-                double[] ratios=GasEngine.simulateRatios(chemical,ppm);
-                double ratio=sensor<ratios.length?ratios[sensor]:Double.NaN;
-                if(valid(ratio)){
-                    double sigma=env.status==SensorOperatingEnvelope.PRIMARY_TARGET?0.22:
-                            env.status==SensorOperatingEnvelope.MANUFACTURER_GRAPH_RESPONSE?0.27:0.32;
-                    return estimate(ratio,sigma,"GasEngine + operating envelope • "+env.note+" • "+ACCEPTANCE_STATE+" • provisional reference PPM; not M4");
+            ManufacturerEvidenceMatrix.Evidence manufacturer=ManufacturerEvidenceMatrix.get(sensor,chemical);
+            if(manufacturer!=null&&manufacturer.level!=ManufacturerEvidenceMatrix.NONE){
+                SensorOperatingEnvelope.Check env=SensorOperatingEnvelope.check(sensor,chemical,ppm,
+                        MqConditioningProfile.manufacturerReferenceProtocolReady(sensor));
+                if(env.usableAsFingerprintEvidence()){
+                    double[] ratios=GasEngine.simulateRatios(chemical,ppm);
+                    double ratio=sensor<ratios.length?ratios[sensor]:Double.NaN;
+                    if(valid(ratio)){
+                        double sigma=env.status==SensorOperatingEnvelope.PRIMARY_TARGET?0.22:0.27;
+                        return estimate(ratio,sigma,"GasEngine + manufacturer operating envelope • "+env.note+" • "+ACCEPTANCE_STATE+" • provisional reference PPM; not M4");
+                    }
                 }
             }
         }
