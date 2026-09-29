@@ -1,5 +1,5 @@
 {
-  "schema": "hazrob.external-chemical-evidence.v1",
+  "schema": "hazrob.external-chemical-evidence.v1.1",
   "project": "HazRob",
   "release": "0.10.2",
   "hardware_revision": "HR069",
@@ -22,6 +22,7 @@
     "external_m4_allowed": false,
     "m4_definition": "HR069 device-specific reference-gas calibration/validation under a valid operating and heater protocol",
     "duplicate_curve_rule": "Prefer the highest-provenance curve for the same sensor/analyte inside its declared domain. Do not arithmetic-average regression coefficients. If independent compatible sensor/source predictions are combined, combine concentration predictions in log10(ppm) space using evidence-weighted robust consensus.",
+    "duplicate_dataset_rule": "Prefer the original peer-reviewed/dataset-hosted source; mirrors or probable derivatives have zero independent evidence weight until equivalence/provenance is demonstrated.",
     "same_sensor_double_counting": false,
     "extrapolation_allowed": false
   },
@@ -81,6 +82,20 @@
       "notes": "Pure acetone and ethanol repeated measurements; uses response magnitude, slope and response ratios. Paper explicitly shows response rate is setup/diffusion dependent."
     },
     {
+      "id": "MULTIMODALGASDATA_2022",
+      "title": "MultimodalGasData: Multimodal Dataset for Gas Detection and Classification",
+      "doi_dataset": "10.17632/zkwgkjkjn9.2",
+      "doi_article": "10.3390/data7080112",
+      "license": "CC BY 4.0",
+      "type": "peer-reviewed public MQ-array fingerprint dataset",
+      "sensor_models": ["MQ2", "MQ3", "MQ5", "MQ6", "MQ7", "MQ8", "MQ135"],
+      "classes": ["NoGas", "Smoke", "Perfume", "Mixture"],
+      "samples": 6400,
+      "samples_per_class": 1600,
+      "m4": false,
+      "notes": "Canonical source for this four-class seven-MQ dataset. Six HR069 channels overlap. A later GitHub/Zenodo dataset with the same channel order/classes is retained only as a probable derivative and is not counted independently."
+    },
+    {
       "id": "MQ3_MEOH_ETOH_2026",
       "title": "Research on binary gas mixtures identification method: Humidity interference suppression using linear discriminant analysis",
       "doi": "10.1016/j.snb.2026.139758",
@@ -127,7 +142,8 @@
     {"legacy_id": 103, "name": "Ethanol", "cas": "64-17-5", "best_external_level": "PUBLISHED_RS_R0_CURVE", "sources": ["UMBU_MQ135_2023", "UCI_GSALC_2023", "FRONTIERS_VOC_2026", "VISUAL_SMELL_2026", "MQ3_MEOH_ETOH_2026", "MQ135_ENV_ETHANOL_2026"], "local_work": "high external coverage; prioritize HR069 transfer/M4 validation rather than discovery"},
     {"legacy_id": 105, "name": "Isopropanol", "cas": "67-63-0", "best_external_level": "KNOWN_CONCENTRATION_RESPONSE", "sources": ["UCI_GSALC_2023", "FRONTIERS_VOC_2026"], "local_work": "transfer/repeatability experiment, not discovery from zero"},
     {"legacy_id": 110, "name": "Acetone", "cas": "67-64-1", "best_external_level": "PUBLISHED_RS_R0_CURVE", "sources": ["UMBU_MQ135_2023", "UCI_GSALC_2023", "FRONTIERS_VOC_2026", "VISUAL_SMELL_2026"], "local_work": "high external coverage; validate HR069 transfer/M4"},
-    {"legacy_id": 115, "name": "Ethyl Acetate", "cas": "141-78-6", "best_external_level": "KNOWN_CONCENTRATION_RESPONSE", "sources": ["UCI_GSALC_2023"], "local_work": "transfer/repeatability experiment; no direct generic Rs/R0 equation promoted"}
+    {"legacy_id": 115, "name": "Ethyl Acetate", "cas": "141-78-6", "best_external_level": "KNOWN_CONCENTRATION_RESPONSE", "sources": ["UCI_GSALC_2023"], "local_work": "transfer/repeatability experiment; no direct generic Rs/R0 equation promoted"},
+    {"legacy_id": 139, "name": "Smoke", "best_external_level": "SAME_ARRAY_FINGERPRINT", "sources": ["MULTIMODALGASDATA_2022"], "local_work": "use canonical public smoke fingerprint as classifier benchmark; retain local HR069 smoke transfer/operational-index validation"}
   ],
   "preferred_mq135_curves": [
     {"legacy_id": 110, "name": "Acetone", "a": 2.7295, "b": -0.2822, "r2": 0.9996, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"},
@@ -136,5 +152,22 @@
     {"legacy_id": 23, "name": "Carbon Dioxide", "a": 4.9999, "b": -0.3387, "r2": 0.9998, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"},
     {"legacy_id": 21, "name": "Ammonia", "a": 6.4835, "b": -0.4060, "r2": 0.9996, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"},
     {"legacy_id": 20, "name": "Carbon Monoxide", "a": 5.2629, "b": -0.2668, "r2": 0.9992, "domain_ppm": [10,100], "source": "UMBU_MQ135_2023"}
+  ],
+  "legacy_sensor_crosswalk": [
+    {"legacy_id": 20, "name": "Carbon Monoxide", "cas": "630-08-0"},
+    {"legacy_id": 21, "name": "Ammonia", "cas": "7664-41-7"},
+    {"legacy_id": 23, "name": "Carbon Dioxide", "cas": "124-38-9"},
+    {"legacy_id": 34, "name": "Benzene", "cas": "71-43-2"},
+    {"legacy_id": 75, "name": "Hydrogen", "cas": "1333-74-0"},
+    {"legacy_id": 76, "name": "Methane", "cas": "74-82-8"},
+    {"legacy_id": 78, "name": "Propane", "cas": "74-98-6"},
+    {"legacy_id": 79, "name": "n-Butane", "cas": "106-97-8"},
+    {"legacy_id": 84, "name": "n-Hexane", "cas": "110-54-3"},
+    {"legacy_id": 95, "name": "Toluene", "cas": "108-88-3"},
+    {"legacy_id": 102, "name": "Methanol", "cas": "67-56-1"},
+    {"legacy_id": 103, "name": "Ethanol", "cas": "64-17-5"},
+    {"legacy_id": 105, "name": "Isopropanol", "cas": "67-63-0"},
+    {"legacy_id": 110, "name": "Acetone", "cas": "67-64-1"},
+    {"legacy_id": 115, "name": "Ethyl Acetate", "cas": "141-78-6"}
   ]
 }
