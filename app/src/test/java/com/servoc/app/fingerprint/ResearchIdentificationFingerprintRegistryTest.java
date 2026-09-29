@@ -59,6 +59,22 @@ public class ResearchIdentificationFingerprintRegistryTest {
         for(int id:nonNumeric)assertFalse(ResearchIdentificationFingerprintRegistry.hasNumericPrior(id));
     }
 
+    @Test public void prioritySpoilageTargetsRemainTransferEvidenceUntilRawHr069VectorsExist(){
+        ResearchIdentificationFingerprintRegistry.TargetStatus acetaldehyde=findStatus(54);
+        ResearchIdentificationFingerprintRegistry.TargetStatus ethylene=findStatus(89);
+        ResearchIdentificationFingerprintRegistry.TargetStatus methanol=findStatus(102);
+        assertNotNull(acetaldehyde);assertNotNull(ethylene);assertNotNull(methanol);
+        assertEquals(ResearchIdentificationFingerprintRegistry.TRANSFER_DATA_AVAILABLE,acetaldehyde.status);
+        assertEquals(ResearchIdentificationFingerprintRegistry.TRANSFER_DATA_AVAILABLE,ethylene.status);
+        assertEquals(ResearchIdentificationFingerprintRegistry.TRANSFER_DATA_AVAILABLE,methanol.status);
+        assertFalse(acetaldehyde.numericFingerprintAvailable);
+        assertFalse(ethylene.numericFingerprintAvailable);
+        assertFalse(methanol.numericFingerprintAvailable);
+        assertTrue(acetaldehyde.note.contains("UCI"));
+        assertTrue(ethylene.note.contains("MQ3"));
+        assertTrue(methanol.note.contains("all eight HR069 MQ models"));
+    }
+
     @Test public void researchClassifierReturnsOneBestTemplatePerChemical(){
         ChemicalFingerprint ethanol=null;
         for(ChemicalFingerprint f:ResearchIdentificationFingerprintRegistry.library()){
@@ -89,6 +105,11 @@ public class ResearchIdentificationFingerprintRegistryTest {
             // MQ7 and MQ9 are excluded without an explicitly valid heater cycle; max contributors is six.
             assertTrue(m.contributors<=6);
         }
+    }
+
+    private static ResearchIdentificationFingerprintRegistry.TargetStatus findStatus(int id){
+        for(ResearchIdentificationFingerprintRegistry.TargetStatus s:ResearchIdentificationFingerprintRegistry.foodSpoilageTargets())if(s.chemicalId==id)return s;
+        return null;
     }
 
     private static Set<Integer> setOf(int... ids){Set<Integer>s=new HashSet<>();for(int id:ids)s.add(id);return s;}
