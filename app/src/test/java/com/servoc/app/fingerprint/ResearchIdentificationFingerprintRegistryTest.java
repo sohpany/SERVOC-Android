@@ -51,7 +51,7 @@ public class ResearchIdentificationFingerprintRegistryTest {
             if(s.numericFingerprintAvailable)numeric.add(s.chemicalId);else nonNumeric.add(s.chemicalId);
         }
         assertEquals(setOf(21,23,76,103,110),numeric);
-        assertTrue(nonNumeric.contains(4));   // H2S: affinity only
+        assertTrue(nonNumeric.contains(4));   // H2S: transfer/reference evidence, no HR069 vector yet
         assertTrue(nonNumeric.contains(54));  // acetaldehyde
         assertTrue(nonNumeric.contains(89));  // ethylene
         assertTrue(nonNumeric.contains(102)); // methanol transfer evidence
@@ -60,16 +60,21 @@ public class ResearchIdentificationFingerprintRegistryTest {
     }
 
     @Test public void prioritySpoilageTargetsRemainTransferEvidenceUntilRawHr069VectorsExist(){
+        ResearchIdentificationFingerprintRegistry.TargetStatus h2s=findStatus(4);
         ResearchIdentificationFingerprintRegistry.TargetStatus acetaldehyde=findStatus(54);
         ResearchIdentificationFingerprintRegistry.TargetStatus ethylene=findStatus(89);
         ResearchIdentificationFingerprintRegistry.TargetStatus methanol=findStatus(102);
-        assertNotNull(acetaldehyde);assertNotNull(ethylene);assertNotNull(methanol);
+        assertNotNull(h2s);assertNotNull(acetaldehyde);assertNotNull(ethylene);assertNotNull(methanol);
+        assertEquals(ResearchIdentificationFingerprintRegistry.TRANSFER_DATA_AVAILABLE,h2s.status);
         assertEquals(ResearchIdentificationFingerprintRegistry.TRANSFER_DATA_AVAILABLE,acetaldehyde.status);
         assertEquals(ResearchIdentificationFingerprintRegistry.TRANSFER_DATA_AVAILABLE,ethylene.status);
         assertEquals(ResearchIdentificationFingerprintRegistry.TRANSFER_DATA_AVAILABLE,methanol.status);
+        assertFalse(h2s.numericFingerprintAvailable);
         assertFalse(acetaldehyde.numericFingerprintAvailable);
         assertFalse(ethylene.numericFingerprintAvailable);
         assertFalse(methanol.numericFingerprintAvailable);
+        assertTrue(h2s.note.contains("MQ136"));
+        assertTrue(h2s.note.contains("1-200 ppm"));
         assertTrue(acetaldehyde.note.contains("UCI"));
         assertTrue(ethylene.note.contains("MQ3"));
         assertTrue(methanol.note.contains("all eight HR069 MQ models"));
