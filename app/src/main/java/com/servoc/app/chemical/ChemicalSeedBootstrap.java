@@ -59,6 +59,16 @@ public final class ChemicalSeedBootstrap {
             db.putMeta("analytical_priority_sources_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
         }
 
+        // Load any additional useful MQ-family evidence (fingerprints, curves or known-concentration/PPM
+        // experiments) that uses sensor models installed on HR069. This layer is deliberately simple:
+        // preserve useful source-backed evidence, never synthesize missing channels, and keep M4 separate.
+        try{
+            MqUsefulEvidenceBootstrap.ensure(db.getWritableDatabase());
+            db.putMeta("mq_useful_evidence_seed_status","available:"+MqUsefulEvidenceBootstrap.SEED_VERSION);
+        }catch(Exception e){
+            db.putMeta("mq_useful_evidence_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
+        }
+
         // Seed operational hazard-pattern evidence separately from chemical identity. RoboFusion H1 is a
         // Normal-vs-gas-leak benchmark on six overlapping MQ channels; it must never promote a named analyte,
         // ppm result or M4 state merely by being present in the offline evidence database.
