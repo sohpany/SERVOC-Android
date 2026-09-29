@@ -1,7 +1,8 @@
 # HazRob 0.10.2 / HR069 — External analytical-data enrichment workplan
 
-Status ledger created: 2026-09-29
-Scope: `release/hazrob-0.10.2` only
+Status ledger created: 2026-09-29  
+Last updated: 2026-09-29  
+Scope: `release/hazrob-0.10.2` only  
 Baseline at plan creation: `28c5bdd8f39537cc7cc242f6e47027a4e3ea0aaa`
 
 ## Objective
@@ -22,19 +23,19 @@ Increase HazRob analytical coverage by ingesting every scientifically useful ext
 
 | Phase | Deliverable | State | Evidence / next action |
 |---|---|---|---|
-| P0 | Freeze source baseline and workplan | DONE | This document; branch/release identity fixed above. |
-| P1 | External-source registry and provenance | DONE / EXPANDING | `research_data/external_mq_fingerprints/manifest.json`; continue source-by-source additions. |
-| P2 | Food Freshness E-Nose ZIP acquisition | BLOCKED-REMOTE / RETRYABLE | Public Zenodo archive exists; direct retrieval attempt on 2026-09-29 returned remote/rate-limit failure in the current execution environment. Fetch tool supports explicit research-cache download and MD5 verification. Kaggle mirror is also recorded. |
-| P3 | Access/license/data requests | DRAFTED | Request templates stored under `research_data/external_mq_fingerprints/access_requests/`. Sending requires an authenticated mail connector; sent/response timestamps must be recorded in the request ledger. |
-| P4 | 43 MQ response curves in laboratory knowledge | IN PROGRESS | Canonical runtime source is `ResearchCurveRegistry.CURVES`; create portable lab JSON with exact coefficients/provenance and audit count=43. |
-| P5 | 76 MQDataScience model catalogue in laboratory knowledge | IN PROGRESS | All 76 are adopted/research-integrated; portable model registry must retain Android-native/verified/approximation/bridge status. |
-| P6 | External fingerprints / known-concentration / PPM evidence normalization | IN PROGRESS | Normalize into a common research schema with source, sensor, analyte/class, concentration, units, sampling conditions and transfer constraints. |
-| P7 | ChemCore update payload integration | IN PROGRESS | Stable snapshot supports `response_priors`, `model_artifacts`, `calibrations`, `reference_artifacts`; package research priors without elevating their evidence tier. |
-| P8 | On-phone update path | PARTIAL / FIX REQUIRED | Runtime updater, signature verification, staging, rollback and UI already exist. Publication workflow is stale-gated to the old 0.10.1-ready branch and must be retargeted to `release/hazrob-0.10.2`. |
-| P9 | HR069 analytical-engine consumption | IN PROGRESS | `ValidatedGasEngine` already consumes M4, peer-reviewed literature, inherited curves and MQDataScience curves in evidence tiers. Remote ChemCore priors must remain compatible with runtime feature/sampling contracts. |
-| P10 | Automated scientific integrity audit | IN PROGRESS | Lock curve/model/source counts, hashes, no-M4-from-external rule, no duplicate evidence and updater compatibility in tests/CI. |
-| P11 | HazRob Lab synchronization | IN PROGRESS | Mirror portable research registries and provenance ledger into `sohpany/HazRob-Lab`; production runtime remains `SERVOC-Android`. |
-| P12 | HazRob Organization qualification mirror | PENDING AFTER SOURCE HEAD CHANGES | Update `HazRob/build-harness` source SHA only after the source branch passes audits. |
+| P0 | Freeze source baseline and workplan | **DONE** | This document; branch/release identity fixed above. |
+| P1 | External-source registry and provenance | **DONE / EXPANDING** | `research_data/external_mq_fingerprints/manifest.json` schema 1.3.0; canonical/mirror weighting, Food Freshness access state and request IDs are recorded. Continue source-by-source additions. |
+| P2 | Food Freshness E-Nose ZIP acquisition | **BLOCKED-REMOTE / RETRYABLE** | Public Zenodo archive + Kaggle mirror recorded. Current execution environment failed/rate-limited. `fetch_sources.py` now retries both endpoints and verifies published MD5 `008b8ccb62d7a7d51ff9ffcfd698a1e5`. Raw ZIP is not yet acquired. |
+| P3 | Access/license/data requests | **DRAFTED / MAIL CONNECTOR REQUIRED** | Request ledger and four drafts exist. REQ-001/002/003 have verified recipients; REQ-004 recipient still needs independent verification. No message is marked sent. |
+| P4 | 43 MQ response curves in laboratory knowledge | **DONE** | `research_data/hr069_analytical_library/mq_research_curves_43.json` and HazRob-Lab `calibration/priors/mq_research_curves_43.json`; exact count/provenance/domain audit added. |
+| P5 | 76 MQDataScience model catalogue in laboratory knowledge | **DONE** | `research_data/hr069_analytical_library/mq_models_76.json` and HazRob-Lab `models/mq76/catalog.json`; 76 adopted/research-integrated, 14 Android-native, 12 verified, 2 approximations, 62 lab-integrated Android-port-pending. |
+| P6 | External fingerprints / known-concentration / PPM evidence normalization | **IN PROGRESS** | HazRob-Lab `datasets/external/registry.json` created; response-curve/known-concentration sources mapped. Raw Food/RoboSense/Frontiers/Visual-Smell files remain acquisition items. |
+| P7 | ChemCore update payload integration | **CANDIDATE PATH IMPLEMENTED** | `tools/build_hr069_research_priors.py` converts the 43 curves into non-M4 runtime priors and overlays six peer-reviewed MQ135 curves without overlapping same-sensor double counting. Stable snapshot packaging now accepts/hashes response priors, 76 model artifacts and external reference artifacts. |
+| P8 | On-phone update path | **RUNTIME READY / ONE-TIME APK KEY BLOCKER** | HTTPS updater, signed verification, staging, rollback and Arabic UI already exist. New `chemcore-library-publish-0102.yml` targets HR069. Current APK source still bundles `NOT_PROVISIONED` publication key, so a one-time keyed APK rebuild/install is required before remote ChemCore libraries can be activated. See `HR069_CHEMCORE_UPDATE_READINESS.md`. |
+| P9 | HR069 analytical-engine consumption | **PARTIAL / ACTIVE** | `ValidatedGasEngine` already consumes M4, peer-reviewed literature, inherited curves and MQDataScience curves in evidence tiers. Updateable ChemCore response priors are supported by `ChemCoreStableKnowledgeReader`; production publication waits on P8 key provisioning. |
+| P10 | Automated scientific integrity audit | **IMPLEMENTED / CI INFRASTRUCTURE BLOCKED** | Audit now locks 144/652 identities, 43 curves, 76 models, Food Freshness overlap/hash, duplicate evidence, legacy UID mapping and no-external-M4 rule. Personal-repo Actions currently terminate before steps execute, indicating runner/quota/infrastructure rather than an observed audit assertion failure. Organization qualification is P12. |
+| P11 | HazRob Lab synchronization | **INITIAL SYNC DONE** | Lab workplan corrected; 43 curves, 76 models and external source registry are committed under `sohpany/HazRob-Lab`. Continue raw/derived artifact ingestion there. |
+| P12 | HazRob Organization qualification mirror | **PENDING FINAL SOURCE SHA** | Update `HazRob/build-harness` to the final 0.10.2/HR069 source head after remaining source corrections, then run organization qualification/build. |
 
 ## External-source priority order
 
@@ -46,9 +47,9 @@ Increase HazRob analytical coverage by ingesting every scientifically useful ext
 
 ## Food Freshness acquisition protocol
 
-Canonical DOI: `10.5281/zenodo.17285312`.
-Expected archive: `Food-Freshness-E-Nose-Dataset.zip`.
-Published MD5: `008b8ccb62d7a7d51ff9ffcfd698a1e5`.
+Canonical DOI: `10.5281/zenodo.17285312`.  
+Expected archive: `Food-Freshness-E-Nose-Dataset.zip`.  
+Published MD5: `008b8ccb62d7a7d51ff9ffcfd698a1e5`.  
 Sensor array: MQ2/MQ3/MQ4/MQ5/MQ6/MQ7/MQ8/MQ9/MQ135; therefore all eight installed HR069 MQ models are represented, plus MQ6.
 
 When retrieval succeeds:
@@ -88,13 +89,15 @@ A ChemCore package for the installed 0.10.2 app is publishable only when all of 
 - external evidence cannot claim M4;
 - duplicate sources are not double-counted;
 - payload manifest is signed and compatible with app 0.10.2;
-- install is fail-closed during measurement/analysis and rollback remains available.
+- install is fail-closed during measurement/analysis and rollback remains available;
+- the APK contains the public verification key matching the protected publication private key.
 
 ## Resume protocol after interruption
 
 1. Read this file first.
-2. Read `research_data/external_mq_fingerprints/manifest.json` and the request ledger.
-3. Read latest commits on `release/hazrob-0.10.2` after the baseline SHA above.
-4. Continue the first phase whose state is `IN PROGRESS`, `BLOCKED-REMOTE / RETRYABLE`, or `PENDING`.
-5. After each completed phase, update this ledger in the same commit or immediately following commit.
-6. Never infer that a mail was sent, a dataset downloaded, or a test passed without recorded evidence.
+2. Read `research_data/external_mq_fingerprints/manifest.json` and `access_requests/REQUEST_LEDGER.md`.
+3. Read `docs/0.10.2/HR069_CHEMCORE_UPDATE_READINESS.md`.
+4. Read latest commits on `release/hazrob-0.10.2` after the baseline SHA above.
+5. Continue the first phase whose state is `IN PROGRESS`, `BLOCKED-REMOTE / RETRYABLE`, `MAIL CONNECTOR REQUIRED`, or `PENDING`.
+6. After each completed phase, update this ledger in the same commit or immediately following commit.
+7. Never infer that a mail was sent, a dataset downloaded, a signing key was provisioned, or a test passed without recorded evidence.
