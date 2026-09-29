@@ -13,6 +13,7 @@ import android.widget.LinearLayout;
 import com.servoc.app.ui.EchoDistanceBadge;
 import com.servoc.app.ui.GasHazardBadge;
 import com.servoc.app.ui.HazRobHost;
+import com.servoc.app.ui.PhysicalMeasurementsUiEnhancer;
 
 /**
  * Application-level lifecycle guard for the operator workspace.
@@ -116,7 +117,10 @@ public final class HazRobApplication extends Application implements Application.
         }
     }
 
-    @Override public void onActivityResumed(Activity activity){applyLandscapeDrivingShell(activity);}
+    @Override public void onActivityResumed(Activity activity){
+        PhysicalMeasurementsUiEnhancer.install(activity);
+        applyLandscapeDrivingShell(activity);
+    }
     @Override public void onActivityPaused(Activity activity){neutralizeDrive(activity);}
     @Override public void onActivityCreated(Activity activity,Bundle state){}
     @Override public void onActivityStarted(Activity activity){}
