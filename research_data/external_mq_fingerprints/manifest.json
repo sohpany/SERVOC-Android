@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.2.0",
+  "schema_version": "1.3.0",
   "project": "HazRob",
   "release": "0.10.2",
   "hardware_revision": "HR069",
@@ -38,15 +38,19 @@
       "id": "MQDS-002",
       "title": "Food Freshness Electronic Nose Dataset",
       "canonical_url": "https://zenodo.org/records/17285312",
+      "kaggle_mirror": "https://www.kaggle.com/datasets/mehrabmahdian/food-freshness-electronic-nose-data/data",
       "doi": "10.5281/zenodo.17285312",
       "version": "v1",
       "released": "2025-10-07",
       "creator": "Mehrab Mahdian",
+      "public_contact": "mehrabmahdian@outlook.com",
       "archive": "Food-Freshness-E-Nose-Dataset.zip",
       "archive_size_mb": 10.3,
       "published_md5": "008b8ccb62d7a7d51ff9ffcfd698a1e5",
-      "license": "not-explicitly-rendered-in-verified-record",
+      "license": "open-access reuse reported by a peer-reviewed downstream study; exact dataset license string pending direct confirmation",
       "license_verified": false,
+      "access_status": "public archive confirmed; direct ZIP retrieval from the current execution environment failed/rate-limited on 2026-09-29; retryable with fetch_sources.py --include-unverified-license",
+      "access_request": "REQ-001",
       "sensors": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ6", "MQ7", "MQ8", "MQ9", "MQ135"],
       "hr069_overlap": ["MQ2", "MQ3", "MQ4", "MQ5", "MQ7", "MQ8", "MQ9", "MQ135"],
       "source_extra_sensors": ["MQ6"],
@@ -56,7 +60,8 @@
       "research_uses": ["eight-channel HR069 fingerprint benchmark", "transient feature extraction", "source separation", "classification"],
       "quantitative_ppm_eligible": false,
       "independent_evidence_weight": 1,
-      "mirror_policy": "canonical-link-only-until-license-confirmed"
+      "raw_archive_git_policy": "research cache only until exact redistribution terms are confirmed",
+      "mirror_policy": "download-for-research-analysis-with-provenance; do-not-commit-raw-until-license-confirmed"
     },
     {
       "id": "MQDS-003",
@@ -112,11 +117,13 @@
       "id": "MQ-CAND-001",
       "title": "RoboSense: Real-World Industrial Hazard Monitoring Dataset",
       "canonical_url": "https://github.com/Amr-Khamis-84/RoboSense-Dataset",
+      "public_contact": "amr.khamis@aast.edu",
       "license": "CC0 1.0 Universal",
       "license_verified": true,
       "sensors": ["MQ2", "MQ3", "MQ5", "MQ7", "MQ8", "MQ135"],
       "hr069_overlap": ["MQ2", "MQ3", "MQ5", "MQ7", "MQ8", "MQ135"],
       "platform_notes": "ESP32-based fixed suites and autonomous mobile robots; documented industrial hazard classes and 1 sample/min acquisition",
+      "access_request": "REQ-002",
       "admission_status": "pending-raw-data-location",
       "reason": "repository documentation names Real_Dataset.csv but the current repository root does not expose the raw CSV"
     }
