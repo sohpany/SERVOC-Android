@@ -52,9 +52,26 @@ External data may be used for offline feature engineering, classifier benchmarki
 - HR069 overlap: MQ135 only (1/8).
 - HazRob role: partial-compatibility research source for low-concentration time-series methodology and MQ135 behavior; never treated as an eight-channel HazRob fingerprint.
 
+## MQ source verified but not admitted as a downloadable dataset yet
+
+### MQ-CAND-001 — RoboSense industrial hazard monitoring dataset
+
+- Repository: https://github.com/Amr-Khamis-84/RoboSense-Dataset
+- License file: CC0 1.0 Universal.
+- Documented gas sensors: MQ2, MQ3, MQ5, MQ7, MQ8, MQ135.
+- Platform: ESP32 sensor suites, including autonomous mobile robots and fixed nodes; 1 sample/minute; industrial hazard labels.
+- HR069 overlap: 6/8 installed MQ channels.
+- Current access check: the repository documents `Real_Dataset.csv`, but the current repository root exposes documentation/license files and not the raw CSV itself. Therefore this source is retained as a **candidate research source** and is not counted as a reproducibly retrievable dataset until the raw-data location is resolved.
+
 ## Deliberately excluded from the MQ fingerprint registry
 
-The UCI Gas Sensor Array Drift / Drift at Different Concentrations datasets are valuable for drift-compensation methodology, but their sensor array is not an MQ-series HazRob array. They therefore belong in algorithm/method references, not in the external MQ fingerprint dataset registry.
+The following UCI sources are valuable methodological references but are **not** MQ-array fingerprint sources:
+
+- Gas Sensor Array Drift / Drift at Different Concentrations — 16-sensor non-MQ MOS array; useful for drift compensation, classification and concentration regression.
+- Gas sensor array under flow modulation — 16 Figaro TGS sensors; useful for transient/flow-modulated feature extraction and binary-mixture regression.
+- Gas sensor array exposed to turbulent gas mixtures — 8 Figaro TGS sensors; useful for realistic plume dynamics, mixture quantification, temperature/RH effects and spatio-temporal algorithms.
+
+These sources belong in the algorithm/method literature bank and must not be presented as MQ fingerprint measurements.
 
 ## Provenance and storage policy
 
