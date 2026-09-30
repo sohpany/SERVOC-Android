@@ -5,8 +5,9 @@ import java.util.Arrays;
 import static org.junit.Assert.*;
 
 public class LiteratureCurveRegistryTest {
-    @Test public void peerReviewedMq135CurvesArePinnedAndInvertible(){
-        assertEquals(6,LiteratureCurveRegistry.count());
+    @Test public void peerReviewedCurvesArePinnedAndMq135AcetoneRemainsInvertible(){
+        // Six UMBU MQ135 curves + MQ8 H2 + MQ7 CO + MQ4 CH4.
+        assertEquals(9,LiteratureCurveRegistry.count());
         LiteratureCurveRegistry.Curve acetone=null;
         for(LiteratureCurveRegistry.Curve c:LiteratureCurveRegistry.CURVES)if(c.chemical==110)acetone=c;
         assertNotNull(acetone);
@@ -36,6 +37,7 @@ public class LiteratureCurveRegistryTest {
     @Test public void peerReviewedCurveIsNotExtrapolatedAndDoesNotCreateM4(){
         LiteratureCurveRegistry.Curve acetone=null;
         for(LiteratureCurveRegistry.Curve c:LiteratureCurveRegistry.CURVES)if(c.chemical==110)acetone=c;
+        assertNotNull(acetone);
         double[] ratios=new double[8];Arrays.fill(ratios,Double.NaN);
         ratios[GasEngine.MQ135]=acetone.ratioFromPpm(150.0); // outside 10-100 ppm literature domain
         ValidatedGasEngine.Result r=ValidatedGasEngine.analyzeOne(ratios,110,new boolean[]{true,true,true,true,true,true,true,true});
