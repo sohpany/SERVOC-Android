@@ -1,6 +1,7 @@
 package com.servoc.app.chemcore;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -39,31 +40,49 @@ public final class InverseMolecularSolver {
         public final double logScore;
         public double posterior;
         public final int contributors;
-        /** M1 molecular/QSPR contributors used in the joint fit. */
+        /** M1 molecular/QSPR sensor contributors used in the joint fit. */
         public final int molecularContributors;
-        /** Direct/reference contributors at M2 or above. M1 QSPR never counts here. */
+        /** Direct/reference sensor contributors at M2 or above. M1 QSPR never counts here. */
         public final int referenceContributors;
         public final int calibratedContributors;
-        /** QSPR-only standardized residual RMS across M1 contributors. */
+        /** QSPR-only standardized residual RMS across M1 sensor contributors. */
         public final double molecularResidualRms;
         /** Diagnostic fit-support index in percent; not a calibrated identity probability. */
         public final double qsprIndicatorPct;
         public final boolean allContributorsInsideDomain;
         public final ChemCoreDecision.EvidenceTier highestEvidenceTier;
         public final Map<String,Double> residualLog10BySensor;
+        /** Typed P5 evidence observations. Sensor breadth and evidence independence remain distinct. */
+        public final List<ChemCoreEvidenceObservation> evidenceObservations;
+        public final int uniqueEvidenceGroups;
+        public final int evidenceSensorBreadth;
         public final String note;
 
+        /** Backward-compatible constructor retained for existing tests and callers. */
         Result(long chemicalUid,String label,boolean solvable,double bestPpm,double standardizedResidualRms,
                double logScore,int contributors,int molecularContributors,int referenceContributors,
                int calibratedContributors,double molecularResidualRms,double qsprIndicatorPct,
                boolean allContributorsInsideDomain,ChemCoreDecision.EvidenceTier highestEvidenceTier,
                Map<String,Double> residualLog10BySensor,String note){
+            this(chemicalUid,label,solvable,bestPpm,standardizedResidualRms,logScore,contributors,molecularContributors,
+                    referenceContributors,calibratedContributors,molecularResidualRms,qsprIndicatorPct,
+                    allContributorsInsideDomain,highestEvidenceTier,residualLog10BySensor,Collections.emptyList(),note);
+        }
+
+        Result(long chemicalUid,String label,boolean solvable,double bestPpm,double standardizedResidualRms,
+               double logScore,int contributors,int molecularContributors,int referenceContributors,
+               int calibratedContributors,double molecularResidualRms,double qsprIndicatorPct,
+               boolean allContributorsInsideDomain,ChemCoreDecision.EvidenceTier highestEvidenceTier,
+               Map<String,Double> residualLog10BySensor,List<ChemCoreEvidenceObservation> evidenceObservations,String note){
             this.chemicalUid=chemicalUid;this.label=label;this.solvable=solvable;this.bestPpm=bestPpm;
             this.standardizedResidualRms=standardizedResidualRms;this.logScore=logScore;this.contributors=contributors;
             this.molecularContributors=Math.max(0,molecularContributors);this.referenceContributors=Math.max(0,referenceContributors);
             this.calibratedContributors=calibratedContributors;this.molecularResidualRms=molecularResidualRms;
             this.qsprIndicatorPct=qsprIndicatorPct;this.allContributorsInsideDomain=allContributorsInsideDomain;
             this.highestEvidenceTier=highestEvidenceTier;this.residualLog10BySensor=residualLog10BySensor;
+            this.evidenceObservations=evidenceObservations==null?Collections.emptyList():Collections.unmodifiableList(new ArrayList<>(evidenceObservations));
+            this.uniqueEvidenceGroups=ChemCoreEvidenceObservation.uniqueIndependenceGroups(this.evidenceObservations);
+            this.evidenceSensorBreadth=ChemCoreEvidenceObservation.uniqueSensors(this.evidenceObservations);
             this.note=note==null?"":note;
         }
 
@@ -115,9 +134,13 @@ public final class InverseMolecularSolver {
         double domainPenalty=best.allInside?0:1.0;
         double logScore=c.priorLogWeight-0.5*best.chi2-domainPenalty;
         String note=best.allInside?"joint array fit inside contributing model domains":"joint fit uses at least one contributor outside its environmental domain";
-        if(best.molecular>0)note+="; QSPR M1="+best.molecular+" channel(s), direct/reference M2+="+best.reference+" channel(s)";
-        return new Result(c.chemicalUid,c.label,true,Math.pow(10,best.logPpm),rms,logScore,best.contributors,
-                best.molecular,best.reference,best.calibrated,molecularRms,qsprIndex,best.allInside,best.tier,best.residuals,note);
+        if(best.molecular>0)note+="; QSPR M1="+best.molecular+" sensor channel(s), direct/reference M2+="+best.reference+" sensor channel(s)";
+        double fittedPpm=Math.pow(10,best.logPpm);
+        List<ChemCoreEvidenceObservation> evidence=evidenceAt(observedRatios,c,fittedPpm,temperatureC,rh,samplingProfile);
+        int groups=ChemCoreEvidenceObservation.uniqueIndependenceGroups(evidence);
+        note+="; evidence_groups="+groups+", sensor_breadth="+ChemCoreEvidenceObservation.uniqueSensors(evidence);
+        return new Result(c.chemicalUid,c.label,true,fittedPpm,rms,logScore,best.contributors,
+                best.molecular,best.reference,best.calibrated,molecularRms,qsprIndex,best.allInside,best.tier,best.residuals,evidence,note);
     }
 
     private static Fit scoreAt(Map<String,Double> observed,Candidate c,double logPpm,double temperatureC,double rh,SamplingProfile samplingProfile){
@@ -141,10 +164,24 @@ public final class InverseMolecularSolver {
         return f;
     }
 
+    /** Collect typed observations only for the final fit; the dense search loop remains allocation-light. */
+    private static List<ChemCoreEvidenceObservation> evidenceAt(Map<String,Double> observed,Candidate c,double ppm,
+                                                                 double temperatureC,double rh,SamplingProfile samplingProfile){
+        List<ChemCoreEvidenceObservation> out=new ArrayList<>();
+        for(ChemCoreResponseModel m:c.models){
+            if(m==null)continue;Double obs=lookup(observed,m.sensorKey());if(obs==null||!(obs>0)||!Double.isFinite(obs))continue;
+            ChemCoreResponseModel.Estimate p=m.predict(ppm,temperatureC,rh,samplingProfile);if(p==null||!p.available||!Double.isFinite(p.meanLog10Ratio))continue;
+            double sigma=Double.isFinite(p.sigmaLog10)&&p.sigmaLog10>0?Math.max(0.02,p.sigmaLog10):0.20;if(!p.insideDomain)sigma*=1.8;
+            double residual=Math.log10(obs)-p.meanLog10Ratio;double z=residual/sigma;
+            out.add(ChemCoreEvidenceObservation.fromResponseModel(c.chemicalUid,c.label,m,p,ppm,obs,residual,z));
+        }
+        return out;
+    }
+
     private static Double lookup(Map<String,Double> m,String key){if(key==null)return null;Double x=m.get(key);if(x!=null)return x;x=m.get(key.toLowerCase(Locale.US));if(x!=null)return x;return m.get(key.toUpperCase(Locale.US));}
     private static double reliability(ChemCoreDecision.EvidenceTier t){if(t==null)return .25;switch(t){case M4_HAZROB_VALIDATED:return 1.0;case M3_ARRAY_CONSISTENT:return .85;case M2_LITERATURE_OR_MANUFACTURER_SUPPORTED:return .60;case M1_MOLECULARLY_INFERRED:return .30;default:return .15;}}
     private static int rank(ChemCoreDecision.EvidenceTier t){return t==null?0:t.ordinal();}
 
     private static void normalizePosteriors(List<Result> rows){double max=Double.NEGATIVE_INFINITY;for(Result r:rows)if(r.solvable&&Double.isFinite(r.logScore))max=Math.max(max,r.logScore);if(!Double.isFinite(max))return;double sum=0;for(Result r:rows)if(r.solvable&&Double.isFinite(r.logScore)){r.posterior=Math.exp(Math.max(-700,r.logScore-max));sum+=r.posterior;}if(sum>0)for(Result r:rows)r.posterior/=sum;}
-    private static Result unsolved(Candidate c,String why){return new Result(c==null?-1:c.chemicalUid,c==null?"":c.label,false,Double.NaN,Double.NaN,Double.NEGATIVE_INFINITY,0,0,0,0,Double.NaN,Double.NaN,false,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,new HashMap<>(),why);}
+    private static Result unsolved(Candidate c,String why){return new Result(c==null?-1:c.chemicalUid,c==null?"":c.label,false,Double.NaN,Double.NaN,Double.NEGATIVE_INFINITY,0,0,0,0,Double.NaN,Double.NaN,false,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,new HashMap<>(),Collections.emptyList(),why);}
 }
