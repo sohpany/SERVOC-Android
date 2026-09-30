@@ -31,9 +31,10 @@ tasks.register('prepareHazRobFlammabilitySeed') {
         if (sourceFlammability.exists()) {
             generatedFlammability.bytes = sourceFlammability.bytes
         } else {
-            // Never regenerate the controlled seed from live NIOSH pages during a release build.
-            // Recover the exact content-addressed asset from the last accepted 0.10.1 APK and fail closed
-            // unless its bytes still match HAZROB_FLAMMABILITY_SHA256.
+            // Release-build recovery path for the already accepted 0.10.1 controlled seed.
+            // This is not an application/library update endpoint. P4 migration of update
+            // distribution is GitHub-only; this legacy build-time recovery is reviewed
+            // separately before P13 and remains content-addressed by SHA-256.
             File acceptedApk = file("$buildDir/accepted/HazRob-0.10.1-accepted.apk")
             acceptedApk.parentFile.mkdirs()
             Exception last = null
@@ -77,9 +78,13 @@ android {
         targetSdk 36
         versionCode 26
         versionName '0.10.2'
-        buildConfigField 'String', 'APP_UPDATE_MANIFEST_URL', '"https://hazrob-app-updates.onrender.com/app-update.json"'
-        // Public read-only update channel for operators; write access remains developer-only.
-        buildConfigField 'String', 'CHEMCORE_LIBRARY_MANIFEST_URL', '"https://hazrob-app-updates.onrender.com/chemcore/manifest.json"'
+
+        // P4 policy: application and ChemCore update distribution is GitHub-only.
+        // Keep fail-closed until a PUBLIC read-only HazRob GitHub distribution repository
+        // is created. The canonical scientific repository HazRob/build-harness is private
+        // and must never force ordinary users to carry a GitHub credential.
+        buildConfigField 'String', 'APP_UPDATE_MANIFEST_URL', '""'
+        buildConfigField 'String', 'CHEMCORE_LIBRARY_MANIFEST_URL', '""'
     }
 
     sourceSets { main { assets.srcDir generatedHazrobAssets } }
