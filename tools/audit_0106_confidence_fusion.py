@@ -18,21 +18,29 @@ def main():
     legacy_test=txt('app/src/test/java/com/servoc/app/chemcore/ChemCoreConfidenceMatrixEvidenceTest.java')
     runtime_test=txt('app/src/test/java/com/servoc/app/chemcore/ChemCoreEvidenceFusionTest.java')
 
-    # Existing P6 typed API is retained, but the runtime implementation is centralized in the fusion engine.
+    # Runtime API remains typed and de-duplicated. Full-strength counts are independent evidence groups,
+    # never raw MQ channels. Weak/degraded support has its own capped corroboration axis.
     req(matrix,'score(long chemicalUid,List<ChemCoreEvidenceObservation> evidence)','typed confidence API')
     req(matrix,'ChemCoreEvidenceFusion.fuseForChemical(chemicalUid,evidence).score','typed API delegates to runtime fusion')
-    req(matrix,'scoreIndependent(int qsprGroups,int referenceGroups,int hr069Groups,int sensorBreadth)','independent group scoring schedule')
-    req(matrix,'Counts represent independent evidence groups, not MQ sensor channels','independent count semantics')
+    req(matrix,'scoreIndependent(int qsprGroups,int referenceGroups,int hr069Groups,int sensorBreadth,double corroborationPct)','independent group + corroboration scoring schedule')
+    req(matrix,'Counts represent independent full-strength evidence groups, not MQ sensor channels','independent count semantics')
+    req(matrix,'corroborationPct','separate weak-support score field')
+    req(matrix,'clamp(corroborationPct,0,8.0)','corroboration cap')
 
-    # Positive-only fusion: candidate-isolated, in-domain, reasonable fit, de-duplicated lineage.
-    for n in ['MAX_SUPPORT_STANDARDIZED_RESIDUAL=2.50','filterChemical&&e.chemicalUid!=chemicalUid','representative.get(e.independenceGroup)','representative.put(e.independenceGroup,e)','!e.insideDomain','Math.abs(e.standardizedResidual)>MAX_SUPPORT_STANDARDIZED_RESIDUAL','scoreIndependent(q,r,m4,breadth)']:
+    # Positive-only fusion preserves every chemically interpretable observation, but separates
+    # full-strength proof from quality-weighted corroboration and de-duplicates both by lineage.
+    for n in ['FULL_SUPPORT_STANDARDIZED_RESIDUAL=2.50','MAX_CORROBORATION_BONUS=8.0','filterChemical&&e.chemicalUid!=chemicalUid','representative.get(e.independenceGroup)','representative.put(e.independenceGroup,e)','weakRepresentative.get(e.independenceGroup)','supportWeight(e)','scoreIndependent(q,r,m4,breadth,corroboration)']:
         req(fusion,n,'runtime evidence fusion')
+    req(fusion,'if(e==null||!e.insideDomain||!"PRIMARY".equals(e.supportRole)||e.measurementQualityWeight<0.75)return false','full-strength domain/quality gate')
+    req(fusion,'if(!e.insideDomain)w*=0.40','out-of-domain retained only as weak support')
+    req(fusion,'if("CORROBORATIVE".equals(e.supportRole))w=Math.min(w,0.70)','corroborative quality cap')
+    req(fusion,'representative.containsKey(e.independenceGroup)','weak copy cannot double-count strong proof')
     req(fusion,'REFERENCE_FINGERPRINT&&hasDirectReference','derived reference fingerprint double-count guard')
-    req(fusion,'int contributingGroups=q+r+m4','reported confidence evidence-group count excludes non-contributing derived groups')
-    req(fusion,'posterior/model ranking is intentionally not used here','posterior separation')
+    req(fusion,'int contributingGroups=q+r+m4+weakGroups','reported confidence group count includes explicit weak groups')
+    req(fusion,'posterior/model ranking remains separate from the Analytical Confidence Index','posterior separation')
 
-    # Result contract exposes confidence separately from posterior and retains the evidence trail.
-    for n in ['ANALYTICAL_CONFIDENCE_SEMANTICS','analytical_confidence_pct','confidence_evidence_groups','confidence_sensor_breadth','evidence_observations']:
+    # Result contract exposes confidence separately from posterior and retains the complete evidence trail.
+    for n in ['ANALYTICAL_CONFIDENCE_SEMANTICS','analytical_confidence_pct','confidence_evidence_groups','confidence_sensor_breadth','evidence_observations','measurement_quality_weight','support_role']:
         req(envelope,n,'result confidence contract')
     req(envelope,'relative_model_ranking_weight_not_calibrated_identity_probability','posterior semantics preserved')
     req(envelope,'operational_positive_evidence_index_not_calibrated_probability','confidence semantics explicit')
@@ -43,14 +51,14 @@ def main():
     req(fp,'ChemCoreEvidenceFusion.fuseForChemical(uid,observations)','fingerprint confidence fusion')
     req(fp,'observations.add(fingerprintEvidence)','fingerprint evidence merged before scoring')
 
-    # Keep the initial P6 regressions and add runtime/result integration regressions.
-    for n in ['correlatedQsprChannelsCountAsOneIndependentEvidenceGroup','strongestTierWinsInsideOneIndependenceGroup','independentReferenceGroupsRemainIndependent','outOfDomainAndOtherChemicalDoNotBoostCandidateConfidence','m3IdentityEvidenceIsNonM4SupportedEvidenceUntilWeightCalibration']:
-        req(legacy_test,n,'initial P6 tests')
-    for n in ['threeQsprSensorChannelsFromOneModelAreOneEvidenceGroup','assertEquals(25.0,r.score.totalPct','assertEquals(41.0,r.score.totalPct','outOfDomainOrPoorFitAddsNoPointsAndNeverSubtracts','derivedReferenceFingerprintDoesNotDoubleCountDirectReferenceCurve','assertEquals(1,r.referenceGroups);assertEquals(1,r.uniqueEvidenceGroups)','resultEnvelopeKeepsPosteriorAndAnalyticalConfidenceSemanticallySeparate','acceptedFingerprintProducesStructuredConfidenceButNeverReportablePpm']:
+    # Regression suite protects independence, weak-support retention and non-promotion to quantitative claims.
+    for n in ['correlatedQsprChannelsCountAsOneIndependentEvidenceGroup','strongestTierWinsInsideOneIndependenceGroup','independentReferenceGroupsRemainIndependent','outOfDomainSameChemicalIsWeakCorroborationButOtherChemicalNeverBoostsCandidate','m3IdentityEvidenceIsNonM4SupportedEvidenceUntilWeightCalibration']:
+        req(legacy_test,n,'P6 matrix tests')
+    for n in ['threeQsprSensorChannelsFromOneModelAreOneEvidenceGroup','threeIndependentQsprFamiliesRetainDiminishingPositiveSupport','outOfDomainAndPoorFitAreRetainedAsSmallCorroborativeSupport','degradedMeasurementCanSupportButNeverBecomesReportableQuantitative','degradedCopyOfSameIndependenceGroupDoesNotDoubleCountStrongProof','derivedReferenceFingerprintDoesNotDoubleCountDirectReferenceCurve','resultEnvelopeKeepsPosteriorAndAnalyticalConfidenceSemanticallySeparate','acceptedFingerprintProducesStructuredConfidenceButNeverReportablePpm']:
         req(runtime_test,n,'runtime P6 tests')
 
     print('HazRob 0.10.2 / HR069 P6 confidence fusion contract: PASS')
-    print('Rule: confidence is 0..100 positive support, de-duplicated by independenceGroup; posterior and PPM remain separate.')
+    print('Rule: full-strength confidence is de-duplicated by independenceGroup; interpretable degraded evidence may add only capped corroboration; posterior and PPM remain separate.')
     return 0
 
 if __name__=='__main__':
