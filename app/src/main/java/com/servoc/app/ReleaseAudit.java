@@ -39,6 +39,9 @@ public final class ReleaseAudit {
     public static final boolean CAMERA_ENDPOINT_FALLBACK=true;
     public static final boolean SENSOR_HEALTH_DRIFT=true;
     public static final boolean GAS_DIRECTION_ASSIST=true;
+    public static final boolean GAS_TRACKING_ARROW_ONLY=true;
+    public static final boolean GAS_TRACKING_AUTONOMOUS_DRIVE=false;
+    public static final boolean GAS_TRACKING_ABSOLUTE_LOCALIZATION=false;
     public static final boolean GAS_TRACKING_RELAY_RECOMMENDATION=true;
     public static final boolean REFERENCE_BANK_EXPORT=true;
     public static final boolean DERIVED_REFERENCE_ARTIFACTS=true;
