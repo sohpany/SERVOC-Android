@@ -4,6 +4,11 @@
 This curation layer intentionally separates a pure molecular identity from mixtures, materials,
 isomer groups and occupational categories. It does not fabricate PubChem descriptors and does
 not make any unresolved entry QSPR-eligible.
+
+Reviewed PURE_COMPOUND entries are allowed to disappear from this file when a later PubChem build
+successfully resolves them. Mixture/material/isomer/occupational entries remain strict: if they
+vanish without an explicit curation-policy change, the build fails rather than silently coercing
+them into a single molecule.
 """
 from __future__ import annotations
 
@@ -21,12 +26,12 @@ OCC="OCCUPATIONAL_CATEGORY"
 
 # Exact keys are used because one CAS can legitimately occur in more than one NIOSH identity row.
 CURATION={
-("10210-68-1","Cobalt carbonyl (as Co)"):(PURE,"Discrete compound identity appears intended; resolve structure by authoritative name/CAS source before molecular modelling. Exposure basis is expressed as Co."),
+("10210-68-1","Cobalt carbonyl (as Co)"):(PURE,"Discrete compound identity appears intended; PubChem may be resolved by the reviewed name dicobalt octacarbonyl when CAS lookup alone fails. Exposure basis is expressed as Co."),
 ("11107-01-0","Tungsten carbide (cemented)"):(MATERIAL,"Cemented tungsten carbide is a composite/material identity; do not force a single molecular descriptor vector."),
-("12079-65-1","Manganese cyclopentadienyl tricarbonyl (as Mn)"):(PURE,"Discrete organometallic identity appears intended; authoritative structure resolution required before QSPR. Exposure basis is expressed as Mn."),
-("12108-13-3","Methyl cyclopentadienyl manganese tricarbonyl (as Mn)"):(PURE,"Discrete organometallic identity appears intended; authoritative structure resolution required before QSPR. Exposure basis is expressed as Mn."),
+("12079-65-1","Manganese cyclopentadienyl tricarbonyl (as Mn)"):(PURE,"Discrete organometallic identity appears intended; reviewed PubChem name fallback may be used when CAS lookup alone fails. Exposure basis is expressed as Mn."),
+("12108-13-3","Methyl cyclopentadienyl manganese tricarbonyl (as Mn)"):(PURE,"Discrete organometallic identity appears intended; reviewed PubChem name fallback may be used when CAS lookup alone fails. Exposure basis is expressed as Mn."),
 ("12718-69-3","Tungsten carbide (cemented)"):(MATERIAL,"Cemented tungsten carbide is a composite/material identity; do not force a single molecular descriptor vector."),
-("1304-82-1","Bismuth telluride, undoped"):(PURE,"Stoichiometric compound identity appears intended, but it is a low-volatility solid and must not be treated as a gas-phase QSPR target without a relevant exposure mechanism."),
+("1304-82-1","Bismuth telluride, undoped"):(PURE,"Stoichiometric compound identity appears intended and may be resolved by reviewed PubChem name fallback. It is a low-volatility solid and must not be treated as a gas-phase QSPR target without a relevant exposure mechanism."),
 ("1317-65-3","1317-65-3 (natural)"):(MATERIAL,"Natural calcium-carbonate-bearing material category; composition/mineral form is not represented by a unique small-molecule record."),
 ("1317-65-3","Limestone"):(MATERIAL,"Limestone is a natural material with variable mineral composition; do not collapse it to one molecular identity."),
 ("1317-65-3","Marble"):(MATERIAL,"Marble is a natural material/mineral category; do not collapse it to one molecular identity."),
@@ -35,7 +40,7 @@ CURATION={
 ("1332-58-7","Kaolin"):(MATERIAL,"Kaolin is a mineral material category and is not represented by a single volatile molecular structure."),
 ("1335-87-1","Hexachloronaphthalene"):(ISOMER,"Technical hexachloronaphthalene can represent an isomeric composition; component/isomer resolution is required before molecular modelling."),
 ("1395-21-7","1395-21-7 (BPN)"):(MATERIAL,"Biological/protein preparation identity; not a small volatile molecule for MOX molecular QSPR."),
-("17702-41-9","Decaborane"):(PURE,"Discrete compound identity appears intended; resolve authoritative structure record before molecular modelling."),
+("17702-41-9","Decaborane"):(PURE,"Discrete compound identity appears intended and may be resolved by reviewed PubChem name fallback."),
 ("25013-15-4","25013-15-4 (inhibited)"):(ISOMER,"Industrial inhibited product/isomer composition; resolve actual component identity rather than assigning one molecule."),
 ("25321-14-6","Dinitrotoluene"):(ISOMER,"Generic dinitrotoluene CAS represents an isomeric/technical composition; component-resolved identities are required for molecular modelling."),
 ("25376-45-8","Toluenediamine"):(ISOMER,"Generic toluenediamine CAS represents an isomeric/technical composition; component-resolved identities are required for molecular modelling."),
@@ -68,9 +73,12 @@ def main()->int:
     args=p.parse_args();seed_path=Path(args.seed);out_path=Path(args.output)
     seed=json.loads(seed_path.read_text(encoding="utf-8"));unresolved=[r for r in seed.get("records",[]) if r.get("status")=="UNRESOLVED"]
     observed={(r.get("cas",""),r.get("name_en","")) for r in unresolved};expected=set(CURATION)
-    missing=sorted(observed-expected);stale=sorted(expected-observed)
-    if missing or stale:
-        raise SystemExit("curation coverage mismatch; unclassified=%r stale=%r"%(missing,stale))
+    missing=sorted(observed-expected)
+    stale=sorted(expected-observed)
+    allowed_resolved_pure=sorted(k for k in stale if CURATION[k][0]==PURE)
+    stale_nonpure=sorted(k for k in stale if CURATION[k][0]!=PURE)
+    if missing or stale_nonpure:
+        raise SystemExit("curation coverage mismatch; unclassified=%r stale_nonpure=%r allowed_resolved_pure=%r"%(missing,stale_nonpure,allowed_resolved_pure))
     rows=[];counts={}
     for r in unresolved:
         key=(r["cas"],r["name_en"]);kind,note=CURATION[key];counts[kind]=counts.get(kind,0)+1
@@ -84,10 +92,11 @@ def main()->int:
     payload={
         "schema":"chemcore-unresolved-curation-v1","generated_at_utc":datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z"),
         "source_seed_sha256":hashlib.sha256(seed_path.read_bytes()).hexdigest(),"record_count":len(rows),"entity_type_counts":dict(sorted(counts.items())),
-        "policy":"Classification prevents ambiguous occupational/material entries from being coerced into single-molecule QSPR. No record in this file is made QSPR-eligible by curation alone.",
+        "resolved_pure_compounds_removed_from_curation":[{"cas":cas,"name_en":name} for cas,name in allowed_resolved_pure],
+        "policy":"Classification prevents ambiguous occupational/material entries from being coerced into single-molecule QSPR. Reviewed PURE_COMPOUND records may leave this file only when the molecular seed resolves them; no unresolved record is made QSPR-eligible by curation alone.",
         "records":rows
     }
     out_path.parent.mkdir(parents=True,exist_ok=True);out_path.write_text(json.dumps(payload,indent=2,ensure_ascii=False)+"\n",encoding="utf-8")
-    print(json.dumps(payload["entity_type_counts"],indent=2));print("records",len(rows));return 0
+    print(json.dumps(payload["entity_type_counts"],indent=2));print("records",len(rows));print("resolved pure compounds",len(allowed_resolved_pure));return 0
 
 if __name__=="__main__":raise SystemExit(main())
