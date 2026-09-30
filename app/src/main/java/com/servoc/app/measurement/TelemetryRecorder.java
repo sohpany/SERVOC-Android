@@ -54,13 +54,21 @@ public final class TelemetryRecorder {
         JSONObject state=new JSONObject();
         try{
             state.put("left",left);state.put("right",right);state.put("hardware_profile",HazRobHardwareProfile.ID);state.put("chemcore_controlled_capture",chemCoreCaptureSession);
-            JSONObject d=snapshot.optJSONObject("drive");if(d!=null){state.put("failsafe",d.optBoolean("failsafe",false));state.put("retrace",d.optBoolean("retrace",false));state.put("hold",d.optBoolean("hold",false));}
+            JSONObject d=snapshot.optJSONObject("drive");if(d!=null){
+                state.put("failsafe",d.optBoolean("failsafe",false));state.put("retrace",d.optBoolean("retrace",false));state.put("hold",d.optBoolean("hold",false));
+                state.put("safety_auto_stop",d.optBoolean("safety_auto_stop",false));state.put("forward_hazard",d.optBoolean("forward_hazard",false));state.put("forward_blocked",d.optBoolean("forward_blocked",false));state.put("forward_block_reason",d.optString("forward_block_reason",""));
+            }
             JSONObject sound=snapshot.optJSONObject("sound");if(sound!=null)state.put("sound",sound);
             JSONObject ir=snapshot.optJSONObject("ir");if(ir!=null)state.put("ir",ir);
             JSONObject ldr=snapshot.optJSONObject("ldr");if(ldr!=null&&ldr.optBoolean("installed",false))state.put("ldr",ldr);
             JSONObject adc=snapshot.optJSONObject("adc");if(adc!=null)state.put("adc",adc);
             JSONObject relay=snapshot.optJSONObject("relay");if(relay!=null)state.put("relay",relay);
-            JSONObject measurement=snapshot.optJSONObject("measurement");if(measurement!=null){state.put("measurement_phase",measurement.optInt("phase",0));state.put("measurement_mask",measurement.optInt("mask",0));}
+            JSONObject sensorPower=snapshot.optJSONObject("sensor_power");if(sensorPower!=null)state.put("sensor_power",sensorPower);
+            JSONObject measurement=snapshot.optJSONObject("measurement");if(measurement!=null){
+                String measurementState=measurement.optString("state","idle");int stateCode=measurement.optInt("state_code",0);
+                state.put("measurement_state",measurementState);state.put("measurement_state_code",stateCode);state.put("measurement_phase",stateCode);state.put("measurement_mask",measurement.optInt("mask",0));
+                state.put("measurement_valid_channels",measurement.optInt("valid_channels",0));state.put("measurement_error",measurement.optString("error",""));
+            }
         }catch(Exception ignored){}
         v.put("motion_payload",state.toString());db.getWritableDatabase().insert("telemetry_samples",null,v);
         if(chemCoreCaptureSession)persistMqTiming(mq,tMs);
