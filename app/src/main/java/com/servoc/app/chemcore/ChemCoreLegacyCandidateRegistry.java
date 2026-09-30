@@ -12,8 +12,8 @@ import java.util.List;
  * AcceptedReferenceResponseModel, which enforces source domains, source priority, completed 48 h
  * initial MQ conditioning, and the separate MQ-7/MQ-9 heater-cycle constraint.
  *
- * These candidates remain non-M4. A fitted concentration can be displayed as a provisional
- * reference hypothesis, but occupational/safety quantitative interpretation is still gated by M4.
+ * Validated PubChem/QSPR M1 models may supplement missing sensor channels for ranking. A direct
+ * M2/M4 model always wins on the same channel, and QSPR cannot independently create M3/M4.
  */
 public final class ChemCoreLegacyCandidateRegistry {
     private ChemCoreLegacyCandidateRegistry() {}
@@ -27,10 +27,11 @@ public final class ChemCoreLegacyCandidateRegistry {
                 try{models.add(new AcceptedReferenceResponseModel(sensor,chem));}catch(IllegalArgumentException ignored){}
             }
             if(models.isEmpty())continue;
-            // One contributor may form a provisional screening/PPM hypothesis; named M3 identity still needs multisensor evidence.
+            // One direct contributor may form a provisional screening/PPM hypothesis; named M3
+            // still needs at least two direct/reference M2+ contributors in the inference gate.
             out.add(new InverseMolecularSolver.Candidate(chem+1L,ChemicalCatalog.NAMES[chem],models,0.0,1));
         }
-        return out;
+        return ChemCoreQsprRuntimeRegistry.supplement(out);
     }
 
     /** Compatibility API retained for existing callers. */
@@ -44,6 +45,12 @@ public final class ChemCoreLegacyCandidateRegistry {
         for(int sensor=0;sensor<8;sensor++)if(AcceptedReferenceResponseModel.eligible(sensor,chemical)){
             try{models.add(new AcceptedReferenceResponseModel(sensor,chemical));}catch(IllegalArgumentException ignored){}
         }
-        return models.isEmpty()?null:new InverseMolecularSolver.Candidate(chemical+1L,ChemicalCatalog.NAMES[chemical],models,0.0,1);
+        if(models.isEmpty()){
+            for(InverseMolecularSolver.Candidate c:ChemCoreQsprRuntimeRegistry.candidates())if(c.chemicalUid==chemical+1L)return c;
+            return null;
+        }
+        List<InverseMolecularSolver.Candidate> merged=ChemCoreQsprRuntimeRegistry.supplement(List.of(
+                new InverseMolecularSolver.Candidate(chemical+1L,ChemicalCatalog.NAMES[chemical],models,0.0,1)));
+        return merged.isEmpty()?null:merged.get(0);
     }
 }
