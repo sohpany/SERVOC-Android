@@ -84,4 +84,24 @@ public final class ChemCoreDecisionRepository {
             ContentValues v=new ContentValues();v.put("payload",payload.toString());return db.getWritableDatabase().update("chemcore_decisions",v,"id=?",new String[]{String.valueOf(rowId)})==1;
         }catch(Exception ignored){return false;}
     }
+
+    /**
+     * P10 finalization: binds the M4-only quantitative time series and the exposure/flammability
+     * interpretation to the same decision row. Identity, analytical confidence and the scalar ppm
+     * chosen by ChemCore are not modified here. TWA/STEL can only become temporal findings through
+     * the supplied series; current ppm, Ceiling/IDLH and LFL/LEL remain immediate comparisons.
+     */
+    public boolean attachQuantitativeExposure(String primarySessionId,JSONObject quantitativeSeries){
+        if(primarySessionId==null||primarySessionId.trim().isEmpty()||quantitativeSeries==null)return false;String id=primarySessionId.trim();
+        try(Cursor c=db.getReadableDatabase().rawQuery(
+                "SELECT id,payload FROM chemcore_decisions WHERE session_id=? AND payload IS NOT NULL ORDER BY t_ms DESC,id DESC LIMIT 1",
+                new String[]{id})){
+            if(!c.moveToFirst())return false;long rowId=c.getLong(0);String raw=c.getString(1);JSONObject payload=new JSONObject(raw==null?"{}":raw);
+            JSONObject seriesCopy=new JSONObject(quantitativeSeries.toString());long first=seriesCopy.optLong("first_t_ms",0),last=seriesCopy.optLong("last_t_ms",first);long duration=Math.max(0,last-first);
+            JSONObject exposure=GasPpmExposureAssessment.evaluate(db,payload,duration,seriesCopy);
+            payload.put("quantitative_time_series",seriesCopy);payload.put(GasPpmExposureAssessment.KEY,exposure);
+            payload.put("p10_quantitative_exposure_finalized",true);payload.put("p10_temporal_basis",seriesCopy.optBoolean("valid",false)?"M4_TIME_SERIES":"CURRENT_M4_PPM_ONLY");
+            ContentValues v=new ContentValues();v.put("payload",payload.toString());return db.getWritableDatabase().update("chemcore_decisions",v,"id=?",new String[]{String.valueOf(rowId)})==1;
+        }catch(Exception ignored){return false;}
+    }
 }
