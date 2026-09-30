@@ -120,9 +120,9 @@ Key commits: `6414ae62`, `ca20b1b9`.
 - [x] API4 normalization now preserves actual firmware motor outputs after safety interlocks, while keeping the operator request separately as `requested_left/right`.
 - [x] API4 normalization preserves `stale_stop`, command age, forward hazard/block state and E-STOP state.
 - [x] Remote telemetry propagates outer `safety.estop_latched` into the normalized snapshot without mutating the raw telemetry envelope.
-- [x] Fixed eight-button turns use the approved 45% inner-side drive matrix; in-place pivots remain opposite-sign full commands.
+- [x] Fixed eight-button turns use the approved 60% inner-side drive matrix; in-place pivots remain opposite-sign full commands.
 
-Key commits: `27780e3d`, `5a7542b1`, `4363cf81`, `49a084d4`.
+Key commits: `27780e3d`, `5a7542b1`, `4363cf81`, `49a084d4`, `71fd1773`.
 
 ## Scientific invariants introduced by this rebuild
 
