@@ -45,8 +45,14 @@ def main():
     req(envelope,'relative_model_ranking_weight_not_calibrated_identity_probability','posterior semantics preserved')
     req(envelope,'operational_positive_evidence_index_not_calibrated_probability','confidence semantics explicit')
 
-    # Both inverse-model and fingerprint identity paths use the same fusion engine.
-    req(infer,'ChemCoreEvidenceFusion.fuseForChemical(r.chemicalUid,r.evidenceObservations)','solver confidence fusion')
+    # Inverse-model confidence is computed after session corroborative measurements are merged;
+    # fingerprint identity uses the same fusion engine. Corroboration never changes primary ranking/PPM.
+    req(infer,'ChemCoreSessionFeatureAdapter.corroborativeRatiosFor(session)','automatic session corroborative ratios')
+    req(infer,'ChemCoreSessionFeatureAdapter.corroborativeWeightsFor(session)','automatic session quality weights')
+    req(infer,'List<ChemCoreEvidenceObservation> allEvidence=withCorroboration','candidate evidence merge before confidence')
+    req(infer,'ChemCoreEvidenceFusion.fuseForChemical(r.chemicalUid,allEvidence)','solver + corroborative confidence fusion')
+    req(infer,'corroborativeFromResponseModel','degraded measurements become support-only observations')
+    req(infer,'double reportablePpm=outcome==ChemCoreDecision.Outcome.QUANTIFIED?top.bestPpm:Double.NaN','corroboration cannot promote PPM')
     forbid(infer,'note+="; reliability="','legacy 1..5 reliability must not be primary result output')
     req(fp,'ChemCoreEvidenceFusion.fuseForChemical(uid,observations)','fingerprint confidence fusion')
     req(fp,'observations.add(fingerprintEvidence)','fingerprint evidence merged before scoring')
