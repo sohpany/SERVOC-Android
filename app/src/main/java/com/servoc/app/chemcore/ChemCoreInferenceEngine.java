@@ -26,8 +26,14 @@ public final class ChemCoreInferenceEngine {
         public Context(String sessionId,String samplingProfileId,String modelVersion,double temperatureC,double rh,ChemCoreOpenSetGate.Result openSetResult,boolean calibrationHealthValid){this.sessionId=sessionId==null?"":sessionId;this.samplingProfileId=samplingProfileId==null?"":samplingProfileId;this.modelVersion=modelVersion==null?"":modelVersion;this.temperatureC=temperatureC;this.rh=rh;this.openSetResult=openSetResult;this.calibrationHealthValid=calibrationHealthValid;}
     }
 
+    /**
+     * Standard application entry point. When the same session has just been extracted by
+     * ChemCoreSessionFeatureAdapter, its degraded-but-interpretable measurements are injected as
+     * support-only evidence automatically.
+     */
     public static ChemCoreResultEnvelope analyze(Map<String,Double> observedRatios,List<InverseMolecularSolver.Candidate> candidates,SamplingProfile samplingProfile,Context context){
-        return analyze(observedRatios,Collections.emptyMap(),Collections.emptyMap(),candidates,samplingProfile,context);
+        String session=context==null?"":context.sessionId;
+        return analyze(observedRatios,ChemCoreSessionFeatureAdapter.corroborativeRatiosFor(session),ChemCoreSessionFeatureAdapter.corroborativeWeightsFor(session),candidates,samplingProfile,context);
     }
 
     public static ChemCoreResultEnvelope analyze(Map<String,Double> observedRatios,
