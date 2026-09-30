@@ -25,7 +25,8 @@ public final class MjpegView extends FrameLayout {
     public interface StatusListener { void onStatus(String state,String detail); }
 
     private static final int MAX_JPEG=1024*1024;
-    private static final long AUTO_SAMPLE_INTERVAL_MS=400;
+    /** Auto enhancement samples immediately when enabled, then at most once every two seconds. */
+    private static final long AUTO_SAMPLE_INTERVAL_MS=2000;
     private final ExecutorService streamWorker=Executors.newSingleThreadExecutor();
     private final ExecutorService decodeWorker=Executors.newSingleThreadExecutor();
     private final Object decodeLock=new Object();
@@ -53,14 +54,14 @@ public final class MjpegView extends FrameLayout {
         surface.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->VideoEffectState.setViewport(Math.max(1,r-l),Math.max(1,b-t)));
 
         displayButton=floating(c);displayButton.setOnClickListener(v->{displayMode=displayMode.next();applyProfile(true);});FrameLayout.LayoutParams dp=new FrameLayout.LayoutParams(dp(c,170),dp(c,42),Gravity.LEFT|Gravity.TOP);dp.setMargins(dp(c,6),dp(c,150),0,0);addView(displayButton,dp);
-        enhancementButton=floating(c);enhancementButton.setOnClickListener(v->{enhancement=enhancement.next();applyProfile(true);});FrameLayout.LayoutParams ep=new FrameLayout.LayoutParams(dp(c,170),dp(c,42),Gravity.LEFT|Gravity.TOP);ep.setMargins(dp(c,6),dp(c,198),0,0);addView(enhancementButton,ep);
+        enhancementButton=floating(c);enhancementButton.setOnClickListener(v->{enhancement=enhancement.next();if(enhancement==VideoEffectProfile.Enhancement.AUTO)lastAutoSampleMs=0;applyProfile(true);});FrameLayout.LayoutParams ep=new FrameLayout.LayoutParams(dp(c,170),dp(c,42),Gravity.LEFT|Gravity.TOP);ep.setMargins(dp(c,6),dp(c,198),0,0);addView(enhancementButton,ep);
         renderButtons();
     }
     private static Button floating(Context c){Button b=new Button(c);b.setAllCaps(false);b.setTextSize(11);b.setTextColor(0xFFFFFFFF);b.setBackgroundColor(0xCC263238);b.setPadding(dp(c,6),0,dp(c,6),0);return b;}
     private static int dp(Context c,int v){return Math.round(v*c.getResources().getDisplayMetrics().density);}
     private void renderButtons(){displayButton.setText("عرض: "+displayMode.arabic);enhancementButton.setText("تحسين: "+enhancement.arabic);}
     private void applyProfile(boolean persist){effectRenderer.setProfile(displayMode,enhancement);VideoEffectState.set(displayMode,enhancement);if(persist)prefs.edit().putString("video_display_mode",displayMode.key).putString("video_enhancement_mode",enhancement.key).apply();renderButtons();surface.requestRender();}
-    public void setVideoEffects(VideoEffectProfile.DisplayMode display,VideoEffectProfile.Enhancement effect){displayMode=display==null?VideoEffectProfile.DisplayMode.NORMAL:display;enhancement=effect==null?VideoEffectProfile.Enhancement.NORMAL:effect;applyProfile(true);}
+    public void setVideoEffects(VideoEffectProfile.DisplayMode display,VideoEffectProfile.Enhancement effect){displayMode=display==null?VideoEffectProfile.DisplayMode.NORMAL:display;enhancement=effect==null?VideoEffectProfile.Enhancement.NORMAL:effect;if(enhancement==VideoEffectProfile.Enhancement.AUTO)lastAutoSampleMs=0;applyProfile(true);}
     public VideoEffectProfile.DisplayMode displayMode(){return displayMode;}public VideoEffectProfile.Enhancement enhancement(){return enhancement;}
 
     public void setFrameListener(FrameListener listener){frameListener=listener;}
@@ -84,7 +85,7 @@ public final class MjpegView extends FrameLayout {
                 byte[] jpeg;long elapsed;
                 synchronized(decodeLock){jpeg=latestJpeg;elapsed=latestElapsedMs;latestJpeg=null;latestElapsedMs=0;if(jpeg==null){decodeBusy=false;return;}}
                 Bitmap bitmap=BitmapFactory.decodeByteArray(jpeg,0,jpeg.length);if(bitmap==null)continue;
-                if(enhancement==VideoEffectProfile.Enhancement.AUTO&&elapsed-lastAutoSampleMs>=AUTO_SAMPLE_INTERVAL_MS){VideoEffectState.setAutoGain(VideoEffectMath.autoGain(VideoEffectMath.sampleLuma(bitmap)));lastAutoSampleMs=elapsed;}
+                if(enhancement==VideoEffectProfile.Enhancement.AUTO&&(lastAutoSampleMs==0||elapsed-lastAutoSampleMs>=AUTO_SAMPLE_INTERVAL_MS)){VideoEffectState.setAutoGain(VideoEffectMath.autoGain(VideoEffectMath.sampleLuma(bitmap)));lastAutoSampleMs=elapsed;}
                 DecodedFrameListener extra=decodedFrameListener;int consumers=extra==null?1:2;SharedVideoFrame shared=new SharedVideoFrame(bitmap,elapsed,consumers);
                 if(active(token)){effectRenderer.submit(shared);surface.requestRender();}else{shared.release();if(extra!=null)shared.release();continue;}
                 if(extra!=null){try{extra.onDecodedFrame(shared);}catch(Exception ignored){shared.release();}}
