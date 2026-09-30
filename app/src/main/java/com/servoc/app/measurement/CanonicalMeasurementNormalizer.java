@@ -57,7 +57,8 @@ public final class CanonicalMeasurementNormalizer {
                 boolean ratioPossible=finitePositive(rs)&&finitePositive(r0);double canonical=ratioPossible?rs/r0:Double.NaN;
                 JSONObject normalization=new JSONObject();normalization.put("owner",NORMALIZATION_OWNER);normalization.put("formula","ratio=rs/r0");
                 normalization.put("r0_source",n.optString("r0_source","unavailable"));normalization.put("r0_reference_validated",n.optBoolean("r0_reference_validated",false));
-                normalization.put("r0_provenance_complete",hasR0Provenance(n));
+                normalization.put("r0_provenance_complete",hasR0Provenance(n));normalization.put("r0_age_known",n.optBoolean("r0_age_known",false));
+                if(n.has("r0_age_ms"))normalization.put("r0_age_ms",n.optLong("r0_age_ms"));if(n.has("r0_session"))normalization.put("r0_session",n.optString("r0_session",""));if(n.has("r0_utc"))normalization.put("r0_utc",n.optString("r0_utc",""));
                 if(ratioPossible){
                     normalization.put("input_ratio",Double.isFinite(reported)?reported:JSONObject.NULL);
                     normalization.put("ratio_consistent",Double.isFinite(reported)&&relativeError(reported,canonical)<=1e-6);
@@ -105,7 +106,7 @@ public final class CanonicalMeasurementNormalizer {
     private static boolean adsReady(JSONObject adc,int index){if(adc==null)return false;return index==0?adc.optBoolean("ads1",false):adc.optBoolean("ads2",false);}
     private static boolean finitePositive(double x){return Double.isFinite(x)&&x>0;}
     private static double relativeError(double a,double b){double d=Math.max(1e-12,Math.max(Math.abs(a),Math.abs(b)));return Math.abs(a-b)/d;}
-    private static boolean hasR0Provenance(JSONObject n){String source=n.optString("r0_source","");if(source.isEmpty()||"unavailable".equals(source))return false;if("field_clean_air_r0".equals(source))return n.has("r0_session")&&n.has("r0_utc");return true;}
+    private static boolean hasR0Provenance(JSONObject n){if(n.has("r0_provenance_complete"))return n.optBoolean("r0_provenance_complete",false);String source=n.optString("r0_source","");return !source.isEmpty()&&!"unavailable".equals(source)&&n.has("r0_session")&&n.has("r0_utc");}
     private static void copyNumber(JSONObject from,JSONObject to,String source,String target)throws Exception{if(from.has(source)&&!from.isNull(source))to.put(target,from.optDouble(source));}
     private static void copyString(JSONObject from,JSONObject to,String source,String target)throws Exception{if(from.has(source)&&!from.isNull(source))to.put(target,from.optString(source,""));}
 }
