@@ -5,7 +5,7 @@ import com.servoc.app.data.ExperimentsDb;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Authority-preserving occupational exposure knowledge for HazRob 0.6. */
+/** Authority-preserving occupational exposure knowledge for HazRob 0.10.2. */
 public final class ExposureRepository {
     public static final class Limit {
         public final long id,chemicalUid;
@@ -31,6 +31,14 @@ public final class ExposureRepository {
     public List<Limit> byCas(String cas){
         if(cas==null||cas.trim().isEmpty())return new ArrayList<>();
         return query("JOIN chemicals c ON c.uid=e.chemical_uid WHERE c.cas=?",new String[]{cas.trim()});
+    }
+
+    /** Canonical molecular mass (g/mol) from the same chemical master used by exposure limits. */
+    public double molarMass(long chemicalUid){
+        if(chemicalUid<=0)return Double.NaN;
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT molar_mass FROM chemicals WHERE uid=? LIMIT 1",new String[]{String.valueOf(chemicalUid)})){
+            if(!c.moveToFirst()||c.isNull(0))return Double.NaN;double v=c.getDouble(0);return Double.isFinite(v)&&v>0?v:Double.NaN;
+        }catch(Exception e){return Double.NaN;}
     }
 
     public int count(){try(Cursor c=db.getReadableDatabase().rawQuery("SELECT COUNT(*) FROM exposure_limits",null)){return c.moveToFirst()?c.getInt(0):0;}}
