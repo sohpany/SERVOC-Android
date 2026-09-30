@@ -25,6 +25,7 @@ def mix(x,y):
 def main():
     cfg=txt("firmware/HazRob/Config.h")
     hw=txt("firmware/HazRob/Hardware.cpp")
+    safety=txt("firmware/HazRob/SafetyOptions.cpp")
     ino=txt("firmware/HazRob/HazRob.ino")
     joy=txt("app/src/main/java/com/servoc/app/control/JoystickView.java")
     mixer=txt("app/src/main/java/com/servoc/app/control/DriveMixer.java")
@@ -82,8 +83,10 @@ def main():
 
     req(hw,"void driveSet(int l,int r){","firmware drive entry")
     req(hw,"bool forwardRequested=(requestedL+requestedR)>0.1f;","front safety forward classification")
-    req(hw,"bool forwardBlocked=irWarning||ultraStop;","front safety hazard gate")
+    req(hw,"bool forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop);","operator-selectable front safety hazard gate")
     req(hw,"if(forwardBlocked&&forwardRequested){curL=curR=0;}else{curL=requestedL;curR=requestedR;}","front safety forward-only block")
+    req(safety,'autoStop=safetyNv.getBool("autoStop",false)',"automatic hazard-stop build-stage default OFF")
+    req(safety,'safetyNv.putBool("autoStop",enabled);',"automatic hazard-stop persistent operator setting")
     req(hw,"cmdAt=millis();staleStop=false;driveWrite();","firmware drive watchdog refresh")
     req(hw,"motorWrite(Cfg::DRIVE_L_EN,Cfg::DRIVE_L_IN1,Cfg::DRIVE_L_IN2,curL,Cfg::DRIVE_L_INVERT)","left output")
     req(hw,"motorWrite(Cfg::DRIVE_R_EN,Cfg::DRIVE_R_IN1,Cfg::DRIVE_R_IN2,curR,Cfg::DRIVE_R_INVERT)","right output")
@@ -104,7 +107,7 @@ def main():
     req(remote_policy,"MIN_PUBLISH_MS=40","remote publish ceiling")
 
     print("HazRob 0.10.2 steering contract: PASS")
-    print("travel-relative inside-side steering; Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
+    print("travel-relative inside-side steering; optional persisted hazard auto-stop; warnings always active; Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
 
     if os.environ.get("HR048_SKIP_INTEGRATION") != "1":
         from audit_hr048_integration_contract import main as integration_main
