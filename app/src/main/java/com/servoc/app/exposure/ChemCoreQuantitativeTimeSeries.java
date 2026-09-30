@@ -21,10 +21,10 @@ import java.util.Map;
 /**
  * P10 device-validated quantitative time series.
  *
- * Only M4 response models are admitted. Each telemetry sample is independently re-solved using
- * the same inverse solver used by ChemCore. Missing/out-of-domain/insufficient samples remain gaps;
- * they are never interpolated into quantitative evidence. TWA/STEL windows use only covered valid
- * time segments and therefore cannot be unlocked by session duration alone.
+ * Only M4 response models are admitted for the reportable quantitative series. Every accepted
+ * quantitative point is retained with its session timestamp so reports and later re-analysis can
+ * inspect the complete derived ppm history. Raw/normalized telemetry remains preserved separately
+ * in telemetry_samples and is never discarded merely because a point is not quantitatively valid.
  */
 public final class ChemCoreQuantitativeTimeSeries {
     public static final String SCHEMA="hazrob-quantitative-time-series/1";
@@ -64,8 +64,10 @@ public final class ChemCoreQuantitativeTimeSeries {
         try{
             List<Point> clean=clean(points);JSONObject out=new JSONObject();out.put("schema",SCHEMA);out.put("session_id",sessionId==null?"":sessionId);out.put("chemical_uid",chemicalUid);
             out.put("persisted_samples",Math.max(0,persistedSamples));out.put("valid_ppm_samples",Math.max(0,validSamples));out.put("m4_only",true);out.put("max_contiguous_gap_ms",MAX_CONTIGUOUS_GAP_MS);
+            out.put("raw_telemetry_preserved_elsewhere",true);out.put("raw_telemetry_source","telemetry_samples");out.put("all_valid_quantitative_points_preserved",true);
             out.put("model_count",m4Candidate==null?0:m4Candidate.models.size());JSONArray models=new JSONArray();if(m4Candidate!=null)for(ChemCoreResponseModel m:m4Candidate.models)models.put(new JSONObject().put("sensor",m.sensorKey()).put("model_id",m.modelId()).put("source_id",m.sourceId()).put("evidence_tier",m.evidenceTier().name()));out.put("models",models);
             JSONObject env=new JSONObject();putFinite(env,"mean_temperature_c",meanTemperatureC);putFinite(env,"mean_rh",meanRh);putFinite(env,"mean_pressure_hpa",meanPressureHpa);env.put("temperature_available",Double.isFinite(meanTemperatureC));env.put("pressure_available",Double.isFinite(meanPressureHpa));out.put("environment_basis",env);
+            JSONArray pointRows=new JSONArray();for(Point p:clean)pointRows.put(new JSONObject().put("t_ms",p.tMs).put("ppm",p.ppm));out.put("points",pointRows);
             if(clean.isEmpty()){out.put("valid",false);out.put("reason","no_valid_m4_ppm_samples");out.put("windows",new JSONArray());return out;}
             out.put("valid",true);out.put("first_t_ms",clean.get(0).tMs);out.put("last_t_ms",clean.get(clean.size()-1).tMs);out.put("latest_ppm",clean.get(clean.size()-1).ppm);
             double min=Double.POSITIVE_INFINITY,max=Double.NEGATIVE_INFINITY;for(Point p:clean){min=Math.min(min,p.ppm);max=Math.max(max,p.ppm);}out.put("min_ppm",min);out.put("max_ppm",max);
@@ -89,7 +91,7 @@ public final class ChemCoreQuantitativeTimeSeries {
     private static List<Point> clean(List<Point> in){List<Point> out=new ArrayList<>();if(in!=null)for(Point p:in)if(p!=null&&Double.isFinite(p.ppm)&&p.ppm>=0){if(out.isEmpty()||p.tMs>out.get(out.size()-1).tMs)out.add(p);}return out;}
     private static InverseMolecularSolver.Candidate findCandidate(List<InverseMolecularSolver.Candidate> rows,long uid){if(rows!=null)for(InverseMolecularSolver.Candidate c:rows)if(c!=null&&c.chemicalUid==uid)return c;return null;}
     private static InverseMolecularSolver.Candidate m4Only(InverseMolecularSolver.Candidate c){List<ChemCoreResponseModel> models=new ArrayList<>();for(ChemCoreResponseModel m:c.models)if(m!=null&&m.evidenceTier()==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED&&m.reportableQuantitative())models.add(m);if(models.size()<c.minimumContributors)return null;return new InverseMolecularSolver.Candidate(c.chemicalUid,c.label,models,c.priorLogWeight,c.minimumContributors);}
-    private static JSONObject withheld(String session,long uid,String reason){try{return new JSONObject().put("schema",SCHEMA).put("session_id",session==null?"":session).put("chemical_uid",uid).put("valid",false).put("m4_only",true).put("reason",reason).put("windows",new JSONArray());}catch(Exception e){return new JSONObject();}}
+    private static JSONObject withheld(String session,long uid,String reason){try{return new JSONObject().put("schema",SCHEMA).put("session_id",session==null?"":session).put("chemical_uid",uid).put("valid",false).put("m4_only",true).put("raw_telemetry_preserved_elsewhere",true).put("raw_telemetry_source","telemetry_samples").put("all_valid_quantitative_points_preserved",true).put("reason",reason).put("points",new JSONArray()).put("windows",new JSONArray());}catch(Exception e){return new JSONObject();}}
     private static JSONObject json(String s){try{return s==null||s.isEmpty()?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
     private static double finite(JSONObject q,String...keys){if(q==null)return Double.NaN;for(String k:keys){if(q.isNull(k))continue;double v=q.optDouble(k,Double.NaN);if(Double.isFinite(v))return v;}return Double.NaN;}
     private static void putFinite(JSONObject o,String key,double v)throws Exception{o.put(key,Double.isFinite(v)?v:JSONObject.NULL);}
