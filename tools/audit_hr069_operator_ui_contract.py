@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Current-source UI/drive/analytics contract for HazRob 0.10.2 / HR069 only."""
+"""Current-source UI/drive/analytics/report contract for HazRob 0.10.2 / HR069 only."""
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -22,6 +22,7 @@ def main():
     discrete=read("app/src/main/java/com/servoc/app/control/DiscreteDrive.java")
     measurements=read("app/src/main/java/com/servoc/app/ui/MeasurementsTab.java")
     reports=read("app/src/main/java/com/servoc/app/ui/ReportsTab.java")
+    intelligence=read("app/src/main/java/com/servoc/app/report/ReportIntelligence.java")
     uikit=read("app/src/main/java/com/servoc/app/ui/UiKit.java")
     hardware=read("firmware/HazRob/Hardware.cpp")
     protocol=read("app/src/main/java/com/servoc/app/communication/RobotProtocolV4.java")
@@ -76,7 +77,7 @@ def main():
     req(measurements,"LiveGasStateEngine.Snapshot gas=host.liveGasState()","live gas measurement state")
     req(measurements,"data.setTextColor(0xFFCFD8DC)","sensor-detail contrast")
 
-    # UI-05: production analysis/results dashboard rather than long narrative-only text.
+    # UI-05: production ChemCore analysis/results dashboard.
     req(measurements,'UiKit.title(c,"ChemCore • لوحة التحليل")',"analysis dashboard title")
     req(measurements,'quantitative=kpi("PPM الكمي\\n—")',"quantitative gate KPI")
     req(measurements,"ChemCoreLabQuality.evaluate","analysis admissibility gate")
@@ -89,14 +90,28 @@ def main():
     req(measurements,"foregroundFor","candidate contrast selection")
     req(measurements,"ChemCoreAnalysisPresenter.equationsAndResiduals","expandable technical residual details")
 
-    # Current report engine remains bound to recorded data and ChemCore payloads.
-    req(reports,"AnalyticalCharts","analytical charts integration")
-    req(reports,"screening144","144-screening report view")
-    req(reports,"exposureRatios","exposure/flammability chart")
-    req(uikit,"setTextColor(Color.WHITE)","default dark-surface foreground")
+    # UI-06: smart reports and chart evidence gating.
+    req(reports,'UiKit.title(c,"التقارير الذكية • HR069")',"smart report workspace")
+    req(reports,"لا توجد نقاط مصطنعة","explicit chart evidence disclosure")
+    req(reports,"ChemCoreAnalysisPresenter.summary","report technical provenance")
+    req(reports,"AnalyticalCharts.screening144","144-screening chart")
+    req(reports,"AnalyticalCharts.exposureRatios","exposure/flammability chart")
+    req(intelligence,"enum State{EMPTY,SIGNAL_ONLY,ANALYTICAL_ONLY,SCREENING,IDENTIFIED,QUANTIFIED}","report readiness states")
+    req(intelligence,"recorded_time_series_missing","series fail-closed chart gate")
+    req(intelligence,"chemcore_result_missing","ChemCore fail-closed chart gate")
+    req(intelligence,"screening_144_missing","144-screening evidence gate")
+    req(intelligence,"gas_safety_payload_missing","gas safety evidence gate")
+    req(intelligence,"recommendedCharts","smart chart recommendation list")
+
+    # UI-07: theme-independent contrast rules.
+    req(uikit,"LIGHT_BG=0xFFECEFF1","explicit light button background")
+    req(uikit,"LIGHT_TEXT=0xFF1B1F23","explicit light button foreground")
+    req(uikit,"foregroundFor(int background)","luminance-aware foreground")
+    req(uikit,"contrast(TextView t,int background)","shared contrast application")
+    req(uikit,"setHintTextColor(0xFF90A4AE)","dark-input hint contrast")
 
     print("HazRob 0.10.2 / HR069 operator UI contract: PASS")
-    print("UI-01..UI-05: full-screen drive, four modes, live overlays, operational measurement dashboard, ChemCore results dashboard")
+    print("UI-01..UI-07: full-screen drive, four modes, overlays, measurement/analysis dashboards, smart reports, explicit contrast")
     return 0
 
 if __name__=="__main__":
