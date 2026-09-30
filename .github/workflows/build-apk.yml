@@ -1,21 +1,127 @@
-name: HazRob APK Release Hold
+name: Build HazRob APK — Internal Validation
 
-# P2-P12 development guard.
-# The signed APK workflow is deliberately disabled while the deferred 0.10.2 / HR069
-# package is under development. P13 must explicitly restore/authorize artifact production
-# from one final qualified source SHA.
+# Development policy for P2-P12:
+# - building the APK internally is REQUIRED for integration validation;
+# - the APK must NOT be published, uploaded as a deliverable artifact, or released to users;
+# - P13 alone authorizes final artifact export/delivery from the qualified source SHA.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'release/hazrob-0.10.2'
+    paths:
+      - 'app/**'
+      - 'firmware/**'
+      - 'tools/**'
+      - 'signing/**'
+      - '*.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/build-apk.yml'
 
 permissions:
   contents: read
 
+concurrency:
+  group: hazrob-apk-validation-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  release-hold:
+  build-apk-internal:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
-      - name: Confirm deferred release hold
+      - name: Checkout exact source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Record internal build identity
+        shell: bash
         run: |
-          echo "HazRob 0.10.2 / HR069 APK production is locked during P2-P12."
-          echo "No APK is built, signed, published, or uploaded by this workflow."
-          echo "Artifact production may be restored only after P12 completion and explicit P13 unlock."
+          set -euo pipefail
+          {
+            echo "release=HazRob-0.10.2"
+            echo "engineering_revision=HR069"
+            echo "source_sha=${GITHUB_SHA}"
+            echo "source_ref=${GITHUB_REF}"
+            echo "purpose=internal-validation-only"
+            echo "distribution=blocked-until-P13"
+          } > HazRob-app-build-identity.txt
+          cat HazRob-app-build-identity.txt
+
+      - name: Validate canonical source contracts
+        run: |
+          set -euo pipefail
+          python3 tools/audit_0102_release_contract.py
+          python3 tools/audit_hr061_direct_first_contract.py
+          python3 tools/audit_0101_integration_contract.py
+          python3 tools/audit_0101_motion_contract.py
+          python3 tools/audit_hr047_gas_safety_contract.py
+
+      - name: Validate canonical ChemCore Stable snapshot packaging
+        run: |
+          OUT="$RUNNER_TEMP/chemcore-stable-snapshot-ci.json"
+          python3 tools/build_chemcore_stable_snapshot.py --source-commit "$GITHUB_SHA" --out "$OUT"
+          python3 - <<PY
+          import json
+          q=json.load(open("$OUT",encoding="utf-8"))
+          assert q["schema"]=="chemcore-stable-snapshot-v1"
+          assert q["content_counts"]["chemical_identities"]==652
+          assert q["policy"]["m4_requires_device_specific_validation"] is True
+          print("ChemCore Stable snapshot contract validated")
+          PY
+
+      - name: Restore prototype signing key for build verification
+        run: |
+          base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
+          chmod 600 signing/hazrob-prototype.jks
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android platform and build tools
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.5.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Run Android unit and contract tests
+        run: gradle --no-daemon :app:testDebugUnitTest
+
+      - name: Build signed APK internally
+        run: gradle --no-daemon :app:assembleRelease
+
+      - name: Verify built APK integrity and signing
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release.apk
+          test -f "$APK"
+          EXPECTED=d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0
+          ACTUAL=$("$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --print-certs "$APK" | awk -F': ' '/SHA-256 digest/ {print $2; exit}' | tr -d ': ' | tr 'A-F' 'a-f')
+          test "$ACTUAL" = "$EXPECTED"
+          sha256sum "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose "$APK"
+          echo "Internal APK build verified. Distribution remains blocked until P13."
+
+      - name: Remove APK after validation
+        if: always()
+        run: |
+          rm -f app/build/outputs/apk/release/app-release.apk
+          rm -f signing/hazrob-prototype.jks
+          echo "No APK deliverable retained or uploaded by this workflow."
+
+# Intentionally absent during P2-P12:
+# - upload-artifact for APK
+# - distribution-branch publication
+# - release creation
+# - end-user update publication
