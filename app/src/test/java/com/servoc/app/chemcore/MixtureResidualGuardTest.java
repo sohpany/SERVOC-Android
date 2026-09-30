@@ -7,7 +7,12 @@ import static org.junit.Assert.*;
 
 public class MixtureResidualGuardTest {
     private static InverseMolecularSolver.Result r(String label,double posterior,double residual){
-        InverseMolecularSolver.Result x=new InverseMolecularSolver.Result(1,label,true,50,residual,0,4,1,true,ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED,new HashMap<>(),"");
+        // Synthetic fully M4-supported result: four direct/reference contributors, all four device validated.
+        InverseMolecularSolver.Result x=new InverseMolecularSolver.Result(
+                1,label,true,50,residual,0,
+                4,0,4,4,Double.NaN,Double.NaN,true,
+                ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED,
+                new HashMap<String,Double>(),"");
         x.posterior=posterior;return x;
     }
     @Test public void largeResidualFlagsPossibleMixture(){
