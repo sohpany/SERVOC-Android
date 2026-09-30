@@ -18,7 +18,7 @@ import java.util.Locale;
 
 /** Publishes immutable approved raw experiments and derived references to the HazRob organization library. */
 public final class GitHubReferencePublisher {
-    /** Canonical scientific-library owner. Do not redirect approved laboratory evidence to a personal repository. */
+    /** Canonical scientific-library owner for HazRob 0.10.2 / HR069. */
     public static final String REPOSITORY="HazRob/build-harness";
     public static final String BRANCH="main";
     public static final String LIBRARY_ROOT="library";
@@ -33,19 +33,20 @@ public final class GitHubReferencePublisher {
     }
 
     public static Result publish(String token,ExperimentQueries.Record record)throws Exception{
-        if(record==null)throw new IllegalArgumentException("record required");
-        if(!record.approved)throw new IllegalArgumentException("record must be APPROVED before publication");
+        validateApprovedRecord(record);
         String secret=secret(token);String fileName=canonicalFileName(record);byte[] bytes=serialize(record);
         return put(secret,DIRECTORY+"/"+fileName,fileName,bytes,"Add HazRob approved reference experiment ");
     }
 
     public static Result publishArtifact(String token,ExperimentsDb.ReferenceArtifactRecord artifact)throws Exception{
-        if(artifact==null)throw new IllegalArgumentException("artifact required");
-        String secret=secret(token);String kind=safeName(artifact.kind);String hash=artifact.sha256==null?"":artifact.sha256;
-        String prefix=hash.length()>=12?hash.substring(0,12):hash;
+        validateDerivedArtifact(artifact);
+        String secret=secret(token);String kind=safeName(artifact.kind);String hash=artifact.sha256;
+        String prefix=hash.substring(0,12);
         String fileName=String.format(Locale.US,"HazRob_DERIVED_%s_C%06d_A%06d_%s.json",kind,artifact.chemicalUid,artifact.id,prefix);
         JSONObject root=new JSONObject();
         root.put("schema","hazrob-derived-reference-publication/1");
+        root.put("release","0.10.2");
+        root.put("hardware_revision","HR069");
         root.put("status","APPROVED_DERIVED");
         root.put("canonical_repository",REPOSITORY);
         root.put("canonical_branch",BRANCH);
@@ -56,18 +57,42 @@ public final class GitHubReferencePublisher {
         return put(secret,DERIVED_DIRECTORY+"/"+fileName,fileName,bytes,"Add HazRob derived reference ");
     }
 
+    private static void validateApprovedRecord(ExperimentQueries.Record r){
+        if(r==null)throw new IllegalArgumentException("record required");
+        if(!r.approved)throw new IllegalArgumentException("record must be APPROVED before publication");
+        if(!r.isReference()||r.captureId<=0||r.chemicalUid<=0)throw new IllegalArgumentException("HR069 reference lineage required");
+        String kind=n(r.referenceKind).toLowerCase(Locale.US),session=n(r.sessionId);
+        if(!"fingerprint".equals(kind)&&!"calibration".equals(kind))throw new IllegalArgumentException("unsupported HR069 reference kind");
+        if(session.isEmpty())throw new IllegalArgumentException("HR069 session_id required");
+        if(n(r.ts).isEmpty()||n(r.approvedTs).isEmpty())throw new IllegalArgumentException("reference timestamps required");
+        if(!canonicalFileName(r).equals(n(r.referenceName)))throw new IllegalArgumentException("canonical approval reference mismatch");
+        if("calibration".equals(kind)&&(r.knownPpm==null||!Double.isFinite(r.knownPpm)||r.knownPpm<=0))throw new IllegalArgumentException("positive known ppm required for HR069 calibration");
+    }
+
+    private static void validateDerivedArtifact(ExperimentsDb.ReferenceArtifactRecord a){
+        if(a==null)throw new IllegalArgumentException("artifact required");
+        String kind=n(a.kind).toLowerCase(Locale.US),hash=n(a.sha256),payload=n(a.payload);
+        if(a.id<=0||a.chemicalUid<=0)throw new IllegalArgumentException("derived artifact identity required");
+        if(!"fingerprint".equals(kind)&&!"calibration".equals(kind))throw new IllegalArgumentException("unsupported derived reference kind");
+        if(n(a.version).isEmpty()||n(a.createdTs).isEmpty()||n(a.sourceIds).isEmpty())throw new IllegalArgumentException("derived provenance required");
+        if(!hash.matches("[0-9a-fA-F]{64}"))throw new IllegalArgumentException("derived SHA-256 required");
+        if(payload.isEmpty())throw new IllegalArgumentException("derived payload required");
+        JSONObject ref=json(payload);String schema=ref.optString("schema","");
+        if(!schema.startsWith("hazrob-derived-"))throw new IllegalArgumentException("unexpected derived schema");
+    }
+
     private static Result put(String secret,String path,String fileName,byte[] bytes,String messagePrefix)throws Exception{
         String payloadHash=sha256(bytes);JSONObject request=buildRequest(fileName,bytes,messagePrefix);
         URL url=new URL("https://api.github.com/repos/"+REPOSITORY+"/contents/"+path);
         HttpURLConnection c=(HttpURLConnection)url.openConnection();c.setRequestMethod("PUT");c.setConnectTimeout(12_000);c.setReadTimeout(20_000);
         c.setDoOutput(true);c.setUseCaches(false);c.setRequestProperty("Accept","application/vnd.github+json");
         c.setRequestProperty("Authorization","Bearer "+secret);c.setRequestProperty("X-GitHub-Api-Version",API_VERSION);
-        c.setRequestProperty("User-Agent","HazRob-Android/0.10.2");c.setRequestProperty("Content-Type","application/json; charset=utf-8");
+        c.setRequestProperty("User-Agent","HazRob-Android/0.10.2-HR069");c.setRequestProperty("Content-Type","application/json; charset=utf-8");
         byte[] body=request.toString().getBytes(StandardCharsets.UTF_8);c.setFixedLengthStreamingMode(body.length);
         try(OutputStream out=c.getOutputStream()){out.write(body);out.flush();}
         int code=c.getResponseCode();String response=read(code>=200&&code<300?c.getInputStream():c.getErrorStream());c.disconnect();
         if(code==201){JSONObject j=json(response);String sha="";JSONObject commit=j.optJSONObject("commit");if(commit!=null)sha=commit.optString("sha","");return new Result(true,code,path,sha,"published",payloadHash);}
-        // Canonical experiment/reference files are intentionally append-only. HTTP 422/409 therefore fails closed rather than overwriting evidence.
+        // Canonical experiment/reference files are intentionally append-only. HTTP 422/409 fails closed rather than overwriting evidence.
         return new Result(false,code,path,"",safeError(code,response),payloadHash);
     }
 
@@ -86,4 +111,5 @@ public final class GitHubReferencePublisher {
     private static JSONObject json(String s){try{return s==null||s.isEmpty()?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
     private static String safeError(int code,String response){JSONObject j=json(response);String m=j.optString("message","");if(m.length()>180)m=m.substring(0,180);if(m.isEmpty())m="GitHub HTTP "+code;return m;}
     private static String read(InputStream in)throws Exception{if(in==null)return"";StringBuilder s=new StringBuilder();try(BufferedReader r=new BufferedReader(new InputStreamReader(in,StandardCharsets.UTF_8))){String line;while((line=r.readLine())!=null&&s.length()<16_384)s.append(line);}return s.toString();}
+    private static String n(String s){return s==null?"":s.trim();}
 }
