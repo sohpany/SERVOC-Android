@@ -3,7 +3,8 @@
 
 This audit prevents reintroduction of retired acceleration/retrace/link-hold shaping while
 preserving the independent 500 ms stale-command neutral stop, explicit E-stop, travel-relative
-differential steering, and the low-latency Direct/Remote command paths.
+differential steering, low-latency Direct/Remote command paths, and the current operator-selectable
+IR/ultrasonic forward auto-stop policy. Hazard warnings remain active regardless of auto-stop state.
 """
 from pathlib import Path
 
@@ -33,6 +34,7 @@ def main() -> int:
     master = read("firmware/HazRob/HazRob.ino")
     mqtt = read("firmware/HazRob/RemoteMqtt.cpp")
     safety = read("firmware/HazRob/SafetyInterlock.cpp")
+    safety_options = read("firmware/HazRob/SafetyOptions.cpp")
     main_activity = read("app/src/main/java/com/servoc/app/MainActivity.java")
     joystick = read("app/src/main/java/com/servoc/app/control/JoystickView.java")
     mixer = read("app/src/main/java/com/servoc/app/control/DriveMixer.java")
@@ -52,7 +54,10 @@ def main() -> int:
 
     require(hw, "void driveSet(int l,int r){", "driveSet entry")
     require(hw, "bool forwardRequested=(requestedL+requestedR)>0.1f;", "forward motion classification")
-    require(hw, "bool forwardBlocked=irWarning||ultraStop;", "front hazard interlock")
+    require(hw, "bool forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop);", "operator-selectable front hazard interlock")
+    require(hw, "Alerts::setIr(irWarning||ultraWarning)", "hazard warnings independent of auto-stop")
+    require(safety_options, 'getBool("autoStop",false)', "auto-stop default off")
+    require(safety_options, 'putBool("autoStop",enabled)', "auto-stop persisted by operator choice")
     require(cfg, "ULTRA_WARN_CM=10.0f", "ultrasonic warning threshold")
     require(cfg, "ULTRA_STOP_CM=5.0f", "ultrasonic forward-stop threshold")
     require(hw, "ultraWarning=false;ultraStop=false;ultraState=0;hazardAlert();", "ultrasonic timeout auto-clear")
@@ -116,7 +121,7 @@ def main() -> int:
     require(mqtt, "if(q<=lastSeq)", "Remote sequence rejection")
 
     print("HazRob 0.10.2 motion contract: PASS")
-    print("watchdog=500ms; direct keepalive=150ms; direct timeout=250ms; travel-relative physical-side steering; physical acceptance=PENDING")
+    print("watchdog=500ms; direct keepalive=150ms; direct timeout=250ms; optional hazard auto-stop; warnings always active; physical acceptance=PENDING")
     return 0
 
 
