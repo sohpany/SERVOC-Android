@@ -27,11 +27,13 @@ public final class SessionSeries {
         public long durationMs(){return samples.isEmpty()?0:samples.get(samples.size()-1).tMs;}
     }
 
-    /** Exact lineage path used by all new 0.9.2+ reference/report records. */
+    /**
+     * Exact 0.10.2 / HR069 lineage path. Modern analysis, reference generation and reports must
+     * never substitute a different measurement session based only on timestamp proximity.
+     */
     public static Series forExperiment(ExperimentsDb db,ExperimentQueries.Record r){
-        if(db==null||r==null)return null;
-        if(r.sessionId!=null&&!r.sessionId.trim().isEmpty()){Series exact=byId(db,r.sessionId.trim());if(exact!=null)return exact;}
-        return nearest(db,r.ts);
+        if(db==null||r==null||r.sessionId==null||r.sessionId.trim().isEmpty())return null;
+        return byId(db,r.sessionId.trim());
     }
 
     public static Series byId(ExperimentsDb db,String sessionId){
@@ -40,7 +42,12 @@ public final class SessionSeries {
         return new Series(id,start,end,readSamples(db,id));
     }
 
-    /** Exact-by-experiment timestamp first; nearest-time lookup is retained only for legacy records. */
+    /**
+     * Legacy recovery helper only. It exists so old records can still be inspected manually, but
+     * it must not be used by HR069 reference generation, M4 qualification, exposure assessment or
+     * new reports because proximity is not scientific lineage.
+     */
+    @Deprecated
     public static Series nearest(ExperimentsDb db,String experimentTs){
         if(db==null||experimentTs==null||experimentTs.trim().isEmpty())return null;
         try(Cursor c=db.getReadableDatabase().rawQuery("SELECT session_id FROM experiments WHERE ts=? AND session_id IS NOT NULL AND TRIM(session_id)<>'' ORDER BY id DESC LIMIT 1",new String[]{experimentTs})){if(c.moveToFirst()){Series exact=byId(db,c.getString(0));if(exact!=null)return exact;}}catch(Exception ignored){}
@@ -54,8 +61,8 @@ public final class SessionSeries {
 
     /**
      * Report/analysis view of the recorded MQ payload. Raw database bytes remain untouched.
-     * When Rs exists, ratio/R0 are rebound to the accepted HR-0101-045 campaign so PDF/XLSX charts
-     * and exported analytical tables cannot silently use stale embedded firmware R0 constants.
+     * When Rs exists, ratio/R0 is rebound only to the device-local HR069 clean-air baseline. This
+     * is signal normalization, not central chemical identity evidence and not quantitative M4 proof.
      */
     private static JSONObject normalizeMq(JSONObject source){
         if(source==null)return new JSONObject();
@@ -64,7 +71,12 @@ public final class SessionSeries {
             for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){
                 JSONObject q=out.optJSONObject(hw.key);if(q==null)continue;
                 double ratio=AcceptedR0Normalizer.ratio(hw.key,q),r0=FieldR0Baseline.value(hw.key);
-                if(Double.isFinite(ratio)&&ratio>0){q.put("ratio",ratio);q.put("r0",r0);q.put("r0_calibrated",true);q.put("r0_source",AcceptedR0Normalizer.SOURCE);q.put("r0_session",FieldR0Baseline.SESSION);q.put("r0_reference_validated",false);q.put("r0_environment_compensated",false);}
+                if(Double.isFinite(ratio)&&ratio>0){
+                    q.put("ratio",ratio);q.put("r0",r0);q.put("r0_calibrated",true);
+                    q.put("r0_source",AcceptedR0Normalizer.SOURCE);q.put("r0_session",FieldR0Baseline.SESSION);
+                    q.put("r0_device_local",true);q.put("r0_centrally_publishable",false);
+                    q.put("r0_reference_validated",false);q.put("r0_environment_compensated",false);
+                }
             }
             return out;
         }catch(Exception ignored){return source;}
