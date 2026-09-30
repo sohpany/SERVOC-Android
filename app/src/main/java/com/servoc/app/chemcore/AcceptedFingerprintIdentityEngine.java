@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * HR069 identity-only fusion for source-backed fingerprints accepted as identification references.
  * It can promote a separated multi-channel match to IDENTIFIED/M3, but never creates M4 evidence
- * or reportable ppm. P5 also exposes the accepted match as a typed evidence observation.
+ * or reportable ppm. P6 re-runs independence-aware confidence fusion after adding the fingerprint.
  */
 public final class AcceptedFingerprintIdentityEngine {
     private AcceptedFingerprintIdentityEngine() {}
@@ -52,7 +52,7 @@ public final class AcceptedFingerprintIdentityEngine {
         Decision d=evaluate(ratios);if(!d.accepted||d.top==null)return base;
         int chemical=d.top.fingerprint.chemicalId;long uid=chemical+1L;
         String label=chemical>=0&&chemical<ChemicalCatalog.COUNT?ChemicalCatalog.NAMES[chemical]:d.top.fingerprint.label;
-        List<ChemCoreResultEnvelope.CandidateSummary> merged=mergeCandidates(base.candidates,d.top,uid,label);double rankingWeight=identityRankingWeight(d.top);
+        List<ChemCoreResultEnvelope.CandidateSummary> merged=mergeCandidates(base.candidates,d.top,d.evidence,uid,label);double rankingWeight=identityRankingWeight(d.top);
         String source=d.evidence==null?"":d.evidence.sourceId;
         String note=append(base.note,"accepted fingerprint identity reference: "+label+"; "+d.top.contributors+" HR069 channels; distance="+fmt(d.top.distance)+"; score="+fmt(d.top.score)+"; source="+source+"; state="+ACCEPTANCE_STATE+"; non-M4 identity only; reportable ppm remains withheld");
         String model=appendModel(base.modelVersion,VERSION);
@@ -63,17 +63,21 @@ public final class AcceptedFingerprintIdentityEngine {
 
     private static ChemCoreEvidenceObservation fingerprintEvidence(FingerprintClassifier.Match m,Map<String,Double> ratios){
         String source="ResearchIdentificationFingerprintRegistry:"+ResearchIdentificationFingerprintRegistry.RELEASE+"-"+ResearchIdentificationFingerprintRegistry.HARDWARE_REVISION;
-        ChemCoreFingerprintEvidenceEngine.SourceProfile profile=new ChemCoreFingerprintEvidenceEngine.SourceProfile(
-                ChemCoreEvidenceObservation.Type.REFERENCE_FINGERPRINT,ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,
-                "SOURCE_BACKED_REFERENCE_FINGERPRINT",source,"REFERENCE_FINGERPRINT:"+source,true);
+        ChemCoreFingerprintEvidenceEngine.SourceProfile profile=new ChemCoreFingerprintEvidenceEngine.SourceProfile(ChemCoreEvidenceObservation.Type.REFERENCE_FINGERPRINT,ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,"SOURCE_BACKED_REFERENCE_FINGERPRINT",source,"REFERENCE_FINGERPRINT:"+source,true);
         return ChemCoreFingerprintEvidenceEngine.toEvidence(m,ratios,profile);
     }
 
     private static boolean promotable(ChemCoreDecision.Outcome o){return o==ChemCoreDecision.Outcome.SCREENING||o==ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;}
-    private static List<ChemCoreResultEnvelope.CandidateSummary> mergeCandidates(List<ChemCoreResultEnvelope.CandidateSummary> base,FingerprintClassifier.Match match,long uid,String label){
+    private static List<ChemCoreResultEnvelope.CandidateSummary> mergeCandidates(List<ChemCoreResultEnvelope.CandidateSummary> base,FingerprintClassifier.Match match,ChemCoreEvidenceObservation fingerprintEvidence,long uid,String label){
         Map<Long,ChemCoreResultEnvelope.CandidateSummary> byUid=new LinkedHashMap<>();if(base!=null)for(ChemCoreResultEnvelope.CandidateSummary c:base)if(c!=null)byUid.put(c.chemicalUid,c);
-        ChemCoreResultEnvelope.CandidateSummary old=byUid.remove(uid);double posterior=Math.max(old==null||!Double.isFinite(old.posterior)?0.0:old.posterior,identityRankingWeight(match));double bestPpm=old==null?Double.NaN:old.bestPpm;double residual=Double.isFinite(match.distance)?match.distance:(old==null?Double.NaN:old.residualRms);double coverage=100.0*Math.min(1.0,match.contributors/8.0);double agreement=Double.isFinite(match.distance)?100.0*Math.exp(-0.5*match.distance*match.distance):Double.NaN;double evidence=Math.min(85.0,55.0+7.5*Math.min(4,match.contributors));int calibrated=old==null?0:old.calibratedContributors;boolean inside=old!=null&&old.allContributorsInsideDomain;Map<String,Double> residuals=old==null?Collections.emptyMap():old.residualLog10BySensor;
-        ChemCoreResultEnvelope.CandidateSummary promoted=new ChemCoreResultEnvelope.CandidateSummary(uid,label,posterior,bestPpm,residual,match.contributors,ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,coverage,agreement,evidence,calibrated,inside,residuals);List<ChemCoreResultEnvelope.CandidateSummary> out=new ArrayList<>();out.add(promoted);out.addAll(byUid.values());return out;
+        ChemCoreResultEnvelope.CandidateSummary old=byUid.remove(uid);
+        double posterior=Math.max(old==null||!Double.isFinite(old.posterior)?0.0:old.posterior,identityRankingWeight(match));double bestPpm=old==null?Double.NaN:old.bestPpm;double residual=Double.isFinite(match.distance)?match.distance:(old==null?Double.NaN:old.residualRms);
+        int contributors=Math.max(match.contributors,old==null?0:old.contributors);double coverage=100.0*Math.min(1.0,contributors/8.0);double agreement=Double.isFinite(match.distance)?100.0*Math.exp(-0.5*match.distance*match.distance):Double.NaN;
+        double evidenceQuality=Math.max(old==null||!Double.isFinite(old.evidenceQualityPct)?0:old.evidenceQualityPct,Math.min(85.0,55.0+7.5*Math.min(4,match.contributors)));int calibrated=old==null?0:old.calibratedContributors;boolean inside=old==null||old.allContributorsInsideDomain;Map<String,Double> residuals=old==null?Collections.emptyMap():old.residualLog10BySensor;
+        List<ChemCoreEvidenceObservation> observations=new ArrayList<>();if(old!=null)observations.addAll(old.evidenceObservations);if(fingerprintEvidence!=null)observations.add(fingerprintEvidence);
+        ChemCoreEvidenceFusion.Result confidence=ChemCoreEvidenceFusion.fuseForChemical(uid,observations);
+        ChemCoreResultEnvelope.CandidateSummary promoted=new ChemCoreResultEnvelope.CandidateSummary(uid,label,posterior,bestPpm,residual,contributors,ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,coverage,agreement,evidenceQuality,calibrated,inside,residuals,confidence.score.totalPct,confidence.uniqueEvidenceGroups,confidence.sensorBreadth,observations);
+        List<ChemCoreResultEnvelope.CandidateSummary> out=new ArrayList<>();out.add(promoted);out.addAll(byUid.values());return out;
     }
 
     private static double identityRankingWeight(FingerprintClassifier.Match m){double distance=Double.isFinite(m.distance)?m.distance:MAX_DISTANCE;double quality=Math.exp(-0.5*distance*distance);double channel=Math.min(1.0,m.contributors/4.0);return Math.min(0.99,Math.max(0.51,0.55+0.30*quality+0.14*channel));}
