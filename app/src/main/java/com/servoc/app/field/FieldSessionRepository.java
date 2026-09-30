@@ -76,9 +76,19 @@ public final class FieldSessionRepository {
         }finally{w.endTransaction();}
     }
 
+    /**
+     * Closes only an ACTIVE field session whose explicitly linked measurement sessions have all
+     * been finalized. A field container must never close around a still-running acquisition.
+     */
     public boolean closeFieldSession(String fieldSessionId){
-        ContentValues v=new ContentValues();String now=isoNow();v.put("ended_ts",now);v.put("status",STATUS_CLOSED);v.put("updated_ts",now);
-        return db.getWritableDatabase().update("field_sessions",v,"field_session_id=? AND status=?",new String[]{requiredId(fieldSessionId),STATUS_ACTIVE})==1;
+        String id=requiredId(fieldSessionId);SQLiteDatabase w=db.getWritableDatabase();w.beginTransaction();
+        try{
+            try(Cursor c=w.rawQuery("SELECT 1 FROM field_sessions WHERE field_session_id=? AND status=? LIMIT 1",new String[]{id,STATUS_ACTIVE})){if(!c.moveToFirst())return false;}
+            String openSql="SELECT 1 FROM field_session_measurements fsm JOIN measurement_sessions ms ON ms.session_id=fsm.measurement_session_id WHERE fsm.field_session_id=? AND (ms.ended_ts IS NULL OR TRIM(ms.ended_ts)='') LIMIT 1";
+            try(Cursor c=w.rawQuery(openSql,new String[]{id})){if(c.moveToFirst())return false;}
+            ContentValues v=new ContentValues();String now=isoNow();v.put("ended_ts",now);v.put("status",STATUS_CLOSED);v.put("updated_ts",now);
+            int n=w.update("field_sessions",v,"field_session_id=? AND status=?",new String[]{id,STATUS_ACTIVE});w.setTransactionSuccessful();return n==1;
+        }finally{w.endTransaction();}
     }
 
     public FieldSession activeFieldSession(){
@@ -89,7 +99,7 @@ public final class FieldSessionRepository {
 
     public List<FieldSession> sessionsForSite(String siteId){
         List<FieldSession> out=new ArrayList<>();
-        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT field_session_id,site_id,name,started_ts,ended_ts,status FROM field_sessions WHERE site_id=? ORDER BY started_ts DESC",new String[]{requiredId(siteId)})){
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT field_session_id,site_id,name,started_ts,ended_ts,status FROM field_sessions WHERE site_id=? ORDER BY started_ts DESC,field_session_id DESC",new String[]{requiredId(siteId)})){
             while(c.moveToNext())out.add(fieldSession(c));
         }
         return out;
@@ -112,26 +122,28 @@ public final class FieldSessionRepository {
                 if(!FieldSessionPolicy.mayAttachMeasurement(kind,role))return false;
             }
             ContentValues v=new ContentValues();v.put("field_session_id",fs);v.put("measurement_session_id",ms);v.put("linked_ts",isoNow());
-            long id=w.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);
-            w.setTransactionSuccessful();return id!=-1;
+            long row=w.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);
+            w.setTransactionSuccessful();return row!=-1;
         }finally{w.endTransaction();}
     }
 
     public List<String> measurementSessionIds(String fieldSessionId){
         List<String> out=new ArrayList<>();
-        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT measurement_session_id FROM field_session_measurements WHERE field_session_id=? ORDER BY linked_ts",new String[]{requiredId(fieldSessionId)})){
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT measurement_session_id FROM field_session_measurements WHERE field_session_id=? ORDER BY linked_ts,measurement_session_id",new String[]{requiredId(fieldSessionId)})){
             while(c.moveToNext())out.add(c.getString(0));
         }
         return out;
     }
 
     /**
-     * Deletes user field metadata/mappings only. It deliberately does not delete
-     * measurement_sessions or any developer/scientific-library table.
+     * Deletes CLOSED user field metadata/mappings only. It deliberately does not delete
+     * measurement_sessions or any developer/scientific-library table. ACTIVE sessions must be
+     * explicitly finalized first so their acquisition lineage cannot be detached mid-run.
      */
     public boolean deleteFieldSession(String fieldSessionId){
         String id=requiredId(fieldSessionId);SQLiteDatabase w=db.getWritableDatabase();w.beginTransaction();
         try{
+            try(Cursor c=w.rawQuery("SELECT status FROM field_sessions WHERE field_session_id=? LIMIT 1",new String[]{id})){if(!c.moveToFirst()||STATUS_ACTIVE.equals(c.getString(0)))return false;}
             w.delete("field_session_measurements","field_session_id=?",new String[]{id});
             int n=w.delete("field_sessions","field_session_id=?",new String[]{id});
             w.setTransactionSuccessful();return n==1;
@@ -152,5 +164,5 @@ public final class FieldSessionRepository {
     private static String requiredId(String s){String v=s==null?"":s.trim();if(v.isEmpty())throw new IllegalArgumentException("id required");return v;}
     private static String requiredName(String s,String what){String v=s==null?"":s.trim();if(v.isEmpty())throw new IllegalArgumentException(what+" required");return v;}
     private static String nz(String s){return s==null?"":s;}
-    private static String isoNow(){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
+    private static String isoNow(){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
 }
