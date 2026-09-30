@@ -3,6 +3,7 @@ package com.servoc.app.chemcore;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -46,7 +47,7 @@ public final class ChemCoreInferenceEngine {
         boolean allContributorsDeviceCalibrated=top.contributors>0&&top.calibratedContributors==top.contributors;
         ChemCoreDecision.EvidenceTier tier=top.highestEvidenceTier;
         if(allContributorsDeviceCalibrated&&context.calibrationHealthValid)tier=ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED;
-        else if(top.contributors>=2&&consistency.verdict==MixtureResidualGuard.Verdict.SINGLE_CANDIDATE_CONSISTENT)
+        else if(hasReferenceBackedMultisensorSupport(top)&&consistency.verdict==MixtureResidualGuard.Verdict.SINGLE_CANDIDATE_CONSISTENT)
             tier=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT;
 
         double ood=context.openSetResult==null?Double.NaN:context.openSetResult.distance;
@@ -63,9 +64,13 @@ public final class ChemCoreInferenceEngine {
         }else if(tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED&&openSetAccepted&&top.allContributorsInsideDomain){
             outcome=ChemCoreDecision.Outcome.QUANTIFIED;note="all contributing response curves are device/reference calibrated, identity is accepted, and the joint solution remains inside every validated domain";
         }else if(tier.ordinal()>=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT.ordinal()&&openSetAccepted){
-            outcome=ChemCoreDecision.Outcome.IDENTIFIED;note="multisensor identity is array-consistent and inside the trained identity domain; concentration is withheld until all contributing quantitative curves satisfy M4";
+            outcome=ChemCoreDecision.Outcome.IDENTIFIED;note="multisensor identity is array-consistent with at least two direct/reference M2+ channels and inside the trained identity domain; concentration is withheld until all contributing quantitative curves satisfy M4";
         }else{
-            outcome=ChemCoreDecision.Outcome.SCREENING;note="model-supported candidate only; validated open-set identity and/or complete device reference calibration is not available";
+            outcome=ChemCoreDecision.Outcome.SCREENING;note="model-supported candidate only; validated open-set identity and/or at least two direct/reference M2+ channels are not available";
+        }
+        if(top.molecularContributors>0){
+            String idx=Double.isFinite(top.qsprIndicatorPct)?String.format(Locale.US,"%.1f%%",top.qsprIndicatorPct):"—";
+            note+="; PubChem/QSPR M1 fit index="+idx+" across "+top.molecularContributors+" molecular channel(s), direct/reference M2+="+top.referenceContributors+". QSPR index is a ranking diagnostic, not a calibrated identity probability and not reportable ppm.";
         }
 
         // A fitted ppm helps explain/rank hypotheses at M1-M3, but only M4 QUANTIFIED exposes it as a measurement result.
@@ -75,6 +80,11 @@ public final class ChemCoreInferenceEngine {
         // The fusion layer can promote only SCREENING/INSUFFICIENT_EVIDENCE to IDENTIFIED/M3;
         // it cannot override UNKNOWN/mixture/domain failures and can never create M4 or reportable ppm.
         return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios);
+    }
+
+    /** M1/QSPR channels can affect ranking but can never, by themselves, create M3 identity. */
+    static boolean hasReferenceBackedMultisensorSupport(InverseMolecularSolver.Result r){
+        return r!=null&&r.contributors>=2&&r.referenceContributors>=2;
     }
 
     public static ChemCoreResultEnvelope analyzeLegacyManufacturerPriors(Map<String,Double> observedRatios,SamplingProfile samplingProfile,Context context){
