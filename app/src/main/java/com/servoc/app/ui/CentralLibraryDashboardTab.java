@@ -43,7 +43,7 @@ public final class CentralLibraryDashboardTab {
         root=UiKit.vbox(context);root.setBackgroundColor(0xFF0E1116);root.setPadding(UiKit.dp(context,4),UiKit.dp(context,4),UiKit.dp(context,4),UiKit.dp(context,8));
         bar=UiKit.hbox(context);String[] names={"لوحة المكتبة","التوزيع","المنصات","السجل"};for(int i=0;i<names.length;i++){final int x=i;tabs[i]=UiKit.button(context,names[i]);tabs[i].setTextSize(9);tabs[i].setOnClickListener(v->show(x));bar.addView(tabs[i],UiKit.weight(1));}root.addView(bar,UiKit.full(context));page=new FrameLayout(context);root.addView(page,new LinearLayout.LayoutParams(-1,0,1f));
 
-        ScrollView dashboard=scroll(context);LinearLayout d=(LinearLayout)dashboard.getChildAt(0);d.addView(UiKit.title(context,"المكتبة المركزية • HazRob"),UiKit.full(context));TextView canon=UiKit.small(context,"المصدر العلمي المرجعي: HazRob/build-harness • التحديث للمستخدم قراءة فقط • R0 لا تدخل في المكتبة المركزية.");canon.setTextColor(0xFF81C784);canon.setBackgroundColor(0xFF13251A);d.addView(canon,UiKit.full(context));LinearLayout vcard=UiKit.card(context);vcard.addView(UiKit.title(context,"الإصدار والمراجعات"),UiKit.full(context));versionText=box(context);vcard.addView(versionText,UiKit.full(context));d.addView(vcard,UiKit.full(context));LinearLayout ccard=UiKit.card(context);ccard.addView(UiKit.title(context,"تغطية المكتبة"),UiKit.full(context));coverageText=box(context);ccard.addView(coverageText,UiKit.full(context));d.addView(ccard,UiKit.full(context));dashboardView=dashboard;
+        ScrollView dashboard=scroll(context);LinearLayout d=(LinearLayout)dashboard.getChildAt(0);d.addView(UiKit.title(context,"المكتبة المركزية • HazRob"),UiKit.full(context));TextView canon=UiKit.small(context,"المصدر العلمي المرجعي: HazRob/build-harness • التحديث للمستخدم قراءة فقط • R0 معايرة جهاز محلية ولا تدخل في المعرفة المركزية.");canon.setTextColor(0xFF81C784);canon.setBackgroundColor(0xFF13251A);d.addView(canon,UiKit.full(context));LinearLayout vcard=UiKit.card(context);vcard.addView(UiKit.title(context,"الإصدار والمراجعات"),UiKit.full(context));versionText=box(context);vcard.addView(versionText,UiKit.full(context));d.addView(vcard,UiKit.full(context));LinearLayout ccard=UiKit.card(context);ccard.addView(UiKit.title(context,"تغطية المكتبة"),UiKit.full(context));coverageText=box(context);ccard.addView(coverageText,UiKit.full(context));d.addView(ccard,UiKit.full(context));dashboardView=dashboard;
 
         ScrollView distribution=scroll(context);LinearLayout u=(LinearLayout)distribution.getChildAt(0);u.addView(UiKit.title(context,"التحديث والتوزيع"),UiKit.full(context));distributionText=box(context);u.addView(distributionText,UiKit.full(context));Button check=UiKit.button(context,"فحص قناة GitHub للقراءة");check.setOnClickListener(v->checkDistribution());u.addView(check,UiKit.full(context));Button rollback=UiKit.button(context,"الرجوع للنسخة السابقة المتحققة");rollback.setOnClickListener(v->rollback());u.addView(rollback,UiKit.full(context));updateTelemetryText=box(context);u.addView(updateTelemetryText,UiKit.full(context));operationText=UiKit.small(context,"جاهز");operationText.setBackgroundColor(0xFF151A20);u.addView(operationText,UiKit.full(context));distributionView=distribution;
 
@@ -64,10 +64,35 @@ public final class CentralLibraryDashboardTab {
     public void refresh(){
         ChemCoreLibraryManager.Status s=manager.status();
         versionText.setText("الإصدار الفعال: "+blank(s.version)+"\nالمصدر: "+blank(s.sourceLabel)+"\nSource commit: "+shortId(s.sourceCommit)+"\nData revision: "+shortId(s.dataRevision)+"\nEvidence revision: "+shortId(s.evidenceRevision)+"\nSHA-256: "+shortId(s.sha256));
-        int total=host.database().chemicalCount(),tested=statusRepo.countTestedMaterials(),fp=statusRepo.countFingerprintMaterials(),ppm=statusRepo.countPpmMaterials(),m4=statusRepo.countM4Materials();int untested=Math.max(0,total-tested);
-        coverageText.setText("إجمالي المواد: "+total+"\nمختبرة محليًا: "+tested+" ("+pct(tested,total)+")\nغير مختبرة محليًا: "+untested+" ("+pct(untested,total)+")\nمواد لها بصمة مشتقة محلية: "+fp+" ("+pct(fp,total)+")\nمواد لها منحنى PPM فعال: "+ppm+" ("+pct(ppm,total)+")\nمواد اجتازت M4 محليًا: "+m4+" ("+pct(m4,total)+")\nالتجارب المعتمدة: "+host.database().approvedCount()+"\nالمراجع المشتقة: "+host.database().referenceArtifactCount()+"\nمنحنيات المعايرة: "+host.database().calibrationCurveCount()+"\nEvidence revision: "+blank(statusRepo.libraryRevision()));
+
+        int total=host.database().chemicalCount();
+        int covered=statusRepo.countTestedMaterials();
+        int noEvidence=statusRepo.countUntestedNoEvidenceMaterials();
+        int local=statusRepo.countLocalExperimentMaterials();
+        int central=statusRepo.countCentralEvidenceMaterials();
+        int fpAny=statusRepo.countFingerprintMaterials();
+        int fpReady=statusRepo.countReadyFingerprintMaterials();
+        int ppm=statusRepo.countPpmMaterials();
+        int m4=statusRepo.countM4Materials();
+        int exposure=statusRepo.countExposureLimitMaterials();
+        coverageText.setText(
+                "إجمالي المواد: "+total+"\n"+
+                "لها دليل مركزي أو تجربة محلية: "+covered+" ("+pct(covered,total)+")\n"+
+                "بدون دليل أو تجربة بعد: "+noEvidence+" ("+pct(noEvidence,total)+")\n"+
+                "مواد لها دليل مركزي فعال: "+central+" ("+pct(central,total)+")\n"+
+                "مواد جُرّبت على هذا الجهاز: "+local+" ("+pct(local,total)+")\n"+
+                "بصمة/دليل هوية — أي مستوى: "+fpAny+" ("+pct(fpAny,total)+")\n"+
+                "بصمة READY: "+fpReady+" ("+pct(fpReady,total)+")\n"+
+                "بيانات PPM/منحنى — تشمل Transfer: "+ppm+" ("+pct(ppm,total)+")\n"+
+                "HR069 M4 قابل للتقرير: "+m4+" ("+pct(m4,total)+")\n"+
+                "مواد لها حدود تعرض: "+exposure+" ("+pct(exposure,total)+")\n"+
+                "التجارب المعتمدة محليًا: "+host.database().approvedCount()+"\n"+
+                "المراجع المشتقة محليًا: "+host.database().referenceArtifactCount()+"\n"+
+                "كل منحنيات المعايرة المحلية: "+host.database().calibrationCurveCount()+"\n"+
+                "Evidence revision: "+blank(statusRepo.libraryRevision()));
+
         String endpoint=BuildConfig.CHEMCORE_LIBRARY_MANIFEST_URL==null?"":BuildConfig.CHEMCORE_LIBRARY_MANIFEST_URL.trim();
-        distributionText.setText("المصدر المركزي للكتابة: HazRob/build-harness (private)\nقناة قراءة المستخدم: "+(endpoint.isEmpty()?"غير منشورة بعد — Fail closed":"GitHub • "+endpoint)+"\nالسياسة: GitHub-only • لا Render • لا Token للمستخدم\nSampling profile: "+ChemCoreLibraryManager.REQUIRED_SAMPLING_PROFILE);
+        distributionText.setText("المصدر المركزي للكتابة: HazRob/build-harness (private)\nقناة قراءة المستخدم: "+(endpoint.isEmpty()?"غير منشورة بعد — Fail closed":"GitHub • "+endpoint)+"\nالسياسة: GitHub-only • لا Render في مسار تحديث المكتبة • لا Token للمستخدم\nSampling profile: "+ChemCoreLibraryManager.REQUIRED_SAMPLING_PROFILE);
         updateTelemetryText.setText(formatUpdateTelemetry(host.database().getMeta("chemcore_update_telemetry_json","")));
         platformText.setText(formatPlatforms(host.database().getMeta("hazrob_platform_metrics_json","")));
         changelogText.setText(formatChangelog(host.database().getMeta("chemcore_changelog_summary",""),s));
