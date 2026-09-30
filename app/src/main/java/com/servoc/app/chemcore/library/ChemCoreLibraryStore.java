@@ -10,7 +10,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
-import java.security.PublicKey;
 
 /**
  * Versioned reference-library store. It intentionally lives outside servoc.db so a remote
@@ -67,10 +66,10 @@ public final class ChemCoreLibraryStore {
     }
 
     public InstallResult installVerifiedSnapshot(ChemCoreLibraryManifest manifest, File downloadedPayload,
-                                                 String appVersion, PublicKey publicationKey,
-                                                 boolean measurementActive, boolean allowDowngrade) {
+                                                 String appVersion, boolean measurementActive,
+                                                 boolean allowDowngrade) {
         if (measurementActive) return new InstallResult(false, "update blocked while measurement/analysis is active", activeVersion());
-        ChemCoreLibraryVerifier.VerificationResult v = ChemCoreLibraryVerifier.verifyPayload(downloadedPayload, manifest, appVersion, publicationKey);
+        ChemCoreLibraryVerifier.VerificationResult v = ChemCoreLibraryVerifier.verifyPayload(downloadedPayload, manifest, appVersion);
         if (!v.accepted) return new InstallResult(false, v.reason, activeVersion());
 
         String current = activeVersion();
@@ -96,7 +95,7 @@ public final class ChemCoreLibraryStore {
         try {
             copyAndSync(downloadedPayload, payloadOut);
             writeAndSync(manifestOut, manifest.toJson().toString(2));
-            ChemCoreLibraryVerifier.VerificationResult staged = ChemCoreLibraryVerifier.verifyPayload(payloadOut, manifest, appVersion, publicationKey);
+            ChemCoreLibraryVerifier.VerificationResult staged = ChemCoreLibraryVerifier.verifyPayload(payloadOut, manifest, appVersion);
             if (!staged.accepted) throw new IllegalStateException("staged package verification failed: " + staged.reason);
             if (finalDir.exists()) deleteTree(finalDir);
             if (!tempDir.renameTo(finalDir)) throw new IllegalStateException("atomic package activation rename failed");
@@ -130,18 +129,18 @@ public final class ChemCoreLibraryStore {
         }
     }
 
-    /** Developer-only rollback. Previous payload and signed manifest are both reverified before pointer swap. */
-    public InstallResult rollbackToPrevious(boolean measurementActive, String appVersion, PublicKey publicationKey) {
+    /** Developer rollback. Previous payload and manifest are reverified before pointer swap. */
+    public InstallResult rollbackToPrevious(boolean measurementActive, String appVersion) {
         if (measurementActive) return new InstallResult(false, "rollback blocked while measurement/analysis is active", activeVersion());
         String previousPath = prefs.getString(K_PREVIOUS_PATH, "");
         String previousManifestPath = prefs.getString(K_PREVIOUS_MANIFEST_PATH, "");
         if (previousPath == null || previousPath.isEmpty() || previousManifestPath == null || previousManifestPath.isEmpty())
-            return new InstallResult(false, "no previous signed snapshot", activeVersion());
+            return new InstallResult(false, "no previous verified snapshot", activeVersion());
         File payload = new File(previousPath), manifestFile = new File(previousManifestPath);
-        if (!payload.isFile() || !manifestFile.isFile()) return new InstallResult(false, "previous signed snapshot package missing", activeVersion());
+        if (!payload.isFile() || !manifestFile.isFile()) return new InstallResult(false, "previous snapshot package missing", activeVersion());
         try {
             ChemCoreLibraryManifest previous = ChemCoreLibraryManifest.fromJson(new JSONObject(readUtf8(manifestFile)));
-            ChemCoreLibraryVerifier.VerificationResult verified = ChemCoreLibraryVerifier.verifyPayload(payload, previous, appVersion, publicationKey);
+            ChemCoreLibraryVerifier.VerificationResult verified = ChemCoreLibraryVerifier.verifyPayload(payload, previous, appVersion);
             if (!verified.accepted) return new InstallResult(false, "previous snapshot verification failed: " + verified.reason, activeVersion());
             if (!previous.libraryVersion.equals(prefs.getString(K_PREVIOUS_VERSION, "")))
                 return new InstallResult(false, "previous snapshot version pointer mismatch", activeVersion());
@@ -160,7 +159,7 @@ public final class ChemCoreLibraryStore {
             e.putString(K_PREVIOUS_SOURCE, curSource); e.putString(K_PREVIOUS_DATA_REV, curData);
             e.putString(K_PREVIOUS_EVIDENCE_REV, curEvidence);
             if (!e.commit()) return new InstallResult(false, "rollback pointer commit failed", activeVersion());
-            return new InstallResult(true, "rolled back after full verification", previous.libraryVersion);
+            return new InstallResult(true, "rolled back after verification", previous.libraryVersion);
         } catch (Exception ex) { return new InstallResult(false, "rollback failed: " + ex.getMessage(), activeVersion()); }
     }
 
