@@ -23,7 +23,8 @@ public final class VideoEffectProfile {
         BRIGHT("bright","تفتيح",false),
         DARK("dark","تغميق",false),
         AUTO("auto","تحسين تلقائي",false),
-        DETAIL("detail","تحسين الدقة",true);
+        /** GPU magnification already performs the spatial upscale; this mode adds a bounded edge-adaptive reconstruction pass. */
+        DETAIL("detail","تحسين الدقة 2×",true);
         public final String key,arabic;public final boolean neighborSampling;
         Enhancement(String key,String arabic,boolean neighborSampling){this.key=key;this.arabic=arabic;this.neighborSampling=neighborSampling;}
         public Enhancement next(){Enhancement[] a=values();return a[(ordinal()+1)%a.length];}
