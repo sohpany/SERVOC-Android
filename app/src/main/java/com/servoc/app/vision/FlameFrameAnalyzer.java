@@ -2,9 +2,11 @@ package com.servoc.app.vision;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.os.Process;
 import com.servoc.app.camera.MjpegView;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -24,7 +26,11 @@ public final class FlameFrameAnalyzer implements MjpegView.FrameListener {
         Result(long elapsedMs,FlameColorModel.Result frame,FlameEvidenceTracker.Snapshot temporal,byte[] jpeg){this.elapsedMs=elapsedMs;this.frame=frame;this.temporal=temporal;this.jpeg=jpeg;}
     }
 
-    private final ExecutorService worker=Executors.newSingleThreadExecutor();
+    private static final ThreadFactory BACKGROUND_FACTORY=r->{
+        Thread t=new Thread(()->{Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);r.run();},"hazrob-flame-analysis");
+        t.setDaemon(true);return t;
+    };
+    private final ExecutorService worker=Executors.newSingleThreadExecutor(BACKGROUND_FACTORY);
     private final AtomicBoolean busy=new AtomicBoolean(false);
     private final FlameEvidenceTracker tracker=new FlameEvidenceTracker(.62,.34,.28,4,750,1200);
     private final Listener listener;
