@@ -21,7 +21,6 @@ def main():
     fusion=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreEvidenceFusion.java')
     inference=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreInferenceEngine.java')
 
-    # Preserve all evidence/data independently of reportability.
     for n in ['evidence_observations','screening_fit_ppm','analytical_confidence_pct','posterior']:
         req(envelope,n,'ChemCore evidence envelope')
     req(repo,'hazrob-evidence-measurement-inventory/1','evidence/measurement inventory')
@@ -34,13 +33,14 @@ def main():
     # Degraded measurements are interpreted and weighted, not discarded.
     req(normalizer,'availableRatio','support-only physical ratio path')
     req(normalizer,'evidenceWeight','measurement quality weighting')
-    req(normalizer,'CORROBORATIVE','quality-weighted corroboration semantics')
+    req(normalizer,'evidenceQualityClass','measurement-quality classification')
     req(adapter,'corroborativeRatios','session corroborative ratios')
     req(adapter,'corroborativeQualityWeights','session corroborative weights')
     req(adapter,'bindCorroborativeSession','session-bound support cache')
     req(evidence,'measurementQualityWeight','evidence quality weight')
     req(evidence,'supportRole','primary/corroborative role')
     req(evidence,'corroborativeFromResponseModel','corroborative evidence factory')
+    req(evidence,'CORROBORATIVE','corroborative evidence role')
     req(fusion,'MAX_CORROBORATION_BONUS=8.0','capped weak-evidence support')
     req(fusion,'supportWeight','quality-weighted support calculation')
     req(fusion,'isFullStrengthSupport','full-vs-weak evidence separation')
@@ -82,7 +82,6 @@ def main():
     req(assessment,'canMassConvert','conversion gate')
     forbid(assessment,'24.45','silent 25C molar-volume shortcut')
 
-    # Final decision binds all layers to the same primary session rather than creating another identity decision.
     req(repo,'payload.put("quantitative_time_series",seriesCopy)','same-row temporal attachment')
     req(repo,'payload.put(GasPpmExposureAssessment.KEY,exposure)','same-row exposure attachment')
     req(repo,'payload.put("evidence_measurement_inventory"','same-row evidence inventory')
