@@ -29,6 +29,10 @@ def main():
     req(repo,'raw_telemetry_source','raw telemetry lineage')
     req(repo,'candidate_count','candidate inventory')
     req(repo,'evidence_observation_count','evidence inventory')
+    req(repo,'all_exposure_reference_evidence','all original exposure references retained')
+    req(repo,'all_exposure_reference_count','all exposure reference count')
+    req(repo,'recovery_telemetry_sample_count','recovery sample inventory')
+    req(repo,'if(series!=null&&exposure!=null)payload.put("evidence_measurement_inventory"','post-recovery inventory refresh')
 
     # Degraded measurements are interpreted and weighted, not discarded.
     req(normalizer,'availableRatio','support-only physical ratio path')
@@ -50,7 +54,7 @@ def main():
     req(envelope,'support_role','serialized evidence role')
     req(envelope,'preserve_and_use_as_quality_weighted_corroborative_evidence_never_auto_promote_to_reportable_ppm','methodology policy')
 
-    # Reportable temporal ppm is M4-only, but every valid derived point is retained.
+    # Reportable temporal ppm is M4-only, but every valid derived point and every distinct averaging duration are retained.
     req(series,'M4_HAZROB_VALIDATED','M4 quantitative gate')
     req(series,'reportableQuantitative()','reportable model gate')
     req(series,'out.put("points",pointRows)','quantitative point preservation')
@@ -58,14 +62,17 @@ def main():
     req(series,'raw_telemetry_preserved_elsewhere','raw telemetry preservation marker')
     req(series,'ORDER BY t_ms,id','deterministic time-series replay')
     req(series,'MAX_CONTIGUOUS_GAP_MS=2_000L','gap fail-closed integration')
+    req(series,'WindowSpec','multiple temporal window support')
+    req(series,'r+"@"+Long.toString(Math.round(l.durationMin*60_000.0))','distinct role-duration key')
 
-    # Current ppm comparison remains immediate and distinct from time-integrated TWA/STEL.
+    # Current ppm comparison remains immediate and distinct from exact-duration TWA/STEL integration.
     req(assessment,'CURRENT_CONCENTRATION_ABOVE_REFERENCE','current-reference warning')
     req(assessment,'TIME_INTEGRATED_REFERENCE_CROSSED','time-integrated state')
     req(assessment,'time_integrated_reference_crossed','temporal finding')
     req(assessment,'current_concentration_crossed','current concentration finding')
     req(assessment,'IDLH_REFERENCE_CROSSED','IDLH immediate state')
     req(assessment,'CEILING_REFERENCE_CROSSED','Ceiling immediate state')
+    req(assessment,'Math.abs(wd-required)<=1e-9','exact temporal duration matching')
 
     # Flammability is an immediate concentration comparison and reports %LEL/LFL.
     req(assessment,'LFL_REACHED_OR_EXCEEDED','LFL state')
