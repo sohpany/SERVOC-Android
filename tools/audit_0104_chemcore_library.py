@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""HazRob 0.10.2 / HR069 P4 ChemCore analytical-library updater contract."""
+"""HazRob 0.10.2 / HR069 P4 ChemCore experimental analytical-library updater contract."""
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -23,38 +23,41 @@ def main():
     workflow=txt('.github/workflows/chemcore-library-publish-0102.yml')
     gradle=txt('app/build.gradle')
 
-    for n in ['MANIFEST_SCHEMA = 2','payloadSchema','dataRevision','evidenceRevision','chemcore-manifest-v2','STABLE_PAYLOAD_SCHEMA']:
+    for n in ['MANIFEST_SCHEMA = 2','INTEGRITY_MODE = "sha256"','payloadSchema','dataRevision','evidenceRevision','STABLE_PAYLOAD_SCHEMA']:
         req(manifest,n,'manifest v2')
-    for n in ['payload_schema','data_revision','evidence_revision']:
-        req(publisher,n.replace('_','-') if False else n,'publisher manifest fields')
+    for n in ['payload_schema','integrity_mode','payload_sha256','data_revision','evidence_revision']:
+        req(publisher,n,'publisher manifest fields')
     req(builder,'EVIDENCE_REVISION = "hazrob-evidence-policy/1"','evidence revision')
     req(builder,'data_revision(source_files)','data revision fingerprint')
 
-    # Remote Stable metadata is authenticated before use.
-    req(manager,'ChemCorePublicationKeyProvider.load(context)','publication key loading')
-    req(manager,'verifyManifestOnly(m, appVersion, REQUIRED_SAMPLING_PROFILE, key)','manifest-first authentication')
+    # Prototype policy: no key/password/secret is required for analytical-library updates.
+    forbid(manager,'PublicationKey','no key provisioning in app updater')
+    forbid(verifier,'Signature','no RSA signature requirement')
+    forbid(publisher,'private-key','no private-key publishing argument')
+    forbid(workflow,'CHEMCORE_PUBLICATION_PRIVATE_KEY_PEM','no CI secret required')
+    req(manager,'verifyManifestOnly(m, appVersion, REQUIRED_SAMPLING_PROFILE)','manifest compatibility validation')
     req(manager,'REQUIRED_SAMPLING_PROFILE = SamplingProfile.hazRobStandardChamberV2().profileId','sampling profile compatibility')
 
-    # HTTPS-only bounded transport and no redirect downgrade surface.
+    # HTTPS-only bounded transport.
     req(client,'requireHttps(manifestUrl)','HTTPS manifest')
     req(client,'requireHttps(payload)','HTTPS payload')
     req(client,'setInstanceFollowRedirects(false)','redirect policy')
     req(client,'MAX_PAYLOAD_BYTES','payload bound')
     forbid(client,'http://','no plaintext updater endpoint')
 
-    # Hash + signature + semantic payload contract.
-    for n in ['payload SHA-256 mismatch','verifyManifestSignature','validateStablePayloadSemantics','payload schema does not match signed manifest','payload data revision does not match signed manifest','payload evidence revision does not match signed manifest']:
+    # SHA-256 + semantic payload contract.
+    for n in ['payload SHA-256 mismatch','validateStablePayloadSemantics','payload schema does not match manifest','payload data revision does not match manifest','payload evidence revision does not match manifest']:
         req(verifier,n,'verifier')
     req(verifier,'m4_requires_device_specific_validation','M4 safety policy')
     req(verifier,'external_research_packaging_does_not_promote_m4','external evidence safety policy')
 
-    # Staging, durable writes, atomic directory activation and pointer commit.
+    # Staging, durable writes, atomic activation and verified rollback.
     req(store,'copyAndSync(downloadedPayload, payloadOut)','staged payload copy')
-    req(store,'verifyPayload(payloadOut, manifest, appVersion, publicationKey)','staged re-verification')
+    req(store,'verifyPayload(payloadOut, manifest, appVersion)','staged re-verification')
     req(store,'tempDir.renameTo(finalDir)','atomic package activation')
     req(store,'active library pointer commit failed','durable active pointer')
-    req(store,'rollbackToPrevious(boolean measurementActive, String appVersion, PublicKey publicationKey)','verified rollback API')
-    req(store,'verifyPayload(payload, previous, appVersion, publicationKey)','rollback full re-verification')
+    req(store,'rollbackToPrevious(boolean measurementActive, String appVersion)','verified rollback API')
+    req(store,'verifyPayload(payload, previous, appVersion)','rollback re-verification')
     req(store,'getFilesDir(), "chemcore-library"','library isolated from servoc.db')
 
     # Update/rollback interlock and offline runtime.
@@ -72,19 +75,14 @@ def main():
     forbid(settings,'AppUpdateManager','library update must not reinstall APK')
     req(dev,'manager.rollback(active, ReleaseAudit.VERSION)','developer verified rollback')
 
-    # Build-pinned endpoint and publication workflow must agree on v2.
+    # Build-pinned endpoint and publication workflow must agree on experimental v2 contract.
     req(gradle,'CHEMCORE_LIBRARY_MANIFEST_URL','build-pinned Stable endpoint')
     req(workflow,"assert m['schema_version']==2",'publication workflow schema')
-    req(workflow,"text='chemcore-manifest-v2\\n'",'publication signature contract')
+    req(workflow,"assert m['integrity_mode']=='sha256'",'publication integrity mode')
     req(workflow,'--data-revision "$DATA_REVISION" --evidence-revision "$EVIDENCE_REVISION"','publication revisions')
-    req(workflow,'CHEMCORE_PUBLICATION_PRIVATE_KEY_PEM','private signing key remains secret-backed')
 
-    print('HazRob 0.10.2 / HR069 P4 ChemCore library updater contract: PASS')
-    key=(ROOT/'app/src/main/assets/chemcore/publication_key.pem').read_text(encoding='utf-8').strip()
-    if 'NOT_PROVISIONED' in key:
-        print('P4 CRYPTO PROVISIONING: BLOCKED — publication public key is still NOT_PROVISIONED (expected fail-closed runtime).')
-    else:
-        print('P4 CRYPTO PROVISIONING: public key asset present; publication workflow still verifies it against the secret private key.')
+    print('HazRob 0.10.2 / HR069 P4 experimental ChemCore updater contract: PASS')
+    print('Mode: HTTPS + SHA-256 + compatibility + semantic validation + atomic activation + rollback; no passwords/keys.')
     return 0
 
 if __name__=='__main__':
