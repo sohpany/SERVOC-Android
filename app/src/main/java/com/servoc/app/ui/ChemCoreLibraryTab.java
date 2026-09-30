@@ -83,7 +83,7 @@ public final class ChemCoreLibraryTab {
         LinearLayout recovery = UiKit.card(context);
         recovery.addView(UiKit.title(context, "السلامة والاسترجاع"), UiKit.full(context));
         recovery.addView(UiKit.small(context,
-                "يُمنع التحديث أو الرجوع أثناء warm-up/measurement/analysis. التثبيت يتم في staging ثم تفعيل ذري، وتبقى النسخة السابقة هدفاً للاسترجاع."), UiKit.full(context));
+                "يُمنع التحديث أو الرجوع أثناء warm-up/measurement/analysis. التثبيت يتم في staging ثم تفعيل ذري، وتبقى النسخة السابقة هدفاً للاسترجاع ولا تُفعّل مجدداً إلا بعد إعادة تحقق التوقيع والمحتوى."), UiKit.full(context));
         rollbackButton = UiKit.button(context, "الرجوع للنسخة السابقة المتحققة");
         rollbackButton.setOnClickListener(v -> rollback());
         recovery.addView(rollbackButton, UiKit.full(context));
@@ -103,6 +103,8 @@ public final class ChemCoreLibraryTab {
         text.append("المصدر الفعال: ").append(s.sourceLabel).append('\n');
         text.append("إصدار المكتبة: ").append(s.version.isEmpty() ? "—" : s.version).append('\n');
         text.append("Source commit: ").append(shortId(s.sourceCommit)).append('\n');
+        text.append("Data revision: ").append(shortId(s.dataRevision)).append('\n');
+        text.append("Evidence revision: ").append(shortId(s.evidenceRevision)).append('\n');
         text.append("SHA-256: ").append(shortId(s.sha256)).append('\n');
         text.append("مفتاح نشر Stable: ").append(s.publicationKeyProvisioned ? "موجود" : "غير مهيأ بعد");
         if (s.embedded != null && s.embedded.molecularSeedPresent) {
@@ -120,7 +122,7 @@ public final class ChemCoreLibraryTab {
         endpointModeText.setText(manager.usingDeveloperManifestOverride()?"وضع المصدر: Developer override":"وضع المصدر: Build-pinned Stable endpoint");
         boolean active = ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics());
         installButton.setEnabled(lastCheck != null && lastCheck.updateAvailable && !active);
-        rollbackButton.setEnabled(!active);
+        rollbackButton.setEnabled(!active && s.publicationKeyProvisioned);
     }
 
     private void saveEndpoint() {
@@ -143,7 +145,7 @@ public final class ChemCoreLibraryTab {
     }
 
     private void checkUpdate() {
-        operationText.setText("جارٍ فحص مكتبة Stable...");
+        operationText.setText("جارٍ فحص وتوثيق توقيع مكتبة Stable...");
         installButton.setEnabled(false);
         host.io().execute(() -> {
             try {
@@ -152,19 +154,21 @@ public final class ChemCoreLibraryTab {
                 main.post(() -> {
                     ChemCoreLibraryManifest m = c.remote.manifest;
                     remoteText.setText("الإصدار المتاح: " + m.libraryVersion
-                            + "\nالتوافق: " + (m.isCompatibleWithApp(ReleaseAudit.VERSION) ? "متوافق" : "غير متوافق")
+                            + "\nالتوافق: موثّق للتطبيق و" + ChemCoreLibraryManager.REQUIRED_SAMPLING_PROFILE
                             + "\nالمركبات: " + m.chemicalCount
                             + " • النماذج: " + m.modelCount
                             + " • المعايرات: " + m.calibrationCount
-                            + "\nFeature schema: " + m.featureSchemaVersion
+                            + "\nPayload schema: " + m.payloadSchema
+                            + "\nData revision: " + shortId(m.dataRevision)
+                            + "\nEvidence revision: " + shortId(m.evidenceRevision)
                             + "\nSource: " + shortId(m.sourceCommitSha));
-                    operationText.setText(c.updateAvailable ? "يوجد تحديث مستقر متوافق." : "لا يوجد إصدار أحدث متوافق.");
+                    operationText.setText(c.updateAvailable ? "يوجد تحديث Stable موثّق ومتوافق." : "لا يوجد إصدار أحدث متوافق.");
                     refresh();
                 });
             } catch (Exception e) {
                 lastCheck = null;
                 main.post(() -> {
-                    remoteText.setText("تعذر فحص التحديث.");
+                    remoteText.setText("تعذر توثيق التحديث.");
                     operationText.setText("خطأ: " + safe(e));
                     refresh();
                 });
@@ -184,7 +188,7 @@ public final class ChemCoreLibraryTab {
             return;
         }
         installButton.setEnabled(false);
-        operationText.setText("جارٍ التنزيل والتحقق والتثبيت الذري...");
+        operationText.setText("جارٍ التنزيل والتحقق الدلالي والتثبيت الذري...");
         host.io().execute(() -> {
             try {
                 ChemCoreLibraryStore.InstallResult r = manager.install(checked, ReleaseAudit.VERSION,
@@ -194,27 +198,21 @@ public final class ChemCoreLibraryTab {
                     if(r.installed&&applied!=null&&!applied.available)
                         operationText.setText("تم تثبيت "+r.version+"؛ لا تحتوي الحزمة طبقة جزيئية قابلة للتطبيق: "+applied.message);
                     else operationText.setText(r.installed ? "تم تثبيت ChemCore Library " + r.version : "لم يتم التثبيت: " + r.reason);
-                    if (r.installed) {
-                        lastCheck = null;
-                        host.showToast("تم تحديث مكتبة ChemCore إلى " + r.version);
-                    }
+                    if (r.installed) { lastCheck = null; host.showToast("تم تحديث مكتبة ChemCore إلى " + r.version); }
                     refresh();
                 });
             } catch (Exception e) {
-                main.post(() -> {
-                    operationText.setText("فشل التحديث: " + safe(e));
-                    refresh();
-                });
+                main.post(() -> { operationText.setText("فشل التحديث: " + safe(e)); refresh(); });
             }
         });
     }
 
     private void rollback() {
         boolean active = ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics());
-        ChemCoreLibraryStore.InstallResult r = manager.rollback(active);
+        ChemCoreLibraryStore.InstallResult r = manager.rollback(active, ReleaseAudit.VERSION);
         if(r.installed)ChemCoreMolecularSeedImporter.importBestAvailable(context,host.database());
-        operationText.setText(r.installed ? "تم الرجوع إلى " + r.version : "تعذر الرجوع: " + r.reason);
-        if (r.installed) host.showToast("تم استرجاع مكتبة ChemCore السابقة");
+        operationText.setText(r.installed ? "تم الرجوع الموثّق إلى " + r.version : "تعذر الرجوع: " + r.reason);
+        if (r.installed) host.showToast("تم استرجاع مكتبة ChemCore السابقة بعد إعادة التحقق");
         lastCheck = null;
         refresh();
     }
@@ -226,6 +224,6 @@ public final class ChemCoreLibraryTab {
 
     private static String shortId(String s) {
         if (s == null || s.isEmpty()) return "—";
-        return s.length() <= 16 ? s : s.substring(0, 16) + "…";
+        return s.length() <= 24 ? s : s.substring(0, 24) + "…";
     }
 }
