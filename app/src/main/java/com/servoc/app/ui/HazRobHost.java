@@ -42,8 +42,6 @@ public interface HazRobHost {
     void requestExport(String format,long experimentId);
     /** Export one complete immutable field session. PDF is one compact 4–5 page landscape report. */
     void requestFieldSessionExport(String format,String fieldSessionId);
-    /** Export a site-level summary containing all child field sessions. */
-    void requestSiteSummaryExport(String format,String siteId);
     void requestRawExport(long experimentId);
     void requestReferenceBankExport(long experimentId);
     boolean userLibraryAttached();
