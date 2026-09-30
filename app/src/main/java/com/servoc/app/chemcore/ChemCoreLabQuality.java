@@ -24,7 +24,7 @@ import java.util.Set;
  *  - configurationReady: hardware + accepted device R0 normalization are available for a controlled run;
  *  - captureReady: the powered array currently has enough valid channels to collect evidence;
  *  - environmentReady: chamber T/RH/P is actually available for environmental models;
- *  - referenceValidatedChannels: sensors having at least one active QC-accepted device/reference-gas curve.
+ *  - referenceValidatedChannels: sensors having at least one active HR069 M4 curve.
  *
  * A clean-air R0 baseline is sufficient for Rs/R0 normalization, but never by itself permits
  * quantitative ppm interpretation.
@@ -57,12 +57,11 @@ public final class ChemCoreLabQuality {
         this.advisories=Collections.unmodifiableList(new ArrayList<>(advisories==null?Collections.<String>emptyList():advisories));
     }
 
-    /** Compatibility overload used by pure diagnostic tests and callers without database access. */
     public static ChemCoreLabQuality evaluate(JSONObject diagnostics,int driveLeft,int driveRight){
         return evaluateInternal(diagnostics,driveLeft,driveRight,-1);
     }
 
-    /** Preferred runtime path: M4 availability is read from active QC-accepted calibration records. */
+    /** Preferred runtime path: M4 availability is read from active explicit HR069 M4 records. */
     public static ChemCoreLabQuality evaluate(JSONObject diagnostics,int driveLeft,int driveRight,ExperimentsDb db){
         return evaluateInternal(diagnostics,driveLeft,driveRight,referenceValidatedSensorCount(db));
     }
@@ -78,7 +77,6 @@ public final class ChemCoreLabQuality {
         for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){
             JSONObject s=mq==null?null:mq.optJSONObject(hw.key);
             if(s!=null&&s.optBoolean("ok",s.optBoolean("valid",false)))valid++;
-            // HR-0101-045 is the application-side normalization authority. The ESP32 may be synchronized later.
             if(FieldR0Baseline.has(hw.key)){r0++;field++;}
             else if(s!=null&&s.optBoolean("r0_calibrated",s.optBoolean("r0_loaded",false))){r0++;if("field_clean_air_r0".equals(s.optString("r0_source","")))field++;}
             if(s!=null&&s.optBoolean("r0_reference_validated",false))telemetryReference++;
@@ -104,23 +102,20 @@ public final class ChemCoreLabQuality {
         if(connected&&power&&valid<MIN_VALID_CHANNELS)advisories.add("valid_mq_channels_below_capture_gate:"+valid+"/8");
         if(firmwareR0Mismatch>0)advisories.add("esp32_r0_sync_pending:"+firmwareR0Mismatch+"/8;app_normalizes_from_rs_with_"+FieldR0Baseline.SESSION);
         if(!envOk)advisories.add("environmental_compensation_unavailable:"+(env==null?"missing":env.optString("status_code","unknown")));
-        if(reference==0)advisories.add("reference_gas_m4_calibration_not_available");
-        else if(reference<REQUIRED_R0_CHANNELS)advisories.add("reference_gas_calibration_partial:"+reference+"/8");
+        if(reference==0)advisories.add("hr069_m4_calibration_not_available");
+        else if(reference<REQUIRED_R0_CHANNELS)advisories.add("hr069_m4_calibration_partial:"+reference+"/8");
         return new ChemCoreLabQuality(connected,power,a1,a2,stationary,valid,r0,field,reference,config,capture,envOk,
                 envType,env==null?"missing":env.optString("status_code",envOk?"ok":"unknown"),
                 env==null?"":env.optString("address",""),env==null?"":env.optString("chip_id",""),
                 value(env,"temperature"),value(env,"humidity"),value(env,"pressure"),blockers,advisories);
     }
 
-    /** True only for array normalization/readiness. It is not a ppm-calibration claim. */
     public boolean fingerprintNormalizationReady(){return r0NormalizedChannels>=REQUIRED_R0_CHANNELS;}
-
-    /** Candidate-specific M4 checks still apply even when this returns true. */
     public boolean anyReferenceGasCalibrationAvailable(){return referenceValidatedChannels>0;}
 
     public String compact(){
         String env=environmentReady?(environmentSensor+" OK"):((environmentSensor.isEmpty()?"ENV":environmentSensor)+" "+environmentStatus);
-        return "ADS "+(ads1?"1":"0")+"/"+(ads2?"1":"0")+" • MQ "+validMqChannels+"/8 • R0 "+r0NormalizedChannels+"/8 • M4-ref "+referenceValidatedChannels+"/8 • "+env;
+        return "ADS "+(ads1?"1":"0")+"/"+(ads2?"1":"0")+" • MQ "+validMqChannels+"/8 • R0 "+r0NormalizedChannels+"/8 • HR069 M4 "+referenceValidatedChannels+"/8 • "+env;
     }
 
     public JSONObject toJson(){
@@ -131,17 +126,19 @@ public final class ChemCoreLabQuality {
             JSONObject r0=new JSONObject();r0.put("source",FieldR0Baseline.SOURCE);r0.put("campaign",FieldR0Baseline.SESSION);r0.put("samples",FieldR0Baseline.SAMPLE_COUNT);r0.put("session_count",FieldR0Baseline.SESSION_COUNT);r0.put("reference_gas_validated",FieldR0Baseline.REFERENCE_GAS_VALIDATED);r0.put("environment_compensated",FieldR0Baseline.ENVIRONMENT_COMPENSATED);o.put("r0_standard",r0);
             JSONObject e=new JSONObject();e.put("ready",environmentReady);e.put("sensor",environmentSensor);e.put("status",environmentStatus);e.put("address",environmentAddress);e.put("chip_id",environmentChipId);putFinite(e,"temperature_c",temperatureC);putFinite(e,"humidity_rh",humidityRh);putFinite(e,"pressure_hpa",pressureHpa);o.put("environment",e);
             o.put("blockers",array(blockers));o.put("advisories",array(advisories));
-            JSONObject calibration=new JSONObject();calibration.put("field_r0_normalization_ready",fingerprintNormalizationReady());calibration.put("field_r0_channels",fieldR0Channels);calibration.put("reference_gas_validated_channels",referenceValidatedChannels);calibration.put("global_ppm_permission","candidate_specific_by_design");calibration.put("ppm_rule","candidate requires complete M4 device/reference-gas support for all contributing quantitative curves + accepted open-set identity + validated domain");o.put("calibration_gate",calibration);
+            JSONObject calibration=new JSONObject();calibration.put("field_r0_normalization_ready",fingerprintNormalizationReady());calibration.put("field_r0_channels",fieldR0Channels);calibration.put("hr069_m4_validated_channels",referenceValidatedChannels);calibration.put("global_ppm_permission","candidate_specific_by_design");calibration.put("ppm_rule","candidate requires complete HR069 M4 support for contributing quantitative curves + accepted open-set identity + validated domain");o.put("calibration_gate",calibration);
             return o;
         }catch(JSONException ex){throw new IllegalStateException("Unable to serialize ChemCore lab quality",ex);}
     }
 
     private static int referenceValidatedSensorCount(ExperimentsDb db){
         if(db==null)return 0;Set<Integer> sensors=new HashSet<>();
-        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT sensor_id,reference_gas,source_note FROM calibration_curves WHERE active=1",null)){
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT sensor_id,source_note FROM calibration_curves WHERE active=1",null)){
             while(c.moveToNext()){
-                int sensor=c.getInt(0);String gas=c.isNull(1)?"":c.getString(1),source=c.isNull(2)?"":c.getString(2);
-                if(gas!=null&&!gas.trim().isEmpty()&&CalibrationValidationMarker.accepted(source)&&HazRobHardwareProfile.forSensor(sensor)!=null)sensors.add(sensor);
+                int sensor=c.getInt(0);String source=c.isNull(1)?"":c.getString(1);
+                if(CalibrationValidationMarker.hr069M4Accepted(source)
+                        &&HazRobHardwareProfile.forSensor(sensor)!=null
+                        &&HazRobHardwareProfile.manufacturerHeaterProtocolValid(sensor))sensors.add(sensor);
             }
         }catch(Exception ignored){}
         return sensors.size();
