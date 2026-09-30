@@ -47,7 +47,8 @@ RUN base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks &&
 # Source contracts: no historical HR gate may override the active 0.10.2 / HR069 policy.
 RUN python3 tools/audit_0101_integration_contract.py && \
     python3 tools/audit_0101_motion_contract.py && \
-    python3 tools/audit_0102_release_contract.py
+    python3 tools/audit_0102_release_contract.py && \
+    python3 tools/audit_0103_measurement_foundation.py
 
 # Compile both firmware targets internally. Outputs remain ephemeral in this build stage.
 RUN python3 tools/audit_0101_firmware_baseline.py && \
