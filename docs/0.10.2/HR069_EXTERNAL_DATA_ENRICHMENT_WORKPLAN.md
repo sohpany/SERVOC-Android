@@ -31,13 +31,13 @@ Increase HazRob analytical coverage by ingesting every scientifically useful ext
 | P3 | Access/license/data requests | **SENT / AWAITING RESPONSES** | Research-use requests were sent for Food Freshness, RoboFusion/RoboSense and the VOC dataset with explicit citation/attribution commitment. Remaining unverified recipient(s) stay unsent until independently confirmed. |
 | P4 | 43 MQ response curves in laboratory knowledge | **DONE** | `research_data/hr069_analytical_library/mq_research_curves_43.json` and HazRob-Lab `calibration/priors/mq_research_curves_43.json`; exact count/provenance/domain audit added. |
 | P5 | 76 MQDataScience model catalogue in laboratory knowledge | **DONE** | `research_data/hr069_analytical_library/mq_models_76.json` and HazRob-Lab `models/mq76/catalog.json`; 76 adopted/research-integrated, 14 Android-native, 12 verified, 2 approximations, 62 lab-integrated Android-port-pending. |
-| P6 | External fingerprints / known-concentration / PPM evidence normalization | **ACTIVE — IDENTIFICATION PRIORS IMPLEMENTED** | `ResearchIdentificationFingerprintRegistry` now builds source-backed `log10(Rs/R0)` identification templates for 11 pure analytes across the installed eight-MQ order and a concentration grid, with literature > accepted GasEngine > research-curve priority. Food/spoilage targets without defensible exact HR069 numeric relations remain transfer/pending/affinity-only. |
-| P7 | ChemCore update payload integration | **CANDIDATE PATH IMPLEMENTED** | `tools/build_hr069_research_priors.py` converts the 43 curves into non-M4 runtime priors and overlays six peer-reviewed MQ135 curves without overlapping same-sensor double counting. Stable snapshot packaging accepts/hashes response priors, 76 model artifacts and external reference artifacts. Next: include the identification-prior registry in a signed Stable package after qualification. |
+| P6 | External fingerprints / known-concentration / PPM evidence normalization | **ACTIVE — IDENTIFICATION PRIORS IMPLEMENTED** | `ResearchIdentificationFingerprintRegistry` builds source-backed `log10(Rs/R0)` identification templates for 11 pure analytes across the installed eight-MQ order and a concentration grid, with literature > accepted GasEngine > research-curve priority. Food/spoilage targets without defensible exact HR069 numeric relations remain transfer/pending/affinity-only. |
+| P7 | ChemCore update payload integration | **CANDIDATE PATH IMPLEMENTED** | `tools/build_hr069_research_priors.py` converts the 43 curves into non-M4 runtime priors and overlays six peer-reviewed MQ135 curves without overlapping same-sensor double counting. Stable snapshot packaging accepts/hashes response priors, 76 model artifacts and external reference artifacts. Next release-facing action remains signed Stable packaging after key provisioning; P12 qualification itself did not publish a release. |
 | P8 | On-phone update path | **RUNTIME READY / ONE-TIME APK KEY BLOCKER** | HTTPS updater, signed verification, staging, rollback and Arabic UI already exist. `chemcore-library-publish-0102.yml` targets HR069. Current APK source still bundles `NOT_PROVISIONED` publication key, so a one-time keyed APK rebuild/install is required before remote ChemCore libraries can be activated. See `HR069_CHEMCORE_UPDATE_READINESS.md`. |
-| P9 | HR069 analytical-engine consumption | **ACTIVE** | `ValidatedGasEngine` consumes M4, peer-reviewed literature, inherited curves and MQDataScience curves. `FingerprintClassifier.classifyResearchPriors(...)` now exposes the separate research identification-fingerprint path and collapses concentration templates to one best match per chemical; MQ7/MQ9 fail closed unless heater-cycle validity is explicitly true. |
-| P10 | Automated scientific integrity audit | **SOURCE TESTS ADDED / ORG QUALIFICATION REQUIRED** | New fingerprint tests lock non-M4 status, 11 declared numeric analytes, food/spoilage non-fabrication policy, one-best-match-per-chemical behavior and heater-cycle masking. Re-run `HazRob/build-harness` Android qualification against the final source SHA after this checkpoint. |
+| P9 | HR069 analytical-engine consumption | **ACTIVE** | `ValidatedGasEngine` consumes M4, peer-reviewed literature, inherited curves and MQDataScience curves. `FingerprintClassifier.classifyResearchPriors(...)` exposes the separate research identification-fingerprint path and collapses concentration templates to one best match per chemical; MQ7/MQ9 fail closed unless heater-cycle validity is explicitly true. |
+| P10 | Automated scientific integrity audit | **DONE FOR CURRENT SOURCE / ORG QUALIFICATION PASS** | Scientific coverage audit, identification-prior checks, exact transfer hashes, canonical source contracts and Android unit regression all passed in P12 organization qualification run `36750087792` against source `257b7731b9910b1587028533e190f3cf450c0de8`. Re-run after any future analytical/runtime source change. |
 | P11 | HazRob Lab synchronization | **DONE** | HazRob-Lab `main` synchronized from production anchor `09bfa4e8`: identification-prior metadata plus Food Freshness, Multimodal MQ and UCI MQ135 derived fingerprint artifacts are committed. Target Git blobs were checked against the production-source blobs; Lab ledger records non-M4 limits and no raw third-party archive was committed. Lab checkpoint: `fb11d9415ccae8d62098f7dc3a1ed2e2a49ffc4f`. |
-| P12 | HazRob Organization qualification mirror | **NEXT** | Point `HazRob/build-harness` to the post-P11 final 0.10.2/HR069 source head and run organization qualification. Do not trigger full RC build merely for this research-library checkpoint. |
+| P12 | HazRob Organization qualification mirror | **DONE** | `HazRob/build-harness` run `#7` / ID `36750087792` qualified exact source `257b7731b9910b1587028533e190f3cf450c0de8`: analytical precheck PASS, all canonical source contracts PASS, Android `:app:testDebugUnitTest` PASS. Evidence-only artifact `HR069-P12-Qualification-7`; no APK, firmware ZIP, release publication or deploy step was executed. |
 
 ## External-source priority order
 
@@ -96,6 +96,34 @@ Synchronized laboratory artifacts:
 
 The synchronized artifacts preserve their source acceptance semantics and remain `m4=false`. Food Freshness remains a headspace class/mixture reference rather than a pure-gas fingerprint; Multimodal MQ does not synthesize missing MQ4/MQ9 channels; the UCI artifact is one-channel MQ135 transfer evidence and cannot independently satisfy the >=2-channel HR069 named-identity gate. No raw third-party archive was added to HazRob-Lab source Git during P11.
 
+## P12 organization qualification checkpoint — 2026-09-30
+
+Qualification source: `257b7731b9910b1587028533e190f3cf450c0de8`, descended from the requested P11 anchor `09bfa4e87014ca6b651c2e5ffc27eb5020772ba1`.  
+Organization mirror: `HazRob/build-harness`.  
+Workflow run: `#7`, run ID `36750087792`.  
+Build-harness trigger commit: `7dbcd12572cd3041df66a66c3354f28b397a1f43`.  
+Evidence artifact: `HR069-P12-Qualification-7`, artifact ID `11114715666`, digest `sha256:5d4a4774a425558e2751151296b351bcddfc9cfe52c0825a5634ce0b7158dc8`.
+
+P12 exposed and corrected three stale qualification assumptions before final PASS:
+
+1. `tools/audit_hr069_chemical_coverage.py` incorrectly treated the pinned 652-record NIOSH identity seed as an exhaustive CAS registry. The audit now keeps exact, fail-closed exceptions only for HazRob legacy ID 75 Hydrogen (`1333-74-0`) and ID 76 Methane (`74-82-8`), which are absent from that pinned seed. Correction commit: `c75f0fc05abed45e324ad74d75f57a8191031ec7`.
+2. `tools/audit_hr047_gas_safety_contract.py` still required obsolete gas-exposure schema `/2`. It now locks the current schema `/4`: mass-concentration references can convert to ppm only with canonical molecular mass plus measured session temperature and pressure; otherwise they remain excluded, and TWA/STEL require the appropriate time-integrated M4 window. Correction commit: `61afccead2c3400050e9ab7501f06ed53835263e`.
+3. `tools/audit_hr048_drive_contract.py` still required unconditional IR/ultrasonic forward blocking. It now matches HR069: warnings remain always active; automatic forward blocking is an operator-selectable persisted option, while E-STOP, explicit stop and command-loss watchdog remain independent. Correction commit: `257b7731b9910b1587028533e190f3cf450c0de8`.
+
+Final P12 gates passed:
+
+- exact `0.10.2` / `HR069` source identity;
+- chemical coverage integrity with 144 legacy chemicals, 652-record pinned NIOSH identity layer, 43 research curves and 76 MQDataScience models;
+- identification-prior metadata and 13 numeric fingerprint families;
+- Food Freshness 59-session headspace artifact with non-M4 / non-pure-gas semantics preserved;
+- Multimodal MQ exact SHA-256 `6e41294da4fbaed3e390dc2d5daff576dff07d1c67887d1d794012dea602ff8f`;
+- UCI MQ135 exact SHA-256 `93434b1a3eb84d13d736ca066fb68501374d58d6ca9e845c6111de5cc8e52372`;
+- all canonical source contracts;
+- Android `:app:testDebugUnitTest` regression suite;
+- evidence record and evidence-only artifact upload.
+
+No `assembleRelease`, signing, APK creation, firmware ZIP, release publication, ChemCore publication or deploy step was run in P12. This preserves the plan rule that organization qualification must not trigger a full RC merely for this research-library checkpoint.
+
 ## Common normalized research schema
 
 Every imported analytical observation/derived fingerprint should expose, when available:
@@ -133,7 +161,8 @@ A ChemCore package for the installed 0.10.2 app is publishable only when all of 
 2. Read `research_data/external_mq_fingerprints/manifest.json` and `access_requests/REQUEST_LEDGER.md`.
 3. Read `research_data/hr069_analytical_library/identification_fingerprint_priors_v1.json`.
 4. Read `docs/0.10.2/HR069_CHEMCORE_UPDATE_READINESS.md`.
-5. Read latest commits on `release/hazrob-0.10.2` after the baseline SHA above.
-6. Continue from P12: point `HazRob/build-harness` at the final source head and run organization qualification. Return to P6/P7 when new source-backed evidence is added or when qualification requires an analytical-library correction.
-7. After each completed phase, update this ledger in the same commit or immediately following commit.
-8. Never infer that a mail was sent, a dataset downloaded, a signing key was provisioned, or a test passed without recorded evidence.
+5. Treat `09bfa4e87014ca6b651c2e5ffc27eb5020772ba1` as the P11 requested anchor and `257b7731b9910b1587028533e190f3cf450c0de8` as the successfully P12-qualified runtime/source checkpoint.
+6. P11 and P12 are complete. Return to P6/P7 only when new source-backed analytical evidence is added, when the signed ChemCore package is intentionally prepared, or when a future source change requires requalification.
+7. Keep M4 promotion as a separate physical-laboratory action; external evidence cannot promote itself to M4.
+8. After any future completed phase or analytical change, update this ledger in the same commit or immediately following commit.
+9. Never infer that a mail was sent, a dataset downloaded, a signing key was provisioned, a release was published, or a test passed without recorded evidence.
