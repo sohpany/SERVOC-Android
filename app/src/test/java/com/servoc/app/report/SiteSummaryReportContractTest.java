@@ -38,21 +38,38 @@ public class SiteSummaryReportContractTest {
   assertFalse(s.contains("trackedCandidate"));
  }
 
- @Test public void fieldWorkspaceExposesSessionAndSiteReports() throws Exception {
+ @Test public void fieldWorkspaceExposesSmartSessionAndSitePdfAndXlsx() throws Exception {
   String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/ui/FieldSessionsTab.java")),StandardCharsets.UTF_8);
   assertTrue(s.contains("تقرير الموقع PDF"));
+  assertTrue(s.contains("Excel ذكي للموقع"));
   assertTrue(s.contains("تقرير الجلسة PDF • 4–5 صفحات أفقية"));
-  assertTrue(s.contains("SiteSummaryExportActivity.start(c,selectedSiteId)"));
+  assertTrue(s.contains("Excel ذكي للجلسة"));
+  assertTrue(s.contains("SiteSummaryExportActivity.start(c,selectedSiteId,\"pdf\")"));
+  assertTrue(s.contains("SiteSummaryExportActivity.start(c,selectedSiteId,\"xlsx\")"));
   assertTrue(s.contains("host.requestFieldSessionExport(\"pdf\",q.id)"));
+  assertTrue(s.contains("host.requestFieldSessionExport(\"xlsx\",q.id)"));
  }
 
- @Test public void siteExportUsesDedicatedSafActivityRegisteredInManifest() throws Exception {
+ @Test public void siteExportUsesDedicatedSafActivityForSmartPdfAndXlsx() throws Exception {
   String a=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/SiteSummaryExportActivity.java")),StandardCharsets.UTF_8);
   String m=new String(Files.readAllBytes(Paths.get("src/main/AndroidManifest.xml")),StandardCharsets.UTF_8);
   assertTrue(a.contains("Intent.ACTION_CREATE_DOCUMENT"));
   assertTrue(a.contains("application/pdf"));
+  assertTrue(a.contains("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
   assertTrue(a.contains("SiteSummaryReportExporter.writePdf"));
+  assertTrue(a.contains("SmartSiteXlsxWriter.write"));
   assertTrue(m.contains(".SiteSummaryExportActivity"));
   assertTrue(m.contains("android:exported=\"false\""));
+ }
+
+ @Test public void smartSiteXlsxUsesTheIntelligentPlannerAndNeverPoolsPpm() throws Exception {
+  String x=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/SmartSiteXlsxWriter.java")),StandardCharsets.UTF_8);
+  assertTrue(x.contains("SiteReportIntelligence.plan"));
+  assertTrue(x.contains("تكرار 144"));
+  assertTrue(x.contains("سياق المخاطر"));
+  assertTrue(x.contains("No pooled PPM and no average PPM across sessions"));
+  assertTrue(x.contains("M4 reportable context"));
+  assertTrue(x.contains("EST/context only"));
+  assertFalse(x.contains("averagePpmAcrossSessions"));
  }
 }
