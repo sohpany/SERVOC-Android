@@ -79,6 +79,7 @@ public final class RobotApi {
     /** Raw endpoints intentionally remain local for provisioning and Direct compatibility checks. */
     public JSONObject diagnosticsRaw()throws Exception{return getJson("/diag",1000);}
     public JSONObject dataRaw()throws Exception{return getJson("/data",1200);}
+    private JSONObject directNormalizedSnapshot(int commandedLeft,int commandedRight)throws Exception{return RobotProtocolV4.normalize(diagnosticsRaw(),dataRaw(),commandedLeft,commandedRight);}
     public JSONObject snapshot(int commandedLeft,int commandedRight)throws Exception{
         RemoteConnection r=remote();
         if(r!=null){
@@ -86,7 +87,7 @@ public final class RobotApi {
             JSONObject s=r.snapshot(commandedLeft,commandedRight);if(s==null)throw new IllegalStateException("remote telemetry unavailable");
             return CanonicalMeasurementNormalizer.enrich(s,"REMOTE");
         }
-        return CanonicalMeasurementNormalizer.enrich(RobotProtocolV4.normalize(diagnosticsRaw(),dataRaw(),commandedLeft,commandedRight),"DIRECT");
+        return CanonicalMeasurementNormalizer.enrich(directNormalizedSnapshot(commandedLeft,commandedRight),"DIRECT");
     }
     public JSONObject diagnostics()throws Exception{RemoteConnection r=remote();if(r!=null){if(!r.isConnected())throw new IllegalStateException("remote MQTT disconnected");JSONObject s=r.snapshot(0,0);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return diagnosticsRaw();}
     public JSONObject data()throws Exception{RemoteConnection r=remote();if(r!=null){if(!r.isConnected())throw new IllegalStateException("remote MQTT disconnected");JSONObject s=r.snapshot(0,0);if(s==null)throw new IllegalStateException("remote telemetry unavailable");return s;}return dataRaw();}
