@@ -7,10 +7,6 @@ import org.junit.Test;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.Signature;
-import java.util.Base64;
 
 import static org.junit.Assert.*;
 
@@ -21,23 +17,23 @@ public class ChemCoreLibraryContractTest {
         assertTrue(ChemCoreLibraryVersion.parse("1.2.0").compareTo(ChemCoreLibraryVersion.parse("1.1.99")) > 0);
     }
 
-    @Test public void stableManifestRequiresSignatureAndExplicitRevisions() throws Exception {
-        JSONObject j = baseManifest("stable", "");
-        j.remove("data_revision");
+    @Test public void stableManifestRequiresExplicitIntegrityAndRevisions() throws Exception {
+        JSONObject j = baseManifest("stable");
+        j.remove("data_revision"); j.put("integrity_mode", "");
         ChemCoreLibraryManifest m = ChemCoreLibraryManifest.fromJson(j);
-        assertTrue(m.validate().stream().anyMatch(x -> x.contains("signature")));
         assertTrue(m.validate().stream().anyMatch(x -> x.contains("data_revision")));
+        assertTrue(m.validate().stream().anyMatch(x -> x.contains("integrity_mode")));
     }
 
     @Test public void unsupportedManifestSchemaIsRejectedFailClosed() throws Exception {
-        JSONObject j = baseManifest("research", "");
+        JSONObject j = baseManifest("research");
         j.put("schema_version", ChemCoreLibraryManifest.MANIFEST_SCHEMA + 1);
         ChemCoreLibraryManifest m = ChemCoreLibraryManifest.fromJson(j);
         assertTrue(m.validate().stream().anyMatch(x -> x.contains("schema_version")));
     }
 
     @Test public void stableManifestRejectsSqliteAndWrongPayloadSchema() throws Exception {
-        JSONObject j = baseManifest("stable", "placeholder");
+        JSONObject j = baseManifest("stable");
         j.put("payload_file", "chemcore_knowledge.sqlite"); j.put("payload_format", "sqlite");
         j.put("payload_schema", "wrong-schema");
         ChemCoreLibraryManifest m = ChemCoreLibraryManifest.fromJson(j);
@@ -45,44 +41,36 @@ public class ChemCoreLibraryContractTest {
         assertTrue(m.validate().stream().anyMatch(x -> x.contains("stable payload_schema")));
     }
 
-    @Test public void researchManifestMayBeUnsignedButNeverBecomesStableByParsing() throws Exception {
-        ChemCoreLibraryManifest m = ChemCoreLibraryManifest.fromJson(baseManifest("research", ""));
+    @Test public void researchManifestMayRemainUnsigned() throws Exception {
+        ChemCoreLibraryManifest m = ChemCoreLibraryManifest.fromJson(baseManifest("research"));
         assertEquals(ChemCoreLibraryManifest.Channel.RESEARCH, m.channel);
         assertTrue(m.validate().isEmpty());
     }
 
-    @Test public void manifestIsAuthenticatedBeforeRemoteMetadataIsTrusted() throws Exception {
-        KeyPair kp=keyPair(); JSONObject j=baseManifest("stable", "placeholder");
-        ChemCoreLibraryManifest unsigned=ChemCoreLibraryManifest.fromJson(j);j.put("signature",sign(unsigned,kp));
-        ChemCoreLibraryManifest signed=ChemCoreLibraryManifest.fromJson(j);
-        ChemCoreLibraryVerifier.VerificationResult ok=ChemCoreLibraryVerifier.verifyManifestOnly(signed,"0.10.2","hazrob-chemcore-chamber-v2",kp.getPublic());
-        assertTrue(ok.reason,ok.accepted);
-        ChemCoreLibraryVerifier.VerificationResult profile=ChemCoreLibraryVerifier.verifyManifestOnly(signed,"0.10.2","hazrob-chemcore-chamber-v1",kp.getPublic());
-        assertFalse(profile.accepted);assertTrue(profile.reason.contains("sampling profile"));
-        j.put("model_count",77);ChemCoreLibraryManifest tampered=ChemCoreLibraryManifest.fromJson(j);
-        assertFalse(ChemCoreLibraryVerifier.verifyManifestOnly(tampered,"0.10.2","hazrob-chemcore-chamber-v2",kp.getPublic()).accepted);
+    @Test public void manifestCompatibilityChecksSamplingProfileAndApp() throws Exception {
+        ChemCoreLibraryManifest m=ChemCoreLibraryManifest.fromJson(baseManifest("stable"));
+        assertTrue(ChemCoreLibraryVerifier.verifyManifestOnly(m,"0.10.2","hazrob-chemcore-chamber-v2").accepted);
+        ChemCoreLibraryVerifier.VerificationResult badProfile=ChemCoreLibraryVerifier.verifyManifestOnly(m,"0.10.2","hazrob-chemcore-chamber-v1");
+        assertFalse(badProfile.accepted);assertTrue(badProfile.reason.contains("sampling profile"));
+        assertFalse(ChemCoreLibraryVerifier.verifyManifestOnly(m,"0.10.1","hazrob-chemcore-chamber-v2").accepted);
     }
 
-    @Test public void verifierAcceptsSignedSemanticPayloadAndRejectsTamperOrRevisionMismatch() throws Exception {
+    @Test public void verifierAcceptsMatchingSemanticPayloadAndRejectsHashOrRevisionMismatch() throws Exception {
         File f = File.createTempFile("chemcore-library-test", ".json");
         writePayload(f,"sha256:data1","hazrob-evidence-policy/1",652,4,76,0);
-        String hash = ChemCoreLibraryVerifier.sha256(f);KeyPair kp=keyPair();
-        JSONObject j = baseManifest("stable", "placeholder");
-        j.put("payload_sha256", hash); j.put("payload_size_bytes", f.length());
-        ChemCoreLibraryManifest unsigned = ChemCoreLibraryManifest.fromJson(j);j.put("signature",sign(unsigned,kp));
-        ChemCoreLibraryManifest signed = ChemCoreLibraryManifest.fromJson(j);
-
-        ChemCoreLibraryVerifier.VerificationResult ok = ChemCoreLibraryVerifier.verifyPayload(f, signed, "0.10.2", kp.getPublic());
-        assertTrue(ok.reason, ok.accepted);
+        JSONObject j = baseManifest("stable");
+        j.put("payload_sha256", ChemCoreLibraryVerifier.sha256(f)); j.put("payload_size_bytes", f.length());
+        ChemCoreLibraryManifest m=ChemCoreLibraryManifest.fromJson(j);
+        ChemCoreLibraryVerifier.VerificationResult ok = ChemCoreLibraryVerifier.verifyPayload(f,m,"0.10.2");
+        assertTrue(ok.reason,ok.accepted);
 
         writePayload(f,"sha256:other","hazrob-evidence-policy/1",652,4,76,0);
         j.put("payload_sha256",ChemCoreLibraryVerifier.sha256(f));j.put("payload_size_bytes",f.length());
-        ChemCoreLibraryManifest unsignedMismatch=ChemCoreLibraryManifest.fromJson(j);j.put("signature",sign(unsignedMismatch,kp));
-        ChemCoreLibraryVerifier.VerificationResult mismatch=ChemCoreLibraryVerifier.verifyPayload(f,ChemCoreLibraryManifest.fromJson(j),"0.10.2",kp.getPublic());
+        ChemCoreLibraryVerifier.VerificationResult mismatch=ChemCoreLibraryVerifier.verifyPayload(f,ChemCoreLibraryManifest.fromJson(j),"0.10.2");
         assertFalse(mismatch.accepted);assertTrue(mismatch.reason.contains("data revision"));
 
         Files.write(f.toPath(), "{\"tampered\":true}".getBytes(StandardCharsets.UTF_8));
-        ChemCoreLibraryVerifier.VerificationResult bad = ChemCoreLibraryVerifier.verifyPayload(f, signed, "0.10.2", kp.getPublic());
+        ChemCoreLibraryVerifier.VerificationResult bad = ChemCoreLibraryVerifier.verifyPayload(f,m,"0.10.2");
         assertFalse(bad.accepted);
     }
 
@@ -93,20 +81,17 @@ public class ChemCoreLibraryContractTest {
         Files.write(f.toPath(),p.toString().getBytes(StandardCharsets.UTF_8));
     }
 
-    private static KeyPair keyPair()throws Exception{KeyPairGenerator g=KeyPairGenerator.getInstance("RSA");g.initialize(2048);return g.generateKeyPair();}
-    private static String sign(ChemCoreLibraryManifest m,KeyPair kp)throws Exception{Signature s=Signature.getInstance("SHA256withRSA");s.initSign(kp.getPrivate());s.update(m.canonicalSigningBytes());return Base64.getEncoder().encodeToString(s.sign());}
-
-    private static JSONObject baseManifest(String channel, String signature) throws Exception {
+    private static JSONObject baseManifest(String channel) throws Exception {
         JSONObject j = new JSONObject();
         j.put("library_version", "1.0.0"); j.put("schema_version", ChemCoreLibraryManifest.MANIFEST_SCHEMA); j.put("channel", channel);
         j.put("created_utc", "2026-09-30T00:00:00Z"); j.put("source_commit_sha", "0123456789abcdef");
         j.put("payload_file", "chemcore-stable-snapshot.json"); j.put("payload_format", "json"); j.put("payload_schema",ChemCoreLibraryManifest.STABLE_PAYLOAD_SCHEMA);
+        j.put("integrity_mode",ChemCoreLibraryManifest.INTEGRITY_MODE);
         j.put("payload_sha256", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa");
         j.put("payload_size_bytes", 10); j.put("chemical_count", 652); j.put("source_count", 4);
         j.put("model_count", 76); j.put("calibration_count", 0); j.put("min_app_version", "0.10.2");
         j.put("feature_schema_version", "chemcore-features/1");j.put("data_revision","sha256:data1");j.put("evidence_revision","hazrob-evidence-policy/1");
         j.put("sampling_profile_compatibility", new JSONArray().put("hazrob-chemcore-chamber-v2"));
-        j.put("signature_algorithm", "SHA256withRSA"); j.put("signature", signature);
         return j;
     }
 }
