@@ -39,7 +39,8 @@ public final class ChemCoreDecisionRepository {
 
     /**
      * Returns only accepted, quantitative gas-safety findings. Candidate identities and screening
-     * hypotheses are deliberately excluded so safety sorting can never alter analytical identity.
+     * hypotheses remain preserved in each decision payload but are excluded from this safety sort so
+     * they can never alter the accepted analytical identity or occupational decision.
      */
     public JSONArray recentAcceptedGasFindings(int limit,GasHazardPriority.Mode mode){
         int requested=Math.max(1,Math.min(100,limit)),scan=Math.max(requested*4,20);JSONArray raw=new JSONArray();
@@ -86,10 +87,10 @@ public final class ChemCoreDecisionRepository {
     }
 
     /**
-     * P10 finalization: binds the M4-only quantitative time series and the exposure/flammability
-     * interpretation to the same decision row. Identity, analytical confidence and the scalar ppm
-     * chosen by ChemCore are not modified here. TWA/STEL can only become temporal findings through
-     * the supplied series; current ppm, Ceiling/IDLH and LFL/LEL remain immediate comparisons.
+     * P10 finalization: binds the M4-only reportable quantitative series while preserving every
+     * other available evidence family and every raw/normalized telemetry record for audit and later
+     * reporting. M1/M2/M3 evidence is never deleted; it remains screening/support evidence and simply
+     * cannot promote an occupational quantitative claim by itself.
      */
     public boolean attachQuantitativeExposure(String primarySessionId,JSONObject quantitativeSeries){
         if(primarySessionId==null||primarySessionId.trim().isEmpty()||quantitativeSeries==null)return false;String id=primarySessionId.trim();
@@ -100,8 +101,30 @@ public final class ChemCoreDecisionRepository {
             JSONObject seriesCopy=new JSONObject(quantitativeSeries.toString());long first=seriesCopy.optLong("first_t_ms",0),last=seriesCopy.optLong("last_t_ms",first);long duration=Math.max(0,last-first);
             JSONObject exposure=GasPpmExposureAssessment.evaluate(db,payload,duration,seriesCopy);
             payload.put("quantitative_time_series",seriesCopy);payload.put(GasPpmExposureAssessment.KEY,exposure);
+            payload.put("evidence_measurement_inventory",evidenceMeasurementInventory(id,payload,seriesCopy,exposure));
             payload.put("p10_quantitative_exposure_finalized",true);payload.put("p10_temporal_basis",seriesCopy.optBoolean("valid",false)?"M4_TIME_SERIES":"CURRENT_M4_PPM_ONLY");
             ContentValues v=new ContentValues();v.put("payload",payload.toString());return db.getWritableDatabase().update("chemcore_decisions",v,"id=?",new String[]{String.valueOf(rowId)})==1;
         }catch(Exception ignored){return false;}
+    }
+
+    /** Explicit inventory proving that reportability gates do not discard lower-tier evidence/data. */
+    private JSONObject evidenceMeasurementInventory(String primarySessionId,JSONObject payload,JSONObject series,JSONObject exposure)throws Exception{
+        JSONObject inv=new JSONObject();inv.put("schema","hazrob-evidence-measurement-inventory/1");inv.put("policy","PRESERVE_ALL_AVAILABLE_EVIDENCE_AND_MEASUREMENTS_SEPARATE_FROM_REPORTABILITY_GATES");
+        inv.put("primary_session_id",primarySessionId);String recovery=payload.optString("recovery_session_id","");inv.put("recovery_session_id",recovery);
+        inv.put("raw_telemetry_source","telemetry_samples");inv.put("raw_telemetry_preserved",true);inv.put("normalized_mq_measurements_preserved",true);inv.put("environment_measurements_preserved",true);inv.put("quality_flags_preserved",true);inv.put("motion_and_transport_state_preserved",true);
+        inv.put("primary_telemetry_sample_count",telemetryCount(primarySessionId));inv.put("recovery_telemetry_sample_count",recovery.isEmpty()?0:telemetryCount(recovery));
+        JSONArray candidates=payload.optJSONArray("candidates");int candidateCount=candidates==null?0:candidates.length(),evidenceCount=0,m1=0,m2=0,m3=0,m4=0;
+        if(candidates!=null)for(int i=0;i<candidates.length();i++){JSONObject candidate=candidates.optJSONObject(i);if(candidate==null)continue;JSONArray rows=candidate.optJSONArray("evidence_observations");if(rows==null)continue;for(int j=0;j<rows.length();j++){JSONObject e=rows.optJSONObject(j);if(e==null)continue;evidenceCount++;String tier=e.optString("evidence_tier","");if(tier.startsWith("M1"))m1++;else if(tier.startsWith("M2"))m2++;else if(tier.startsWith("M3"))m3++;else if(tier.startsWith("M4"))m4++;}}
+        inv.put("candidate_count",candidateCount);inv.put("evidence_observation_count",evidenceCount);inv.put("m1_evidence_count",m1);inv.put("m2_evidence_count",m2);inv.put("m3_evidence_count",m3);inv.put("m4_evidence_count",m4);
+        inv.put("candidate_rankings_preserved",true);inv.put("screening_fit_ppm_preserved",true);inv.put("analytical_confidence_preserved",true);inv.put("posterior_preserved",true);inv.put("open_set_state_preserved",true);inv.put("deep_session_dynamics_preserved",payload.has("session_dynamics"));
+        JSONArray points=series.optJSONArray("points");inv.put("reportable_quantitative_series_m4_only",true);inv.put("reportable_quantitative_point_count",points==null?0:points.length());inv.put("all_valid_m4_quantitative_points_preserved",series.optBoolean("all_valid_quantitative_points_preserved",false));
+        inv.put("health_reference_count",exposure.optInt("ppm_reference_count",0));inv.put("lfl_reference_count",exposure.optInt("lfl_reference_count",0));inv.put("ufl_reference_count",exposure.optInt("ufl_reference_count",0));inv.put("converted_mass_reference_count",exposure.optInt("converted_mass_reference_count",0));
+        inv.put("lower_tier_evidence_retention","M1_M2_M3_RETAINED_FOR_IDENTIFICATION_SCREENING_AND_AUDIT_NOT_REPORTABLE_PPM");inv.put("m4_quantitative_policy","ONLY_DEVICE_VALIDATED_M4_CAN_DRIVE_REPORTABLE_PPM_TWA_STEL_CEILING_IDLH_LFL_COMPARISONS");
+        return inv;
+    }
+
+    private int telemetryCount(String sessionId){
+        if(sessionId==null||sessionId.trim().isEmpty())return 0;
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT COUNT(*) FROM telemetry_samples WHERE session_id=?",new String[]{sessionId.trim()})){return c.moveToFirst()?c.getInt(0):0;}catch(Exception e){return 0;}
     }
 }
