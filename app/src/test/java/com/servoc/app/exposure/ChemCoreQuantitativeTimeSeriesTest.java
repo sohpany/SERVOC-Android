@@ -5,6 +5,7 @@ import org.json.JSONObject;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -20,6 +21,13 @@ public final class ChemCoreQuantitativeTimeSeriesTest {
         assertTrue(q.getBoolean("all_valid_quantitative_points_preserved"));assertTrue(q.getBoolean("raw_telemetry_preserved_elsewhere"));assertEquals("telemetry_samples",q.getString("raw_telemetry_source"));
         JSONArray rows=q.getJSONArray("points");assertEquals(points.size(),rows.length());assertEquals(0,rows.getJSONObject(0).getLong("t_ms"));assertEquals(12.0,rows.getJSONObject(0).getDouble("ppm"),1e-9);assertEquals(900_000,rows.getJSONObject(rows.length()-1).getLong("t_ms"));
         JSONArray windows=q.getJSONArray("windows");assertEquals(1,windows.length());JSONObject w=windows.getJSONObject(0);assertEquals("STEL",w.getString("role"));assertTrue(w.getBoolean("valid"));assertEquals(15.0,w.getDouble("covered_minutes"),1e-9);assertEquals(12.0,w.getDouble("average_ppm"),1e-9);assertEquals(1.0,w.getDouble("coverage_fraction"),1e-9);
+    }
+
+    @Test public void everyDistinctDurationForSameRoleIsPreserved()throws Exception{
+        List<ChemCoreQuantitativeTimeSeries.Point> points=new ArrayList<>();for(int s=0;s<=120;s++)points.add(new ChemCoreQuantitativeTimeSeries.Point(s*1000L,8.0));
+        List<ExposureRepository.Limit> refs=Arrays.asList(limit("TWA",10,1),limit("REL-TWA",10,2),limit("TWA",12,1));
+        JSONObject q=ChemCoreQuantitativeTimeSeries.summarize("S",77,points,points.size(),points.size(),refs,25,50,1013.25,null);JSONArray windows=q.getJSONArray("windows");
+        assertEquals(2,windows.length());boolean one=false,two=false;for(int i=0;i<windows.length();i++){JSONObject w=windows.getJSONObject(i);assertEquals("TWA",w.getString("role"));double d=w.getDouble("duration_min");if(Math.abs(d-1.0)<1e-9){one=true;assertTrue(w.getBoolean("valid"));}if(Math.abs(d-2.0)<1e-9){two=true;assertTrue(w.getBoolean("valid"));}}assertTrue(one&&two);
     }
 
     @Test public void oneMinuteSeriesCannotUnlockFifteenMinuteStel()throws Exception{
