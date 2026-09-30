@@ -24,7 +24,7 @@ This document is the execution log for the developer-workspace rebuild requested
 |---|---|---|
 | P0 | CLOSED | Baseline/release guard remains fixed. |
 | P1 | IN REVIEW | Consolidate and classify new modifications. |
-| P2 | REOPENED | App + HR069 + CAM + protocol compatibility. |
+| P2 | SOURCE COMPLETE | App + HR069 + CAM + Direct/Remote protocol compatibility reviewed and reconciled; runtime/build qualification remains deferred to P12/P13. |
 | P3 | TARGETED REVIEW | Sessions, timestamps and scientific lineage. |
 | P4 | BLOCKED EXTERNALLY | GitHub central library is implemented; public read-only GitHub distribution surface is still required. |
 | P5 | REOPENED | Chemical-analysis engines against expanded library. |
@@ -107,6 +107,22 @@ Key commits: `65babb2e`, `ff901153`, `ab725a9e`, `996f6b94`.
 - [x] Optional remembered WAN credentials use AES-GCM with Android Keystore.
 
 Key commits: `6414ae62`, `ca20b1b9`.
+
+### P2 — HR069 / CAM / protocol compatibility — SOURCE COMPLETE
+
+- [x] Main firmware identity remains HazRob `0.10.2`, API4 and HR069 hardware profile.
+- [x] ESP32-CAM remains `HazRob-CAM 0.10.2`, station-only on the HazRob AP, with QVGA raw capture feeding MJPEG/WSS; display/enhancement effects stay Android-side.
+- [x] IR semantics are fail-safe: ground detected clears the cliff warning; loss of ground asserts the warning after the configured debounce count.
+- [x] Ultrasonic telemetry preserves distance in cm, warning at the configured front-warning threshold and forward stop-zone status.
+- [x] Forward safety auto-stop boots enabled by default while E-STOP and command-loss watchdog remain independent.
+- [x] Direct HTTP commands and Remote MQTT commands expose equivalent drive, stop, E-STOP, relay, measurement, alert, config and safety-auto-stop operations.
+- [x] Remote drive refresh policy remains inside the firmware command watchdog lease.
+- [x] API4 normalization now preserves actual firmware motor outputs after safety interlocks, while keeping the operator request separately as `requested_left/right`.
+- [x] API4 normalization preserves `stale_stop`, command age, forward hazard/block state and E-STOP state.
+- [x] Remote telemetry propagates outer `safety.estop_latched` into the normalized snapshot without mutating the raw telemetry envelope.
+- [x] Fixed eight-button turns use the approved 45% inner-side drive matrix; in-place pivots remain opposite-sign full commands.
+
+Key commits: `27780e3d`, `5a7542b1`, `4363cf81`, `49a084d4`.
 
 ## Scientific invariants introduced by this rebuild
 
