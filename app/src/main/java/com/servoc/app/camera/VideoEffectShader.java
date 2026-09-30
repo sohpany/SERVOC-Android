@@ -19,10 +19,10 @@ public final class VideoEffectShader {
             "vec3 c=texture2D(uTexture,uv).rgb;float y=dot(c,vec3(.2126,.7152,.0722));"+
             "if(uEnhancement==1){float q=sat(pow(y,.56)*1.28);c=vec3(.05*q,q,.13*q);}"+
             "else if(uEnhancement==2){c=thermal(y);}"+
-            "else if(uEnhancement==3){c=clamp(pow(c,vec3(.58))*1.12,0.0,1.0);}"+
-            "else if(uEnhancement==4){c=clamp(pow(c,vec3(.86))*1.18+.025,0.0,1.0);}"+
+            "else if(uEnhancement==3){c=clamp(pow(c,vec3(.58))*1.12,vec3(0.0),vec3(1.0));}"+
+            "else if(uEnhancement==4){c=clamp(pow(c,vec3(.86))*1.18+vec3(.025),vec3(0.0),vec3(1.0));}"+
             "else if(uEnhancement==5){c*=.58;}"+
-            "else if(uEnhancement==6){c=clamp(c*uAutoGain,0.0,1.0);}"+
-            "else if(uEnhancement==7){vec3 n=texture2D(uTexture,uv+vec2(0.0,-uTexel.y)).rgb;vec3 s=texture2D(uTexture,uv+vec2(0.0,uTexel.y)).rgb;vec3 e=texture2D(uTexture,uv+vec2(uTexel.x,0.0)).rgb;vec3 w=texture2D(uTexture,uv+vec2(-uTexel.x,0.0)).rgb;c=clamp(c*1.60-(n+s+e+w)*.15,0.0,1.0);}"+
+            "else if(uEnhancement==6){c=clamp(c*uAutoGain,vec3(0.0),vec3(1.0));}"+
+            "else if(uEnhancement==7){vec3 n=texture2D(uTexture,uv+vec2(0.0,-uTexel.y)).rgb;vec3 s=texture2D(uTexture,uv+vec2(0.0,uTexel.y)).rgb;vec3 e=texture2D(uTexture,uv+vec2(uTexel.x,0.0)).rgb;vec3 w=texture2D(uTexture,uv+vec2(-uTexel.x,0.0)).rgb;c=clamp(c*1.60-(n+s+e+w)*.15,vec3(0.0),vec3(1.0));}"+
             "gl_FragColor=vec4(c,1.0);}";
 }
