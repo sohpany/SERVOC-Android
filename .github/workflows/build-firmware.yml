@@ -1,21 +1,49 @@
-name: HazRob Firmware Release Hold
+name: Build HazRob Firmware — Internal Validation
 
-# P2-P12 development guard.
-# Main/CAM release binaries and ZIP packages are deliberately disabled while the
-# deferred 0.10.2 / HR069 package is under development. P13 must explicitly restore
-# artifact production from the final qualified source SHA.
+# Development policy for P2-P12:
+# compile Main/CAM firmware internally for correctness, but do not package or upload user-delivery artifacts.
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'release/hazrob-0.10.2'
+    paths:
+      - 'firmware/**'
+      - 'tools/audit_0101_firmware_baseline.py'
+      - '.github/workflows/build-firmware.yml'
 
 permissions:
   contents: read
 
 jobs:
-  release-hold:
+  compile-firmware-internal:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
-      - name: Confirm deferred release hold
+      - uses: actions/checkout@v4
+
+      - name: Validate firmware baseline contract
+        run: python3 tools/audit_0101_firmware_baseline.py
+
+      - uses: arduino/setup-arduino-cli@v2
+
+      - name: Install pinned ESP32 core 3.3.11
         run: |
-          echo "HazRob 0.10.2 / HR069 firmware artifact production is locked during P2-P12."
-          echo "No Main/CAM binary or firmware ZIP is packaged or uploaded by this workflow."
-          echo "Artifact production may be restored only after P12 completion and explicit P13 unlock."
+          set -euo pipefail
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.11
+
+      - name: Compile Main ESP32 HR069 internally
+        run: arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all firmware/HazRob
+
+      - name: Compile ESP32-CAM HR069 internally
+        run: arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all firmware/HazRob-CAM
+
+      - name: Confirm no delivery package is produced
+        run: |
+          echo "Main/CAM compile validation completed."
+          echo "No firmware ZIP or uploaded release artifact is produced before P13."
+
+# Intentionally absent during P2-P12: packaging, ZIP creation, upload-artifact, release publication.
