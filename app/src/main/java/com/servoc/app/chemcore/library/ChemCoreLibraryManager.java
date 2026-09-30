@@ -10,7 +10,6 @@ import org.json.JSONObject;
 
 import java.io.File;
 import java.net.URL;
-import java.security.PublicKey;
 
 /** High-level controller for discovery, verification, installation and rollback of ChemCore knowledge snapshots. */
 public final class ChemCoreLibraryManager {
@@ -27,11 +26,10 @@ public final class ChemCoreLibraryManager {
         public final String evidenceRevision;
         public final String sourceLabel;
         public final ChemCoreEmbeddedFallback.Info embedded;
-        public final boolean publicationKeyProvisioned;
 
         Status(boolean remoteSnapshotActive, String version, String sha256, String sourceCommit,
                String dataRevision, String evidenceRevision, String sourceLabel,
-               ChemCoreEmbeddedFallback.Info embedded, boolean publicationKeyProvisioned) {
+               ChemCoreEmbeddedFallback.Info embedded) {
             this.remoteSnapshotActive = remoteSnapshotActive;
             this.version = version == null ? "" : version;
             this.sha256 = sha256 == null ? "" : sha256;
@@ -40,7 +38,6 @@ public final class ChemCoreLibraryManager {
             this.evidenceRevision = evidenceRevision == null ? "" : evidenceRevision;
             this.sourceLabel = sourceLabel == null ? "" : sourceLabel;
             this.embedded = embedded;
-            this.publicationKeyProvisioned = publicationKeyProvisioned;
         }
     }
 
@@ -83,17 +80,14 @@ public final class ChemCoreLibraryManager {
                 remote ? store.activeDataRevision() : "embedded/apk",
                 remote ? store.activeEvidenceRevision() : "embedded/apk",
                 remote ? "verified remote ChemCore snapshot" : embedded.label,
-                embedded,
-                ChemCorePublicationKeyProvider.isProvisioned(context));
+                embedded);
     }
 
-    /** Effective Stable manifest URL: developer override when present, otherwise the build-pinned public endpoint. */
     public String manifestUrl() {
         String override = manifestUrlOverride();
         return override.isEmpty() ? BuildConfig.CHEMCORE_LIBRARY_MANIFEST_URL : override;
     }
 
-    /** Returns only the developer override, not the build-pinned default. */
     public String manifestUrlOverride() {
         String value = prefs.getString(PREF_MANIFEST_URL, "");
         return value == null ? "" : value.trim();
@@ -101,7 +95,6 @@ public final class ChemCoreLibraryManager {
 
     public boolean usingDeveloperManifestOverride() { return !manifestUrlOverride().isEmpty(); }
 
-    /** Developer-only override; empty restores the build-pinned Stable endpoint. */
     public void setManifestUrl(String raw) {
         String value = raw == null ? "" : raw.trim();
         if (!value.isEmpty()) {
@@ -118,35 +111,31 @@ public final class ChemCoreLibraryManager {
     public CheckSummary check(String appVersion) throws Exception {
         String raw = manifestUrl();
         if (raw == null || raw.trim().isEmpty()) throw new IllegalStateException("ChemCore update source is not configured");
-        PublicKey key = ChemCorePublicationKeyProvider.load(context);
-        if (key == null) throw new IllegalStateException("Stable publication key is not provisioned in this APK");
         ChemCoreLibraryUpdateClient.CheckResult remote = client.check(new URL(raw.trim()));
         ChemCoreLibraryManifest m = remote.manifest;
-        ChemCoreLibraryVerifier.VerificationResult authenticated =
-                ChemCoreLibraryVerifier.verifyManifestOnly(m, appVersion, REQUIRED_SAMPLING_PROFILE, key);
-        if (!authenticated.accepted) throw new SecurityException(authenticated.reason);
+        ChemCoreLibraryVerifier.VerificationResult validated =
+                ChemCoreLibraryVerifier.verifyManifestOnly(m, appVersion, REQUIRED_SAMPLING_PROFILE);
+        if (!validated.accepted) throw new IllegalStateException(validated.reason);
 
         String installed = store.activeVersion();
         boolean newer = installed == null || installed.isEmpty();
         if (!newer) newer = ChemCoreLibraryVersion.parse(m.libraryVersion).compareTo(ChemCoreLibraryVersion.parse(installed)) > 0;
-        String message = newer ? "new authenticated compatible stable library available" : "installed library is current or newer";
+        String message = newer ? "new compatible stable library available" : "installed library is current or newer";
         return new CheckSummary(remote, newer, installed, message);
     }
 
     public ChemCoreLibraryStore.InstallResult install(CheckSummary checked, String appVersion, boolean measurementActive) throws Exception {
         if (checked == null || checked.remote == null) throw new IllegalArgumentException("checked update required");
         if (!checked.updateAvailable) return new ChemCoreLibraryStore.InstallResult(false, "no newer compatible library", store.activeVersion());
-        PublicKey key = ChemCorePublicationKeyProvider.load(context);
-        if (key == null) return new ChemCoreLibraryStore.InstallResult(false, "stable publication key not provisioned", store.activeVersion());
-        ChemCoreLibraryVerifier.VerificationResult authenticated =
-                ChemCoreLibraryVerifier.verifyManifestOnly(checked.remote.manifest, appVersion, REQUIRED_SAMPLING_PROFILE, key);
-        if (!authenticated.accepted) return new ChemCoreLibraryStore.InstallResult(false, authenticated.reason, store.activeVersion());
+        ChemCoreLibraryVerifier.VerificationResult validated =
+                ChemCoreLibraryVerifier.verifyManifestOnly(checked.remote.manifest, appVersion, REQUIRED_SAMPLING_PROFILE);
+        if (!validated.accepted) return new ChemCoreLibraryStore.InstallResult(false, validated.reason, store.activeVersion());
 
         File staging = new File(context.getCacheDir(), "chemcore-library-download");
         if (!staging.exists() && !staging.mkdirs()) throw new IllegalStateException("cannot create ChemCore download staging directory");
         File downloaded = client.downloadPayload(checked.remote, staging);
         try {
-            return store.installVerifiedSnapshot(checked.remote.manifest, downloaded, appVersion, key, measurementActive, false);
+            return store.installVerifiedSnapshot(checked.remote.manifest, downloaded, appVersion, measurementActive, false);
         } finally {
             //noinspection ResultOfMethodCallIgnored
             downloaded.delete();
@@ -154,11 +143,8 @@ public final class ChemCoreLibraryManager {
     }
 
     public File activePayload() { return store.activePayload(); }
-
     public ChemCoreLibraryStore.InstallResult rollback(boolean measurementActive, String appVersion) {
-        PublicKey key = ChemCorePublicationKeyProvider.load(context);
-        if (key == null) return new ChemCoreLibraryStore.InstallResult(false, "stable publication key not provisioned", store.activeVersion());
-        return store.rollbackToPrevious(measurementActive, appVersion, key);
+        return store.rollbackToPrevious(measurementActive, appVersion);
     }
 
     /** Fail closed for both firmware numeric states and Android/ChemCore named states. */
@@ -169,7 +155,7 @@ public final class ChemCoreLibraryManager {
         Object raw = m.opt("state");
         if (raw instanceof Number) {
             int s=((Number)raw).intValue();
-            if (s==1 || s==2) return true; // firmware WARM / MEASURE
+            if (s==1 || s==2) return true;
         }
         String state=String.valueOf(raw==null?"":raw).trim().toLowerCase();
         return "warm".equals(state)||"warmup".equals(state)||"measure".equals(state)||"measuring".equals(state)
