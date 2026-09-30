@@ -21,7 +21,7 @@ public final class FieldSessionsTab {
     private final ScrollView scroll;
     private final LinearLayout sites,sessions;
     private final TextView state,selectedSiteSummary;
-    private final Button siteReport;
+    private final Button siteReportPdf,siteReportXlsx;
     private String selectedSiteId="";
 
     public FieldSessionsTab(Context c,HazRobHost host){
@@ -41,7 +41,10 @@ public final class FieldSessionsTab {
         root.addView(UiKit.title(c,"مكتبة المواقع والجلسات"),UiKit.full(c));
         sites=UiKit.vbox(c);root.addView(sites,UiKit.full(c));
         selectedSiteSummary=UiKit.text(c,"اختر موقعًا");selectedSiteSummary.setBackgroundColor(0xFF151A20);root.addView(selectedSiteSummary,UiKit.full(c));
-        siteReport=UiKit.button(c,"تقرير الموقع PDF");siteReport.setEnabled(false);siteReport.setOnClickListener(v->{if(selectedSiteId.isEmpty()){host.showToast("اختر موقعًا أولًا");return;}SiteSummaryExportActivity.start(c,selectedSiteId);});root.addView(siteReport,UiKit.full(c));
+        LinearLayout siteExports=UiKit.hbox(c);
+        siteReportPdf=UiKit.button(c,"تقرير الموقع PDF");siteReportPdf.setEnabled(false);siteReportPdf.setOnClickListener(v->{if(selectedSiteId.isEmpty()){host.showToast("اختر موقعًا أولًا");return;}SiteSummaryExportActivity.start(c,selectedSiteId,"pdf");});siteExports.addView(siteReportPdf,UiKit.weight(1));
+        siteReportXlsx=UiKit.button(c,"Excel ذكي للموقع");siteReportXlsx.setEnabled(false);siteReportXlsx.setOnClickListener(v->{if(selectedSiteId.isEmpty()){host.showToast("اختر موقعًا أولًا");return;}SiteSummaryExportActivity.start(c,selectedSiteId,"xlsx");});siteExports.addView(siteReportXlsx,UiKit.weight(1));
+        root.addView(siteExports,UiKit.full(c));
         sessions=UiKit.vbox(c);root.addView(sessions,UiKit.full(c));
     }
 
@@ -52,13 +55,13 @@ public final class FieldSessionsTab {
         state.setText((host.userLibraryAttached()?"المكتبة الدائمة: مرتبطة":"المكتبة الدائمة: غير مرتبطة")+"\n"+(active==null?"لا توجد جلسة ميدانية نشطة":"جلسة نشطة: "+active.name+" • القياسات الجديدة ستُربط بهذه الجلسة"));
         state.setTextColor(active==null?0xFFFFB74D:0xFF81C784);
         sites.removeAllViews();List<FieldSessionRepository.Site> ss=repo.sites();
-        if(ss.isEmpty()){selectedSiteId="";siteReport.setEnabled(false);selectedSiteSummary.setText("لا توجد مواقع محفوظة.");sites.addView(UiKit.small(sites.getContext(),"لا توجد مواقع محفوظة."),UiKit.full(sites.getContext()));sessions.removeAllViews();return;}
+        if(ss.isEmpty()){selectedSiteId="";siteReportPdf.setEnabled(false);siteReportXlsx.setEnabled(false);selectedSiteSummary.setText("لا توجد مواقع محفوظة.");sites.addView(UiKit.small(sites.getContext(),"لا توجد مواقع محفوظة."),UiKit.full(sites.getContext()));sessions.removeAllViews();return;}
         boolean exists=false;for(FieldSessionRepository.Site s:ss)if(s.id.equals(selectedSiteId))exists=true;if(!exists)selectedSiteId=ss.get(0).id;
         FieldSessionRepository.Site selected=null;
         for(FieldSessionRepository.Site s:ss){if(s.id.equals(selectedSiteId))selected=s;Button b=UiKit.button(sites.getContext(),(s.id.equals(selectedSiteId)?"● ":"")+s.name);b.setOnClickListener(v->{selectedSiteId=s.id;refresh();});sites.addView(b,UiKit.full(sites.getContext()));}
-        List<FieldSessionRepository.FieldSession> children=repo.sessionsForSite(selectedSiteId);int measurementCount=0;for(FieldSessionRepository.FieldSession q:children)measurementCount+=repo.measurementSessionIds(q.id).size();selectedSiteSummary.setText("الموقع: "+(selected==null?selectedSiteId:selected.name)+"\nالجلسات: "+children.size()+" • القياسات الفنية: "+measurementCount+"\nتقرير الموقع يلخص كل الجلسات التابعة له دون دمج PPM بين الجلسات.");siteReport.setEnabled(true);
+        List<FieldSessionRepository.FieldSession> children=repo.sessionsForSite(selectedSiteId);int measurementCount=0;for(FieldSessionRepository.FieldSession q:children)measurementCount+=repo.measurementSessionIds(q.id).size();selectedSiteSummary.setText("الموقع: "+(selected==null?selectedSiteId:selected.name)+"\nالجلسات: "+children.size()+" • القياسات الفنية: "+measurementCount+"\nتقارير الموقع تلخص الجلسات التابعة له دون دمج PPM بين الجلسات.");siteReportPdf.setEnabled(true);siteReportXlsx.setEnabled(true);
         sessions.removeAllViews();if(children.isEmpty()){sessions.addView(UiKit.small(sessions.getContext(),"لا توجد جلسات تحت هذا الموقع."),UiKit.full(sessions.getContext()));return;}
-        for(FieldSessionRepository.FieldSession q:children){String status=q.active()?"نشطة":"منتهية";LinearLayout card=UiKit.card(sessions.getContext());TextView t=UiKit.text(sessions.getContext(),q.name+" • "+status+"\n"+q.startedTs+" • القياسات: "+repo.measurementSessionIds(q.id).size());t.setBackgroundColor(0xFF151A20);card.addView(t,UiKit.full(sessions.getContext()));LinearLayout ex=UiKit.hbox(sessions.getContext());Button p=UiKit.button(sessions.getContext(),"تقرير الجلسة PDF • 4–5 صفحات أفقية");p.setOnClickListener(v->host.requestFieldSessionExport("pdf",q.id));ex.addView(p,UiKit.weight(1.35f));Button x=UiKit.button(sessions.getContext(),"بيانات Excel");x.setOnClickListener(v->host.requestFieldSessionExport("xlsx",q.id));ex.addView(x,UiKit.weight(.65f));card.addView(ex,UiKit.full(sessions.getContext()));sessions.addView(card,UiKit.full(sessions.getContext()));}
+        for(FieldSessionRepository.FieldSession q:children){String status=q.active()?"نشطة":"منتهية";LinearLayout card=UiKit.card(sessions.getContext());TextView t=UiKit.text(sessions.getContext(),q.name+" • "+status+"\n"+q.startedTs+" • القياسات: "+repo.measurementSessionIds(q.id).size());t.setBackgroundColor(0xFF151A20);card.addView(t,UiKit.full(sessions.getContext()));LinearLayout ex=UiKit.hbox(sessions.getContext());Button p=UiKit.button(sessions.getContext(),"تقرير الجلسة PDF • 4–5 صفحات أفقية");p.setOnClickListener(v->host.requestFieldSessionExport("pdf",q.id));ex.addView(p,UiKit.weight(1.35f));Button x=UiKit.button(sessions.getContext(),"Excel ذكي للجلسة");x.setOnClickListener(v->host.requestFieldSessionExport("xlsx",q.id));ex.addView(x,UiKit.weight(.65f));card.addView(ex,UiKit.full(sessions.getContext()));sessions.addView(card,UiKit.full(sessions.getContext()));}
     }
 
     private interface NameResult{void accept(String name);}
