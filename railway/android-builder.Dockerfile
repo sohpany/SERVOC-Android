@@ -55,7 +55,8 @@ RUN python3 tools/audit_0101_integration_contract.py && \
     python3 tools/audit_0106_confidence_fusion.py && \
     python3 tools/audit_0107_open_set_decision_gate.py && \
     python3 tools/audit_0107_live_sensing.py && \
-    python3 tools/audit_0108_tracking_direction.py
+    python3 tools/audit_0108_tracking_direction.py && \
+    python3 tools/audit_0109_deep_session.py
 
 # Compile both firmware targets internally. Outputs remain ephemeral in this build stage.
 RUN python3 tools/audit_0101_firmware_baseline.py && \
