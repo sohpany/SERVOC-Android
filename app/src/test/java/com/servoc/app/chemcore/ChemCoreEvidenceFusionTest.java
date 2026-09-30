@@ -67,7 +67,8 @@ public class ChemCoreEvidenceFusionTest {
     @Test public void acceptedFingerprintProducesStructuredConfidenceButNeverReportablePpm(){
         ChemicalFingerprint ethanol=template(103,"|300ppm|");assertNotNull(ethanol);Map<String,Double> ratios=ratios(ethanol);
         ChemCoreResultEnvelope base=new ChemCoreResultEnvelope("T",ChemCoreDecision.Outcome.SCREENING,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,0.2,Double.NaN,"profile","features","base","screening",Collections.emptyList());
-        ChemCoreResultEnvelope fused=AcceptedFingerprintIdentityEngine.fuse(base,ratios);
+        ChemCoreOpenSetGate.Result accepted=new ChemCoreOpenSetGate.Result(true,0.5,1.0,1.0,"inside trained feature domain");
+        ChemCoreResultEnvelope fused=AcceptedFingerprintIdentityEngine.fuse(base,ratios,accepted);
         assertEquals(ChemCoreDecision.Outcome.IDENTIFIED,fused.outcome);assertTrue(Double.isFinite(fused.analyticalConfidencePct));assertTrue(fused.analyticalConfidencePct>=48.0);assertFalse(Double.isFinite(fused.ppm));assertFalse(fused.toJson().optBoolean("ppm_reportable",true));assertTrue(fused.confidenceEvidenceGroups>=1);assertTrue(fused.confidenceSensorBreadth>=2);
     }
 
