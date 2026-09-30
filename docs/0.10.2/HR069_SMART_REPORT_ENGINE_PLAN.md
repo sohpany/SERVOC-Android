@@ -23,13 +23,14 @@ Replace fixed report templates with an evidence-driven reporting engine that pla
 6. Do not merge independent measurement-session time series into an artificial session curve.
 7. Every visual must have a source and a reason for inclusion. Missing evidence removes or substitutes a visual; it does not generate synthetic data.
 8. A site report compares independent field sessions and recurring patterns; it does not average incompatible PPM results.
+9. The user-facing **Tracking** function is operational only and is excluded from all PDF/site reports. Reports may retain only the minimum scientific provenance required to identify the model/library/method and the measurement session that produced the analytical decision.
 
 ## Report architecture
 
 ### Field-session report — A4 landscape, 4–5 pages
 
 **Page 1 — Executive analytical decision**
-- Site/session identity and measurement lineage.
+- Site/session identity and measurement basis.
 - Report mode: Signal / Screening / Identified / Quantified / Open-set-Mixture.
 - Top chemical result, analytical confidence, posterior/ranking weight, separation margin, OOD and entropy.
 - Measurement-quality and evidence gates.
@@ -51,9 +52,10 @@ Replace fixed report templates with an evidence-driven reporting engine that pla
 - Non-quantified sessions: open-set/OOD, ambiguity, entropy/separation, measurement-quality limitations and environmental context.
 - No false compliance conclusion.
 
-**Page 5 — Traceability and scientific provenance (conditional)**
-- Included when ChemCore evidence/provenance, multiple child measurement sessions, or significant warnings warrant it.
-- Exact measurement-session IDs, model/library/version/hash, feature/sampling contract, evidence tier, calibration state and report-plan rationale.
+**Page 5 — Methodology and scientific provenance (conditional)**
+- Included only when analytical provenance, multiple technical measurement sessions, or significant methodological warnings justify a fifth page.
+- Shows the minimum scientific provenance required for auditability: primary measurement-session ID, model/library/version/hash, feature/sampling contract, evidence tier, calibration state and report-plan rationale.
+- **No Tracking state, Tracking history, tracked-candidate timeline or Tracking controls are included.**
 
 ### Site report
 
@@ -64,6 +66,7 @@ Replace fixed report templates with an evidence-driven reporting engine that pla
 - 144-material recurrence/reliability summary: number of sessions with candidate support, accepted identities, and maximum/median support index where available.
 - Trend visualizations only for comparable metrics; no pooled concentration calculation across heterogeneous sessions.
 - Critical-session and repeated-evidence prioritization.
+- No operational Tracking content.
 
 ## Intelligent planning inputs
 
@@ -81,15 +84,17 @@ The planner must inspect:
 - number of child measurement sessions;
 - library/model/sampling/feature provenance.
 
+Operational Tracking state is explicitly **not** an input to report content.
+
 ## Implementation phases
 
 | Phase | Deliverable | State |
 |---|---|---|
-| RPT-01 | Extend 144 panel with session-specific evidence/reliability semantics | ACTIVE |
-| RPT-02 | Upgrade `ReportIntelligence` to a report planner | PENDING |
-| RPT-03 | Add advanced report visuals: 144 reliability matrix, evidence breadth, uncertainty/decision quality | PENDING |
-| RPT-04 | Rebuild field-session PDF around the intelligent plan | PENDING |
-| RPT-05 | Rebuild site summary around recurrence and cross-session evidence | PENDING |
+| RPT-01 | Extend 144 panel with session-specific evidence/reliability semantics | **DONE — SOURCE** |
+| RPT-02 | Upgrade `ReportIntelligence` to a report planner | **DONE — SOURCE** |
+| RPT-03 | Add advanced report visuals: 144 reliability matrix, evidence breadth, uncertainty/decision quality | **DONE — SOURCE** |
+| RPT-04 | Rebuild field-session PDF around the intelligent plan | **ACTIVE — remove operational Tracking from report presentation** |
+| RPT-05 | Rebuild site summary around recurrence and cross-session evidence | **ACTIVE** |
 | RPT-06 | Add source-contract tests and final documentation | PENDING |
 
 ## Build hold
