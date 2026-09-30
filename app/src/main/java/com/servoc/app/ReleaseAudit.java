@@ -42,7 +42,7 @@ public final class ReleaseAudit {
     public static final boolean GAS_TRACKING_ARROW_ONLY=true;
     public static final boolean GAS_TRACKING_AUTONOMOUS_DRIVE=false;
     public static final boolean GAS_TRACKING_ABSOLUTE_LOCALIZATION=false;
-    public static final boolean GAS_TRACKING_RELAY_RECOMMENDATION=true;
+    public static final boolean GAS_TRACKING_RELAY_RECOMMENDATION=false;
     public static final boolean REFERENCE_BANK_EXPORT=true;
     public static final boolean DERIVED_REFERENCE_ARTIFACTS=true;
     public static final boolean EXACT_SESSION_REPORT_LINEAGE=true;
