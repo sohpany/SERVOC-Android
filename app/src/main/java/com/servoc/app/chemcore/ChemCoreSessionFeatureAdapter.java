@@ -11,8 +11,11 @@ import org.json.JSONObject;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /** Converts one exact persisted TelemetryRecorder session into the canonical ChemCore feature contract. */
 public final class ChemCoreSessionFeatureAdapter {
@@ -27,17 +30,26 @@ public final class ChemCoreSessionFeatureAdapter {
         public final double durationSeconds;
         public final double meanTemperatureC,meanRh,meanPressureHpa;
         public final String featurePayloadSha256;
-        /** Normalization provenance used to create the feature vector. */
+        /** Normalization provenance used to create the strict feature vector. */
         public final String r0Source,r0Campaign;
         public final int acceptedR0Samples,telemetryRatioFallbackSamples;
+        /** Support-only ratios derived from every physically interpretable measurement, including degraded rows. */
+        public final Map<String,Double> corroborativeRatios;
+        /** Mean 0..1 measurement quality weight associated with each corroborative ratio. */
+        public final Map<String,Double> corroborativeQualityWeights;
+        public final int corroborativeMeasurementCount;
 
         Extraction(String sessionId,ChemCoreFeaturePipeline.Result features,int persistedSamples,int samplesWithAnyMq,
                    double durationSeconds,double meanTemperatureC,double meanRh,double meanPressureHpa,String sha,
-                   String r0Source,String r0Campaign,int acceptedR0Samples,int telemetryRatioFallbackSamples){
+                   String r0Source,String r0Campaign,int acceptedR0Samples,int telemetryRatioFallbackSamples,
+                   Map<String,Double> corroborativeRatios,Map<String,Double> corroborativeQualityWeights,int corroborativeMeasurementCount){
             this.sessionId=sessionId;this.features=features;this.persistedSamples=persistedSamples;this.samplesWithAnyMq=samplesWithAnyMq;
             this.durationSeconds=durationSeconds;this.meanTemperatureC=meanTemperatureC;this.meanRh=meanRh;this.meanPressureHpa=meanPressureHpa;
             this.featurePayloadSha256=sha;this.r0Source=r0Source==null?"":r0Source;this.r0Campaign=r0Campaign==null?"":r0Campaign;
             this.acceptedR0Samples=Math.max(0,acceptedR0Samples);this.telemetryRatioFallbackSamples=Math.max(0,telemetryRatioFallbackSamples);
+            this.corroborativeRatios=Collections.unmodifiableMap(new LinkedHashMap<>(corroborativeRatios==null?Collections.emptyMap():corroborativeRatios));
+            this.corroborativeQualityWeights=Collections.unmodifiableMap(new LinkedHashMap<>(corroborativeQualityWeights==null?Collections.emptyMap():corroborativeQualityWeights));
+            this.corroborativeMeasurementCount=Math.max(0,corroborativeMeasurementCount);
         }
 
         public boolean usable(){return features!=null&&features.sensorCount==SENSOR_ORDER.length&&features.sampleCount>=4&&samplesWithAnyMq>=4;}
@@ -46,15 +58,20 @@ public final class ChemCoreSessionFeatureAdapter {
 
     public static Extraction extract(ExperimentsDb db,String sessionId){
         if(db==null||sessionId==null||sessionId.trim().isEmpty())throw new IllegalArgumentException("database and session required");
-        String id=sessionId.trim();List<Double> times=new ArrayList<>();List<double[]> rows=new ArrayList<>();long first=-1,last=-1;int any=0,accepted=0,fallback=0;
+        String id=sessionId.trim();List<Double> times=new ArrayList<>();List<double[]> rows=new ArrayList<>();long first=-1,last=-1;int any=0,accepted=0,fallback=0,corroborativeCount=0;
         double tSum=0,rhSum=0,pSum=0;int tn=0,rhn=0,pn=0;
+        double[] supportLogSum=new double[SENSOR_ORDER.length],supportWeightSum=new double[SENSOR_ORDER.length],supportQualitySum=new double[SENSOR_ORDER.length];int[] supportCount=new int[SENSOR_ORDER.length];
         try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms,id",new String[]{id})){
             while(c.moveToNext()){
                 long t=c.getLong(0);if(first<0)first=t;last=t;times.add(t/1000.0);
                 JSONObject env=json(c.getString(1)),mq=json(c.getString(2));double[] r=new double[SENSOR_ORDER.length];java.util.Arrays.fill(r,Double.NaN);boolean has=false;
                 for(int i=0;i<SENSOR_ORDER.length;i++){
-                    JSONObject q=mq.optJSONObject(SENSOR_ORDER[i]);double v=AcceptedR0Normalizer.ratio(SENSOR_ORDER[i],q);
-                    if(Double.isFinite(v)&&v>0){r[i]=v;has=true;if(AcceptedR0Normalizer.usesAcceptedFieldR0(SENSOR_ORDER[i],q))accepted++;else fallback++;}
+                    String key=SENSOR_ORDER[i];JSONObject q=mq.optJSONObject(key);double v=AcceptedR0Normalizer.ratio(key,q);
+                    if(Double.isFinite(v)&&v>0){r[i]=v;has=true;if(AcceptedR0Normalizer.usesAcceptedFieldR0(key,q))accepted++;else fallback++;}
+                    double available=AcceptedR0Normalizer.availableRatio(key,q),weight=AcceptedR0Normalizer.evidenceWeight(q);
+                    if(Double.isFinite(available)&&available>0&&Double.isFinite(weight)&&weight>0){
+                        supportLogSum[i]+=weight*Math.log(available);supportWeightSum[i]+=weight;supportQualitySum[i]+=weight;supportCount[i]++;corroborativeCount++;
+                    }
                 }
                 if(has)any++;rows.add(r);
                 double tv=finite(env,"temperature_c","temperature","temp_c");if(Double.isFinite(tv)){tSum+=tv;tn++;}
@@ -64,9 +81,14 @@ public final class ChemCoreSessionFeatureAdapter {
         }
         double[] t=new double[times.size()];double[][] x=new double[rows.size()][];for(int i=0;i<t.length;i++){t[i]=times.get(i);x[i]=rows.get(i);}
         ChemCoreFeaturePipeline.Result f=ChemCoreFeaturePipeline.extract(t,x);String sha=featureSha(f);
+        Map<String,Double> supportRatios=new LinkedHashMap<>(),supportWeights=new LinkedHashMap<>();
+        for(int i=0;i<SENSOR_ORDER.length;i++)if(supportWeightSum[i]>0&&supportCount[i]>0){
+            supportRatios.put(SENSOR_ORDER[i],Math.exp(supportLogSum[i]/supportWeightSum[i]));
+            supportWeights.put(SENSOR_ORDER[i],Math.max(0,Math.min(1,supportQualitySum[i]/supportCount[i])));
+        }
         return new Extraction(id,f,rows.size(),any,first>=0&&last>=first?(last-first)/1000.0:0,
                 tn>0?tSum/tn:Double.NaN,rhn>0?rhSum/rhn:Double.NaN,pn>0?pSum/pn:Double.NaN,sha,
-                AcceptedR0Normalizer.SOURCE,FieldR0Baseline.SESSION,accepted,fallback);
+                AcceptedR0Normalizer.SOURCE,FieldR0Baseline.SESSION,accepted,fallback,supportRatios,supportWeights,corroborativeCount);
     }
 
     public static String featureSha(ChemCoreFeaturePipeline.Result result){
