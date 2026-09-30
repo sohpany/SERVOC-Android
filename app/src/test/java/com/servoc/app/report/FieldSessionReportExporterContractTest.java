@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import static org.junit.Assert.*;
 
-/** Guards exact-ID binding and the evidence-driven compact field-session report contract. */
+/** Guards exact-ID binding and the evidence-driven field-session PDF/XLSX report contract. */
 public class FieldSessionReportExporterContractTest {
  @Test public void reportRootIsFieldSessionAndResolutionIsExact() throws Exception {
   String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java")),StandardCharsets.UTF_8);
@@ -14,6 +14,16 @@ public class FieldSessionReportExporterContractTest {
   assertTrue(s.contains("ExperimentQueries.bySessionId(db,sid)"));
   assertFalse(s.contains("SessionSeries.nearest"));
   assertFalse(s.contains("ORDER BY ABS"));
+ }
+
+ @Test public void siteIdentityIsVisibleThroughoutSessionReporting() throws Exception {
+  String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java")),StandardCharsets.UTF_8);
+  String x=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/SmartFieldSessionXlsxWriter.java")),StandardCharsets.UTF_8);
+  assertTrue(s.contains("{\"الموقع\",b.site.name}"));
+  assertTrue(s.contains("{\"Site ID\",b.site.id}"));
+  assertTrue(s.contains("b.site.name+\" [\"+shorten(b.site.id,18)+\"]"));
+  assertTrue(x.contains("g.header(\"Site\",\"Site ID\",\"Field Session\",\"Field Session ID\")"));
+  assertTrue(x.contains("g.row(b.site.name,b.site.id,b.fieldSession.name,b.fieldSession.id)"));
  }
 
  @Test public void pdfIsSmartCompactA4LandscapeFourToFivePages() throws Exception {
@@ -38,12 +48,21 @@ public class FieldSessionReportExporterContractTest {
 
  @Test public void trackingIsOperationalAndExcludedFromReportContent() throws Exception {
   String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java")),StandardCharsets.UTF_8);
+  String x=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/SmartFieldSessionXlsxWriter.java")),StandardCharsets.UTF_8);
   assertTrue(s.contains("وظيفة Tracking التشغيلية غير مدرجة في التقرير"));
-  assertFalse(s.contains("tracked-candidate timeline"));
+  assertTrue(x.contains("Tracking وظيفة تشغيلية وغير مدرجة في التقرير"));
  }
 
- @Test public void multiMeasurementSessionKeepsLineageAndXlsxLosslessWithoutSyntheticCurve() throws Exception {
+ @Test public void smartXlsxIsSingleDetailedWorkbookAndPreservesIndependentMeasurementSessions() throws Exception {
   String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java")),StandardCharsets.UTF_8);
-  assertTrue(s.contains("primaryMeasurementSessionId"));assertTrue(s.contains("لا تُدمج في منحنى زمني مصطنع"));assertTrue(s.contains("new ZipOutputStream(out)"));assertTrue(s.contains("putManifest(zip,b)"));assertTrue(s.contains("hazrob-field-report/3"));
+  String x=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/SmartFieldSessionXlsxWriter.java")),StandardCharsets.UTF_8);
+  assertTrue(s.contains("SmartFieldSessionXlsxWriter.write(out,db,b,chemicals)"));
+  assertFalse(s.contains("new ZipOutputStream(out)"));
+  assertTrue(x.contains("السلسلة الزمنية — لا يتم دمج الجلسات الفنية في منحنى مصطنع"));
+  assertTrue(x.contains("CandidateHazardContext.evaluate(db,cc)"));
+  assertTrue(x.contains("مصفوفة 144"));
+  assertTrue(x.contains("حدود التعرض"));
+  assertTrue(x.contains("الجودة وعدم اليقين"));
+  assertTrue(x.contains("المنهجية والمصدر"));
  }
 }
