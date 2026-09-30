@@ -17,10 +17,21 @@ public class GasPpmExposureAssessmentTest {
         return new JSONObject().put("schema","hazrob-quantitative-time-series/1").put("windows",new JSONArray().put(w));
     }
 
-    @Test public void massConcentrationLimitsAreExcludedWithoutConversion()throws Exception{
+    @Test public void massConcentrationLimitsRemainExcludedWithoutMwTemperaturePressure()throws Exception{
         JSONObject a=GasPpmExposureAssessment.evaluate(quantified(10),Arrays.asList(limit(1,"OSHA","TWA",5,"mg/m3",480.0),limit(2,"OSHA","TWA",50,"ppm",480.0)),30_000);
-        assertEquals("BELOW_AVAILABLE_PPM_REFERENCES",a.getString("state"));assertEquals(1,a.getInt("ppm_reference_count"));assertEquals(1,a.getInt("excluded_non_ppm_count"));assertEquals(0.2,a.getDouble("max_ratio_to_reference"),1e-9);
+        assertEquals("BELOW_AVAILABLE_PPM_REFERENCES",a.getString("state"));assertEquals(1,a.getInt("ppm_reference_count"));assertEquals(1,a.getInt("excluded_nonconvertible_mass_count"));assertEquals(1,a.getInt("excluded_non_ppm_count"));assertEquals(0.2,a.getDouble("max_ratio_to_reference"),1e-9);
+        assertFalse(a.getJSONObject("unit_conversion_basis").getBoolean("condition_aware_mass_conversion_available"));
         JSONArray refs=a.getJSONArray("references");assertEquals(1,refs.length());assertEquals("ppm",refs.getJSONObject(0).getString("unit"));
+    }
+
+    @Test public void massConcentrationConvertsUsingSessionConditionsAndMolarMass()throws Exception{
+        // MW=46.07 g/mol, 25 C, 1013.25 hPa: 1 mg/m3 is approximately 0.531 ppm.
+        ExposureRepository.Limit mass=limit(1,"NIOSH","TWA",10,"mg/m3",480.0);
+        JSONObject a=GasPpmExposureAssessment.evaluate(quantified(6),Collections.singletonList(mass),30_000,null,46.07,25.0,1013.25);
+        assertEquals(1,a.getInt("converted_mass_reference_count"));assertEquals(0,a.getInt("excluded_nonconvertible_mass_count"));assertEquals(1,a.getInt("ppm_reference_count"));
+        JSONObject r=a.getJSONArray("references").getJSONObject(0);double expected=10.0*8.31446261815324*(25.0+273.15)*1000.0/(101325.0*46.07);
+        assertEquals(expected,r.getDouble("value_ppm"),1e-9);assertEquals(10.0,r.getDouble("original_value"),1e-9);assertEquals("mg/m3",r.getString("original_unit"));assertTrue(r.getBoolean("converted_from_mass_concentration"));assertEquals("IDEAL_GAS_SESSION_T_P_MW",r.getString("conversion_method"));
+        JSONObject basis=a.getJSONObject("unit_conversion_basis");assertTrue(basis.getBoolean("condition_aware_mass_conversion_available"));assertEquals(46.07,basis.getDouble("molar_mass_g_mol"),1e-9);assertEquals(25.0,basis.getDouble("temperature_c"),1e-9);assertEquals(1013.25,basis.getDouble("pressure_hpa"),1e-9);
     }
 
     @Test public void m4AndReportablePpmAreMandatory()throws Exception{
@@ -69,8 +80,8 @@ public class GasPpmExposureAssessmentTest {
         assertEquals(1.2,a.getDouble("toxicity_priority_ratio"),1e-9);assertEquals(0.0003,a.getDouble("lfl_ratio"),1e-9);assertEquals(1.2,a.getDouble("hazard_priority_ratio"),1e-9);assertEquals("TOXICITY",a.getString("hazard_priority_basis"));
     }
 
-    @Test public void absenceOfPpmAndLflReferencesIsNotReportedAsSafe()throws Exception{
+    @Test public void absenceOfComparableHealthAndLflReferencesIsNotReportedAsSafe()throws Exception{
         JSONObject a=GasPpmExposureAssessment.evaluate(quantified(1),Collections.singletonList(limit(1,"OSHA","TWA",1,"mg/m3",480.0)),30_000);
-        assertEquals("NO_PPM_REFERENCES",a.getString("state"));assertEquals("NO_LFL_REFERENCE",a.getString("flammability_state"));assertEquals(0,a.getInt("ppm_reference_count"));assertEquals(1,a.getInt("excluded_non_ppm_count"));assertTrue(a.isNull("hazard_priority_ratio"));
+        assertEquals("NO_COMPARABLE_HEALTH_REFERENCES",a.getString("state"));assertEquals("NO_LFL_REFERENCE",a.getString("flammability_state"));assertEquals(0,a.getInt("ppm_reference_count"));assertEquals(1,a.getInt("excluded_nonconvertible_mass_count"));assertEquals(1,a.getInt("excluded_non_ppm_count"));assertTrue(a.isNull("hazard_priority_ratio"));
     }
 }
