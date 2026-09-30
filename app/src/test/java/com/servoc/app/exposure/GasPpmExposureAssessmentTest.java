@@ -12,6 +12,10 @@ import static org.junit.Assert.*;
 public class GasPpmExposureAssessmentTest {
     private static JSONObject quantified(double ppm)throws Exception{return new JSONObject().put("outcome","QUANTIFIED").put("evidence_tier","M4_HAZROB_VALIDATED").put("chemical_uid",77).put("chemical","Test gas").put("ppm",ppm).put("ppm_reportable",true).put("quantitative_occupational_interpretation_permitted",true);}
     private static ExposureRepository.Limit limit(long id,String authority,String type,double value,String unit,Double duration){return new ExposureRepository.Limit(id,77,authority,"US",type,value,unit,duration,"","SRC","R1");}
+    private static JSONObject temporal(String role,double durationMin,double coveredMin,double avgPpm)throws Exception{
+        JSONObject w=new JSONObject();w.put("role",role);w.put("duration_min",durationMin);w.put("covered_minutes",coveredMin);w.put("average_ppm",avgPpm);w.put("valid",true);
+        return new JSONObject().put("schema","hazrob-quantitative-time-series/1").put("windows",new JSONArray().put(w));
+    }
 
     @Test public void massConcentrationLimitsAreExcludedWithoutConversion()throws Exception{
         JSONObject a=GasPpmExposureAssessment.evaluate(quantified(10),Arrays.asList(limit(1,"OSHA","TWA",5,"mg/m3",480.0),limit(2,"OSHA","TWA",50,"ppm",480.0)),30_000);
@@ -27,18 +31,37 @@ public class GasPpmExposureAssessmentTest {
     @Test public void idlhCrossingHasPriorityButNeverClaimsCompliance()throws Exception{
         JSONObject a=GasPpmExposureAssessment.evaluate(quantified(60),Arrays.asList(limit(1,"NIOSH","IDLH",50,"ppm",30.0),limit(2,"OSHA","TWA",10,"ppm",480.0)),30_000);
         assertEquals("IDLH_REFERENCE_CROSSED",a.getString("state"));assertEquals(2,a.getInt("crossed_reference_count"));assertEquals(1,a.getInt("action_relevant_crossed_count"));assertEquals("NOT_MADE",a.getString("compliance_determination"));assertTrue(a.getBoolean("toxic_reference_crossed"));assertTrue(a.getString("hazard_symbols").contains("☠"));
-        assertFalse(a.getJSONArray("references").getJSONObject(1).getBoolean("duration_coverage_satisfied"));
+        JSONObject twa=a.getJSONArray("references").getJSONObject(1);assertTrue(twa.getBoolean("current_concentration_crossed"));assertFalse(twa.getBoolean("temporal_average_evaluated"));assertFalse(twa.getBoolean("action_relevant_reference_crossed"));
     }
 
-    @Test public void shortCaptureCrossingStelShowsToxicContextButNotCompliance()throws Exception{
+    @Test public void oneMinuteAboveTwaIsImmediateCurrentWarningNotEightHourClaim()throws Exception{
+        JSONObject a=GasPpmExposureAssessment.evaluate(quantified(50),Collections.singletonList(limit(1,"NIOSH","TWA",25,"ppm",480.0)),60_000);
+        assertEquals("CURRENT_CONCENTRATION_ABOVE_REFERENCE",a.getString("state"));assertEquals(1,a.getInt("crossed_reference_count"));assertEquals(0,a.getInt("action_relevant_crossed_count"));
+        JSONObject r=a.getJSONArray("references").getJSONObject(0);assertEquals(200.0,r.getDouble("percent_of_reference"),1e-9);assertTrue(r.getBoolean("current_concentration_crossed"));assertFalse(r.getBoolean("temporal_average_evaluated"));assertFalse(r.getBoolean("time_integrated_reference_crossed"));assertEquals("current_concentration_reference_warning_temporal_average_not_evaluated",r.getString("compliance_interpretation"));
+        assertTrue(a.getBoolean("health_reference_context_warning"));assertEquals("NOT_MADE",a.getString("compliance_determination"));
+    }
+
+    @Test public void shortCaptureCrossingStelShowsCurrentWarningButNotTemporalExceedance()throws Exception{
         JSONObject a=GasPpmExposureAssessment.evaluate(quantified(20),Collections.singletonList(limit(1,"NIOSH","STEL",10,"ppm",15.0)),30_000);
-        assertEquals("REFERENCE_CONTEXT_CROSSED",a.getString("state"));assertEquals(1,a.getInt("crossed_reference_count"));assertEquals(0,a.getInt("action_relevant_crossed_count"));assertFalse(a.getJSONArray("references").getJSONObject(0).getBoolean("duration_coverage_satisfied"));assertTrue(a.getBoolean("toxic_reference_crossed"));assertTrue(a.getBoolean("health_reference_context_warning"));assertTrue(a.getString("hazard_symbols").contains("☠"));assertEquals("NOT_MADE",a.getString("compliance_determination"));
+        assertEquals("CURRENT_CONCENTRATION_ABOVE_REFERENCE",a.getString("state"));assertEquals(1,a.getInt("crossed_reference_count"));assertEquals(0,a.getInt("action_relevant_crossed_count"));
+        JSONObject r=a.getJSONArray("references").getJSONObject(0);assertFalse(r.getBoolean("duration_coverage_satisfied"));assertFalse(r.getBoolean("temporal_average_evaluated"));assertTrue(a.getBoolean("toxic_reference_crossed"));assertTrue(a.getBoolean("health_reference_context_warning"));assertTrue(a.getString("hazard_symbols").contains("☠"));assertEquals("NOT_MADE",a.getString("compliance_determination"));
     }
 
-    @Test public void lflUsesVolPercentToPpmAndFlameOnlyAtFullLfl()throws Exception{
+    @Test public void fullStelWindowUsesTimeIntegratedAverage()throws Exception{
+        JSONObject a=GasPpmExposureAssessment.evaluate(quantified(14),Collections.singletonList(limit(1,"NIOSH","STEL",10,"ppm",15.0)),15*60_000L,temporal("STEL",15,15,12));
+        assertEquals("TIME_INTEGRATED_REFERENCE_CROSSED",a.getString("state"));assertEquals(1,a.getInt("action_relevant_crossed_count"));
+        JSONObject r=a.getJSONArray("references").getJSONObject(0);assertTrue(r.getBoolean("temporal_average_evaluated"));assertTrue(r.getBoolean("duration_coverage_satisfied"));assertEquals(12.0,r.getDouble("time_integrated_average_ppm"),1e-9);assertTrue(r.getBoolean("time_integrated_reference_crossed"));
+    }
+
+    @Test public void durationAloneNeverCreatesStelOrTwaExceedance()throws Exception{
+        JSONObject a=GasPpmExposureAssessment.evaluate(quantified(20),Collections.singletonList(limit(1,"NIOSH","STEL",10,"ppm",15.0)),20*60_000L);
+        JSONObject r=a.getJSONArray("references").getJSONObject(0);assertFalse(r.getBoolean("temporal_average_evaluated"));assertFalse(r.getBoolean("time_integrated_reference_crossed"));assertFalse(r.getBoolean("action_relevant_reference_crossed"));
+    }
+
+    @Test public void lflUsesVolPercentToPpmAndReportsMarginAndFlameAtFullLfl()throws Exception{
         ExposureRepository.Limit lfl=limit(3,"NIOSH","LFL",1.2,"%vol",null);
-        JSONObject below=GasPpmExposureAssessment.evaluate(quantified(6000),Collections.singletonList(lfl),30_000);assertEquals(50.0,below.getDouble("percent_lfl"),1e-9);assertFalse(below.getBoolean("flammability_lfl_reached"));assertFalse(below.getString("hazard_symbols").contains("🔥"));assertEquals("BELOW_LFL",below.getString("flammability_state"));
-        JSONObject at=GasPpmExposureAssessment.evaluate(quantified(12000),Collections.singletonList(lfl),30_000);assertEquals(100.0,at.getDouble("percent_lfl"),1e-9);assertTrue(at.getBoolean("flammability_lfl_reached"));assertTrue(at.getString("hazard_symbols").contains("🔥"));assertEquals("LFL_REACHED_OR_EXCEEDED",at.getString("flammability_state"));
+        JSONObject below=GasPpmExposureAssessment.evaluate(quantified(6000),Collections.singletonList(lfl),30_000);assertEquals(50.0,below.getDouble("percent_lfl"),1e-9);assertEquals(6000.0,below.getDouble("lfl_margin_ppm"),1e-9);assertFalse(below.getBoolean("flammability_lfl_reached"));assertFalse(below.getString("hazard_symbols").contains("🔥"));assertEquals("BELOW_LFL",below.getString("flammability_state"));assertEquals("MEASURED_PPM_BELOW_LOWER_FLAMMABILITY_LIMIT",below.getString("flammability_interpretation"));
+        JSONObject at=GasPpmExposureAssessment.evaluate(quantified(12000),Collections.singletonList(lfl),30_000);assertEquals(100.0,at.getDouble("percent_lfl"),1e-9);assertEquals(0.0,at.getDouble("lfl_margin_ppm"),1e-9);assertTrue(at.getBoolean("flammability_lfl_reached"));assertTrue(at.getString("hazard_symbols").contains("🔥"));assertEquals("LFL_REACHED_OR_EXCEEDED",at.getString("flammability_state"));assertEquals("MEASURED_PPM_AT_OR_ABOVE_LOWER_FLAMMABILITY_LIMIT",at.getString("flammability_interpretation"));
     }
 
     @Test public void hazardPriorityUsesLargestRelativeHazardNotAbsolutePpm()throws Exception{
