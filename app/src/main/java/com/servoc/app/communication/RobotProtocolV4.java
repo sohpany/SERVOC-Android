@@ -22,6 +22,8 @@ public final class RobotProtocolV4 {
             out.put("mq_groups",HazRobHardwareProfile.MQ_GROUPS);
             out.put("installed_relay_mask",HazRobHardwareProfile.INSTALLED_RELAY_MASK);
             out.put("relay_channels",HazRobHardwareProfile.RELAY_CHANNELS);
+            boolean estopLatched=diag.optBoolean("estop_latched",false);
+            out.put("estop_latched",estopLatched);
 
             JSONObject dd=first(data.optJSONObject("drive"),diag.optJSONObject("drive"));
             boolean retrace=dd!=null?dd.optBoolean("retrace",false):diag.optBoolean("retrace",data.optBoolean("retrace",false));
@@ -30,11 +32,18 @@ public final class RobotProtocolV4 {
             boolean forwardHazard=dd!=null&&dd.optBoolean("forward_hazard",false);
             boolean forwardBlocked=dd!=null&&dd.optBoolean("forward_blocked",false);
             String forwardBlockReason=dd==null?"":dd.optString("forward_block_reason","");
+            int actualLeft=dd!=null&&dd.has("left")?dd.optInt("left",commandedLeft):commandedLeft;
+            int actualRight=dd!=null&&dd.has("right")?dd.optInt("right",commandedRight):commandedRight;
+            boolean staleStop=dd!=null&&dd.optBoolean("stale_stop",false);
+            long commandAgeMs=dd!=null?Math.max(0,dd.optLong("command_age_ms",0)):0;
             JSONObject drive=new JSONObject();
-            drive.put("left",commandedLeft);drive.put("right",commandedRight);drive.put("failsafe",failsafe);drive.put("retrace",retrace);
+            drive.put("left",actualLeft);drive.put("right",actualRight);drive.put("requested_left",commandedLeft);drive.put("requested_right",commandedRight);
+            drive.put("driver",dd==null?"":dd.optString("driver",""));drive.put("command_age_ms",commandAgeMs);drive.put("stale_stop",staleStop);
+            drive.put("failsafe",failsafe);drive.put("retrace",retrace);
             drive.put("safety_auto_stop",safetyAutoStop);drive.put("forward_hazard",forwardHazard);drive.put("forward_blocked",forwardBlocked);drive.put("forward_block_reason",forwardBlockReason);
             if(dd!=null&&dd.has("history"))drive.put("history",dd.optInt("history",0));
             out.put("drive",drive);out.put("retrace",retrace);
+            JSONObject safety=new JSONObject();safety.put("estop_latched",estopLatched);safety.put("auto_stop_enabled",safetyAutoStop);safety.put("forward_hazard",forwardHazard);safety.put("forward_blocked",forwardBlocked);safety.put("forward_block_reason",forwardBlockReason);out.put("safety",safety);
 
             JSONObject relayNorm=relay(diag,data),adcNorm=adc(diag,data),mqNorm=mq(data.optJSONObject("mq"),false);
             out.put("env",environment(diag,data.optJSONObject("env")));
