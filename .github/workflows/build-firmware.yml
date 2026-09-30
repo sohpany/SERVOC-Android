@@ -1,72 +1,21 @@
-name: Build HazRob Firmware
+name: HazRob Firmware Release Hold
+
+# P2-P12 development guard.
+# Main/CAM release binaries and ZIP packages are deliberately disabled while the
+# deferred 0.10.2 / HR069 package is under development. P13 must explicitly restore
+# artifact production from the final qualified source SHA.
 on:
   workflow_dispatch:
-  push:
-    branches: ['dev/**','fix/**','release/**',main]
-    paths:
-      - 'firmware/**'
-      - 'tools/audit_0101_firmware_baseline.py'
-      - '.github/workflows/build-firmware.yml'
 
 permissions:
   contents: read
 
 jobs:
-  compile-firmware:
+  release-hold:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate firmware baseline contract
-        run: python3 tools/audit_0101_firmware_baseline.py
-
-      - uses: arduino/setup-arduino-cli@v2
-
-      - name: Install pinned ESP32 core 3.3.11
+      - name: Confirm deferred release hold
         run: |
-          arduino-cli config init
-          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
-          arduino-cli core update-index
-          arduino-cli core install esp32:esp32@3.3.11
-
-      - name: Compile Main ESP32 HR069
-        run: |
-          mkdir -p build/main
-          arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all --output-dir build/main firmware/HazRob 2>&1 | tee build/main.log
-
-      - name: Compile ESP32-CAM HR069
-        run: |
-          mkdir -p build/camera
-          arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all --output-dir build/camera firmware/HazRob-CAM 2>&1 | tee build/camera.log
-
-      - name: Package canonical HR069 firmware
-        run: |
-          set -euo pipefail
-          OUT=HazRob-0.10.2-HR069-FIRMWARE
-          mkdir -p "$OUT/Main" "$OUT/CAM"
-          cp build/main/*.bin "$OUT/Main/"
-          cp build/camera/*.bin "$OUT/CAM/"
-          test -f firmware/FIRMWARE_BASELINE_0.10.2.md
-          cp firmware/FIRMWARE_BASELINE_0.10.2.md "$OUT/"
-          printf '%s\n' "$GITHUB_SHA" > "$OUT/SOURCE-COMMIT.txt"
-          find "$OUT" -type f -name '*.bin' -print0 | sort -z | xargs -0 sha256sum > "$OUT/SHA256SUMS.txt"
-          printf '%s\n' \
-            'HazRob 0.10.2 / HR069 canonical firmware' \
-            "Source commit: ${GITHUB_SHA}" \
-            'Erase both ESP32 flash memories before programming when replacing an unknown prior build.' \
-            'Main ESP32 must advertise HazRob at 192.168.4.1 in Direct mode.' \
-            'ESP32-CAM is STA-only at 192.168.4.2 and must never advertise ESP_*.' \
-            'IR: GPIO35 active-low ground/cliff interlock.' \
-            'Ultrasonic: TRIG GPIO23, ECHO GPIO39 through <=3.3 V level reduction; warning <=10 cm, forward stop <=5 cm.' \
-            'Remote production path: Railway bootstrap/video relay + EMQX primary MQTT; HiveMQ retained only as controlled contingency.' \
-            'Verify http://192.168.4.2/status and http://192.168.4.2:81/stream after flashing.' \
-            > "$OUT/README-FLASH.txt"
-
-      - name: Upload firmware artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: HazRob-0.10.2-HR069-FIRMWARE-${{ github.sha }}
-          path: HazRob-0.10.2-HR069-FIRMWARE/
-          if-no-files-found: error
-          retention-days: 14
+          echo "HazRob 0.10.2 / HR069 firmware artifact production is locked during P2-P12."
+          echo "No Main/CAM binary or firmware ZIP is packaged or uploaded by this workflow."
+          echo "Artifact production may be restored only after P12 completion and explicit P13 unlock."
