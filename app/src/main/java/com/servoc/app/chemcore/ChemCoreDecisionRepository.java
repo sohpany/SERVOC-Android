@@ -68,4 +68,20 @@ public final class ChemCoreDecisionRepository {
             ContentValues v=new ContentValues();v.put("payload",payload.toString());return db.getWritableDatabase().update("chemcore_decisions",v,"id=?",new String[]{String.valueOf(rowId)})==1;
         }catch(Exception ignored){return false;}
     }
+
+    /**
+     * Attaches the immutable P9 deep-session result to the existing chemical decision row.
+     * Identity, confidence and quantitative scalar columns are intentionally not recomputed here.
+     */
+    public boolean attachDeepSession(String primarySessionId,ChemCoreDeepSessionResult deep){
+        if(primarySessionId==null||primarySessionId.trim().isEmpty()||deep==null)return false;String id=primarySessionId.trim();
+        try(Cursor c=db.getReadableDatabase().rawQuery(
+                "SELECT id,payload FROM chemcore_decisions WHERE session_id=? AND payload IS NOT NULL ORDER BY t_ms DESC,id DESC LIMIT 1",
+                new String[]{id})){
+            if(!c.moveToFirst())return false;long rowId=c.getLong(0);String raw=c.getString(1);JSONObject payload=new JSONObject(raw==null?"{}":raw);
+            JSONObject deepJson=deep.toJson();payload.put("deep_session",deepJson);payload.put("session_dynamics",deep.dynamics.toJson());
+            payload.put("recovery_session_id",deep.recoverySessionId);payload.put("deep_session_finalized",true);payload.put("deep_analysis_elapsed_ms",deep.analysisElapsedMs);
+            ContentValues v=new ContentValues();v.put("payload",payload.toString());return db.getWritableDatabase().update("chemcore_decisions",v,"id=?",new String[]{String.valueOf(rowId)})==1;
+        }catch(Exception ignored){return false;}
+    }
 }
