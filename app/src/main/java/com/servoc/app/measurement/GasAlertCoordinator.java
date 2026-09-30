@@ -10,8 +10,8 @@ import org.json.JSONObject;
 public final class GasAlertCoordinator {
     public static final int NONE=0,WARNING=1,DANGER=2;
     private static final long DOWNGRADE_HOLD_MS=3000;
-    private final LiveGasStateEngine live=new LiveGasStateEngine();
-    private final ChemCoreLiveSensingEngine chemCoreLive=new ChemCoreLiveSensingEngine();
+    private LiveGasStateEngine live=new LiveGasStateEngine();
+    private ChemCoreLiveSensingEngine chemCoreLive=new ChemCoreLiveSensingEngine();
     private int state=NONE; private long downgradeSince; private double lastMaxDelta=Double.NaN;
     private LiveGasStateEngine.Snapshot lastSnapshot;
 
@@ -49,5 +49,10 @@ public final class GasAlertCoordinator {
     public ChemCoreLiveSensingEngine.Snapshot chemCoreSnapshot(){return chemCoreLive.snapshot();}
     public void refreshChemCoreCandidates(){chemCoreLive.refreshCandidates();}
     public int reset(){return clear();}
-    private int clear(){state=NONE;downgradeSince=0;lastMaxDelta=Double.NaN;lastSnapshot=null;return state;}
+    private int clear(){
+        state=NONE;downgradeSince=0;lastMaxDelta=Double.NaN;lastSnapshot=null;
+        // Reset persistence and the last named compound so reconnect cannot resurrect stale live state.
+        live=new LiveGasStateEngine();chemCoreLive=new ChemCoreLiveSensingEngine();
+        return state;
+    }
 }
