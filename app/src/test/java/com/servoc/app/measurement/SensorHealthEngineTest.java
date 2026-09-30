@@ -18,8 +18,24 @@ public class SensorHealthEngineTest {
     }
 
     @Test public void repeatedAdsRailReadingsAreSaturation()throws Exception{
-        SensorHealthEngine e=new SensorHealthEngine();e.accept(live(1,"mq2",32766,1.0,true),0);e.accept(live(1,"mq2",32765,1.0,true),1000);
+        SensorHealthEngine e=new SensorHealthEngine();e.accept(live(1,"mq2",32766,1.0,true),0);JSONObject x=live(1,"mq2",32765,1.0,true);e.accept(x,1000);
         assertEquals(SensorHealthEngine.State.SATURATED,e.snapshot("mq2").state);
+        JSONObject q=x.getJSONObject("mq").getJSONObject("mq2").getJSONObject("quality");
+        assertEquals("SATURATED",q.getString("temporal_state"));assertTrue(q.getBoolean("temporal_saturation_flag"));
+    }
+
+    @Test public void unstableTemporalSignalAnnotatesCanonicalNoiseQuality()throws Exception{
+        SensorHealthEngine e=new SensorHealthEngine();JSONObject last=null;
+        for(int i=0;i<10;i++){last=live(1,"mq2",(i&1)==0?1000:2200,2.0,true);e.accept(last,i*250L);}
+        SensorHealthEngine.Snapshot s=e.snapshot("mq2");assertEquals(SensorHealthEngine.State.UNSTABLE,s.state);assertTrue(s.noiseCv>0.12);
+        JSONObject q=last.getJSONObject("mq").getJSONObject("mq2").getJSONObject("quality");
+        assertEquals("UNSTABLE",q.getString("temporal_state"));assertTrue(q.getBoolean("noise_evaluable"));assertTrue(q.getBoolean("noise_flag"));assertTrue(q.getDouble("noise_cv")>0.12);
+    }
+
+    @Test public void insufficientTemporalSamplesDoNotInventNoiseDecision()throws Exception{
+        SensorHealthEngine e=new SensorHealthEngine();JSONObject x=live(1,"mq2",1800,2.0,true);e.accept(x,0);
+        JSONObject q=x.getJSONObject("mq").getJSONObject("mq2").getJSONObject("quality");
+        assertFalse(q.getBoolean("noise_evaluable"));assertTrue(q.isNull("noise_flag"));assertEquals("INSUFFICIENT_TEMPORAL_SAMPLES",q.getString("noise_status"));
     }
 
     @Test public void driftRequiresExplicitCleanAirReference()throws Exception{
