@@ -10,10 +10,10 @@ import android.view.View;
 /**
  * Foreground HUD drawn directly above the camera image.
  *
- * It keeps visual-flame evidence and the gas-tracking direction visible without
- * owning any drive/safety authority. Camera frames are QVGA 4:3 and are rendered
- * by MjpegView using FIT_CENTER, so normalized flame coordinates are mapped into
- * the same fitted image rectangle rather than the whole screen.
+ * Flame evidence may carry a text label. Gas tracking is intentionally arrow-only: the overlay
+ * never owns drive/safety authority and never presents directional coherence as a probability.
+ * Camera frames are QVGA 4:3 and are rendered by MjpegView using FIT_CENTER, so normalized flame
+ * coordinates are mapped into the same fitted image rectangle rather than the whole screen.
  */
 public final class HazardOverlayView extends View {
     private static final float SOURCE_ASPECT=4f/3f;
@@ -30,7 +30,7 @@ public final class HazardOverlayView extends View {
 
     private boolean flameVisible=false,gasVisible=false;
     private float left,top,right,bottom;
-    private double gasAngleRad,gasConfidence;
+    private double gasAngleRad;
 
     public HazardOverlayView(Context c){
         super(c);
@@ -58,7 +58,7 @@ public final class HazardOverlayView extends View {
     /** angleRad is relative to robot forward: 0=up, +PI/2=right, -PI/2=left. */
     public void setGasDirection(double angleRad,double confidence){
         gasVisible=Double.isFinite(angleRad)&&Double.isFinite(confidence)&&confidence>=0.18;
-        gasAngleRad=angleRad;gasConfidence=Math.max(0,Math.min(1,confidence));invalidate();
+        gasAngleRad=angleRad;invalidate();
     }
     public void clearGas(){gasVisible=false;invalidate();}
 
@@ -85,9 +85,8 @@ public final class HazardOverlayView extends View {
     }
 
     private void drawGasArrow(Canvas c,RectF frame){
-        // The arrow starts close to image centre so it remains intuitively tied to robot heading.
         float cx=frame.centerX(),cy=frame.top+frame.height()*0.48f;
-        float len=Math.min(frame.width(),frame.height())*(0.18f+0.10f*(float)gasConfidence);
+        float len=Math.min(frame.width(),frame.height())*0.24f;
         float dx=(float)Math.sin(gasAngleRad),dy=(float)-Math.cos(gasAngleRad);
         float ex=cx+dx*len,ey=cy+dy*len;
 
@@ -100,8 +99,6 @@ public final class HazardOverlayView extends View {
         arrowHead.reset();arrowHead.moveTo(ex,ey);arrowHead.lineTo(bx+px*wing,by+py*wing);arrowHead.lineTo(bx-px*wing,by-py*wing);arrowHead.close();
         Paint shadowFill=new Paint(gasShadow);shadowFill.setStyle(Paint.Style.FILL);c.drawPath(arrowHead,shadowFill);
         Paint fill=new Paint(gasPaint);fill.setStyle(Paint.Style.FILL);c.drawPath(arrowHead,fill);
-
-        drawLabel(c,"تتبع "+Math.round(gasConfidence*100)+"%",cx+dp(10),cy+dp(8),0xC0005C2A);
     }
 
     private void drawHudCorners(Canvas c,RectF frame){
