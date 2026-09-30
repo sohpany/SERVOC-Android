@@ -10,6 +10,7 @@ import com.servoc.app.data.ExperimentsDb;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.util.Collections;
 import java.util.List;
 
@@ -25,7 +26,7 @@ public final class ChemCoreP10SessionFinalizer {
     private ChemCoreP10SessionFinalizer(){}
 
     public static JSONObject finalizeAndAttach(ExperimentsDb db,String sessionId,ChemCoreResultEnvelope result,
-                                               JSONObject activeLibraryPayload,SamplingProfile profile){
+                                               File activeLibraryPayload,SamplingProfile profile){
         if(db==null||sessionId==null||sessionId.trim().isEmpty())return invalid(sessionId,"session_required");
         try{
             long uid=result!=null&&result.chemicalUid!=null?result.chemicalUid.longValue():-1L;
