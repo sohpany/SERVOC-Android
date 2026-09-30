@@ -19,12 +19,12 @@ def main():
     tank=read("app/src/main/java/com/servoc/app/control/DualTankDriveControl.java")
     wheel=read("app/src/main/java/com/servoc/app/control/SteeringWheelView.java")
     joy=read("app/src/main/java/com/servoc/app/control/JoystickView.java")
-    pad=read("app/src/main/java/com/servoc/app/control/DirectionPadView.java")
     discrete=read("app/src/main/java/com/servoc/app/control/DiscreteDrive.java")
     measurements=read("app/src/main/java/com/servoc/app/ui/MeasurementsTab.java")
     reports=read("app/src/main/java/com/servoc/app/ui/ReportsTab.java")
     uikit=read("app/src/main/java/com/servoc/app/ui/UiKit.java")
     hardware=read("firmware/HazRob/Hardware.cpp")
+    protocol=read("app/src/main/java/com/servoc/app/communication/RobotProtocolV4.java")
 
     # Full-screen driving and overlays.
     req(control,"Configuration.ORIENTATION_LANDSCAPE","landscape detection")
@@ -37,7 +37,8 @@ def main():
     req(control,'distanceBadge.setText(String.format(Locale.US,"أمام %.1f cm",cm))',"Echo centimetre display")
     req(control,'cliff?"⚠ لا توجد أرضية":ground?"أرض ●":"أرض ؟"',"IR no-ground warning semantics")
     req(control,'mqOn?"MQ ON":"MQ OFF"',"relay state rendering")
-    req(control,"host.robotApi().mqPower(!on)","floating relay control")
+    req(control,"boolean target=!on;","relay toggle target")
+    req(control,"host.robotApi().mqPower(target)","floating relay control")
     req(control,"WifiSignalReader.read(appContext)","Wi-Fi RSSI read")
 
     # Four independent drive modes.
@@ -58,10 +59,12 @@ def main():
     req(mixer,"double left=y+steer;","left differential output")
     req(mixer,"double right=y-steer;","right differential output")
 
-    # Firmware telemetry semantics used by current UI.
-    req(hardware,'\\"cm\\":'+"num(ultraCm,1)","Echo telemetry")
+    # Current telemetry semantics used by the UI.
+    req(hardware,'\\"cm\\":'+"num(ultraCm,1)","raw Echo centimetre telemetry")
+    req(protocol,'proximity.put("distance_cm",finiteAny(p,"cm","distance_cm"))',"canonical Echo cm normalization")
     req(hardware,'\\"ground_detected\\"',"IR ground telemetry")
     req(hardware,'\\"cliff_warning\\"',"IR cliff telemetry")
+    req(protocol,'x.put("installed",true);x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",i.optBoolean("ground_detected",!cliff))',"canonical IR semantics")
 
     # Current measurement/analysis/report surfaces.
     req(measurements,'String[] names={"الفيزيائية","القياس","التحليل","نتائج التحليل"}',"measurement workspace tabs")
