@@ -48,12 +48,24 @@ public class VideoEffectsContractTest {
         assertTrue(view.contains("if(decodeBusy)return"));
     }
 
-    @Test public void recorderIsAttachedOnlyDuringRecording() throws Exception {
+    @Test public void recorderConsumesRenderedSurfacePathOnly() throws Exception {
         String control=source("src/main/java/com/servoc/app/ui/ControlTab.java");
+        String recorder=source("src/main/java/com/servoc/app/camera/MjpegRecorder.java");
+        String renderer=source("src/main/java/com/servoc/app/camera/VideoEffectRenderer.java");
         assertTrue(control.contains("video.setFrameListener(flameAnalyzer::onJpegFrame)"));
-        assertTrue(control.contains("video.setDecodedFrameListener(recorder::onDecodedFrame)"));
-        assertTrue(control.contains("video.setDecodedFrameListener(null)"));
+        assertFalse(control.contains("video.setDecodedFrameListener(recorder::onDecodedFrame)"));
         assertFalse(control.contains("recorder.onJpegFrame"));
+        assertTrue(recorder.contains("VideoEffectFrameHub.set(this)"));
+        assertTrue(recorder.contains("VideoEffectFrameHub.clear(this)"));
+        assertTrue(renderer.contains("VideoEffectFrameHub.get()"));
+    }
+
+    @Test public void advancedEffectsFailSoftToPassthroughInsteadOfBreakingStream() throws Exception {
+        String renderer=source("src/main/java/com/servoc/app/camera/VideoEffectRenderer.java");
+        assertTrue(renderer.contains("FALLBACK_FRAGMENT"));
+        assertTrue(renderer.contains("catch(RuntimeException advancedFailure)"));
+        assertTrue(renderer.contains("advancedEffectsAvailable=false"));
+        assertTrue(renderer.contains("texture2D(uTexture,uv)"));
     }
 
     @Test public void noScreenCapturePermissionOrApiIsIntroduced() throws Exception {
