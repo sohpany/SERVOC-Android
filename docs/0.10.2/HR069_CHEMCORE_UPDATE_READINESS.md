@@ -2,6 +2,7 @@
 
 Date: 2026-09-30
 Target: `release/hazrob-0.10.2` / `HR069`
+Status: **P4 COMPLETE ✅**
 
 ## Executive status
 
@@ -62,6 +63,22 @@ Simplifying update security does **not** relax analytical evidence rules:
 
 Before HazRob becomes a production/public deployment, publication authenticity can be upgraded to signed manifests or another managed trust mechanism. That is deliberately outside the current prototype P4 scope and must not block experimental development.
 
+## Validation closure
+
+P4 is closed after successful internal validation at source commit `d4ac539eef5a75fb689869b9ab5af1f6d6780674` on the Railway validation builder.
+
+Confirmed gates:
+
+- `audit_0104_chemcore_library.py`: PASS;
+- experimental updater contract: **HTTPS + SHA-256 + compatibility + semantic validation + atomic activation + rollback; no passwords/keys**;
+- Android unit tests: PASS;
+- Android lint: PASS;
+- signed internal Release APK assembly and signer digest verification: PASS;
+- Main ESP32 HR069 compile: PASS;
+- ESP32-CAM HR069 compile: PASS.
+
+The internal APK is validation-only and remains non-exported before P13.
+
 ## Resume checkpoint
 
-P4 should be considered complete only after the branch build passes its source audit, unit tests, lint and internal release assembly with the experimental updater contract. No final APK is exported during this development plan; internal builds remain required for validation.
+P4 is complete. Development continues from the analytical-engine/evidence-fusion phases on the same `release/hazrob-0.10.2` / `HR069` baseline. Production signing remains explicitly deferred and must not be reintroduced into the experimental updater path unless the project enters production hardening.

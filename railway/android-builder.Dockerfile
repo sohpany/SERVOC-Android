@@ -50,7 +50,8 @@ RUN python3 tools/audit_0101_integration_contract.py && \
     python3 tools/audit_0102_release_contract.py && \
     python3 tools/audit_0103_measurement_foundation.py && \
     python3 tools/audit_0104_chemcore_library.py && \
-    python3 tools/audit_0105_analytical_engines.py
+    python3 tools/audit_0105_analytical_engines.py && \
+    python3 tools/audit_0106_confidence_fusion.py
 
 # Compile both firmware targets internally. Outputs remain ephemeral in this build stage.
 RUN python3 tools/audit_0101_firmware_baseline.py && \
