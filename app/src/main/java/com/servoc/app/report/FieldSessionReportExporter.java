@@ -14,7 +14,6 @@ import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.data.SessionSeries;
 import com.servoc.app.field.FieldSessionRepository;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
@@ -138,9 +137,8 @@ public final class FieldSessionReportExporter {
     private static void traceability(Canvas c,Bundle b){
         title(c,"التتبّع والمصدر",42);float y=74;text(c,"كل القياسات التابعة للجلسة",42,y,12,Color.BLACK,true);y+=22;
         text(c,"#",42,y,9,Color.DKGRAY,true);text(c,"Measurement Session ID",72,y,9,Color.DKGRAY,true);text(c,"Derived records",420,y,9,Color.DKGRAY,true);text(c,"ChemCore",525,y,9,Color.DKGRAY,true);text(c,"Primary",700,y,9,Color.DKGRAY,true);y+=16;
-        ChemCoreDecisionRepository decisions=new ChemCoreDecisionRepositoryDummy();
-        // The table below is rendered from the already resolved exact-ID bundle. Decision state for the
-        // primary child is shown explicitly; non-primary children remain listed without inventing a merged state.
+        // Exact child measurement IDs are rendered from the already-resolved field-session mapping.
+        // Non-primary children remain listed without inventing a merged analytical state.
         for(int i=0;i<b.measurementSessionIds.size()&&y<330;i++){
             String sid=b.measurementSessionIds.get(i);int records=0;for(ExperimentQueries.Record r:b.records)if(sid.equals(r.sessionId))records++;
             text(c,String.valueOf(i+1),42,y,8,Color.BLACK,false);text(c,shorten(sid,44),72,y,8,Color.BLACK,false);text(c,String.valueOf(records),420,y,8,Color.BLACK,false);text(c,sid.equals(b.primaryMeasurementSessionId)&&b.primaryDecision!=null?b.primaryDecision.optString("outcome","RECORDED"):"RECORDED",525,y,8,Color.BLACK,false);text(c,sid.equals(b.primaryMeasurementSessionId)?"YES":"",700,y,8,Color.BLACK,false);y+=18;
@@ -150,9 +148,6 @@ public final class FieldSessionReportExporter {
         for(String[] r:rows){labelValue(c,r[0],r[1],y);y+=20;}
         text(c,"Site ID: "+b.site.id+" • Field Session ID: "+b.fieldSession.id+" • Primary Measurement Session ID: "+(b.primaryMeasurementSessionId.isEmpty()?"—":b.primaryMeasurementSessionId),42,536,8,Color.DKGRAY,false);
     }
-
-    /* Marker type prevents accidental database lookup inside rendering; no constructor call is ever executed. */
-    private static final class ChemCoreDecisionRepositoryDummy extends ChemCoreDecisionRepository { ChemCoreDecisionRepositoryDummy(){super(null);} }
 
     private static void title(Canvas c,String s,float y){text(c,s,42,y,18,Color.BLACK,true);}
     private static void labelValue(Canvas c,String k,String v,float y){text(c,k,42,y,9,Color.DKGRAY,true);text(c,v,190,y,10,Color.BLACK,false);}
