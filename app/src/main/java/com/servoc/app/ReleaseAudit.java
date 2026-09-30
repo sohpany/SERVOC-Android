@@ -22,7 +22,10 @@ public final class ReleaseAudit {
     public static final boolean MANUAL_MQ_RELAY_CONTROL=true;
     public static final boolean MQ_WARMUP_STATE=true;
     public static final boolean INSTANT_MQ_WARNINGS=true;
-    public static final boolean IR_WARNING_ONLY=true;
+    public static final boolean IR_WARNING_ONLY=false;
+    public static final boolean IR_OPTIONAL_AUTO_STOP=true;
+    public static final boolean ULTRASONIC_OPTIONAL_AUTO_STOP=true;
+    public static final boolean SAFETY_WARNINGS_ALWAYS_ACTIVE=true;
     public static final boolean SOUND_RAW_RMS=true;
     public static final boolean LDR_DIGITAL_THRESHOLD=true;
     public static final boolean LOCAL_ALERT_OUTPUT=true;
