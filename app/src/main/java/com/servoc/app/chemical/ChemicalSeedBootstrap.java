@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.servoc.app.chemcore.ChemCoreIdentityCurationRepository;
 import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
+import com.servoc.app.chemcore.ChemCoreQsprRuntimeRegistry;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
 import com.servoc.app.exposure.GasFlammabilitySeedBootstrap;
@@ -42,6 +43,15 @@ public final class ChemicalSeedBootstrap {
         db.putMeta("chemcore_molecular_seed_status",molecular.available?("available:"+molecular.records+":"+molecular.matched+":"+molecular.origin):molecular.message);
         ChemCoreIdentityCurationRepository.ImportResult curation=ChemCoreIdentityCurationRepository.importIfPresent(context,db);
         db.putMeta("chemcore_identity_curation_status",curation.available?("available:"+curation.records+":"+curation.sha256):curation.message);
+
+        // PubChem/QSPR is rebuilt only after the molecular seed and the negative curation layer
+        // are installed. It remains an M1 ranking/screening prior and cannot create M3/M4 alone.
+        try{
+            ChemCoreQsprRuntimeRegistry.Status qspr=ChemCoreQsprRuntimeRegistry.rebuild(db);
+            db.putMeta("chemcore_qspr_runtime_status",qspr.summary());
+        }catch(Exception e){
+            db.putMeta("chemcore_qspr_runtime_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));
+        }
 
         // Priority is a view/subset over the same master chemical records. Run it only after all
         // MQ evidence and molecular/identity enrichment have been loaded so newly supported
