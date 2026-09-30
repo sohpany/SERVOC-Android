@@ -112,16 +112,13 @@ public final class MainActivity extends Activity implements HazRobHost {
                 }while(entered&&driveDirty.get());
             }finally{
                 driveDispatching.set(false);
-                // Close the race where a touch update arrived after the loop check but before release.
                 if(entered&&driveDirty.get())queueDriveSend();
             }
         });
     }
     private void scheduleComms(){
         if(commsScheduled)return;commsScheduled=true;
-        // 20 Hz refresh is a continuity stream; joystick changes also dispatch immediately.
         workers.scheduleAtFixedRate(()->{if(entered)queueDriveSend();},0,50,TimeUnit.MILLISECONDS);
-        // 4 Hz state/telemetry refresh matches the accelerated remote telemetry cadence.
         workers.scheduleAtFixedRate(()->pollTelemetry(false),0,250,TimeUnit.MILLISECONDS);
     }
     private void requestManualRefresh(){workers.execute(()->pollTelemetry(true));}
@@ -131,7 +128,6 @@ public final class MainActivity extends Activity implements HazRobHost {
         catch(Exception e){latestDiag=null;gasAlertCoordinator.reset();lastGasAlertLevel=GasAlertCoordinator.NONE;gasAlertSentAt=0;if(phoneAlertTone!=null)phoneAlertTone.clear();ui.post(this::onTelemetryUpdated);if(manual)showToast("تعذر التحديث: "+e.getClass().getSimpleName());}
         finally{telemetryPolling.set(false);}
     }
-    /** Audible warnings are phone-side operational alarms only; they do not imply calibrated ppm or IDLH. */
     private void updateGasAlert(JSONObject snap,long now){
         int warm=Math.max(0,prefs.getInt("warm",60));int level=gasAlertCoordinator.evaluate(snap,sensorHealth,warm,now);
         JSONObject ir=snap==null?null:snap.optJSONObject("ir"),device=snap==null?null:snap.optJSONObject("device"),proximity=device==null?null:device.optJSONObject("proximity");boolean hazard=(ir!=null&&ir.optBoolean("cliff_warning",ir.optBoolean("warning",false)))||(proximity!=null&&proximity.optBoolean("warning",false));int phoneLevel=Math.max(level,hazard?GasAlertCoordinator.WARNING:GasAlertCoordinator.NONE);if(phoneAlertTone!=null)phoneAlertTone.update(phoneLevel,now);
@@ -165,7 +161,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override public int trackingTargetId(){return trackingTarget;}@Override public String trackingTargetName(){return trackingName;}
 
     @Override public void requestExport(String format,long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Report_%06d_%s%s",r.id,fileStamp(),pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_PDF:EXPORT_XLSX);}
-    @Override public void requestFieldSessionExport(String format,String fieldSessionId){String fs=fieldSessionId==null?"":fieldSessionId.trim();if(fs.isEmpty()){showToast("الجلسة غير صالحة");return;}FieldSessionReportExporter.Bundle b;try{b=FieldSessionReportExporter.resolve(db,fs);}catch(Exception e){showToast("تعذر قراءة الجلسة");return;}if(b.records.isEmpty()){showToast("لا توجد قياسات قابلة للتصدير في هذه الجلسة");return;}pendingFieldSessionId=fs;boolean pdf="pdf".equalsIgnoreCase(format);boolean packaged=b.records.size()>1;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(packaged?"application/zip":(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));i.putExtra(Intent.EXTRA_TITLE,"HazRob_FieldSession_"+fs.replaceAll("[^A-Za-z0-9._-]","_")+"_"+fileStamp()+(packaged?".zip":(pdf?".pdf":".xlsx")));startActivityForResult(i,pdf?EXPORT_FIELD_PDF:EXPORT_FIELD_XLSX);}
+    @Override public void requestFieldSessionExport(String format,String fieldSessionId){String fs=fieldSessionId==null?"":fieldSessionId.trim();if(fs.isEmpty()){showToast("الجلسة غير صالحة");return;}FieldSessionReportExporter.Bundle b;try{b=FieldSessionReportExporter.resolve(db,fs);}catch(Exception e){showToast("تعذر قراءة الجلسة");return;}if(b.records.isEmpty()){showToast("لا توجد قياسات قابلة للتصدير في هذه الجلسة");return;}pendingFieldSessionId=fs;boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");String site=b.site==null?"Site":b.site.name.replaceAll("[^A-Za-z0-9._-]","_");i.putExtra(Intent.EXTRA_TITLE,"HazRob_"+site+"_FieldSession_"+fs.replaceAll("[^A-Za-z0-9._-]","_")+"_"+fileStamp()+(pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_FIELD_PDF:EXPORT_FIELD_XLSX);}
     @Override public void requestRawExport(long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Raw_%06d_%s.json",r.id,fileStamp()));startActivityForResult(i,EXPORT_RAW);}
     @Override public void requestReferenceBankExport(long experimentId){if(!developerMode){showToast("هذه الوظيفة متاحة للمطور فقط");return;}ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("التجربة غير موجودة");return;}pendingExperimentId=experimentId;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,r.referenceName==null||r.referenceName.isEmpty()?ReferenceBankExporter.fileName(r.id,r.ts):r.referenceName);startActivityForResult(i,EXPORT_REFERENCE);}
 
