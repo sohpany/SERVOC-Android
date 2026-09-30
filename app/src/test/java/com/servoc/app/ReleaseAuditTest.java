@@ -51,7 +51,7 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.MANUAL_MQ_RELAY_CONTROL);
         assertTrue(ReleaseAudit.MANUAL_MQ_WARMUP_SETTING);
         assertFalse(ReleaseAudit.GAS_TRACKING_RELAY_BANK_CONTROL);
-        assertTrue(ReleaseAudit.GAS_TRACKING_RELAY_RECOMMENDATION);
+        assertFalse(ReleaseAudit.GAS_TRACKING_RELAY_RECOMMENDATION);
         assertTrue(ReleaseAudit.ADS_AUTO_REPROBE);
         assertTrue(ReleaseAudit.REMOTE_CONNECTIVITY);
         assertTrue(ReleaseAudit.REMOTE_MQTT_TLS);
