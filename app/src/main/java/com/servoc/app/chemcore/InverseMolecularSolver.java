@@ -39,18 +39,30 @@ public final class InverseMolecularSolver {
         public final double logScore;
         public double posterior;
         public final int contributors;
+        /** M1 molecular/QSPR contributors used in the joint fit. */
+        public final int molecularContributors;
+        /** Direct/reference contributors at M2 or above. M1 QSPR never counts here. */
+        public final int referenceContributors;
         public final int calibratedContributors;
+        /** QSPR-only standardized residual RMS across M1 contributors. */
+        public final double molecularResidualRms;
+        /** Diagnostic fit-support index in percent; not a calibrated identity probability. */
+        public final double qsprIndicatorPct;
         public final boolean allContributorsInsideDomain;
         public final ChemCoreDecision.EvidenceTier highestEvidenceTier;
         public final Map<String,Double> residualLog10BySensor;
         public final String note;
 
         Result(long chemicalUid,String label,boolean solvable,double bestPpm,double standardizedResidualRms,
-               double logScore,int contributors,int calibratedContributors,boolean allContributorsInsideDomain,
-               ChemCoreDecision.EvidenceTier highestEvidenceTier,Map<String,Double> residualLog10BySensor,String note){
+               double logScore,int contributors,int molecularContributors,int referenceContributors,
+               int calibratedContributors,double molecularResidualRms,double qsprIndicatorPct,
+               boolean allContributorsInsideDomain,ChemCoreDecision.EvidenceTier highestEvidenceTier,
+               Map<String,Double> residualLog10BySensor,String note){
             this.chemicalUid=chemicalUid;this.label=label;this.solvable=solvable;this.bestPpm=bestPpm;
             this.standardizedResidualRms=standardizedResidualRms;this.logScore=logScore;this.contributors=contributors;
-            this.calibratedContributors=calibratedContributors;this.allContributorsInsideDomain=allContributorsInsideDomain;
+            this.molecularContributors=Math.max(0,molecularContributors);this.referenceContributors=Math.max(0,referenceContributors);
+            this.calibratedContributors=calibratedContributors;this.molecularResidualRms=molecularResidualRms;
+            this.qsprIndicatorPct=qsprIndicatorPct;this.allContributorsInsideDomain=allContributorsInsideDomain;
             this.highestEvidenceTier=highestEvidenceTier;this.residualLog10BySensor=residualLog10BySensor;
             this.note=note==null?"":note;
         }
@@ -61,7 +73,8 @@ public final class InverseMolecularSolver {
 
     private static final class Fit {
         double logPpm=Double.NaN,chi2=Double.POSITIVE_INFINITY,weightSum=0;
-        int contributors=0,calibrated=0;boolean allInside=true;
+        double molecularChi2=0,molecularWeightSum=0;
+        int contributors=0,molecular=0,reference=0,calibrated=0;boolean allInside=true;
         ChemCoreDecision.EvidenceTier tier=ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY;
         Map<String,Double> residuals=new HashMap<>();
         boolean valid(){return Double.isFinite(logPpm)&&Double.isFinite(chi2)&&contributors>0;}
@@ -97,10 +110,14 @@ public final class InverseMolecularSolver {
         Fit refined=scoreAt(observedRatios,c,(a+b)/2.0,temperatureC,rh,samplingProfile);
         if(refined.contributors>=c.minimumContributors&&refined.chi2<=best.chi2)best=refined;
         double rms=Math.sqrt(best.chi2/Math.max(1e-12,best.weightSum));
+        double molecularRms=best.molecular>0&&best.molecularWeightSum>0?Math.sqrt(best.molecularChi2/best.molecularWeightSum):Double.NaN;
+        double qsprIndex=best.molecular>=2&&Double.isFinite(molecularRms)?100.0*Math.exp(-0.5*molecularRms*molecularRms):Double.NaN;
         double domainPenalty=best.allInside?0:1.0;
         double logScore=c.priorLogWeight-0.5*best.chi2-domainPenalty;
         String note=best.allInside?"joint array fit inside contributing model domains":"joint fit uses at least one contributor outside its environmental domain";
-        return new Result(c.chemicalUid,c.label,true,Math.pow(10,best.logPpm),rms,logScore,best.contributors,best.calibrated,best.allInside,best.tier,best.residuals,note);
+        if(best.molecular>0)note+="; QSPR M1="+best.molecular+" channel(s), direct/reference M2+="+best.reference+" channel(s)";
+        return new Result(c.chemicalUid,c.label,true,Math.pow(10,best.logPpm),rms,logScore,best.contributors,
+                best.molecular,best.reference,best.calibrated,molecularRms,qsprIndex,best.allInside,best.tier,best.residuals,note);
     }
 
     private static Fit scoreAt(Map<String,Double> observed,Candidate c,double logPpm,double temperatureC,double rh,SamplingProfile samplingProfile){
@@ -109,13 +126,16 @@ public final class InverseMolecularSolver {
             if(m==null)continue;Double obs=lookup(observed,m.sensorKey());if(obs==null||!(obs>0)||!Double.isFinite(obs))continue;
             ChemCoreResponseModel.Estimate p=m.predict(ppm,temperatureC,rh,samplingProfile);if(p==null||!p.available||!Double.isFinite(p.meanLog10Ratio))continue;
             double sigma=Double.isFinite(p.sigmaLog10)&&p.sigmaLog10>0?Math.max(0.02,p.sigmaLog10):0.20;
-            double reliability=reliability(m.evidenceTier());if(!p.insideDomain){reliability*=0.35;sigma*=1.8;f.allInside=false;}
+            ChemCoreDecision.EvidenceTier evidence=m.evidenceTier();
+            double reliability=reliability(evidence);if(!p.insideDomain){reliability*=0.35;sigma*=1.8;f.allInside=false;}
             double residual=Math.log10(obs)-p.meanLog10Ratio;double z=residual/sigma;
-            f.chi2+=0; // initialize from +inf below on first contributor
             if(f.contributors==0)f.chi2=0;
-            f.chi2+=reliability*z*z;f.weightSum+=reliability;f.contributors++;
-            if(m.evidenceTier()==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED)f.calibrated++;
-            if(rank(m.evidenceTier())>rank(f.tier))f.tier=m.evidenceTier();
+            double contribution=reliability*z*z;
+            f.chi2+=contribution;f.weightSum+=reliability;f.contributors++;
+            if(evidence==ChemCoreDecision.EvidenceTier.M1_MOLECULARLY_INFERRED){f.molecular++;f.molecularChi2+=contribution;f.molecularWeightSum+=reliability;}
+            if(rank(evidence)>=rank(ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED))f.reference++;
+            if(evidence==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED)f.calibrated++;
+            if(rank(evidence)>rank(f.tier))f.tier=evidence;
             f.residuals.put(m.sensorKey().toLowerCase(Locale.US),residual);
         }
         return f;
@@ -126,5 +146,5 @@ public final class InverseMolecularSolver {
     private static int rank(ChemCoreDecision.EvidenceTier t){return t==null?0:t.ordinal();}
 
     private static void normalizePosteriors(List<Result> rows){double max=Double.NEGATIVE_INFINITY;for(Result r:rows)if(r.solvable&&Double.isFinite(r.logScore))max=Math.max(max,r.logScore);if(!Double.isFinite(max))return;double sum=0;for(Result r:rows)if(r.solvable&&Double.isFinite(r.logScore)){r.posterior=Math.exp(Math.max(-700,r.logScore-max));sum+=r.posterior;}if(sum>0)for(Result r:rows)r.posterior/=sum;}
-    private static Result unsolved(Candidate c,String why){return new Result(c==null?-1:c.chemicalUid,c==null?"":c.label,false,Double.NaN,Double.NaN,Double.NEGATIVE_INFINITY,0,0,false,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,new HashMap<>(),why);}
+    private static Result unsolved(Candidate c,String why){return new Result(c==null?-1:c.chemicalUid,c==null?"":c.label,false,Double.NaN,Double.NaN,Double.NEGATIVE_INFINITY,0,0,0,0,Double.NaN,Double.NaN,false,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,new HashMap<>(),why);}
 }
