@@ -4,6 +4,8 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -25,7 +27,7 @@ public final class ChemicalPriorityBootstrap {
     private ChemicalPriorityBootstrap() {}
 
     public static final String META_KEY="chemical_priority_subset_version";
-    public static final String VERSION="1";
+    public static final String VERSION="2";
     public static final String BASE_CLASS="BASE_144";
     public static final String PROMOTED_CLASS="PROMOTED_MQ_EVIDENCE";
 
@@ -40,7 +42,6 @@ public final class ChemicalPriorityBootstrap {
         createSchema(db);
         db.beginTransaction();
         try{
-            // The 144 catalogue is the permanent safety/occupational-priority base.
             for(int legacy=0;legacy<ChemicalCatalog.COUNT;legacy++){
                 Long uid=uidByLegacy(db,legacy);if(uid==null)continue;
                 ContentValues v=new ContentValues();
@@ -50,7 +51,7 @@ public final class ChemicalPriorityBootstrap {
                 db.insertWithOnConflict("chemical_priority",null,v,SQLiteDatabase.CONFLICT_REPLACE);
             }
 
-            // Recalculate promoted rows from current accepted evidence so the subset cannot drift.
+            // Recalculate all promoted rows from current evidence so the subset cannot drift.
             db.delete("chemical_priority","priority_class=?",new String[]{PROMOTED_CLASS});
             Map<Long,Aggregate> qualified=collectQualifiedEvidence(db);
             for(Map.Entry<Long,Aggregate> e:qualified.entrySet()){
@@ -62,7 +63,7 @@ public final class ChemicalPriorityBootstrap {
                     db.update("chemical_priority",v,"chemical_uid=?",new String[]{String.valueOf(uid)});
                 }else{
                     ContentValues v=new ContentValues();v.put("chemical_uid",uid);v.put("priority_class",PROMOTED_CLASS);
-                    v.put("promotion_reason","ACCEPTED_MQ_IDENTITY_OR_QUANTITATIVE_EVIDENCE");v.put("qualifying_evidence_count",a.count);
+                    v.put("promotion_reason","ACCEPTED_EXACT_MQ_IDENTITY_OR_QUANTITATIVE_FINGERPRINT");v.put("qualifying_evidence_count",a.count);
                     v.put("evidence_sources",join(a.sources));v.put("evidence_types",join(a.evidenceTypes));
                     db.insertWithOnConflict("chemical_priority",null,v,SQLiteDatabase.CONFLICT_REPLACE);
                 }
@@ -72,7 +73,7 @@ public final class ChemicalPriorityBootstrap {
             int promoted=count(db,"SELECT COUNT(*) FROM chemical_priority WHERE priority_class='"+PROMOTED_CLASS+"'");
             int base=count(db,"SELECT COUNT(*) FROM chemical_priority WHERE priority_class='"+BASE_CLASS+"'");
             putMeta(db,META_KEY,VERSION);
-            putMeta(db,"chemical_priority_policy","MASTER_SINGLE_RECORD_PRIORITY_SUBSET_SHARED_DETAILS");
+            putMeta(db,"chemical_priority_policy","MASTER_SINGLE_RECORD_PRIORITY_SUBSET_SHARED_DETAILS_EXACT_EVIDENCE_ONLY");
             putMeta(db,"chemical_priority_base_count",String.valueOf(base));
             putMeta(db,"chemical_priority_promoted_count",String.valueOf(promoted));
             putMeta(db,"chemical_priority_total_count",String.valueOf(total));
@@ -82,27 +83,41 @@ public final class ChemicalPriorityBootstrap {
     }
 
     /**
-     * Qualification is intentionally stricter than merely having an MQ mention.
-     * Accepted feasibility-only, awaiting-raw, family-only, or no-direct-transfer rows do not
-     * promote a compound. Accepted identity fingerprints, PPM/quantitative references and
-     * calibrated/known-concentration relations do.
+     * Qualification is intentionally stricter than merely having an MQ mention or a numeric range.
+     * Cross-sensitivity, transfer-only descriptors, awaiting-raw sources, family labels and
+     * operational hazard datasets do not promote a compound.
      */
-    static boolean qualifies(String status,String evidenceType,Double minPpm,Double maxPpm){
+    static boolean qualifies(String status,String evidenceType,Double minPpm,Double maxPpm,String coefficients){
         String s=up(status),t=up(evidenceType);
         if(!s.startsWith("ACCEPTED"))return false;
-        if(s.contains("REFERENCE_ONLY")||s.contains("AWAITING")||s.contains("NO_DIRECT")||s.contains("FAMILY_LABEL"))return false;
-        if(s.contains("IDENTITY")||s.contains("PPM")||s.contains("QUANTITATIVE"))return true;
-        if(t.contains("FINGERPRINT")||t.contains("CALIBRATION")||t.contains("KNOWN_PPM")||t.contains("KNOWN_CONCENTRATION")||t.contains("REFERENCE_COMPARISON"))return true;
-        return minPpm!=null&&maxPpm!=null&&Double.isFinite(minPpm)&&Double.isFinite(maxPpm)&&maxPpm>minPpm;
+        if(s.contains("REFERENCE_ONLY")||s.contains("AWAITING")||s.contains("NO_DIRECT")||s.contains("FAMILY_LABEL")||s.contains("TRANSFER"))return false;
+        if(t.contains("DESCRIPTOR")||t.contains("OPERATIONAL_HAZARD"))return false;
+
+        JSONObject p=parse(coefficients);
+        if(p!=null){
+            if(p.has("pure_analyte_identity")&&!p.optBoolean("pure_analyte_identity",false))return false;
+            if(p.has("source_label_exact_for_catalog")&&!p.optBoolean("source_label_exact_for_catalog",false))return false;
+            if(p.optBoolean("identity_fingerprint_accepted",false))return true;
+            if(p.optBoolean("ppm_reference_accepted",false))return true;
+            if(p.optBoolean("known_concentration_series_accepted",false))return true;
+            if(p.optBoolean("hr069_fingerprint_accepted",false))return true;
+        }
+
+        // Legacy evidence rows may predate explicit JSON acceptance flags. Their accepted status
+        // must still state identity/quantitative semantics; min/max alone is not sufficient.
+        if(s.contains("IDENTITY")&&!s.contains("NO_IDENTITY"))return true;
+        if(s.contains("PPM_REFERENCE")||s.contains("PPM_SERIES")||s.contains("QUANTITATIVE"))return true;
+        return t.contains("FINGERPRINT")&&!t.contains("DESCRIPTOR");
     }
 
     private static Map<Long,Aggregate> collectQualifiedEvidence(SQLiteDatabase db){
         Map<Long,Aggregate> out=new LinkedHashMap<>();
-        try(Cursor c=db.rawQuery("SELECT chemical_uid,status,evidence_type,min_ppm,max_ppm,source_id FROM sensor_evidence WHERE chemical_uid IS NOT NULL",null)){
+        try(Cursor c=db.rawQuery("SELECT chemical_uid,status,evidence_type,min_ppm,max_ppm,source_id,coefficients FROM sensor_evidence WHERE chemical_uid IS NOT NULL",null)){
             while(c.moveToNext()){
                 long uid=c.getLong(0);String status=c.getString(1),type=c.getString(2);
                 Double min=c.isNull(3)?null:c.getDouble(3),max=c.isNull(4)?null:c.getDouble(4);
-                if(!qualifies(status,type,min,max))continue;
+                String coefficients=c.isNull(6)?null:c.getString(6);
+                if(!qualifies(status,type,min,max,coefficients))continue;
                 Aggregate a=out.get(uid);if(a==null){a=new Aggregate();out.put(uid,a);}a.count++;
                 if(!c.isNull(5)&&!c.getString(5).trim().isEmpty())a.sources.add(c.getString(5).trim());
                 if(type!=null&&!type.trim().isEmpty())a.evidenceTypes.add(type.trim());
@@ -118,6 +133,7 @@ public final class ChemicalPriorityBootstrap {
         db.execSQL("CREATE VIEW priority_chemicals AS SELECT c.uid,c.legacy_id,c.cas,c.pubchem_cid,c.name_en,c.name_ar,c.formula,c.molar_mass,c.chemical_class,c.record_source,c.active,p.priority_class,p.promotion_reason,p.qualifying_evidence_count,p.evidence_sources,p.evidence_types FROM chemicals c JOIN chemical_priority p ON p.chemical_uid=c.uid WHERE c.active=1");
     }
 
+    private static JSONObject parse(String raw){if(raw==null||raw.trim().isEmpty())return null;try{return new JSONObject(raw);}catch(Exception ignored){return null;}}
     private static String promotedNames(SQLiteDatabase db){
         List<String> names=new ArrayList<>();
         try(Cursor c=db.rawQuery("SELECT c.name_en FROM chemical_priority p JOIN chemicals c ON c.uid=p.chemical_uid WHERE p.priority_class=? ORDER BY lower(c.name_en)",new String[]{PROMOTED_CLASS})){
