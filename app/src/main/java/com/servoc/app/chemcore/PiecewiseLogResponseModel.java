@@ -2,10 +2,7 @@ package com.servoc.app.chemcore;
 
 import java.util.Arrays;
 
-/**
- * Forward log-log interpolation through monotonic source/calibration points.
- * Extrapolation is deliberately disabled.
- */
+/** Forward log-log interpolation through monotonic source/calibration points; extrapolation is disabled. */
 public final class PiecewiseLogResponseModel implements ChemCoreResponseModel {
     private final String sensorKey,version,note;
     private final double[] ppm,ratio;
@@ -31,6 +28,10 @@ public final class PiecewiseLogResponseModel implements ChemCoreResponseModel {
     @Override public ChemCoreDecision.EvidenceTier evidenceTier(){return tier;}
     @Override public double minPpm(){return ppm[0];}
     @Override public double maxPpm(){return ppm[ppm.length-1];}
+    @Override public String modelId(){return version+":"+sensorKey;}
+    @Override public String sourceId(){return version;}
+    @Override public String evidenceFamilyId(){return tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED?"HR069_PIECEWISE_CALIBRATION":"PIECEWISE_REFERENCE_CURVE";}
+    @Override public String independenceGroup(){return evidenceFamilyId()+":"+sourceId();}
 
     @Override public Estimate predict(double concentration,double temperatureC,double rh,SamplingProfile samplingProfile){
         if(!(concentration>=minPpm()&&concentration<=maxPpm()))return new Estimate(false,Double.NaN,sigmaLog10,false,"no extrapolation outside calibrated/source range");
@@ -39,6 +40,7 @@ public final class PiecewiseLogResponseModel implements ChemCoreResponseModel {
         else{hi=-hi-1;int lo=Math.max(0,hi-1);hi=Math.min(ppm.length-1,hi);if(lo==hi)y=Math.log10(ratio[lo]);else{double x=Math.log10(concentration),x0=Math.log10(ppm[lo]),x1=Math.log10(ppm[hi]);double y0=Math.log10(ratio[lo]),y1=Math.log10(ratio[hi]);double f=(x-x0)/(x1-x0);y=y0+f*(y1-y0);}}
         boolean env=true;if(Double.isFinite(minTempC)&&Double.isFinite(maxTempC)&&Double.isFinite(temperatureC))env&=temperatureC>=minTempC&&temperatureC<=maxTempC;
         if(Double.isFinite(minRh)&&Double.isFinite(maxRh)&&Double.isFinite(rh))env&=rh>=minRh&&rh<=maxRh;
-        return new Estimate(true,y,sigmaLog10,env,env?note:"environment outside documented model domain");
+        return new Estimate(true,y,sigmaLog10,env,env?note:"environment outside documented model domain",
+                evidenceType(),evidenceFamilyId(),modelId(),sourceId(),independenceGroup());
     }
 }
