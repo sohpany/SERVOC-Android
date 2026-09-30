@@ -27,6 +27,7 @@ import com.servoc.app.chemcore.ChemCoreSessionFeatureAdapter;
 import com.servoc.app.chemcore.InverseMolecularSolver;
 import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
 import com.servoc.app.chemcore.library.ChemCoreStableKnowledgeReader;
+import com.servoc.app.exposure.ChemCoreP10SessionFinalizer;
 import com.servoc.app.measurement.MeasurementSessionRegistry;
 
 import org.json.JSONObject;
@@ -130,7 +131,7 @@ public final class ChemCoreAnalysisTab {
             }
             ChemCoreLibraryManager.Status lib=libraries.status();lastResult=lastResult.withLibraryProvenance(lib.version,lib.sha256,lib.sourceCommit);
             ChemCoreLabQuality lab=ChemCoreLabQuality.evaluate(host.latestDiagnostics(),host.driveLeft(),host.driveRight(),host.database());lastResult=lastResult.withLabQuality(lab.toJson());
-            new ChemCoreDecisionRepository(host.database()).save(Math.max(0,Math.round(x.durationSeconds*1000.0)),lastResult);persistAnalyticalExperiment(lastResult);
+            ChemCoreDecisionRepository decisionRepo=new ChemCoreDecisionRepository(host.database());decisionRepo.save(Math.max(0,Math.round(x.durationSeconds*1000.0)),lastResult);ChemCoreP10SessionFinalizer.finalizeAndAttach(host.database(),attachedSessionId,lastResult,libraries.activePayload(),runtime.profile());persistAnalyticalExperiment(lastResult);
             runtime.finish(lastResult);if(runtime.snapshot().state==ChemCoreSessionController.State.REPORT)runtime.advance(ChemCoreSessionController.Event.REPORT_SAVED,true,"{\"saved\":true}");primaryAnalysisElapsedMs=Math.max(0,SystemClock.elapsedRealtime()-computeStarted);
             awaitingRecoveryRemoval=true;recoveryConfirmed=false;stability.reset();renderResult(x,lastResult);safetyPanel.refreshNow();status.setText(lastResult.outcome==ChemCoreDecision.Outcome.UNKNOWN?"رفض Open-Set الهوية؛ القرار الأولي محفوظ. أزل العينة وابدأ Recovery لإكمال نتيجة الجلسة.":"تم حفظ القرار الأولي. أزل العينة ثم ابدأ Recovery لإكمال نتيجة الجلسة العميقة.");
         }catch(Exception e){runtime.fail("{\"reason\":\"feature_or_inference_failure\"}");lastResult=null;active=false;status.setText("فشل التحليل: "+e.getMessage());}
