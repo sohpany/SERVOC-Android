@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public final class ChemCoreConfidenceMatrixEvidenceTest {
     @Test public void correlatedQsprChannelsCountAsOneIndependentEvidenceGroup(){
@@ -43,15 +44,19 @@ public final class ChemCoreConfidenceMatrixEvidenceTest {
         assertEquals(58.0,s.totalPct,0.0001);
     }
 
-    @Test public void outOfDomainAndOtherChemicalDoNotBoostCandidateConfidence(){
+    @Test public void outOfDomainSameChemicalIsWeakCorroborationButOtherChemicalNeverBoostsCandidate(){
         List<ChemCoreEvidenceObservation> rows=Arrays.asList(
                 evidence(17,"mq2","hr069:outside",ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED,false),
                 evidence(18,"mq3","hr069:other",ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED,true));
-        ChemCoreConfidenceMatrix.Score s=ChemCoreConfidenceMatrix.score(17,rows);
+        ChemCoreEvidenceFusion.Result r=ChemCoreEvidenceFusion.fuseForChemical(17,rows);
+        ChemCoreConfidenceMatrix.Score s=r.score;
         assertEquals(0,s.qsprCount);
         assertEquals(0,s.referenceCount);
         assertEquals(0,s.hr069Count);
-        assertEquals(0.0,s.totalPct,0.0001);
+        assertEquals(1,r.corroborativeGroups);
+        assertTrue(s.corroborationPct>0.0);
+        assertTrue(s.corroborationPct<=ChemCoreEvidenceFusion.MAX_CORROBORATION_BONUS);
+        assertEquals(s.corroborationPct,s.totalPct,0.0001);
     }
 
     @Test public void m3IdentityEvidenceIsNonM4SupportedEvidenceUntilWeightCalibration(){
