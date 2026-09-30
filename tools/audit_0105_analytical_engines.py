@@ -25,9 +25,11 @@ def main():
     openset=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreOpenSetGate.java')
     mixture=txt('app/src/main/java/com/servoc/app/chemcore/MixtureResidualGuard.java')
 
-    # One typed contract, with independence separated from sensor breadth.
-    for n in ['SCHEMA="chemcore-evidence/1"','independenceGroup','sensorKeys','quantitativeEstimateSupported','reportableQuantitative','uniqueIndependenceGroups','uniqueSensors']:
+    # One typed contract: independence, sensor breadth and measurement quality remain separate axes.
+    for n in ['SCHEMA="chemcore-evidence/2"','independenceGroup','sensorKeys','quantitativeEstimateSupported','reportableQuantitative','measurementQualityWeight','supportRole','uniqueIndependenceGroups','uniqueSensors']:
         req(evidence,n,'typed evidence')
+    req(evidence,'"CORROBORATIVE"','quality-weighted corroborative evidence role')
+    req(evidence,'reportableQuantitative&&this.measurementQualityWeight>=0.999&&"PRIMARY".equals(this.supportRole)','degraded evidence cannot become reportable quantitative')
     for n in ['default ChemCoreEvidenceObservation.Type evidenceType()','default String evidenceFamilyId()','default String sourceId()','default String independenceGroup()','default boolean reportableQuantitative()']:
         req(contract,n,'response-model evidence contract')
 
