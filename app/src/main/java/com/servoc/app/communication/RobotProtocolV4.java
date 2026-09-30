@@ -26,14 +26,22 @@ public final class RobotProtocolV4 {
             JSONObject dd=first(data.optJSONObject("drive"),diag.optJSONObject("drive"));
             boolean retrace=dd!=null?dd.optBoolean("retrace",false):diag.optBoolean("retrace",data.optBoolean("retrace",false));
             boolean failsafe=dd!=null?dd.optBoolean("failsafe",false):diag.optBoolean("failsafe",false);
-            JSONObject drive=new JSONObject();drive.put("left",commandedLeft);drive.put("right",commandedRight);drive.put("failsafe",failsafe);drive.put("retrace",retrace);if(dd!=null&&dd.has("history"))drive.put("history",dd.optInt("history",0));out.put("drive",drive);out.put("retrace",retrace);
+            boolean safetyAutoStop=dd!=null&&dd.optBoolean("safety_auto_stop",false);
+            boolean forwardHazard=dd!=null&&dd.optBoolean("forward_hazard",false);
+            boolean forwardBlocked=dd!=null&&dd.optBoolean("forward_blocked",false);
+            String forwardBlockReason=dd==null?"":dd.optString("forward_block_reason","");
+            JSONObject drive=new JSONObject();
+            drive.put("left",commandedLeft);drive.put("right",commandedRight);drive.put("failsafe",failsafe);drive.put("retrace",retrace);
+            drive.put("safety_auto_stop",safetyAutoStop);drive.put("forward_hazard",forwardHazard);drive.put("forward_blocked",forwardBlocked);drive.put("forward_block_reason",forwardBlockReason);
+            if(dd!=null&&dd.has("history"))drive.put("history",dd.optInt("history",0));
+            out.put("drive",drive);out.put("retrace",retrace);
 
             JSONObject relayNorm=relay(diag,data),adcNorm=adc(diag,data),mqNorm=mq(data.optJSONObject("mq"),false);
             out.put("env",environment(diag,data.optJSONObject("env")));
             out.put("device",device(diag,data));
             out.put("relay",relayNorm);
             out.put("sound",sound(first(data.optJSONObject("sound"),diag.optJSONObject("sound"))));
-            out.put("ir",ir(diag,first(data.optJSONObject("ir"),diag.optJSONObject("ir"))));
+            out.put("ir",ir(diag,first(data.optJSONObject("ir"),diag.optJSONObject("ir")),safetyAutoStop));
             out.put("ldr",ldr(diag,first(data.optJSONObject("ldr"),diag.optJSONObject("ldr"))));
             out.put("alert",alert(first(data.optJSONObject("alert"),diag.optJSONObject("alert"))));
             out.put("adc",adcNorm);
@@ -73,7 +81,11 @@ public final class RobotProtocolV4 {
             JSONObject d=first(data==null?null:data.optJSONObject("device"),diag==null?null:diag.optJSONObject("device"));if(d==null)d=new JSONObject();
             JSONObject b=d.optJSONObject("battery"),p=d.optJSONObject("proximity"),t=d.optJSONObject("internal_temp"),e=d.optJSONObject("energy_basis");
             JSONObject battery=new JSONObject();if(b==null)b=new JSONObject();battery.put("voltage_v",finiteAny(b,"v","voltage_v"));battery.put("raw",b.has("raw")?b.optLong("raw",0):JSONObject.NULL);battery.put("estimated",b.optBoolean("estimated",true));out.put("battery",battery);
-            JSONObject proximity=new JSONObject();if(p==null)p=new JSONObject();proximity.put("distance_cm",finiteAny(p,"cm","distance_cm"));proximity.put("warning",p.optBoolean("warning",false));proximity.put("trig_gpio",p.has("trig")?p.optInt("trig",23):23);proximity.put("echo_gpio",p.has("echo")?p.optInt("echo",39):39);out.put("proximity",proximity);
+            JSONObject proximity=new JSONObject();if(p==null)p=new JSONObject();
+            proximity.put("distance_cm",finiteAny(p,"cm","distance_cm"));proximity.put("warning",p.optBoolean("warning",false));proximity.put("stop_zone",p.optBoolean("stop_zone",false));
+            proximity.put("auto_stop_enabled",p.optBoolean("auto_stop_enabled",false));proximity.put("forward_blocked",p.optBoolean("forward_blocked",false));
+            proximity.put("warning_cm",finiteAny(p,"warning_cm","warn_cm"));proximity.put("stop_cm",finiteAny(p,"stop_cm","stop_distance_cm"));
+            proximity.put("trig_gpio",p.has("trig")?p.optInt("trig",23):23);proximity.put("echo_gpio",p.has("echo")?p.optInt("echo",39):39);out.put("proximity",proximity);
             JSONObject internal=new JSONObject();if(t==null)t=new JSONObject();boolean internalInstalled=t.optBoolean("installed",false);internal.put("installed",internalInstalled);internal.put("temperature_c",finiteAny(t,"c","temperature_c"));internal.put("gpio",internalInstalled&&t.has("gpio")?t.optInt("gpio"):JSONObject.NULL);out.put("internal_temp",internal);
             JSONObject energy=new JSONObject();if(e==null)e=new JSONObject();energy.put("uptime_ms",Math.max(0,e.optLong("uptime_ms",0)));energy.put("drive_eq_ms",Math.max(0,e.optLong("drive_eq_ms",0)));energy.put("mq_on_ms",Math.max(0,e.optLong("mq_on_ms",0)));out.put("energy_basis",energy);
         }catch(Exception ignored){}return out;
@@ -103,7 +115,20 @@ public final class RobotProtocolV4 {
             x.put("calibrated_db_spl",false);
         }catch(Exception ignored){}return x;
     }
-    private static JSONObject ir(JSONObject diag,JSONObject i){JSONObject x=new JSONObject();try{boolean warning=i!=null?i.optBoolean("warning",diag.optBoolean("ir",false)):diag.optBoolean("ir",false);x.put("installed",true);x.put("warning",warning);x.put("level",i==null?JSONObject.NULL:i.optInt("level",-1));x.put("drive_interlock",false);}catch(Exception ignored){}return x;}
+
+    private static JSONObject ir(JSONObject diag,JSONObject i,boolean safetyAutoStop){
+        JSONObject x=new JSONObject();try{
+            if(i==null)i=new JSONObject();
+            boolean warning=i.has("warning")?i.optBoolean("warning",false):diag.optBoolean("ir",false);
+            boolean cliff=i.has("cliff_warning")?i.optBoolean("cliff_warning",warning):warning;
+            x.put("installed",true);x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",i.optBoolean("ground_detected",!cliff));
+            x.put("raw_level",i.has("raw_level")?i.optInt("raw_level",-1):i.optInt("level",-1));x.put("level",i.has("level")?i.optInt("level",-1):i.optInt("raw_level",-1));
+            x.put("ground_active_level",i.has("ground_active_level")?i.optInt("ground_active_level",-1):JSONObject.NULL);x.put("gpio",i.has("gpio")?i.optInt("gpio",35):35);
+            x.put("reference_height_cm",finiteAny(i,"reference_height_cm","reference_cm"));x.put("assert_samples",Math.max(0,i.optInt("assert_samples",0)));x.put("clear_samples",Math.max(0,i.optInt("clear_samples",0)));
+            x.put("auto_stop_enabled",safetyAutoStop);x.put("drive_interlock",safetyAutoStop&&cliff);
+        }catch(Exception ignored){}return x;
+    }
+
     private static JSONObject ldr(JSONObject diag,JSONObject i){JSONObject x=new JSONObject();try{boolean installed=i!=null&&i.optBoolean("installed",i.has("active")||i.has("level"));x.put("installed",installed);x.put("active",installed&&i.optBoolean("active",diag.optBoolean("ldr",false)));x.put("level",installed&&i.has("level")?i.optInt("level",-1):JSONObject.NULL);x.put("gpio",installed&&i.has("gpio")?i.optInt("gpio",34):34);x.put("quantitative_lux",false);}catch(Exception ignored){}return x;}
     private static JSONObject alert(JSONObject a){JSONObject x=new JSONObject();try{if(a==null)a=new JSONObject();x.put("active",a.optBoolean("active",false));x.put("level",a.optInt("level",0));x.put("name",a.optString("name","none"));x.put("gpio",a.optInt("gpio",26));x.put("gas",Math.max(0,Math.min(2,a.optInt("gas",0))));x.put("ir",a.optBoolean("ir",false));x.put("link",a.optBoolean("link",false));}catch(Exception ignored){}return x;}
 
