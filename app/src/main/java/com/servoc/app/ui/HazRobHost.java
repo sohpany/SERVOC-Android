@@ -40,8 +40,10 @@ public interface HazRobHost {
     int trackingTargetId();
     String trackingTargetName();
     void requestExport(String format,long experimentId);
-    /** Export a complete immutable field session; multi-measurement sessions are packaged losslessly. */
+    /** Export one complete immutable field session. PDF is one compact 4–5 page landscape report. */
     void requestFieldSessionExport(String format,String fieldSessionId);
+    /** Export a site-level summary containing all child field sessions. */
+    void requestSiteSummaryExport(String format,String siteId);
     void requestRawExport(long experimentId);
     void requestReferenceBankExport(long experimentId);
     boolean userLibraryAttached();
