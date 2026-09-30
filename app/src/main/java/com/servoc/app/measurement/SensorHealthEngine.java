@@ -47,6 +47,24 @@ public final class SensorHealthEngine {
 
         JSONObject m=snapshot.optJSONObject("measurement");String state=m==null?"idle":m.optString("state","idle");
         if("ready".equals(state)&&m!=null){JSONObject avg=m.optJSONObject("mq");if(avg!=null)for(Channel c:channels.values()){JSONObject r=avg.optJSONObject(c.key);if(valid(r))c.lastRatio=finite(r,"ratio");}}
+        annotate(snapshot);
+    }
+
+    /** Adds the temporal health/noise result to the same canonical channel quality object stored and consumed downstream. */
+    private void annotate(JSONObject snapshot){
+        JSONObject mq=snapshot.optJSONObject("mq");if(mq==null)return;
+        for(Channel c:channels.values()){
+            JSONObject r=mq.optJSONObject(c.key);if(r==null)continue;Snapshot s=assess(c);
+            try{
+                JSONObject q=r.optJSONObject("quality");if(q==null){q=new JSONObject();r.put("quality",q);}
+                q.put("temporal_state",s.state.name());q.put("temporal_valid_samples",s.validSamples);q.put("temporal_expected_misses",s.expectedMisses);
+                q.put("raw_mean",Double.isFinite(s.rawMean)?s.rawMean:JSONObject.NULL);q.put("raw_std",Double.isFinite(s.rawStd)?s.rawStd:JSONObject.NULL);
+                boolean noiseReady=s.validSamples>=10&&Double.isFinite(s.noiseCv);q.put("noise_evaluable",noiseReady);q.put("noise_cv",noiseReady?s.noiseCv:JSONObject.NULL);
+                q.put("noise_flag",noiseReady?s.state==State.UNSTABLE:JSONObject.NULL);q.put("noise_status",noiseReady?(s.state==State.UNSTABLE?"UNSTABLE":"WITHIN_TEMPORAL_THRESHOLD"):"INSUFFICIENT_TEMPORAL_SAMPLES");
+                q.put("temporal_saturation_flag",s.state==State.SATURATED);q.put("stuck_flag",s.state==State.STUCK);
+                q.put("drift_warning",s.state==State.DRIFT_WARNING);q.put("drift_percent",Double.isFinite(s.driftPercent)?s.driftPercent:JSONObject.NULL);
+            }catch(Exception ignored){}
+        }
     }
 
     private static void observeExpected(Channel c,JSONObject r){
