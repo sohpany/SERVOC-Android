@@ -48,7 +48,8 @@ RUN base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks &&
 RUN python3 tools/audit_0101_integration_contract.py && \
     python3 tools/audit_0101_motion_contract.py && \
     python3 tools/audit_0102_release_contract.py && \
-    python3 tools/audit_0103_measurement_foundation.py
+    python3 tools/audit_0103_measurement_foundation.py && \
+    python3 tools/audit_0104_chemcore_library.py
 
 # Compile both firmware targets internally. Outputs remain ephemeral in this build stage.
 RUN python3 tools/audit_0101_firmware_baseline.py && \
