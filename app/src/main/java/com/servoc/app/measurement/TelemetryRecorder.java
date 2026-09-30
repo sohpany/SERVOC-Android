@@ -14,7 +14,7 @@ import java.util.TimeZone;
 
 /** Automatically records normalized telemetry across ESP32 MQ cycles and controlled ChemCore captures. */
 public final class TelemetryRecorder {
-    private final ExperimentsDb db;private final FieldSessionRepository fieldSessions;private String sessionId,lastCompletedSessionId="";private long startedElapsed,lastSampleElapsed;private boolean chemCoreCaptureSession=false;
+    private final ExperimentsDb db;private final FieldSessionRepository fieldSessions;private String sessionId,lastCompletedSessionId="";private long startedElapsed,lastSampleElapsed,sampleSeq;private boolean chemCoreCaptureSession=false;
     public TelemetryRecorder(ExperimentsDb db){this.db=db;this.fieldSessions=new FieldSessionRepository(db);ChemCoreSchema.ensure(db.getWritableDatabase());lastCompletedSessionId=db.getMeta("last_measurement_session_id","");}
 
     public synchronized void accept(JSONObject snapshot,int left,int right,boolean developer){
@@ -36,9 +36,9 @@ public final class TelemetryRecorder {
     public synchronized String lastCompletedSessionId(){return lastCompletedSessionId==null?"":lastCompletedSessionId;}
 
     private void start(boolean developer,long now,boolean chemCore){
-        chemCoreCaptureSession=chemCore;sessionId=(developer?"DEV":"FIELD")+(chemCore?"-CHEMCORE-":"-")+System.currentTimeMillis();startedElapsed=lastSampleElapsed=now;
+        chemCoreCaptureSession=chemCore;sessionId=(developer?"DEV":"FIELD")+(chemCore?"-CHEMCORE-":"-")+System.currentTimeMillis();startedElapsed=lastSampleElapsed=now;sampleSeq=0;
         ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("started_ts",isoNow());v.put("kind",chemCore?"developer_chemcore_controlled_capture":(developer?"developer_mq_cycle":"field_mq_cycle"));v.put("operator_role",developer?"DEVELOPER":"USER");
-        try{JSONObject meta=new JSONObject();meta.put("chemcore_controlled_capture",chemCore);meta.put("sample_period_ms",chemCore?200:250);meta.put("mq_scan_timing_capture",chemCore);v.put("analytics",meta.toString());}catch(Exception ignored){}
+        try{JSONObject meta=new JSONObject();meta.put("chemcore_controlled_capture",chemCore);meta.put("sample_period_ms",chemCore?200:250);meta.put("mq_scan_timing_capture",chemCore);meta.put("measurement_schema",CanonicalMeasurementNormalizer.SCHEMA);v.put("analytics",meta.toString());}catch(Exception ignored){}
         db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);
         // Bind only ordinary USER field acquisitions. Developer/ChemCore controlled captures stay outside the user domain.
         if(!developer&&!chemCore){
@@ -53,6 +53,11 @@ public final class TelemetryRecorder {
         JSONObject e=snapshot.optJSONObject("env"),mq=snapshot.optJSONObject("mq");v.put("env_payload",e==null?"{}":e.toString());v.put("mq_payload",mq==null?"{}":mq.toString());
         JSONObject state=new JSONObject();
         try{
+            JSONObject transport=snapshot.optJSONObject("_transport");long utc=transport==null?System.currentTimeMillis():transport.optLong("received_utc_ms",System.currentTimeMillis());
+            long monotonic=transport==null?now:transport.optLong("received_monotonic_ms",now);
+            state.put("sample_seq",++sampleSeq);state.put("sample_utc_ms",utc);state.put("sample_monotonic_ms",monotonic);state.put("session_t_ms",tMs);
+            state.put("measurement_schema",snapshot.optString("measurement_schema",CanonicalMeasurementNormalizer.SCHEMA));
+            if(transport!=null)state.put("transport",new JSONObject(transport.toString()));
             state.put("left",left);state.put("right",right);state.put("hardware_profile",HazRobHardwareProfile.ID);state.put("chemcore_controlled_capture",chemCoreCaptureSession);
             JSONObject d=snapshot.optJSONObject("drive");if(d!=null){
                 state.put("failsafe",d.optBoolean("failsafe",false));state.put("retrace",d.optBoolean("retrace",false));state.put("hold",d.optBoolean("hold",false));
@@ -88,13 +93,15 @@ public final class TelemetryRecorder {
         final String completed=sessionId;final boolean wasChemCore=chemCoreCaptureSession;ContentValues v=new ContentValues();v.put("ended_ts",isoNow());v.put("payload",snapshot.toString());
         try{
             JSONObject meta=new JSONObject();meta.put("terminal_state",state);meta.put("contains_aux_sensors",true);meta.put("chemcore_controlled_capture",wasChemCore);
-            meta.put("hardware_profile",HazRobHardwareProfile.ID);meta.put("mq_power_architecture","single_relay_8_sensors");meta.put("installed_relays","R1");meta.put("relay_gpio",25);meta.put("mq_sensor_count",8);meta.put("manual_warmup",true);meta.put("sample_period_ms",wasChemCore?200:250);meta.put("mq_scan_timing_capture",wasChemCore);
+            meta.put("hardware_profile",HazRobHardwareProfile.ID);meta.put("measurement_schema",CanonicalMeasurementNormalizer.SCHEMA);meta.put("sample_count",sampleSeq);
+            meta.put("mq_power_architecture","single_relay_8_sensors");meta.put("installed_relays","R1");meta.put("relay_gpio",25);meta.put("mq_sensor_count",8);meta.put("manual_warmup",true);meta.put("sample_period_ms",wasChemCore?200:250);meta.put("mq_scan_timing_capture",wasChemCore);
+            JSONObject transport=snapshot.optJSONObject("_transport");if(transport!=null)meta.put("terminal_transport",transport.optString("mode","UNKNOWN"));
             JSONObject adc=snapshot.optJSONObject("adc");if(adc!=null&&adc.optJSONObject("acquisition")!=null)meta.put("adc_acquisition",adc.optJSONObject("acquisition"));
             v.put("analytics",meta.toString());
         }catch(Exception ignored){}
         db.getWritableDatabase().update("measurement_sessions",v,"session_id=?",new String[]{completed});
         lastCompletedSessionId=completed;db.putMeta("last_measurement_session_id",completed);db.putMeta("last_measurement_session_terminal_state",state);
-        MeasurementSessionRegistry.completed(completed);if(wasChemCore)MeasurementSessionRegistry.clearChemCoreCapture();sessionId=null;startedElapsed=lastSampleElapsed=0;chemCoreCaptureSession=false;
+        MeasurementSessionRegistry.completed(completed);if(wasChemCore)MeasurementSessionRegistry.clearChemCoreCapture();sessionId=null;startedElapsed=lastSampleElapsed=sampleSeq=0;chemCoreCaptureSession=false;
     }
 
     private static String isoNow(){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
