@@ -5,8 +5,12 @@ import android.net.Uri;
 
 import java.io.File;
 
-/** Compatibility facade: recording follows the same app-side effects shown to the operator. */
-public final class MjpegRecorder {
+/**
+ * Compatibility facade for video-surface recording.
+ * No MediaProjection, screen-capture permission, camera permission, or JPEG decode is performed here.
+ * While recording, it consumes the already-decoded video frame used by the app's GPU presentation surface.
+ */
+public final class MjpegRecorder implements VideoEffectFrameHub.Consumer {
     public static final class StopResult {
         public final File video,index;public final Uri galleryUri;public final String displayName;public final long frames,dropped;public final String error;
         StopResult(File video,File index,Uri galleryUri,String displayName,long frames,long dropped,String error){this.video=video;this.index=index;this.galleryUri=galleryUri;this.displayName=displayName;this.frames=frames;this.dropped=dropped;this.error=error;}
@@ -17,15 +21,35 @@ public final class MjpegRecorder {
     private File currentVideo,currentIndex;private StopResult last;
 
     public MjpegRecorder(Context context){delegate=new SurfaceRecorderCore(context);}
+
     public synchronized File start(String baseName)throws Exception{
-        currentVideo=delegate.start(baseName);String n=currentVideo.getName();currentIndex=new File(currentVideo.getParentFile(),n.substring(0,Math.max(0,n.length()-4))+"_frames.csv");last=null;return currentVideo;
+        currentVideo=delegate.start(baseName);
+        String n=currentVideo.getName();
+        currentIndex=new File(currentVideo.getParentFile(),n.substring(0,Math.max(0,n.length()-4))+"_frames.csv");
+        last=null;
+        VideoEffectFrameHub.set(this);
+        return currentVideo;
     }
+
     /** Ownership of one SharedVideoFrame consumer reference transfers to the recorder. */
-    public void onDecodedFrame(SharedVideoFrame frame){delegate.onDecodedFrame(frame);}
-    public StopResult stopGracefully(long timeoutMs){SurfaceRecorderCore.StopResult r=delegate.stopGracefully(timeoutMs);last=map(r);return last;}
-    public StopResult stopNow(){SurfaceRecorderCore.StopResult r=delegate.stopNow();last=map(r);return last;}
+    @Override public void onDecodedFrame(SharedVideoFrame frame){delegate.onDecodedFrame(frame);}
+
+    /**
+     * Legacy call retained so ControlTab does not need to participate in recording.
+     * Raw JPEG bytes are intentionally ignored; recording is fed only from the decoded GPU-video path.
+     */
+    public void onJpegFrame(byte[] jpeg,long elapsedMs){}
+
+    public StopResult stopGracefully(long timeoutMs){
+        VideoEffectFrameHub.clear(this);
+        SurfaceRecorderCore.StopResult r=delegate.stopGracefully(timeoutMs);last=map(r);return last;
+    }
+    public StopResult stopNow(){
+        VideoEffectFrameHub.clear(this);
+        SurfaceRecorderCore.StopResult r=delegate.stopNow();last=map(r);return last;
+    }
     private static StopResult map(SurfaceRecorderCore.StopResult r){return r==null?new StopResult(null,null,null,"",0,0,"no_result"):new StopResult(r.video,r.index,r.galleryUri,r.displayName,r.frames,r.dropped,r.error);}
     public boolean isRecording(){return delegate.isRecording();}public boolean isClosing(){return delegate.isClosing();}public long frameCount(){return delegate.frameCount();}public long droppedFrames(){return delegate.droppedFrames();}
     public File videoFile(){return currentVideo;}public File indexFile(){return currentIndex;}public String lastError(){return last==null?null:last.error;}public Uri galleryUri(){return last==null?null:last.galleryUri;}
-    public void release(){delegate.release();}
+    public void release(){VideoEffectFrameHub.clear(this);delegate.release();}
 }
