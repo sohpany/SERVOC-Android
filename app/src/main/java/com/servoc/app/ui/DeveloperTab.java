@@ -20,7 +20,7 @@ public final class DeveloperTab {
     private final Context context;private final HazRobHost host;private final Runnable onUnlock;
     private final LinearLayout root;private final FrameLayout page;private final LinearLayout bar;
     private boolean unlocked=false;private int selected=0;
-    private Button[] tabs;private DeveloperExperimentsTab experiments;private AnalyticalLabTab chemCore;private RobotConnectionSetupTab connectionSetup;private CentralLibraryDashboardTab library;private View[] views;
+    private Button[] tabs;private DeveloperExperimentsTab experiments;private AnalyticalLabTab chemCore;private DeveloperConnectionDiagnosticsTab connectionSetup;private CentralLibraryDashboardTab library;private View[] views;
 
     public DeveloperTab(Context c,HazRobHost host,Runnable onUnlock){
         context=c;this.host=host;this.onUnlock=onUnlock;
@@ -52,7 +52,7 @@ public final class DeveloperTab {
 
     private void unlock(){
         if(unlocked)return;unlocked=true;if(onUnlock!=null)onUnlock.run();
-        experiments=new DeveloperExperimentsTab(context,host);chemCore=new AnalyticalLabTab(context,host);connectionSetup=new RobotConnectionSetupTab(context,host);library=new CentralLibraryDashboardTab(context,host);
+        experiments=new DeveloperExperimentsTab(context,host);chemCore=new AnalyticalLabTab(context,host);connectionSetup=new DeveloperConnectionDiagnosticsTab(context,host);library=new CentralLibraryDashboardTab(context,host);
         views=new View[]{experiments.view(),chemCore.view(),connectionSetup.view(),library.view()};
         String[] names={"التجارب","المختبر","الاتصال","المكتبة المركزية"};tabs=new Button[names.length];bar.removeAllViews();
         for(int i=0;i<names.length;i++){final int x=i;Button b=UiKit.button(context,names[i]);b.setTextSize(9);b.setOnClickListener(v->show(x));tabs[i]=b;bar.addView(b,UiKit.weight(1));}
