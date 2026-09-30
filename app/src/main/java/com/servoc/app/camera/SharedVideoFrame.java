@@ -23,6 +23,15 @@ public final class SharedVideoFrame {
     public int height(){return bitmap.getHeight();}
     public int remainingConsumers(){return Math.max(0,refs.get());}
 
+    /** Adds one consumer before the current owner releases the frame. */
+    public SharedVideoFrame retain(){
+        while(true){
+            int n=refs.get();
+            if(n<=0)throw new IllegalStateException("SharedVideoFrame already released");
+            if(refs.compareAndSet(n,n+1))return this;
+        }
+    }
+
     public void release(){
         int n=refs.decrementAndGet();
         if(n==0){if(!bitmap.isRecycled())bitmap.recycle();}
