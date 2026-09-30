@@ -14,43 +14,49 @@ import java.util.Set;
 /**
  * Fail-closed gas safety assessment for HazRob.
  *
- * Toxicological exposure references participate only when explicitly expressed in ppm. Mass-
- * concentration limits are retained in the knowledge base but are never silently converted.
- * Flammability references are handled separately as LFL/LEL and UFL/UEL percent-by-volume values;
- * 1 vol% is exactly 10,000 ppmv for the ratio calculation used here.
- *
- * Safety priority is dimensionless and relative to the substance-specific controlling reference:
- * max(toxicity ratio, flammability ratio). Absolute ppm is always reported but is never the safety
- * sort key. TWA/STEL comparisons remain temporal context unless their averaging duration is covered;
- * this class never declares legal compliance from a single HazRob capture.
+ * A current M4-reportable ppm result is compared immediately with available ppm references and
+ * flammability limits. TWA/STEL current-concentration crossings are warnings, not time-weighted
+ * exceedance claims. Temporal exceedance is enabled only when an explicit quantitative time-series
+ * assessment is supplied. Ceiling/IDLH and LFL/LEL remain immediate comparisons.
  */
 public final class GasPpmExposureAssessment {
-    public static final String SCHEMA="hazrob-gas-exposure-ppm/2";
+    public static final String SCHEMA="hazrob-gas-exposure-ppm/3";
     public static final String KEY="gas_exposure_ppm";
     private static final double PPM_PER_VOL_PERCENT=10_000.0;
     private GasPpmExposureAssessment(){}
 
     public static JSONObject evaluate(ExperimentsDb db,JSONObject chemcore,long measurementDurationMs){
+        return evaluate(db,chemcore,measurementDurationMs,null);
+    }
+
+    /** Optional temporalAssessment is produced by the P10 quantitative time-series engine. */
+    public static JSONObject evaluate(ExperimentsDb db,JSONObject chemcore,long measurementDurationMs,JSONObject temporalAssessment){
         if(chemcore==null)return withheld("missing_chemcore_result",measurementDurationMs);
         String gate=gateReason(chemcore);if(gate!=null)return withheld(gate,measurementDurationMs);
         if(db==null)return withheld("exposure_database_unavailable",measurementDurationMs);
         long uid=chemcore.optLong("chemical_uid",-1);
-        try{return evaluate(chemcore,new ExposureRepository(db).forChemical(uid),measurementDurationMs);}
+        try{return evaluate(chemcore,new ExposureRepository(db).forChemical(uid),measurementDurationMs,temporalAssessment);}
         catch(Exception e){return withheld("exposure_repository_failure",measurementDurationMs);}
     }
 
-    /** Pure-Java overload used by regression tests and deterministic report logic. */
+    /** Backward-compatible deterministic overload: current concentration comparison only. */
     public static JSONObject evaluate(JSONObject chemcore,List<ExposureRepository.Limit> source,long measurementDurationMs){
+        return evaluate(chemcore,source,measurementDurationMs,null);
+    }
+
+    /** Pure-Java overload used by regression tests and deterministic report logic. */
+    public static JSONObject evaluate(JSONObject chemcore,List<ExposureRepository.Limit> source,long measurementDurationMs,JSONObject temporalAssessment){
         String gate=gateReason(chemcore);if(gate!=null)return withheld(gate,measurementDurationMs);
         List<ExposureRepository.Limit> limits=source==null?Collections.emptyList():source;
         try{
             double ppm=chemcore.getDouble("ppm");long uid=chemcore.getLong("chemical_uid");
             JSONObject out=base(measurementDurationMs);out.put("input_gate_passed",true);out.put("chemical_uid",uid);out.put("chemical",chemcore.optString("chemical",""));out.put("ppm",ppm);out.put("measurement_source","chemcore_m4_reportable_ppm");
+            out.put("current_concentration_comparison_available",true);
 
             JSONArray refs=new JSONArray(),flammabilityRefs=new JSONArray();Set<String> authorities=new LinkedHashSet<>();
             int nonPpm=0,invalid=0,crossed=0,actionable=0,ppmCount=0,lflCount=0,uflCount=0;
             double toxicMax=Double.NaN,lflMaxRatio=Double.NaN,uflPct=Double.NaN;JSONObject toxicMaxRef=null,lflMaxRef=null;
-            boolean idlhCrossed=false,ceilingCrossed=false,actionableShortCrossed=false,contextCrossed=false;
+            boolean idlhCrossed=false,ceilingCrossed=false,actionableTemporalCrossed=false,contextCrossed=false;
 
             for(ExposureRepository.Limit l:limits){
                 if(l==null||!l.numeric()||l.value==null||!Double.isFinite(l.value)||l.value<=0){invalid++;continue;}
@@ -59,7 +65,8 @@ public final class GasPpmExposureAssessment {
                     if(!isVolPercentUnit(l.unit)){invalid++;continue;}
                     double boundaryPpm=l.value*PPM_PER_VOL_PERCENT;
                     double ratio=ppm/boundaryPpm;
-                    JSONObject f=new JSONObject();f.put("authority",nz(l.authority));f.put("jurisdiction",nz(l.jurisdiction));f.put("limit_type",nz(l.type));f.put("role",flammabilityRole);f.put("value_vol_pct",l.value);f.put("boundary_ppm",boundaryPpm);f.put("ratio_to_boundary",ratio);f.put("percent_of_boundary",ratio*100.0);f.put("source_id",nz(l.sourceId));f.put("revision",nz(l.revision));f.put("notation",nz(l.notation));flammabilityRefs.put(f);
+                    JSONObject f=new JSONObject();f.put("authority",nz(l.authority));f.put("jurisdiction",nz(l.jurisdiction));f.put("limit_type",nz(l.type));f.put("role",flammabilityRole);f.put("value_vol_pct",l.value);f.put("boundary_ppm",boundaryPpm);f.put("ratio_to_boundary",ratio);f.put("percent_of_boundary",ratio*100.0);f.put("source_id",nz(l.sourceId));f.put("revision",nz(l.revision));f.put("notation",nz(l.notation));
+                    f.put("current_ppm",ppm);f.put("margin_to_boundary_ppm",boundaryPpm-ppm);f.put("boundary_reached_or_exceeded",ratio>=1.0);flammabilityRefs.put(f);
                     if("LFL".equals(flammabilityRole)){lflCount++;if(!Double.isFinite(lflMaxRatio)||ratio>lflMaxRatio){lflMaxRatio=ratio;lflMaxRef=new JSONObject(f.toString());}}
                     else{uflCount++;if(!Double.isFinite(uflPct)||l.value<uflPct)uflPct=l.value;}
                     if(l.authority!=null&&!l.authority.trim().isEmpty())authorities.add(l.authority.trim());
@@ -68,35 +75,59 @@ public final class GasPpmExposureAssessment {
 
                 if(!isPpmUnit(l.unit)){nonPpm++;continue;}
                 ppmCount++;String role=temporalRole(l.type);double ratio=ppm/l.value;boolean hit=ratio>=1.0;
-                boolean durationCovered=durationCovered(role,l.durationMin,measurementDurationMs);
-                boolean actionRelevant=hit&&(isImmediateRole(role)||durationCovered);
+                boolean immediate=isImmediateRole(role);
+                TemporalComparison temporal=temporalComparison(temporalAssessment,role,l.durationMin,l.value);
+                boolean actionRelevant=hit&&immediate || temporal.exceeded;
                 if(hit){crossed++;contextCrossed=true;}if(actionRelevant)actionable++;
                 if(hit&&"IDLH".equals(role))idlhCrossed=true;if(hit&&"CEILING".equals(role))ceilingCrossed=true;
-                if(actionRelevant&&("STEL".equals(role)||"TWA".equals(role)||"OTHER".equals(role)))actionableShortCrossed=true;
+                if(temporal.exceeded)actionableTemporalCrossed=true;
                 JSONObject r=new JSONObject();r.put("authority",nz(l.authority));r.put("jurisdiction",nz(l.jurisdiction));r.put("limit_type",nz(l.type));r.put("value_ppm",l.value);r.put("unit","ppm");
                 if(l.durationMin!=null&&Double.isFinite(l.durationMin)&&l.durationMin>0)r.put("duration_min",l.durationMin);else r.put("duration_min",JSONObject.NULL);
-                r.put("temporal_role",role);r.put("ratio_to_reference",ratio);r.put("percent_of_reference",ratio*100.0);r.put("reference_crossed",hit);r.put("duration_coverage_satisfied",durationCovered);r.put("action_relevant_reference_crossed",actionRelevant);
-                r.put("compliance_interpretation",complianceInterpretation(role,durationCovered));r.put("notation",nz(l.notation));r.put("source_id",nz(l.sourceId));r.put("revision",nz(l.revision));refs.put(r);
+                r.put("temporal_role",role);r.put("ratio_to_reference",ratio);r.put("percent_of_reference",ratio*100.0);r.put("current_concentration_crossed",hit);r.put("reference_crossed",hit);
+                r.put("temporal_average_evaluated",temporal.evaluated);r.put("duration_coverage_satisfied",temporal.covered);r.put("time_integrated_average_ppm",temporal.evaluated?temporal.averagePpm:JSONObject.NULL);r.put("time_integrated_reference_crossed",temporal.exceeded);
+                r.put("action_relevant_reference_crossed",actionRelevant);r.put("compliance_interpretation",complianceInterpretation(role,temporal));r.put("notation",nz(l.notation));r.put("source_id",nz(l.sourceId));r.put("revision",nz(l.revision));refs.put(r);
                 if(l.authority!=null&&!l.authority.trim().isEmpty())authorities.add(l.authority.trim());
                 if(!Double.isFinite(toxicMax)||ratio>toxicMax){toxicMax=ratio;toxicMaxRef=new JSONObject(r.toString());}
             }
 
-            String toxicityState;if(ppmCount==0)toxicityState="NO_PPM_REFERENCES";else if(idlhCrossed)toxicityState="IDLH_REFERENCE_CROSSED";else if(ceilingCrossed)toxicityState="CEILING_REFERENCE_CROSSED";else if(actionableShortCrossed)toxicityState="DURATION_COVERED_REFERENCE_CROSSED";else if(contextCrossed)toxicityState="REFERENCE_CONTEXT_CROSSED";else toxicityState="BELOW_AVAILABLE_PPM_REFERENCES";
+            String toxicityState;if(ppmCount==0)toxicityState="NO_PPM_REFERENCES";else if(idlhCrossed)toxicityState="IDLH_REFERENCE_CROSSED";else if(ceilingCrossed)toxicityState="CEILING_REFERENCE_CROSSED";else if(actionableTemporalCrossed)toxicityState="TIME_INTEGRATED_REFERENCE_CROSSED";else if(contextCrossed)toxicityState="CURRENT_CONCENTRATION_ABOVE_REFERENCE";else toxicityState="BELOW_AVAILABLE_PPM_REFERENCES";
             boolean lflCrossed=Double.isFinite(lflMaxRatio)&&lflMaxRatio>=1.0;String flammabilityState=lflCount==0?"NO_LFL_REFERENCE":lflCrossed?"LFL_REACHED_OR_EXCEEDED":"BELOW_LFL";
             boolean toxicReferenceCrossed=contextCrossed,immediateToxicAction=actionable>0,flame=lflCrossed;
             double hazard=maximumFinite(toxicMax,lflMaxRatio);String basis=hazardBasis(toxicMax,lflMaxRatio);
 
             out.put("state",toxicityState);out.put("toxicity_state",toxicityState);out.put("flammability_state",flammabilityState);out.put("source_limit_count",limits.size());out.put("ppm_reference_count",ppmCount);out.put("lfl_reference_count",lflCount);out.put("ufl_reference_count",uflCount);out.put("excluded_non_ppm_count",nonPpm);out.put("excluded_invalid_count",invalid);out.put("crossed_reference_count",crossed);out.put("action_relevant_crossed_count",actionable);
             putFiniteOrNull(out,"max_ratio_to_reference",toxicMax);putFiniteOrNull(out,"toxicity_priority_ratio",toxicMax);putFiniteOrNull(out,"toxicity_priority_percent",Double.isFinite(toxicMax)?toxicMax*100.0:Double.NaN);if(toxicMaxRef!=null){out.put("highest_ratio_reference",toxicMaxRef);out.put("controlling_toxicity_reference",new JSONObject(toxicMaxRef.toString()));}
-            putFiniteOrNull(out,"lfl_ratio",lflMaxRatio);putFiniteOrNull(out,"percent_lfl",Double.isFinite(lflMaxRatio)?lflMaxRatio*100.0:Double.NaN);out.put("lfl_threshold_crossed",lflCrossed);if(lflMaxRef!=null){out.put("controlling_lfl_reference",lflMaxRef);out.put("lfl_vol_pct",lflMaxRef.optDouble("value_vol_pct",Double.NaN));out.put("lfl_ppm",lflMaxRef.optDouble("boundary_ppm",Double.NaN));}
+            putFiniteOrNull(out,"lfl_ratio",lflMaxRatio);putFiniteOrNull(out,"percent_lfl",Double.isFinite(lflMaxRatio)?lflMaxRatio*100.0:Double.NaN);out.put("lfl_threshold_crossed",lflCrossed);
+            if(lflMaxRef!=null){double boundary=lflMaxRef.optDouble("boundary_ppm",Double.NaN);out.put("controlling_lfl_reference",lflMaxRef);out.put("lfl_vol_pct",lflMaxRef.optDouble("value_vol_pct",Double.NaN));out.put("lfl_ppm",boundary);putFiniteOrNull(out,"lfl_margin_ppm",Double.isFinite(boundary)?boundary-ppm:Double.NaN);out.put("flammability_interpretation",lflCrossed?"MEASURED_PPM_AT_OR_ABOVE_LOWER_FLAMMABILITY_LIMIT":"MEASURED_PPM_BELOW_LOWER_FLAMMABILITY_LIMIT");}
+            else{out.put("lfl_vol_pct",JSONObject.NULL);out.put("lfl_ppm",JSONObject.NULL);out.put("lfl_margin_ppm",JSONObject.NULL);out.put("flammability_interpretation","NO_LFL_REFERENCE");}
             if(Double.isFinite(uflPct)){out.put("ufl_vol_pct",uflPct);out.put("ufl_ppm",uflPct*PPM_PER_VOL_PERCENT);}else{out.put("ufl_vol_pct",JSONObject.NULL);out.put("ufl_ppm",JSONObject.NULL);}
             putFiniteOrNull(out,"hazard_priority_ratio",hazard);putFiniteOrNull(out,"hazard_priority_percent",Double.isFinite(hazard)?hazard*100.0:Double.NaN);out.put("hazard_priority_basis",basis);
             out.put("toxic_reference_crossed",toxicReferenceCrossed);out.put("toxic_action_relevant",immediateToxicAction);out.put("health_reference_context_warning",toxicReferenceCrossed&&!immediateToxicAction);out.put("flammability_lfl_reached",flame);out.put("hazard_symbols",symbols(toxicReferenceCrossed,flame));
             out.put("references",refs);out.put("flammability_references",flammabilityRefs);
             JSONArray auth=new JSONArray();for(String a:authorities)auth.put(a);out.put("authorities",auth);
-            out.put("compliance_determination","NOT_MADE");out.put("interpretation","Safety priority is relative to substance-specific ppm exposure and LFL references, not absolute ppm. A skull means measured ppm reached/exceeded at least one health reference; for TWA/STEL this is a concentration-context warning unless the required averaging duration is covered. A flame means measured concentration reached/exceeded 100% LFL. No legal compliance claim is produced from a single HazRob capture.");
+            out.put("compliance_determination","NOT_MADE");out.put("interpretation","Current M4-reportable ppm is compared immediately with health references and LFL/LEL. A TWA/STEL current-concentration crossing is reported immediately as a warning, but becomes a time-integrated exceedance only when a quantitative temporal series covers the required averaging window. Ceiling/IDLH are immediate comparisons. LFL/LEL is immediate: 100% LFL means the measured concentration has reached or exceeded the lower flammability boundary. No legal compliance determination is made automatically.");
             return out;
         }catch(Exception e){return withheld("assessment_serialization_failure",measurementDurationMs);}
+    }
+
+    private static final class TemporalComparison{
+        final boolean evaluated,covered,exceeded;final double averagePpm;
+        TemporalComparison(boolean evaluated,boolean covered,boolean exceeded,double averagePpm){this.evaluated=evaluated;this.covered=covered;this.exceeded=exceeded;this.averagePpm=averagePpm;}
+    }
+    private static TemporalComparison temporalComparison(JSONObject q,String role,Double durationMin,double referencePpm){
+        if(isImmediateRole(role)||q==null)return new TemporalComparison(false,isImmediateRole(role),false,Double.NaN);
+        try{
+            JSONArray windows=q.optJSONArray("windows");if(windows==null)return new TemporalComparison(false,false,false,Double.NaN);
+            for(int i=0;i<windows.length();i++){
+                JSONObject w=windows.optJSONObject(i);if(w==null)continue;String wr=w.optString("role","");if(!role.equals(wr))continue;
+                double required=durationMin!=null&&Double.isFinite(durationMin)&&durationMin>0?durationMin:w.optDouble("duration_min",Double.NaN);
+                double coveredMin=w.optDouble("covered_minutes",Double.NaN),avg=w.optDouble("average_ppm",Double.NaN);
+                boolean covered=Double.isFinite(required)&&required>0&&Double.isFinite(coveredMin)&&coveredMin+1e-9>=required;
+                boolean valid=w.optBoolean("valid",false)&&Double.isFinite(avg)&&avg>=0;
+                return new TemporalComparison(valid,covered,valid&&covered&&avg>=referencePpm,avg);
+            }
+        }catch(Exception ignored){}
+        return new TemporalComparison(false,false,false,Double.NaN);
     }
 
     private static String gateReason(JSONObject p){
@@ -111,14 +142,13 @@ public final class GasPpmExposureAssessment {
     }
 
     private static JSONObject withheld(String reason,long durationMs){try{JSONObject o=base(durationMs);o.put("input_gate_passed",false);o.put("state","WITHHELD");o.put("toxicity_state","WITHHELD");o.put("flammability_state","WITHHELD");o.put("reason",reason);o.put("source_limit_count",0);o.put("ppm_reference_count",0);o.put("lfl_reference_count",0);o.put("ufl_reference_count",0);o.put("excluded_non_ppm_count",0);o.put("excluded_invalid_count",0);o.put("crossed_reference_count",0);o.put("action_relevant_crossed_count",0);o.put("max_ratio_to_reference",JSONObject.NULL);o.put("hazard_priority_ratio",JSONObject.NULL);o.put("hazard_priority_percent",JSONObject.NULL);o.put("hazard_priority_basis","WITHHELD");o.put("hazard_symbols","");o.put("references",new JSONArray());o.put("flammability_references",new JSONArray());o.put("compliance_determination","NOT_MADE");return o;}catch(Exception e){return new JSONObject();}}
-    private static JSONObject base(long durationMs)throws Exception{JSONObject o=new JSONObject();o.put("schema",SCHEMA);o.put("scope","gas_phase_occupational_and_flammability_safety");o.put("measurement_unit","ppm");o.put("measurement_duration_ms",Math.max(0,durationMs));o.put("unit_policy","TOXICOLOGY_PPM_ONLY_NO_MASS_CONCENTRATION_CONVERSION");o.put("flammability_conversion","1 vol% = 10000 ppmv");return o;}
+    private static JSONObject base(long durationMs)throws Exception{JSONObject o=new JSONObject();o.put("schema",SCHEMA);o.put("scope","gas_phase_occupational_and_flammability_safety");o.put("measurement_unit","ppm");o.put("measurement_duration_ms",Math.max(0,durationMs));o.put("unit_policy","TOXICOLOGY_CURRENT_PPM_PLUS_EXPLICIT_TIME_INTEGRATION");o.put("flammability_conversion","1 vol% = 10000 ppmv");return o;}
     private static boolean isPpmUnit(String unit){if(unit==null)return false;String u=unit.trim().toLowerCase(Locale.US).replaceAll("\\s+"," ");return "ppm".equals(u)||"parts per million".equals(u);}
     private static boolean isVolPercentUnit(String unit){if(unit==null)return false;String u=unit.trim().toLowerCase(Locale.US).replaceAll("\\s+","");return "%vol".equals(u)||"vol%".equals(u)||"%v/v".equals(u)||"%".equals(u)||"percentbyvolume".equals(u);}
     private static String flammabilityRole(String type){String t=nz(type).trim().toUpperCase(Locale.US).replace('-','_').replace(' ','_');if("LFL".equals(t)||"LEL".equals(t)||t.contains("LOWER_FLAMMABLE")||t.contains("LOWER_EXPLOSIVE"))return "LFL";if("UFL".equals(t)||"UEL".equals(t)||t.contains("UPPER_FLAMMABLE")||t.contains("UPPER_EXPLOSIVE"))return "UFL";return null;}
-    private static String temporalRole(String type){String t=nz(type).trim().toUpperCase(Locale.US).replace('-','_');if(t.contains("IDLH"))return "IDLH";if(t.contains("CEILING")||"C".equals(t))return "CEILING";if(t.contains("STEL")||t.contains("SHORT_TERM"))return "STEL";if(t.contains("TWA")||t.contains("PEL")||t.contains("REL"))return "TWA";return "OTHER";}
+    private static String temporalRole(String type){String t=nz(type).trim().toUpperCase(Locale.US).replace('-','_').replace(' ','_');if(t.contains("IDLH"))return "IDLH";if(t.contains("CEILING")||"C".equals(t))return "CEILING";if(t.contains("STEL")||t.contains("SHORT_TERM"))return "STEL";if(t.contains("TWA")||t.contains("PEL")||t.contains("REL"))return "TWA";return "OTHER";}
     private static boolean isImmediateRole(String role){return "IDLH".equals(role)||"CEILING".equals(role);}
-    private static boolean durationCovered(String role,Double durationMin,long measurementDurationMs){if(isImmediateRole(role))return true;if(durationMin==null||!Double.isFinite(durationMin)||durationMin<=0)return false;return measurementDurationMs>=Math.round(durationMin*60_000.0);}
-    private static String complianceInterpretation(String role,boolean covered){if("IDLH".equals(role))return "emergency_reference_not_compliance_limit";if("CEILING".equals(role))return "ceiling_reference_screening_comparison";if("STEL".equals(role)||"TWA".equals(role))return covered?"averaging_duration_covered_but_sampling_method_still_requires_review":"duration_context_not_covered";return "reference_only_no_compliance_claim";}
+    private static String complianceInterpretation(String role,TemporalComparison t){if("IDLH".equals(role))return "immediate_emergency_reference_comparison";if("CEILING".equals(role))return "immediate_ceiling_reference_comparison";if("STEL".equals(role)||"TWA".equals(role)){if(!t.evaluated)return "current_concentration_reference_warning_temporal_average_not_evaluated";if(!t.covered)return "temporal_series_available_but_required_window_not_covered";return t.exceeded?"time_integrated_reference_crossed_sampling_method_review_required":"time_integrated_average_below_reference_sampling_method_review_required";}return "reference_only_no_compliance_claim";}
     private static double maximumFinite(double a,double b){if(Double.isFinite(a)&&Double.isFinite(b))return Math.max(a,b);if(Double.isFinite(a))return a;if(Double.isFinite(b))return b;return Double.NaN;}
     private static String hazardBasis(double toxic,double flame){if(!Double.isFinite(toxic)&&!Double.isFinite(flame))return "NO_REFERENCE";if(Double.isFinite(toxic)&&Double.isFinite(flame)){double d=Math.abs(toxic-flame);double scale=Math.max(1e-12,Math.max(Math.abs(toxic),Math.abs(flame)));if(d/scale<=1e-9)return "BOTH";return toxic>flame?"TOXICITY":"FLAMMABILITY";}return Double.isFinite(toxic)?"TOXICITY":"FLAMMABILITY";}
     private static String symbols(boolean skull,boolean flame){StringBuilder s=new StringBuilder();if(skull)s.append("☠");if(flame)s.append("🔥");return s.toString();}
