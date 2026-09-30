@@ -5,16 +5,15 @@ import org.json.JSONObject;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Intelligent XLSX companion for one Site.
  * Cross-session summaries preserve Field Session independence: no pooled/averaged PPM is produced.
  */
-final class SmartSiteXlsxWriter {
+public final class SmartSiteXlsxWriter {
     private SmartSiteXlsxWriter(){}
 
-    static void write(OutputStream out,SiteSummaryReportExporter.SiteBundle b)throws Exception{
+    public static void write(OutputStream out,SiteSummaryReportExporter.SiteBundle b)throws Exception{
         if(out==null||b==null)throw new IllegalArgumentException("output/site required");
         SiteReportIntelligence.SitePlan plan=SiteReportIntelligence.plan(b.sessions);
         List<SmartXlsxPackage.Sheet> sheets=new ArrayList<>();
