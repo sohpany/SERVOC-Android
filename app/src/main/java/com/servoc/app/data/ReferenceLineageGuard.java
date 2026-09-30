@@ -78,7 +78,11 @@ public final class ReferenceLineageGuard {
             if(!session.equals(n(x.optString("session_id",""))))return false;
             if(!kind.equals(n(x.optString("reference_kind","")).toLowerCase(Locale.US)))return false;
             if(!"ready_average".equalsIgnoreCase(x.optString("capture_state","")))return false;
-            return "DEVICE_LOCAL_NOT_DISTRIBUTED".equals(x.optString("r0_scope",""));
+            String scope=n(x.optString("r0_scope",""));
+            if("DEVICE_LOCAL_NOT_DISTRIBUTED".equals(scope))return true;
+            // Compatibility is intentionally restricted to earlier records created by this same
+            // 0.10.2 / HR069 capture schema before the explicit r0_scope field was introduced.
+            return !x.optBoolean("device_local_r0_distributable",true);
         }catch(Exception ignored){return false;}
     }
 
