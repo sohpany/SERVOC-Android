@@ -7,13 +7,14 @@ import android.database.sqlite.SQLiteDatabase;
 public final class ChemCoreSchema {
     private ChemCoreSchema() {}
 
-    public static final int SCHEMA_VERSION = 4;
+    public static final int SCHEMA_VERSION = 5;
 
     public static void ensure(SQLiteDatabase db) {
         if (db == null) throw new IllegalArgumentException("database required");
         ensureSampling(db);
         ensureMolecularIntelligence(db);
         ensureModelGovernance(db);
+        ensureReferenceLineageGuards(db);
     }
 
     private static void ensureSampling(SQLiteDatabase db) {
@@ -188,6 +189,30 @@ public final class ChemCoreSchema {
                 "FOREIGN KEY(session_id) REFERENCES measurement_sessions(session_id) ON DELETE CASCADE," +
                 "FOREIGN KEY(chemical_uid) REFERENCES chemicals(uid))");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_chemcore_decision_session ON chemcore_decisions(session_id,t_ms)");
+    }
+
+    /**
+     * Database-level fail-closed boundary for 0.10.2 / HR069 reference approval.
+     * It prevents a reference row from becoming APPROVED unless its averaged capture and completed
+     * DEVELOPER measurement session resolve to the same session/chemical/known concentration and
+     * the originating session contains at least two persisted telemetry samples.
+     */
+    private static void ensureReferenceLineageGuards(SQLiteDatabase db) {
+        String valid="EXISTS(SELECT 1 FROM captures c JOIN measurement_sessions m ON m.session_id=c.session_id " +
+                "WHERE c.id=NEW.capture_id AND c.session_id=NEW.session_id AND c.chemical_uid=NEW.chemical_uid " +
+                "AND c.phase='ready_average' AND m.operator_role='DEVELOPER' AND m.kind LIKE 'developer_%' " +
+                "AND m.ended_ts IS NOT NULL AND TRIM(m.ended_ts)<>'' " +
+                "AND (SELECT COUNT(*) FROM telemetry_samples t WHERE t.session_id=m.session_id)>=2 " +
+                "AND ((NEW.known_ppm IS NULL AND c.known_ppm IS NULL) OR " +
+                "(NEW.known_ppm IS NOT NULL AND c.known_ppm IS NOT NULL AND ABS(NEW.known_ppm-c.known_ppm)<=MAX(1.0,ABS(NEW.known_ppm),ABS(c.known_ppm))*0.000001)) " +
+                "AND (NEW.reference_kind<>'calibration' OR NEW.known_ppm>0))";
+        String ref="NEW.reference_kind IN ('fingerprint','calibration')";
+        db.execSQL("CREATE TRIGGER IF NOT EXISTS trg_hr069_reference_approval_update " +
+                "BEFORE UPDATE OF approved ON experiments WHEN NEW.approved=1 AND COALESCE(OLD.approved,0)<>1 AND "+ref+" BEGIN " +
+                "SELECT CASE WHEN NOT ("+valid+") THEN RAISE(ABORT,'HR069_REFERENCE_LINEAGE_INVALID') END; END");
+        db.execSQL("CREATE TRIGGER IF NOT EXISTS trg_hr069_reference_approval_insert " +
+                "BEFORE INSERT ON experiments WHEN NEW.approved=1 AND "+ref+" BEGIN " +
+                "SELECT CASE WHEN NOT ("+valid+") THEN RAISE(ABORT,'HR069_REFERENCE_LINEAGE_INVALID') END; END");
     }
 
     private static void ensureColumn(SQLiteDatabase db, String table, String column, String definition) {
