@@ -5,8 +5,7 @@ package com.servoc.app.chemcore;
  *
  * The score is an operational analytical confidence index (0..100), not a calibrated
  * probability. Only supporting evidence adds points. No contradiction penalty is applied.
- * Repeated support within the same methodology has diminishing value and a hard cap so that
- * one evidence family cannot dominate the complete result by repetition alone.
+ * Method quality dominates the base score; independent repetitions add diminishing support.
  */
 public final class ChemCoreConfidenceMatrix {
     private ChemCoreConfidenceMatrix() {}
@@ -30,25 +29,30 @@ public final class ChemCoreConfidenceMatrix {
     }
 
     /**
-     * Weight budget:
-     *  - PubChem/QSPR independent supporting channels/models: max 40
-     *  - literature/manufacturer/direct reference support (M2+): max 30
-     *  - HR069 device/reference validated support (M4): max 25
-     *  - multisensor breadth bonus: max 5
-     * Total = 100.
+     * Positive supporting evidence schedule.
      *
-     * Repetition schedules intentionally diminish:
-     * QSPR       : +16, +10, +7, +4, then +1 each (cap 40)
-     * Reference  : +14, +8,  +5, +2, then +1 each (cap 30)
-     * HR069 M4   : +14, +7,  +3, then +1 each (cap 25)
+     * Quality-first base values:
+     *  - one HR069 device/reference validated fingerprint/curve = 75 points
+     *  - one direct literature/manufacturer/reference support = 45 points
+     *  - one PubChem/QSPR molecular support = 20 points
+     *
+     * Independent repetitions add diminishing support:
+     *  - QSPR:      +20, +10, +6, +4, then +1 each; cap 45
+     *  - Reference: +45, +10, +5, then +1 each; cap 60
+     *  - HR069 M4:  +75, +10, +5, then +1 each; cap 90
+     *  - Multisensor breadth: 0..10 additional points
+     *
+     * M4 contributors are removed from the M2+ reference count before scoring to avoid
+     * double-counting the same supporting channel as both reference and HR069 validation.
      */
     public static Score score(int qsprCount,int referenceCount,int hr069Count,int totalContributors){
-        int q=Math.max(0,qsprCount),r=Math.max(0,referenceCount),m4=Math.max(0,hr069Count),n=Math.max(0,totalContributors);
-        double qPts=repeatPoints(q,new double[]{16,10,7,4},1,40);
-        double rPts=repeatPoints(r,new double[]{14,8,5,2},1,30);
-        double mPts=repeatPoints(m4,new double[]{14,7,3},1,25);
-        double breadth=n<=1?0:n==2?2:n==3?3:n==4?4:5;
-        return new Score(qPts+rPts+mPts+breadth,qPts,rPts,mPts,breadth,q,r,m4);
+        int q=Math.max(0,qsprCount),m4=Math.max(0,hr069Count),n=Math.max(0,totalContributors);
+        int referenceOnly=Math.max(0,Math.max(0,referenceCount)-m4);
+        double qPts=repeatPoints(q,new double[]{20,10,6,4},1,45);
+        double rPts=repeatPoints(referenceOnly,new double[]{45,10,5},1,60);
+        double mPts=repeatPoints(m4,new double[]{75,10,5},1,90);
+        double breadth=n<=1?0:n==2?3:n==3?5:n==4?7:n<=6?9:10;
+        return new Score(qPts+rPts+mPts+breadth,qPts,rPts,mPts,breadth,q,referenceOnly,m4);
     }
 
     private static double repeatPoints(int count,double[] first,double tail,double cap){
