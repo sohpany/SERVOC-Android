@@ -7,7 +7,6 @@ import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.sensors.RobotTelemetry;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -80,8 +79,9 @@ public final class ChemCoreFingerprintEvidenceEngine {
         String label=chemical>=0&&chemical<ChemicalCatalog.COUNT?ChemicalCatalog.NAMES[chemical]:match.fingerprint.label;
         List<String> sensors=new ArrayList<>();int width=Math.min(RobotTelemetry.MQ_KEYS.length,match.fingerprint.meanLogRatio.length);
         for(int i=0;i<width;i++){
-            Double r=ratios==null?null:ratios.get(RobotTelemetry.MQ_KEYS[i]);
-            if(r!=null&&Double.isFinite(r)&&r>0&&Double.isFinite(match.fingerprint.meanLogRatio[i]))sensors.add(RobotTelemetry.MQ_KEYS[i]);
+            String key=RobotTelemetry.MQ_KEYS[i];Double r=ratios==null?null:ratios.get(key);
+            boolean allowed=!source.requireManufacturerHeaterProtocol||HazRobHardwareProfile.manufacturerHeaterProtocolValid(key);
+            if(allowed&&r!=null&&Double.isFinite(r)&&r>0&&Double.isFinite(match.fingerprint.meanLogRatio[i]))sensors.add(key);
         }
         String modelId=source.familyId+":chem-"+chemical+":"+match.fingerprint.label;
         String group=source.independencePrefix+":chem-"+chemical;
