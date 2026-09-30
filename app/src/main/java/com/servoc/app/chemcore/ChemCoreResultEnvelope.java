@@ -21,7 +21,6 @@ public final class ChemCoreResultEnvelope {
         public final long chemicalUid;
         public final String label;
         public final double posterior;
-        /** Joint curve-fit concentration hypothesis. It is not reportable ppm unless the final M4 gate passes. */
         public final double bestPpm;
         public final double residualRms;
         public final int contributors;
@@ -30,10 +29,8 @@ public final class ChemCoreResultEnvelope {
         public final int calibratedContributors;
         public final boolean allContributorsInsideDomain;
         public final Map<String,Double> residualLog10BySensor;
-        /** P6 operational identification confidence. Never a calibrated probability. */
         public final double analyticalConfidencePct;
         public final int evidenceGroupCount,evidenceSensorBreadth;
-        /** Full candidate evidence trail; confidence fusion decides which rows add positive support. */
         public final List<ChemCoreEvidenceObservation> evidenceObservations;
 
         public CandidateSummary(long chemicalUid,String label,double posterior,double bestPpm,double residualRms,int contributors,ChemCoreDecision.EvidenceTier tier) {
@@ -73,7 +70,6 @@ public final class ChemCoreResultEnvelope {
     public final String chemicalLabel;
     public final double ppm,predictionLow,predictionHigh,oodScore,topPosterior,normalizedEntropy;
     public final double oodDistance,posterior;
-    /** Operational identification confidence; explicitly separate from posterior/model ranking. */
     public final double analyticalConfidencePct;
     public final int confidenceEvidenceGroups,confidenceSensorBreadth;
     public final String samplingProfileId,featureSchema,modelVersion,note;
@@ -167,12 +163,13 @@ public final class ChemCoreResultEnvelope {
 
     private static JSONObject evidenceJson(ChemCoreEvidenceObservation e)throws JSONException{
         JSONObject x=new JSONObject();x.put("schema",ChemCoreEvidenceObservation.SCHEMA);x.put("type",e.type.name());x.put("family_id",e.familyId);x.put("model_id",e.modelId);x.put("source_id",e.sourceId);x.put("independence_group",e.independenceGroup);x.put("evidence_tier",e.tier.name());x.put("inside_domain",e.insideDomain);x.put("quantitative_estimate_supported",e.quantitativeEstimateSupported);x.put("reportable_quantitative",e.reportableQuantitative);
-        JSONArray sensors=new JSONArray();for(String s:e.sensorKeys)sensors.put(s);x.put("sensor_keys",sensors);putFinite(x,"fitted_ppm",e.fittedPpm);putFinite(x,"residual_log10",e.residualLog10);putFinite(x,"standardized_residual",e.standardizedResidual);if(!e.note.isEmpty())x.put("note",e.note);return x;
+        x.put("measurement_quality_weight",e.measurementQualityWeight);x.put("support_role",e.supportRole);x.put("support_weight",ChemCoreEvidenceFusion.supportWeight(e));
+        JSONArray sensors=new JSONArray();for(String s:e.sensorKeys)sensors.put(s);x.put("sensor_keys",sensors);putFinite(x,"fitted_ppm",e.fittedPpm);putFinite(x,"observed_ratio",e.observedRatio);putFinite(x,"predicted_log10_ratio",e.predictedLog10Ratio);putFinite(x,"residual_log10",e.residualLog10);putFinite(x,"standardized_residual",e.standardizedResidual);if(!e.note.isEmpty())x.put("note",e.note);return x;
     }
 
     private JSONObject measurementQualityJson() throws JSONException {JSONObject q=labQuality==null?new JSONObject():copy(labQuality);if(q==null)q=new JSONObject();q.put("state",q.length()==0?"NOT_RECORDED":q.optString("state","RECORDED"));return q;}
     private JSONObject qualityGatesJson() throws JSONException {JSONObject q=new JSONObject();q.put("identity_named",ChemCoreDecision.permitsNamedIdentity(outcome));q.put("quantitative_occupational_interpretation",ChemCoreDecision.permitsQuantitativeOccupationalInterpretation(outcome,evidenceTier));q.put("m4_evidence",evidenceTier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED);q.put("outcome",outcome.name());if(!ChemCoreDecision.permitsQuantitativeOccupationalInterpretation(outcome,evidenceTier))q.put("ppm_withheld_reason",ppmWithheldReason());return q;}
-    private JSONObject methodologyJson() throws JSONException {JSONObject q=new JSONObject();q.put("result_contract",SCHEMA);q.put("feature_contract",featureSchema);q.put("sampling_profile_id",samplingProfileId);q.put("model_version",modelVersion);q.put("candidate_concentration_semantics","joint_curve_fit_screening_hypothesis_unless_final_m4_gate_passes");q.put("posterior_semantics","relative_model_ranking_weight_not_calibrated_identity_probability");q.put("analytical_confidence_semantics",ANALYTICAL_CONFIDENCE_SEMANTICS);q.put("analytical_confidence_scale","0_to_100_positive_support_only_independence_deduplicated");return q;}
+    private JSONObject methodologyJson() throws JSONException {JSONObject q=new JSONObject();q.put("result_contract",SCHEMA);q.put("feature_contract",featureSchema);q.put("sampling_profile_id",samplingProfileId);q.put("model_version",modelVersion);q.put("candidate_concentration_semantics","joint_curve_fit_screening_hypothesis_unless_final_m4_gate_passes");q.put("posterior_semantics","relative_model_ranking_weight_not_calibrated_identity_probability");q.put("analytical_confidence_semantics",ANALYTICAL_CONFIDENCE_SEMANTICS);q.put("analytical_confidence_scale","0_to_100_positive_support_only_independence_deduplicated");q.put("degraded_measurement_policy","preserve_and_use_as_quality_weighted_corroborative_evidence_never_auto_promote_to_reportable_ppm");return q;}
     private JSONObject featureSummaryJson() throws JSONException {JSONObject q=new JSONObject();q.put("schema",featureSchema);q.put("state","SESSION_BOUND_FEATURES_REFERENCED");return q;}
 
     private String ppmWithheldReason(){if(outcome==ChemCoreDecision.Outcome.UNKNOWN)return "open_set_unknown";if(outcome==ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE)return "mixture_or_interference";if(outcome==ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN)return "outside_validated_domain";if(evidenceTier!=ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED)return "m4_device_reference_calibration_required";if(outcome!=ChemCoreDecision.Outcome.QUANTIFIED)return "identity_or_quantification_gate_not_passed";return "not_reportable";}
