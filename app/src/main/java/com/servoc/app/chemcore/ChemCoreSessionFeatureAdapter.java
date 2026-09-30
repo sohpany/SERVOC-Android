@@ -20,6 +20,8 @@ import java.util.Map;
 /** Converts one exact persisted TelemetryRecorder session into the canonical ChemCore feature contract. */
 public final class ChemCoreSessionFeatureAdapter {
     public static final String[] SENSOR_ORDER={"mq2","mq4","mq5","mq8","mq3","mq7","mq9","mq135"};
+    private static volatile String lastSupportSessionId="";
+    private static volatile Map<String,Double> lastSupportRatios=Collections.emptyMap(),lastSupportWeights=Collections.emptyMap();
     private ChemCoreSessionFeatureAdapter(){}
 
     public static final class Extraction {
@@ -86,10 +88,17 @@ public final class ChemCoreSessionFeatureAdapter {
             supportRatios.put(SENSOR_ORDER[i],Math.exp(supportLogSum[i]/supportWeightSum[i]));
             supportWeights.put(SENSOR_ORDER[i],Math.max(0,Math.min(1,supportQualitySum[i]/supportCount[i])));
         }
+        bindCorroborativeSession(id,supportRatios,supportWeights);
         return new Extraction(id,f,rows.size(),any,first>=0&&last>=first?(last-first)/1000.0:0,
                 tn>0?tSum/tn:Double.NaN,rhn>0?rhSum/rhn:Double.NaN,pn>0?pSum/pn:Double.NaN,sha,
                 AcceptedR0Normalizer.SOURCE,FieldR0Baseline.SESSION,accepted,fallback,supportRatios,supportWeights,corroborativeCount);
     }
+
+    /** One controlled analysis session is active at a time; expose only the matching session cache. */
+    public static Map<String,Double> corroborativeRatiosFor(String sessionId){return matches(sessionId)?new LinkedHashMap<>(lastSupportRatios):Collections.emptyMap();}
+    public static Map<String,Double> corroborativeWeightsFor(String sessionId){return matches(sessionId)?new LinkedHashMap<>(lastSupportWeights):Collections.emptyMap();}
+    private static synchronized void bindCorroborativeSession(String sessionId,Map<String,Double> ratios,Map<String,Double> weights){lastSupportSessionId=sessionId==null?"":sessionId;lastSupportRatios=Collections.unmodifiableMap(new LinkedHashMap<>(ratios));lastSupportWeights=Collections.unmodifiableMap(new LinkedHashMap<>(weights));}
+    private static boolean matches(String sessionId){return sessionId!=null&&!sessionId.trim().isEmpty()&&sessionId.trim().equals(lastSupportSessionId);}
 
     public static String featureSha(ChemCoreFeaturePipeline.Result result){
         if(result==null)return"";StringBuilder s=new StringBuilder();s.append(result.schemaVersion).append('\n').append(result.sampleCount).append('\n').append(result.sensorCount).append('\n');
