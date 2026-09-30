@@ -10,8 +10,12 @@ import static org.junit.Assert.*;
 
 public class HierarchicalCandidateReducerTest {
     private static InverseMolecularSolver.Result result(long uid,double posterior){
-        InverseMolecularSolver.Result r=new InverseMolecularSolver.Result(uid,"C"+uid,true,10.0,0.1,0.0,4,0,true,
-                ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,new HashMap<>(),"");
+        // Synthetic M2-only result: four direct/reference contributors, no QSPR and no M4 calibration.
+        InverseMolecularSolver.Result r=new InverseMolecularSolver.Result(
+                uid,"C"+uid,true,10.0,0.1,0.0,
+                4,0,4,0,Double.NaN,Double.NaN,true,
+                ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,
+                new HashMap<String,Double>(),"");
         r.posterior=posterior;return r;
     }
 
