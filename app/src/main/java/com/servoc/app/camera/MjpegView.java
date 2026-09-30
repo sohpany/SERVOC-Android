@@ -3,8 +3,8 @@ package com.servoc.app.camera;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.opengl.GLSurfaceView;
 import android.os.SystemClock;
-import android.widget.ImageView;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -14,8 +14,8 @@ import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-/** Unified HazRob camera surface: proven local MJPEG plus secure remote WSS JPEG frames. */
-public final class MjpegView extends ImageView {
+/** Unified HazRob camera surface. Camera bytes stay untouched; all presentation effects are phone-side GPU work. */
+public final class MjpegView extends GLSurfaceView {
     public interface FrameListener { void onJpegFrame(byte[] jpeg,long elapsedMs); }
     public interface StatusListener { void onStatus(String state,String detail); }
 
@@ -24,6 +24,7 @@ public final class MjpegView extends ImageView {
     private final ExecutorService decodeWorker=Executors.newSingleThreadExecutor();
     private final Object decodeLock=new Object();
     private final RemoteJpegWebSocketClient remoteClient=new RemoteJpegWebSocketClient();
+    private final VideoEffectRenderer effectRenderer=new VideoEffectRenderer();
 
     private volatile boolean running=false,released=false;
     private volatile HttpURLConnection connection;
@@ -33,9 +34,14 @@ public final class MjpegView extends ImageView {
     private byte[] latestJpeg;
     private boolean decodeBusy=false;
 
-    public MjpegView(Context c){super(c);setScaleType(ScaleType.FIT_CENTER);setBackgroundColor(0xFF000000);}
+    public MjpegView(Context c){
+        super(c);setEGLContextClientVersion(2);setPreserveEGLContextOnPause(true);setRenderer(effectRenderer);setRenderMode(GLSurfaceView.RENDERMODE_WHEN_DIRTY);setBackgroundColor(0xFF000000);
+    }
     public void setFrameListener(FrameListener listener){frameListener=listener;}
     public void setStatusListener(StatusListener listener){statusListener=listener;}
+    public void setVideoEffects(VideoEffectProfile.DisplayMode display,VideoEffectProfile.Enhancement enhancement){effectRenderer.setProfile(display,enhancement);requestRender();}
+    public VideoEffectProfile.DisplayMode displayMode(){return effectRenderer.displayMode();}
+    public VideoEffectProfile.Enhancement enhancement(){return effectRenderer.enhancement();}
     public void start(String url){start(new String[]{url});}
 
     public synchronized void start(String[] urls){
@@ -46,12 +52,9 @@ public final class MjpegView extends ImageView {
         if(released)return;resetTransport();if(url==null||url.trim().isEmpty()){status("retrying","Remote video not configured");return;}running=true;final long token=generation;final String target=url.trim();final String auth=bearer==null?"":bearer;status("connecting",target);streamWorker.execute(()->remoteLoop(target,auth,token));
     }
 
-    private void resetTransport(){
-        running=false;generation++;HttpURLConnection c=connection;if(c!=null)c.disconnect();connection=null;remoteClient.close();synchronized(decodeLock){latestJpeg=null;}
-    }
-
+    private void resetTransport(){running=false;generation++;HttpURLConnection c=connection;if(c!=null)c.disconnect();connection=null;remoteClient.close();synchronized(decodeLock){latestJpeg=null;}}
     public synchronized void stop(){resetTransport();status("stopped","");}
-    public synchronized void release(){if(released)return;stop();released=true;frameListener=null;statusListener=null;streamWorker.shutdownNow();decodeWorker.shutdownNow();}
+    public synchronized void release(){if(released)return;stop();released=true;frameListener=null;statusListener=null;effectRenderer.releasePending();streamWorker.shutdownNow();decodeWorker.shutdownNow();}
     private boolean active(long token){return !released&&running&&generation==token;}
 
     private void status(String state,String detail){StatusListener s=statusListener;if(s==null)return;post(()->{StatusListener x=statusListener;if(x!=null)x.onStatus(state,detail==null?"":detail);});}
@@ -60,8 +63,17 @@ public final class MjpegView extends ImageView {
         if(jpeg==null||!active(token))return;long now=SystemClock.elapsedRealtime();FrameListener listener=frameListener;if(listener!=null)try{listener.onJpegFrame(jpeg,now);}catch(Exception ignored){}if(active(token))queueDecode(jpeg,token);
     }
 
+    /** Decode queue is deliberately size one: old frames are replaced so filters never build latency. */
     private void queueDecode(byte[] jpeg,long token){synchronized(decodeLock){latestJpeg=jpeg;if(decodeBusy)return;decodeBusy=true;}decodeWorker.execute(()->decodeLoop(token));}
-    private void decodeLoop(long token){try{while(active(token)){byte[] jpeg;synchronized(decodeLock){jpeg=latestJpeg;latestJpeg=null;if(jpeg==null){decodeBusy=false;return;}}Bitmap bitmap=BitmapFactory.decodeByteArray(jpeg,0,jpeg.length);if(bitmap!=null&&active(token))post(()->{if(active(token))setImageBitmap(bitmap);});}}finally{synchronized(decodeLock){decodeBusy=false;if(!active(token))latestJpeg=null;}}}
+    private void decodeLoop(long token){
+        try{
+            while(active(token)){
+                byte[] jpeg;synchronized(decodeLock){jpeg=latestJpeg;latestJpeg=null;if(jpeg==null){decodeBusy=false;return;}}
+                Bitmap bitmap=BitmapFactory.decodeByteArray(jpeg,0,jpeg.length);
+                if(bitmap!=null){if(active(token)){effectRenderer.submit(bitmap);requestRender();}else bitmap.recycle();}
+            }
+        }finally{synchronized(decodeLock){decodeBusy=false;if(!active(token))latestJpeg=null;}}
+    }
 
     private void remoteLoop(String url,String bearer,long token){
         int cycle=0;
