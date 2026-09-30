@@ -2,7 +2,6 @@ package com.servoc.app.chemcore.library;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -14,6 +13,7 @@ public final class ChemCoreLibraryManifest {
 
     public static final int MANIFEST_SCHEMA = 2;
     public static final String STABLE_PAYLOAD_SCHEMA = "chemcore-stable-snapshot-v1";
+    public static final String INTEGRITY_MODE = "sha256";
 
     public final String libraryVersion;
     public final int schemaVersion;
@@ -23,6 +23,7 @@ public final class ChemCoreLibraryManifest {
     public final String payloadFile;
     public final String payloadFormat;
     public final String payloadSchema;
+    public final String integrityMode;
     public final String payloadSha256;
     public final long payloadSizeBytes;
     public final int chemicalCount;
@@ -35,15 +36,13 @@ public final class ChemCoreLibraryManifest {
     public final String dataRevision;
     public final String evidenceRevision;
     public final List<String> samplingProfileCompatibility;
-    public final String signatureAlgorithm;
-    public final String signatureBase64;
 
     public ChemCoreLibraryManifest(String libraryVersion, int schemaVersion, Channel channel, String createdUtc,
                                    String sourceCommitSha, String payloadFile, String payloadFormat, String payloadSchema,
-                                   String payloadSha256, long payloadSizeBytes, int chemicalCount, int sourceCount,
-                                   int modelCount, int calibrationCount, String minAppVersion, String maxAppVersion,
-                                   String featureSchemaVersion, String dataRevision, String evidenceRevision,
-                                   List<String> samplingProfileCompatibility, String signatureAlgorithm, String signatureBase64) {
+                                   String integrityMode, String payloadSha256, long payloadSizeBytes, int chemicalCount,
+                                   int sourceCount, int modelCount, int calibrationCount, String minAppVersion,
+                                   String maxAppVersion, String featureSchemaVersion, String dataRevision,
+                                   String evidenceRevision, List<String> samplingProfileCompatibility) {
         this.libraryVersion = n(libraryVersion);
         this.schemaVersion = schemaVersion;
         this.channel = channel == null ? Channel.STABLE : channel;
@@ -52,6 +51,7 @@ public final class ChemCoreLibraryManifest {
         this.payloadFile = n(payloadFile);
         this.payloadFormat = n(payloadFormat);
         this.payloadSchema = n(payloadSchema);
+        this.integrityMode = n(integrityMode).toLowerCase(Locale.US);
         this.payloadSha256 = n(payloadSha256).toLowerCase(Locale.US);
         this.payloadSizeBytes = payloadSizeBytes;
         this.chemicalCount = chemicalCount;
@@ -65,8 +65,6 @@ public final class ChemCoreLibraryManifest {
         this.evidenceRevision = n(evidenceRevision);
         this.samplingProfileCompatibility = samplingProfileCompatibility == null
                 ? List.of() : Collections.unmodifiableList(new ArrayList<>(samplingProfileCompatibility));
-        this.signatureAlgorithm = n(signatureAlgorithm);
-        this.signatureBase64 = n(signatureBase64);
     }
 
     public static ChemCoreLibraryManifest fromJson(JSONObject j) {
@@ -85,13 +83,13 @@ public final class ChemCoreLibraryManifest {
                 j.optString("library_version", ""), j.optInt("schema_version", 0), channel,
                 j.optString("created_utc", ""), j.optString("source_commit_sha", ""),
                 j.optString("payload_file", ""), j.optString("payload_format", ""),
-                j.optString("payload_schema", ""), j.optString("payload_sha256", ""),
-                j.optLong("payload_size_bytes", -1), j.optInt("chemical_count", -1),
-                j.optInt("source_count", -1), j.optInt("model_count", -1),
-                j.optInt("calibration_count", -1), j.optString("min_app_version", ""),
-                j.optString("max_app_version", ""), j.optString("feature_schema_version", ""),
-                j.optString("data_revision", ""), j.optString("evidence_revision", ""), sampling,
-                j.optString("signature_algorithm", ""), j.optString("signature", ""));
+                j.optString("payload_schema", ""), j.optString("integrity_mode", ""),
+                j.optString("payload_sha256", ""), j.optLong("payload_size_bytes", -1),
+                j.optInt("chemical_count", -1), j.optInt("source_count", -1),
+                j.optInt("model_count", -1), j.optInt("calibration_count", -1),
+                j.optString("min_app_version", ""), j.optString("max_app_version", ""),
+                j.optString("feature_schema_version", ""), j.optString("data_revision", ""),
+                j.optString("evidence_revision", ""), sampling);
     }
 
     public List<String> validate() {
@@ -103,6 +101,7 @@ public final class ChemCoreLibraryManifest {
         if (payloadFile.isEmpty() || payloadFile.contains("..") || payloadFile.startsWith("/") || payloadFile.contains("\\")) e.add("unsafe payload_file");
         if (!("sqlite".equalsIgnoreCase(payloadFormat) || "json".equalsIgnoreCase(payloadFormat))) e.add("unsupported payload_format");
         if (payloadSchema.isEmpty()) e.add("payload_schema required");
+        if (!INTEGRITY_MODE.equals(integrityMode)) e.add("integrity_mode must be sha256");
         if (!payloadSha256.matches("[0-9a-f]{64}")) e.add("payload_sha256 must be 64 hex chars");
         if (payloadSizeBytes <= 0) e.add("payload_size_bytes must be positive");
         if (chemicalCount < 0 || sourceCount < 0 || modelCount < 0 || calibrationCount < 0) e.add("record counts must be non-negative");
@@ -115,8 +114,6 @@ public final class ChemCoreLibraryManifest {
         if (channel == Channel.STABLE) {
             if (!"json".equalsIgnoreCase(payloadFormat)) e.add("stable payload_format must be json");
             if (!STABLE_PAYLOAD_SCHEMA.equals(payloadSchema)) e.add("stable payload_schema must be " + STABLE_PAYLOAD_SCHEMA);
-            if (!"SHA256withRSA".equalsIgnoreCase(signatureAlgorithm)) e.add("stable manifest requires SHA256withRSA");
-            if (signatureBase64.isEmpty()) e.add("stable manifest requires publication signature");
         }
         return e;
     }
@@ -132,25 +129,6 @@ public final class ChemCoreLibraryManifest {
         return profileId != null && samplingProfileCompatibility.contains(profileId.trim());
     }
 
-    /** Deterministic text covered by the publication signature. */
-    public byte[] canonicalSigningBytes() {
-        StringBuilder s = new StringBuilder();
-        s.append("chemcore-manifest-v2\n");
-        add(s,"library_version",libraryVersion); add(s,"schema_version",Integer.toString(schemaVersion));
-        add(s,"channel",channel.name().toLowerCase(Locale.US)); add(s,"created_utc",createdUtc);
-        add(s,"source_commit_sha",sourceCommitSha); add(s,"payload_file",payloadFile);
-        add(s,"payload_format",payloadFormat.toLowerCase(Locale.US)); add(s,"payload_schema",payloadSchema);
-        add(s,"payload_sha256",payloadSha256); add(s,"payload_size_bytes",Long.toString(payloadSizeBytes));
-        add(s,"chemical_count",Integer.toString(chemicalCount)); add(s,"source_count",Integer.toString(sourceCount));
-        add(s,"model_count",Integer.toString(modelCount)); add(s,"calibration_count",Integer.toString(calibrationCount));
-        add(s,"min_app_version",minAppVersion); add(s,"max_app_version",maxAppVersion);
-        add(s,"feature_schema_version",featureSchemaVersion); add(s,"data_revision",dataRevision);
-        add(s,"evidence_revision",evidenceRevision);
-        List<String> p = new ArrayList<>(samplingProfileCompatibility); Collections.sort(p);
-        add(s,"sampling_profile_compatibility",String.join(",",p)); add(s,"signature_algorithm",signatureAlgorithm);
-        return s.toString().getBytes(StandardCharsets.UTF_8);
-    }
-
     public JSONObject toJson() {
         JSONObject j = new JSONObject();
         try {
@@ -158,18 +136,16 @@ public final class ChemCoreLibraryManifest {
             j.put("channel", channel.name().toLowerCase(Locale.US)); j.put("created_utc", createdUtc);
             j.put("source_commit_sha", sourceCommitSha); j.put("payload_file", payloadFile);
             j.put("payload_format", payloadFormat); j.put("payload_schema", payloadSchema);
-            j.put("payload_sha256", payloadSha256); j.put("payload_size_bytes", payloadSizeBytes);
-            j.put("chemical_count", chemicalCount); j.put("source_count", sourceCount);
-            j.put("model_count", modelCount); j.put("calibration_count", calibrationCount);
+            j.put("integrity_mode", integrityMode); j.put("payload_sha256", payloadSha256);
+            j.put("payload_size_bytes", payloadSizeBytes); j.put("chemical_count", chemicalCount);
+            j.put("source_count", sourceCount); j.put("model_count", modelCount); j.put("calibration_count", calibrationCount);
             j.put("min_app_version", minAppVersion); if (!maxAppVersion.isEmpty()) j.put("max_app_version", maxAppVersion);
             j.put("feature_schema_version", featureSchemaVersion); j.put("data_revision", dataRevision);
             j.put("evidence_revision", evidenceRevision);
             JSONArray a = new JSONArray(); for (String x : samplingProfileCompatibility) a.put(x); j.put("sampling_profile_compatibility", a);
-            j.put("signature_algorithm", signatureAlgorithm); j.put("signature", signatureBase64);
         } catch (Exception impossible) { throw new IllegalStateException("manifest serialization failed", impossible); }
         return j;
     }
 
-    private static void add(StringBuilder s, String k, String v) { s.append(k).append('=').append(v == null ? "" : v).append('\n'); }
     private static String n(String s) { return s == null ? "" : s.trim(); }
 }
