@@ -16,14 +16,10 @@ import com.servoc.app.field.FieldSessionRepository;
 
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 /** Smart evidence-driven report for one immutable user field session. */
 public final class FieldSessionReportExporter {
@@ -72,18 +68,16 @@ public final class FieldSessionReportExporter {
         pdf.writeTo(out);pdf.close();
     }
 
-    /** XLSX is the lossless data companion; the PDF is the compact intelligent narrative. */
+    /** XLSX is the detailed auditable companion to the compact PDF. */
     public static void writeXlsx(OutputStream out,ExperimentsDb db,String fieldSessionId,ChemicalRepository chemicals)throws Exception{
-        Bundle b=resolve(db,fieldSessionId);if(b.records.isEmpty())throw new IllegalStateException("field session has no derived experiment workbook");
-        if(b.records.size()==1){ReportExporter.writeXlsx(out,b.records.get(0),chemicals);return;}
-        try(ZipOutputStream zip=new ZipOutputStream(out)){putManifest(zip,b);for(ExperimentQueries.Record r:b.records){ByteArrayOutputStream q=new ByteArrayOutputStream();ReportExporter.writeXlsx(q,r,chemicals);put(zip,"measurements/measurement-"+r.id+"-"+safe(r.sessionId)+".xlsx",q.toByteArray());}zip.finish();}
+        Bundle b=resolve(db,fieldSessionId);if(b.records.isEmpty())throw new IllegalStateException("field session has no derived experiment workbook");SmartFieldSessionXlsxWriter.write(out,db,b,chemicals);
     }
 
     private static PdfDocument.Page page(PdfDocument pdf,int n){return pdf.startPage(new PdfDocument.PageInfo.Builder(PAGE_WIDTH,PAGE_HEIGHT,n).create());}
 
     private static void executive(Canvas c,Bundle b,ReportIntelligence.ReportPlan plan,JSONObject hazard){
         title(c,"الملخص التنفيذي • "+plan.modeAr,42);float y=76;
-        String[][] rows={{"الموقع",b.site.name},{"الجلسة",b.fieldSession.name},{"الحالة",b.fieldSession.status},{"البدء",b.fieldSession.startedTs},{"الانتهاء",nz(b.fieldSession.endedTs).isEmpty()?"نشطة":b.fieldSession.endedTs},{"جلسات القياس الفنية",String.valueOf(b.measurementSessionIds.size())},{"مرجع القرار",b.primaryMeasurementSessionId.isEmpty()?"—":shorten(b.primaryMeasurementSessionId,42)}};for(String[] r:rows){labelValue(c,r[0],r[1],y);y+=23;}
+        String[][] rows={{"الموقع",b.site.name},{"Site ID",b.site.id},{"الجلسة",b.fieldSession.name},{"الحالة",b.fieldSession.status},{"البدء",b.fieldSession.startedTs},{"الانتهاء",nz(b.fieldSession.endedTs).isEmpty()?"نشطة":b.fieldSession.endedTs},{"جلسات القياس الفنية",String.valueOf(b.measurementSessionIds.size())},{"مرجع القرار",b.primaryMeasurementSessionId.isEmpty()?"—":shorten(b.primaryMeasurementSessionId,42)}};for(String[] r:rows){labelValue(c,r[0],r[1],y);y+=23;}
         JSONObject q=b.primaryDecision;String chemical=q==null?"—":q.optString("chemical","—"),tier=q==null?"—":q.optString("evidence_tier","—");double ppm=q==null?Double.NaN:q.optDouble("ppm",Double.NaN);
         metric(c,420,72,177,76,"نمط التقرير",plan.modeAr,plan.executiveTitleAr,0xFFE3F2FD);metric(c,610,72,190,76,"الهوية/المرشح",shorten(chemical,22),tier,plan.mode==ReportIntelligence.ReportMode.QUANTIFIED||plan.mode==ReportIntelligence.ReportMode.IDENTIFIED?0xFFE8F5E9:0xFFFFF3E0);
         metric(c,420,160,177,76,"الدعم التحليلي",pct100(plan.analyticalConfidencePct),"Ranking "+pct(plan.topPosterior),0xFFF3E5F5);metric(c,610,160,190,76,"الفصل / OOD",pct(plan.separationMargin),"OOD "+fmt(plan.oodScore)+" • H "+fmt(plan.entropy),0xFFF4F6F8);
@@ -111,8 +105,8 @@ public final class FieldSessionReportExporter {
     /** Conditional page 5. Operational Tracking is deliberately excluded. */
     private static void methodologyProvenance(Canvas c,Bundle b,ReportIntelligence.ReportPlan plan){
         title(c,"المنهجية ومصدر القرار",42);JSONObject q=b.primaryDecision,lib=q==null?null:q.optJSONObject("library");
-        text(c,"أساس التقرير",42,78,11,Color.BLACK,true);labelValue(c,"Field Session",b.fieldSession.id,103);labelValue(c,"Measurement Sessions",String.valueOf(b.measurementSessionIds.size()),125);labelValue(c,"Primary analytical measurement",b.primaryMeasurementSessionId.isEmpty()?"—":b.primaryMeasurementSessionId,147);labelValue(c,"Derived records",String.valueOf(b.records.size()),169);
-        text(c,"المصدر والمنهجية",42,210,11,Color.BLACK,true);float y=234;String[][] rows={{"Result schema",q==null?"—":q.optString("schema","—")},{"Model",q==null?"—":q.optString("model_version","—")},{"Feature schema",q==null?"—":q.optString("feature_schema","—")},{"Sampling profile",q==null?"—":q.optString("sampling_profile_id","—")},{"Evidence tier",q==null?"—":q.optString("evidence_tier","—")},{"Library version",lib==null?"—":lib.optString("version","—")},{"Library SHA-256",lib==null?"—":shorten(lib.optString("sha256","—"),60)}};for(String[] r:rows){labelValue(c,r[0],r[1],y);y+=21;}
+        text(c,"أساس التقرير",42,78,11,Color.BLACK,true);labelValue(c,"Site",b.site.name,103);labelValue(c,"Site ID",b.site.id,125);labelValue(c,"Field Session",b.fieldSession.id,147);labelValue(c,"Measurement Sessions",String.valueOf(b.measurementSessionIds.size()),169);labelValue(c,"Primary analytical measurement",b.primaryMeasurementSessionId.isEmpty()?"—":b.primaryMeasurementSessionId,191);labelValue(c,"Derived records",String.valueOf(b.records.size()),213);
+        text(c,"المصدر والمنهجية",42,248,11,Color.BLACK,true);float y=272;String[][] rows={{"Result schema",q==null?"—":q.optString("schema","—")},{"Model",q==null?"—":q.optString("model_version","—")},{"Feature schema",q==null?"—":q.optString("feature_schema","—")},{"Sampling profile",q==null?"—":q.optString("sampling_profile_id","—")},{"Evidence tier",q==null?"—":q.optString("evidence_tier","—")},{"Library version",lib==null?"—":lib.optString("version","—")},{"Library SHA-256",lib==null?"—":shorten(lib.optString("sha256","—"),60)}};for(String[] r:rows){labelValue(c,r[0],r[1],y);y+=21;}
         text(c,"منطق إعداد التقرير",445,78,11,Color.BLACK,true);float x=445,ty=103;text(c,"Mode: "+plan.mode.name()+" • Pages: "+plan.pageCount,x,ty,8,Color.DKGRAY,false);ty+=22;text(c,"144: "+plan.panelCandidateSupported+" session-supported • "+plan.panelAcceptedIdentities+" accepted • "+plan.arrayUnsupported+" array-unsupported",x,ty,8,Color.DKGRAY,false);ty+=22;text(c,"PPM reportable: "+plan.ppmReportable+" • Safety interpretable: "+plan.safetyInterpretable,x,ty,8,Color.DKGRAY,false);ty+=30;text(c,"قواعد التفسير",x,ty,10,Color.BLACK,true);ty+=22;text(c,"• الدعم التحليلي دليل إيجابي موزون؛ ليس Probability.",x,ty,7.5f,Color.DKGRAY,false);ty+=19;text(c,"• Screening-fit concentration لا يساوي PPM مهني قابل للتقرير.",x,ty,7.5f,Color.DKGRAY,false);ty+=19;text(c,"• مقارنات EST مع OEL/LFL سياق أولوية فقط ولا تنشئ إنذارًا.",x,ty,7.5f,Color.DKGRAY,false);ty+=19;text(c,"• M4 فقط يسمح بالتفسير الكمي المهني وفق بوابات ChemCore.",x,ty,7.5f,Color.DKGRAY,false);ty+=19;text(c,"• جلسات القياس الفرعية لا تُدمج في منحنى زمني مصطنع.",x,ty,7.5f,Color.DKGRAY,false);ty+=19;text(c,"• وظيفة Tracking التشغيلية غير مدرجة في التقرير.",x,ty,7.5f,Color.DKGRAY,false);ty+=28;text(c,"Planner rationale",x,ty,9,Color.BLACK,true);ty+=18;text(c,shorten(plan.rationale,82),x,ty,7.2f,Color.DKGRAY,false);
         text(c,"تحتفظ الصفحة فقط بالـprovenance اللازم للتدقيق العلمي؛ لا تعرض حالة Tracking أو تاريخه أو المرشح المتتبَّع.",42,538,8,Color.DKGRAY,false);
     }
@@ -125,7 +119,7 @@ public final class FieldSessionReportExporter {
     private static void box(Canvas c,float x,float y,float w,float h,int color){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(color);p.setStyle(Paint.Style.FILL);c.drawRoundRect(new RectF(x,y,x+w,y+h),7,7,p);}
     private static void empty(Canvas c,String message){emptyBox(c,new RectF(42,90,800,520),message);}
     private static void emptyBox(Canvas c,RectF r,String message){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(0xFFF3F3F3);p.setStyle(Paint.Style.FILL);c.drawRect(r,p);text(c,message,r.centerX(),r.centerY(),11,Color.DKGRAY,false,Paint.Align.CENTER);}
-    private static void chrome(Canvas c,int page,int total,Bundle b,ReportIntelligence.ReportPlan plan){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(0xFFB0B0B0);p.setStrokeWidth(.7f);c.drawLine(MARGIN,32,PAGE_WIDTH-MARGIN,32,p);c.drawLine(MARGIN,PAGE_HEIGHT-28,PAGE_WIDTH-MARGIN,PAGE_HEIGHT-28,p);text(c,"HazRob "+ReleaseAudit.VERSION+" • HR069",MARGIN,23,10,Color.BLACK,true);text(c,b.site.name+" • "+b.fieldSession.name+" • "+plan.modeAr,PAGE_WIDTH/2f,23,10,Color.BLACK,true,Paint.Align.CENTER);text(c,"صفحة "+page+" من "+total,MARGIN,PAGE_HEIGHT-10,8.5f,Color.DKGRAY,false);text(c,ReleaseAudit.PROJECT_PREPARERS,PAGE_WIDTH-MARGIN,PAGE_HEIGHT-10,8.5f,Color.DKGRAY,false,Paint.Align.RIGHT);}
+    private static void chrome(Canvas c,int page,int total,Bundle b,ReportIntelligence.ReportPlan plan){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(0xFFB0B0B0);p.setStrokeWidth(.7f);c.drawLine(MARGIN,32,PAGE_WIDTH-MARGIN,32,p);c.drawLine(MARGIN,PAGE_HEIGHT-28,PAGE_WIDTH-MARGIN,PAGE_HEIGHT-28,p);text(c,"HazRob "+ReleaseAudit.VERSION+" • HR069",MARGIN,23,10,Color.BLACK,true);text(c,b.site.name+" ["+shorten(b.site.id,18)+"] • "+b.fieldSession.name+" • "+plan.modeAr,PAGE_WIDTH/2f,23,10,Color.BLACK,true,Paint.Align.CENTER);text(c,"صفحة "+page+" من "+total,MARGIN,PAGE_HEIGHT-10,8.5f,Color.DKGRAY,false);text(c,ReleaseAudit.PROJECT_PREPARERS,PAGE_WIDTH-MARGIN,PAGE_HEIGHT-10,8.5f,Color.DKGRAY,false,Paint.Align.RIGHT);}
     private static void text(Canvas c,String s,float x,float y,float size,int color,boolean bold){text(c,s,x,y,size,color,bold,Paint.Align.LEFT);}
     private static void text(Canvas c,String s,float x,float y,float size,int color,boolean bold,Paint.Align align){Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);p.setColor(color);p.setTextSize(size);p.setFakeBoldText(bold);p.setTextAlign(align);c.drawText(s==null?"":s,x,y,p);}
     private static String pct(double v){if(!Double.isFinite(v))return"—";return String.format(Locale.US,"%.1f%%",v<=1.000001?v*100.0:v);}
@@ -133,9 +127,5 @@ public final class FieldSessionReportExporter {
     private static String fmt(double v){return Double.isFinite(v)?String.format(Locale.US,"%.3f",v):"—";}
     private static String shorten(String s,int n){String v=nz(s);return v.length()<=n?v:v.substring(0,Math.max(1,n-1))+"…";}
     private static String nz(String s){return s==null?"":s;}
-    private static void putManifest(ZipOutputStream z,Bundle b)throws Exception{StringBuilder j=new StringBuilder("{\n  \"schema\": \"hazrob-field-report/3\",\n  \"site_id\": \"").append(json(b.site.id)).append("\",\n  \"field_session_id\": \"").append(json(b.fieldSessionId)).append("\",\n  \"measurement_count\": ").append(b.measurementSessionIds.size()).append(",\n  \"derived_record_count\": ").append(b.records.size()).append(",\n  \"measurements\": [");for(int i=0;i<b.records.size();i++){ExperimentQueries.Record r=b.records.get(i);if(i>0)j.append(",");j.append("\n    {\"experiment_id\":").append(r.id).append(",\"session_id\":\"").append(json(r.sessionId)).append("\",\"utc\":\"").append(json(r.ts)).append("\"}");}j.append("\n  ]\n}\n");put(z,"manifest.json",j.toString().getBytes(StandardCharsets.UTF_8));}
-    private static void put(ZipOutputStream z,String name,byte[] bytes)throws Exception{ZipEntry e=new ZipEntry(name);z.putNextEntry(e);z.write(bytes);z.closeEntry();}
-    private static String safe(String s){return (s==null?"unknown":s).replaceAll("[^A-Za-z0-9._-]","_");}
-    private static String json(String s){if(s==null)return"";return s.replace("\\","\\\\").replace("\"","\\\"").replace("\n","\\n").replace("\r","\\r");}
     private static String required(String s){String v=s==null?"":s.trim();if(v.isEmpty())throw new IllegalArgumentException("field session required");return v;}
 }
