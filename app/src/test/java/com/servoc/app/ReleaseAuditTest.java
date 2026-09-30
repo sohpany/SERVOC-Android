@@ -14,6 +14,9 @@ public class ReleaseAuditTest {
         assertTrue(ReleaseAudit.CAMERA_ENDPOINT_FALLBACK);
         assertTrue(ReleaseAudit.FLAME_EVIDENCE_EXPERIMENTAL);
         assertTrue(ReleaseAudit.GAS_DIRECTION_ASSIST);
+        assertTrue(ReleaseAudit.GAS_TRACKING_ARROW_ONLY);
+        assertFalse(ReleaseAudit.GAS_TRACKING_AUTONOMOUS_DRIVE);
+        assertFalse(ReleaseAudit.GAS_TRACKING_ABSOLUTE_LOCALIZATION);
         assertTrue(ReleaseAudit.VIDEO_STANDALONE_FROM_REPORTS);
         assertFalse(ReleaseAudit.VIDEO_LINKED_TO_MEASUREMENTS);
         assertTrue(ReleaseAudit.API4_SPLIT_SAFETY);
