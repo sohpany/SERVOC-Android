@@ -37,12 +37,23 @@ public final class VideoEffectRenderer implements GLSurfaceView.Renderer {
     }
     @Override public void onSurfaceChanged(GL10 gl,int width,int height){viewW=Math.max(1,width);viewH=Math.max(1,height);GLES20.glViewport(0,0,viewW,viewH);}
     @Override public void onDrawFrame(GL10 gl){
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);SharedVideoFrame frame=null;synchronized(frameLock){if(pending!=null){frame=pending;pending=null;}}
-        if(frame!=null){Bitmap b=frame.bitmap();sourceW=Math.max(1,b.getWidth());sourceH=Math.max(1,b.getHeight());GLES20.glBindTexture(GLES20.GL_TEXTURE_2D,texture);GLUtils.texImage2D(GLES20.GL_TEXTURE_2D,0,b,0);hasFrame=true;frame.release();}
-        if(!hasFrame)return;
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+        SharedVideoFrame renderedFrame=null;
+        synchronized(frameLock){if(pending!=null){renderedFrame=pending;pending=null;}}
+        if(renderedFrame!=null){
+            Bitmap b=renderedFrame.bitmap();sourceW=Math.max(1,b.getWidth());sourceH=Math.max(1,b.getHeight());GLES20.glBindTexture(GLES20.GL_TEXTURE_2D,texture);GLUtils.texImage2D(GLES20.GL_TEXTURE_2D,0,b,0);hasFrame=true;
+        }
+        if(!hasFrame){if(renderedFrame!=null)renderedFrame.release();return;}
         float sa=sourceW/(float)sourceH,va=viewW/(float)viewH,vx=1f,vy=1f;if(displayMode==VideoEffectProfile.DisplayMode.NORMAL){if(va>sa)vx=sa/va;else if(va<sa)vy=va/sa;}float[] uv=VideoEffectMath.uvScale(displayMode,sa,va);
         GLES20.glUseProgram(program);GLES20.glUniform2f(uVertexScale,vx,vy);GLES20.glUniform1i(uDisplay,displayMode.ordinal());GLES20.glUniform1i(uEnh,enhancement.ordinal());GLES20.glUniform2f(uUvScale,uv[0],uv[1]);GLES20.glUniform2f(uTexel,1f/sourceW,1f/sourceH);GLES20.glUniform1f(uAuto,VideoEffectState.autoGain());
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);GLES20.glBindTexture(GLES20.GL_TEXTURE_2D,texture);GLES20.glUniform1i(uTex,0);vertices.position(0);texCoords.position(0);GLES20.glEnableVertexAttribArray(aPos);GLES20.glVertexAttribPointer(aPos,2,GLES20.GL_FLOAT,false,0,vertices);GLES20.glEnableVertexAttribArray(aTex);GLES20.glVertexAttribPointer(aTex,2,GLES20.GL_FLOAT,false,0,texCoords);GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP,0,4);GLES20.glDisableVertexAttribArray(aPos);GLES20.glDisableVertexAttribArray(aTex);
+
+        // Only a newly rendered video frame is offered to the recorder. Controls, tabs and Android UI are never captured.
+        if(renderedFrame!=null){
+            VideoEffectFrameHub.Consumer recorder=VideoEffectFrameHub.get();
+            if(recorder!=null){renderedFrame.retain();try{recorder.onDecodedFrame(renderedFrame);}catch(Exception ignored){renderedFrame.release();}}
+            renderedFrame.release();
+        }
     }
     private static FloatBuffer buffer(float[] values){ByteBuffer b=ByteBuffer.allocateDirect(values.length*4).order(ByteOrder.nativeOrder());FloatBuffer f=b.asFloatBuffer();f.put(values).position(0);return f;}
     private static int shader(int type,String source){int s=GLES20.glCreateShader(type);GLES20.glShaderSource(s,source);GLES20.glCompileShader(s);int[] ok=new int[1];GLES20.glGetShaderiv(s,GLES20.GL_COMPILE_STATUS,ok,0);if(ok[0]==0){String log=GLES20.glGetShaderInfoLog(s);GLES20.glDeleteShader(s);throw new IllegalStateException("video shader compile: "+log);}return s;}
