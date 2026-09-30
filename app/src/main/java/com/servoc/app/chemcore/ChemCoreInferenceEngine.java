@@ -38,7 +38,7 @@ public final class ChemCoreInferenceEngine {
         List<InverseMolecularSolver.Result> ranked=InverseMolecularSolver.solve(observedRatios,candidates,context.temperatureC,context.rh,samplingProfile);
         List<InverseMolecularSolver.Result> solvable=new ArrayList<>();for(InverseMolecularSolver.Result r:ranked)if(r!=null&&r.solvable)solvable.add(r);
         if(solvable.isEmpty()){
-            ChemCoreResultEnvelope base=envelope(context,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no candidate has enough overlapping response evidence; reliability=1/5",summaries(ranked,observedChannels));
+            ChemCoreResultEnvelope base=envelope(context,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no candidate has enough overlapping response evidence",summaries(ranked,observedChannels));
             return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios);
         }
 
@@ -72,7 +72,6 @@ public final class ChemCoreInferenceEngine {
             String idx=Double.isFinite(top.qsprIndicatorPct)?String.format(Locale.US,"%.1f%%",top.qsprIndicatorPct):"—";
             note+="; PubChem/QSPR fit="+idx;
         }
-        note+="; reliability="+reliabilityRating(tier)+"/5";
 
         // A fitted ppm helps explain/rank hypotheses at M1-M3, but only M4 QUANTIFIED exposes it as a measurement result.
         double reportablePpm=outcome==ChemCoreDecision.Outcome.QUANTIFIED?top.bestPpm:Double.NaN;
@@ -80,7 +79,8 @@ public final class ChemCoreInferenceEngine {
         return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios);
     }
 
-    /** Simple user-facing reliability scale: 1 weak/unknown, 2 QSPR, 3 literature/manufacturer, 4 multisensor identity, 5 HR069 calibrated. */
+    /** Legacy 1..5 display mapping retained only for backward-compatible callers; P6 uses 0..100 Analytical Confidence. */
+    @Deprecated
     public static int reliabilityRating(ChemCoreDecision.EvidenceTier tier){
         if(tier==null)return 1;
         switch(tier){
@@ -108,8 +108,10 @@ public final class ChemCoreInferenceEngine {
             double agreement=r.contributors>=2&&Double.isFinite(r.standardizedResidualRms)?100.0*Math.exp(-0.5*r.standardizedResidualRms*r.standardizedResidualRms):Double.NaN;
             ChemCoreDecision.EvidenceTier rowTier=(r.contributors>0&&r.calibratedContributors==r.contributors)?ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED:r.highestEvidenceTier;
             double evidence=evidenceQuality(rowTier);if(!r.allContributorsInsideDomain)evidence*=0.5;
+            ChemCoreEvidenceFusion.Result confidence=ChemCoreEvidenceFusion.fuse(r.evidenceObservations);
             out.add(new ChemCoreResultEnvelope.CandidateSummary(r.chemicalUid,r.label,r.posterior,r.bestPpm,r.standardizedResidualRms,r.contributors,rowTier,
-                    coverage,agreement,evidence,r.calibratedContributors,r.allContributorsInsideDomain,r.residualLog10BySensor));
+                    coverage,agreement,evidence,r.calibratedContributors,r.allContributorsInsideDomain,r.residualLog10BySensor,
+                    confidence.score.totalPct,confidence.uniqueEvidenceGroups,confidence.sensorBreadth,r.evidenceObservations));
         }return out;
     }
 
