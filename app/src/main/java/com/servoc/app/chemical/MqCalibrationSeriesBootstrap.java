@@ -131,7 +131,11 @@ public final class MqCalibrationSeriesBootstrap {
                 "B_PUBLISHED_EXACT_SENSOR_REFERENCE_COMPARISON","ACCEPTED_IDENTITY_AND_PPM_REFERENCE");
     }
 
-    private static JSONArray array(double[] x){JSONArray a=new JSONArray();for(double v:x)a.put(v);return a;}
+    private static JSONArray array(double[] x) throws org.json.JSONException{
+        JSONArray a=new JSONArray();
+        for(double v:x)a.put(v);
+        return a;
+    }
     private static void evidence(SQLiteDatabase db,String sensorKey,Long chemicalUid,String type,String payload,Double minPpm,Double maxPpm,String sourceId,String tier,String status){
         ContentValues v=new ContentValues();v.put("sensor_key",sensorKey);v.put("chemical_uid",chemicalUid);v.put("evidence_type",type);v.put("coefficients",payload);
         if(minPpm!=null)v.put("min_ppm",minPpm);if(maxPpm!=null)v.put("max_ppm",maxPpm);v.put("source_id",sourceId);v.put("evidence_tier",tier);v.put("status",status);
