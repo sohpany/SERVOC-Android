@@ -48,7 +48,7 @@ public final class ChemCoreSessionFeatureAdapter {
         if(db==null||sessionId==null||sessionId.trim().isEmpty())throw new IllegalArgumentException("database and session required");
         String id=sessionId.trim();List<Double> times=new ArrayList<>();List<double[]> rows=new ArrayList<>();long first=-1,last=-1;int any=0,accepted=0,fallback=0;
         double tSum=0,rhSum=0,pSum=0;int tn=0,rhn=0,pn=0;
-        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms",new String[]{id})){
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms,id",new String[]{id})){
             while(c.moveToNext()){
                 long t=c.getLong(0);if(first<0)first=t;last=t;times.add(t/1000.0);
                 JSONObject env=json(c.getString(1)),mq=json(c.getString(2));double[] r=new double[SENSOR_ORDER.length];java.util.Arrays.fill(r,Double.NaN);boolean has=false;
