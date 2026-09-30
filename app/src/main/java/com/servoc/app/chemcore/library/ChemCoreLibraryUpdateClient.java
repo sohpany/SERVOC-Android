@@ -1,5 +1,6 @@
 package com.servoc.app.chemcore.library;
 
+import com.servoc.app.github.GitHubSessionAuth;
 import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
@@ -12,12 +13,15 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
-/** HTTPS-only transport for manifest discovery and staged ChemCore library payload download. */
+/** HTTPS transport for verified ChemCore updates, including the private HazRob organization library. */
 public final class ChemCoreLibraryUpdateClient {
     public static final int DEFAULT_CONNECT_TIMEOUT_MS = 7000;
     public static final int DEFAULT_READ_TIMEOUT_MS = 20000;
     public static final long MAX_MANIFEST_BYTES = 512 * 1024L;
     public static final long MAX_PAYLOAD_BYTES = 256L * 1024L * 1024L;
+    public static final String CANONICAL_REPOSITORY="HazRob/build-harness";
+    private static final String CANONICAL_API_PREFIX="/repos/HazRob/build-harness/contents/library/";
+    private static final String API_VERSION="2022-11-28";
 
     public static final class CheckResult {
         public final ChemCoreLibraryManifest manifest;
@@ -88,7 +92,7 @@ public final class ChemCoreLibraryUpdateClient {
             try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
                 char[] buf = new char[4096]; int n;
                 while ((n = r.read(buf)) >= 0) {
-                    total += n * 2L; // conservative UTF-16 memory bound
+                    total += n * 2L;
                     if (total > maxBytes * 2L) throw new IllegalStateException("manifest exceeded size limit");
                     s.append(buf, 0, n);
                 }
@@ -102,9 +106,22 @@ public final class ChemCoreLibraryUpdateClient {
         HttpURLConnection c = (HttpURLConnection) url.openConnection();
         c.setConnectTimeout(DEFAULT_CONNECT_TIMEOUT_MS); c.setReadTimeout(DEFAULT_READ_TIMEOUT_MS);
         c.setUseCaches(false); c.setInstanceFollowRedirects(false);
-        c.setRequestProperty("Accept", "application/json, application/octet-stream;q=0.9");
         c.setRequestProperty("Cache-Control", "no-cache");
+        if (isCanonicalPrivateGitHub(url)) {
+            String token=GitHubSessionAuth.token();
+            if(token==null||token.length()<20)throw new IllegalStateException("GitHub developer session token required for private HazRob library");
+            c.setRequestProperty("Authorization","Bearer "+token);
+            c.setRequestProperty("Accept","application/vnd.github.raw+json");
+            c.setRequestProperty("X-GitHub-Api-Version",API_VERSION);
+            c.setRequestProperty("User-Agent","HazRob-Android/0.10.2");
+        } else {
+            c.setRequestProperty("Accept", "application/json, application/octet-stream;q=0.9");
+        }
         return c;
+    }
+
+    private static boolean isCanonicalPrivateGitHub(URL url){
+        return url!=null&&"api.github.com".equalsIgnoreCase(url.getHost())&&url.getPath()!=null&&url.getPath().startsWith(CANONICAL_API_PREFIX);
     }
 
     private static URL resolveSibling(URL manifestUrl, String payloadFile) throws Exception {
@@ -112,7 +129,7 @@ public final class ChemCoreLibraryUpdateClient {
         String path = base.getPath();
         int slash = path.lastIndexOf('/');
         String parent = slash >= 0 ? path.substring(0, slash + 1) : "/";
-        URI resolved = new URI(base.getScheme(), base.getAuthority(), parent + payloadFile, null, null);
+        URI resolved = new URI(base.getScheme(), base.getAuthority(), parent + payloadFile, base.getQuery(), null);
         return resolved.toURL();
     }
 
