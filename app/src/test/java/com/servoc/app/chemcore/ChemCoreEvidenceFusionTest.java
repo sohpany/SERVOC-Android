@@ -41,12 +41,31 @@ public class ChemCoreEvidenceFusionTest {
         assertEquals(75.0,m4.score.totalPct,1e-9);assertEquals(1,m4.hr069Groups);assertEquals(0,m4.referenceGroups);assertEquals(1,m4.uniqueEvidenceGroups);
     }
 
-    @Test public void outOfDomainOrPoorFitAddsNoPointsAndNeverSubtracts(){
+    @Test public void outOfDomainAndPoorFitAreRetainedAsSmallCorroborativeSupport(){
         ChemCoreEvidenceObservation good=ev(ChemCoreEvidenceObservation.Type.LITERATURE_CURVE,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,"REF:good",List.of("mq3"),0.4,true);
         ChemCoreEvidenceObservation out=ev(ChemCoreEvidenceObservation.Type.HR069_CALIBRATION,ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED,"M4:outside",List.of("mq2"),0.1,false);
         ChemCoreEvidenceObservation poor=ev(ChemCoreEvidenceObservation.Type.QSPR,ChemCoreDecision.EvidenceTier.M1_MOLECULARLY_INFERRED,"QSPR:poor",List.of("mq135"),4.0,true);
         ChemCoreEvidenceFusion.Result r=ChemCoreEvidenceFusion.fuseForChemical(1,List.of(good,out,poor));
-        assertEquals(45.0,r.score.totalPct,1e-9);assertEquals(1,r.referenceGroups);assertEquals(0,r.hr069Groups);assertEquals(0,r.qsprGroups);assertEquals(1,r.uniqueEvidenceGroups);assertEquals(1,r.sensorBreadth);assertEquals(1,r.supportingEvidence.size());
+        assertEquals(1,r.referenceGroups);assertEquals(0,r.hr069Groups);assertEquals(0,r.qsprGroups);assertEquals(2,r.corroborativeGroups);assertEquals(3,r.uniqueEvidenceGroups);assertEquals(3,r.sensorBreadth);assertEquals(3,r.supportingEvidence.size());
+        assertEquals(2.5,r.score.corroborationPct,1e-9);assertEquals(52.5,r.score.totalPct,1e-9);
+    }
+
+    @Test public void degradedMeasurementCanSupportButNeverBecomesReportableQuantitative(){
+        ChemCoreEvidenceObservation weak=new ChemCoreEvidenceObservation(
+                ChemCoreEvidenceObservation.Type.SENSOR_PATTERN,1,"X",List.of("mq7"),"weak","m","s","weak-independent",
+                ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED,true,false,true,40,1,0,0,0.5,"degraded",0.35,"CORROBORATIVE");
+        assertEquals(0.35,weak.measurementQualityWeight,1e-9);assertEquals("CORROBORATIVE",weak.supportRole);assertFalse(weak.reportableQuantitative);
+        ChemCoreEvidenceFusion.Result r=ChemCoreEvidenceFusion.fuseForChemical(1,List.of(weak));
+        assertEquals(1,r.corroborativeGroups);assertEquals(1,r.uniqueEvidenceGroups);assertTrue(r.score.corroborationPct>0);assertTrue(r.score.totalPct<10);
+    }
+
+    @Test public void degradedCopyOfSameIndependenceGroupDoesNotDoubleCountStrongProof(){
+        ChemCoreEvidenceObservation strong=ev(ChemCoreEvidenceObservation.Type.LITERATURE_CURVE,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,"REF:same",List.of("mq3"),0.2,true);
+        ChemCoreEvidenceObservation weak=new ChemCoreEvidenceObservation(
+                ChemCoreEvidenceObservation.Type.SENSOR_PATTERN,1,"X",List.of("mq135"),"weak","m","s","REF:same",
+                ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,true,false,false,40,1,0,0,0.3,"same source",0.40,"CORROBORATIVE");
+        ChemCoreEvidenceFusion.Result r=ChemCoreEvidenceFusion.fuseForChemical(1,List.of(strong,weak));
+        assertEquals(1,r.referenceGroups);assertEquals(0,r.corroborativeGroups);assertEquals(1,r.uniqueEvidenceGroups);assertEquals(2,r.sensorBreadth);assertEquals(48.0,r.score.totalPct,1e-9);
     }
 
     @Test public void derivedReferenceFingerprintDoesNotDoubleCountDirectReferenceCurve(){
@@ -62,6 +81,7 @@ public class ChemCoreEvidenceFusionTest {
         ChemCoreResultEnvelope.CandidateSummary c=new ChemCoreResultEnvelope.CandidateSummary(1,"X",0.93,40,0.2,1,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,50,90,60,0,true,Collections.emptyMap(),f.score.totalPct,f.uniqueEvidenceGroups,f.sensorBreadth,List.of(e));
         ChemCoreResultEnvelope result=new ChemCoreResultEnvelope("S",ChemCoreDecision.Outcome.SCREENING,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,1L,"X",Double.NaN,Double.NaN,Double.NaN,Double.NaN,0.93,Double.NaN,"p","f","m","screening",List.of(c));
         JSONObject json=result.toJson();assertEquals(0.93,json.optDouble("top_posterior"),1e-9);assertEquals(45.0,json.optDouble("analytical_confidence_pct"),1e-9);assertNotEquals(json.optDouble("top_posterior"),json.optDouble("analytical_confidence_pct"),1e-9);assertEquals(ChemCoreResultEnvelope.ANALYTICAL_CONFIDENCE_SEMANTICS,json.optString("analytical_confidence_semantics"));assertEquals(1,json.optInt("confidence_evidence_groups"));
+        JSONObject ej=json.getJSONArray("candidates").getJSONObject(0).getJSONArray("evidence_observations").getJSONObject(0);assertEquals(1.0,ej.getDouble("measurement_quality_weight"),1e-9);assertEquals("PRIMARY",ej.getString("support_role"));
     }
 
     @Test public void acceptedFingerprintProducesStructuredConfidenceButNeverReportablePpm(){
