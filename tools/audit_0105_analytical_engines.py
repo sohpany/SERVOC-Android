@@ -56,10 +56,11 @@ def main():
 
     # Fingerprint evidence is identity-only and future HR069 experimental fingerprints need no new engine.
     req(fp,'REFERENCE_FINGERPRINT','accepted reference fingerprint type')
-    req(fp,'true,false,false,Double.NaN','accepted fingerprint remains non-quantitative')
+    req(fp,'ChemCoreFingerprintEvidenceEngine.toEvidence','accepted fingerprint delegates to shared typed adapter')
     req(generic_fp,'SourceProfile hr069Experimental','future HR069 experimental fingerprint source profile')
     req(generic_fp,'HR069_EXPERIMENTAL_FINGERPRINT','experimental fingerprint type')
-    req(generic_fp,'false,false,Double.NaN','experimental fingerprint remains identity-only')
+    req(generic_fp,'true,false,false,Double.NaN','fingerprint observations remain identity-only')
+    req(generic_fp,'source.requireManufacturerHeaterProtocol','fingerprint evidence breadth follows heater gate')
 
     # Open-set and mixture/interference fail-safe outcomes remain explicit.
     req(openset,'outside trained feature domain','open-set rejection')
