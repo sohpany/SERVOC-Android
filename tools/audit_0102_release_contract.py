@@ -36,7 +36,9 @@ def main() -> int:
     analytical_lab = txt("app/src/main/java/com/servoc/app/ui/AnalyticalLabTab.java")
     settings_tab = txt("app/src/main/java/com/servoc/app/ui/SettingsTab.java")
     robot_api = txt("app/src/main/java/com/servoc/app/communication/RobotApi.java")
+    remote_connection = txt("app/src/main/java/com/servoc/app/communication/RemoteConnection.java")
     robot_protocol_v4 = txt("app/src/main/java/com/servoc/app/communication/RobotProtocolV4.java")
+    telemetry_recorder = txt("app/src/main/java/com/servoc/app/measurement/TelemetryRecorder.java")
     echo_badge = txt("app/src/main/java/com/servoc/app/ui/EchoDistanceBadge.java")
     gas_badge = txt("app/src/main/java/com/servoc/app/ui/GasHazardBadge.java")
     physical_ui = txt("app/src/main/java/com/servoc/app/ui/PhysicalMeasurementsUiEnhancer.java")
@@ -54,6 +56,9 @@ def main() -> int:
     # Canonical product identity.
     req(release, 'VERSION="0.10.2"', "app release identity")
     req(release, 'ENGINEERING_REVISION="HR069"', "engineering revision authority")
+    req(release, "IR_OPTIONAL_AUTO_STOP=true", "release audit optional IR auto-stop semantics")
+    req(release, "ULTRASONIC_OPTIONAL_AUTO_STOP=true", "release audit optional ultrasonic auto-stop semantics")
+    req(release, "SAFETY_WARNINGS_ALWAYS_ACTIVE=true", "release audit warning independence")
     req(
         hardware_profile,
         'ID="hazrob-0.10.2-hr069-1r8mq-l298n6-batt-ultra-ir-ldr-env2-v2"',
@@ -108,6 +113,48 @@ def main() -> int:
     req(hw, "AMP_GAIN=25.0f", "firmware MAX4466 gain reference")
     req(hw, '\\"db_spl\\":', "firmware publishes dB SPL")
     req(hw, '\\"gain_reference\\":25', "firmware publishes gain reference 25")
+
+    # P2 measurement/telemetry contract: normalized state must survive acquisition and persistence.
+    req(hw, 'const char* measurementStateName()', "firmware canonical measurement state names")
+    req(hw, '\\"state\\":\\""+String(measurementStateName())', "firmware measurement state JSON quoting")
+    req(robot_protocol_v4, 'x.put("state",state)', "Android measurement state normalization")
+    req(robot_protocol_v4, 'x.put("state_code",code)', "Android measurement state-code normalization")
+    req(robot_protocol_v4, 'x.put("valid_channels"', "Android measurement valid-channel normalization")
+    req(telemetry_recorder, 'state.put("measurement_state",measurementState)', "session persists canonical measurement state")
+    req(telemetry_recorder, 'state.put("measurement_state_code",stateCode)', "session persists canonical measurement state code")
+    req(telemetry_recorder, 'state.put("measurement_valid_channels"', "session persists channel validity")
+    req(telemetry_recorder, 'state.put("sensor_power",sensorPower)', "session persists live sensor-power diagnostic")
+
+    # P2 ENV contract: analytical ADS and chamber environment use separate I2C controllers end-to-end.
+    req(cfg, "SDA=21,SCL=22,ADS1_ADDR=0x48,ADS2_ADDR=0x49", "ADS analytical bus authority")
+    req(cfg, "ENV_SDA=13,ENV_SCL=14", "dedicated ENV bus authority")
+    req(hw, "TwoWire EnvWire(1)", "dedicated ESP32 ENV I2C controller")
+    req(hw, "EnvWire.begin(Cfg::ENV_SDA,Cfg::ENV_SCL)", "ENV bus initialization")
+    req(hw, "EnvWire.setClock(Cfg::ENV_I2C_HZ)", "ENV bus clock")
+    req(hw, "EnvWire.requestFrom((int)a,(int)n)", "ENV reads use EnvWire")
+    req(hw, "b[i]=EnvWire.read()", "ENV data bytes use EnvWire")
+    req(hw, "envRd(envAddr,0xF7", "BME/BMP measurement read uses ENV helper")
+
+    # P2 Direct/Remote parity: both paths must converge on the same normalized Android snapshot.
+    req(robot_api, "return RobotProtocolV4.normalize(diagnosticsRaw(),dataRaw(),commandedLeft,commandedRight)", "Direct normalized snapshot")
+    req(remote_mqtt, 'void publishTelemetry(){String j="{\\\"diag\\\":"+diagJson()+",\\\"data\\\":"+dataJson()', "Remote publishes raw diag+data pair")
+    req(remote_connection, 'if(diag!=null||data!=null)return RobotProtocolV4.normalize(diag,data,left,right)', "Remote normalized snapshot")
+    req(remote_connection, 'command("measure_start"', "Remote measurement-start parity")
+    req(remote_connection, 'command("measure_cancel"', "Remote measurement-cancel parity")
+    req(remote_connection, 'command("relay"', "Remote MQ power parity")
+    req(robot_api, 'getText("/measure?cmd=start"', "Direct measurement-start parity")
+    req(robot_api, 'getText("/measure?cmd=cancel"', "Direct measurement-cancel parity")
+
+    # Safety telemetry must survive Android normalization and session persistence.
+    req(robot_protocol_v4, 'drive.put("safety_auto_stop",safetyAutoStop)', "auto-stop state survives normalization")
+    req(robot_protocol_v4, 'drive.put("forward_hazard",forwardHazard)', "hazard state survives normalization")
+    req(robot_protocol_v4, 'drive.put("forward_blocked",forwardBlocked)', "block state survives normalization")
+    req(robot_protocol_v4, 'drive.put("forward_block_reason",forwardBlockReason)', "block reason survives normalization")
+    req(robot_protocol_v4, 'proximity.put("stop_zone"', "ultrasonic stop-zone survives normalization")
+    req(robot_protocol_v4, 'x.put("cliff_warning",cliff)', "IR cliff warning survives normalization")
+    req(robot_protocol_v4, 'x.put("ground_detected"', "IR ground state survives normalization")
+    req(telemetry_recorder, 'state.put("forward_hazard"', "session persists forward hazard")
+    req(telemetry_recorder, 'state.put("forward_blocked"', "session persists actual drive block")
 
     # Source-integrity guards for files previously affected by literal escape insertion.
     forbid(main_activity, r';\nimport ', "MainActivity literal-newline import corruption")
