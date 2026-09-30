@@ -3,6 +3,7 @@ package com.servoc.app.chemcore.library;
 import com.servoc.app.chemcore.ChemCoreDecision;
 import com.servoc.app.chemcore.ChemCoreFeaturePipeline;
 import com.servoc.app.chemcore.ChemCoreOpenSetGate;
+import com.servoc.app.chemcore.ChemCoreQsprRuntimeRegistry;
 import com.servoc.app.chemcore.ChemCoreResponseModel;
 import com.servoc.app.chemcore.ChemCoreSessionFeatureAdapter;
 import com.servoc.app.chemcore.InverseMolecularSolver;
@@ -30,6 +31,10 @@ import java.util.Map;
  * - an open-set model is ignored unless it declares independent known/unknown validation;
  * - sampling-profile compatibility is enforced at prediction/evaluation time;
  * - frozen open-set model dimensionality must exactly match the canonical live feature vector.
+ *
+ * Validated local PubChem/QSPR M1 support may supplement a Stable candidate on MQ channels for
+ * which the Stable payload has no higher-tier model. The Stable/direct model always wins on an
+ * overlapping sensor and QSPR never changes the M4 provenance contract.
  */
 public final class ChemCoreStableKnowledgeReader {
     public static final String SNAPSHOT_SCHEMA="chemcore-stable-snapshot-v1";
@@ -85,7 +90,7 @@ public final class ChemCoreStableKnowledgeReader {
         for(Map.Entry<Long,List<ChemCoreResponseModel>> e:models.entrySet()){
             long uid=e.getKey();out.add(new InverseMolecularSolver.Candidate(uid,labels.get(uid),e.getValue(),priorWeights.getOrDefault(uid,0.0),minimums.getOrDefault(uid,2)));
         }
-        return out;
+        return out.isEmpty()?out:ChemCoreQsprRuntimeRegistry.supplement(out);
     }
 
     /**
