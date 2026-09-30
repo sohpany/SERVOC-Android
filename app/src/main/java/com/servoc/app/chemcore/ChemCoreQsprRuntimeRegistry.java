@@ -17,23 +17,23 @@ import java.util.Set;
 /**
  * Runtime PubChem/QSPR bridge for HazRob 0.10.2 / HR069.
  *
- * Design rules:
- *  - PubChem molecular descriptors may create only M1 molecularly inferred response support.
- *  - QSPR models are trained from accepted source-backed M2 response relations, never from
- *    invented analyte equations.
- *  - leave-compound-out validation is required before a per-sensor QSPR model is enabled.
- *  - live QSPR-only hypotheses require at least three contributing MQ channels.
- *  - direct M2/M4 response models always replace a QSPR model on the same sensor/analyte.
+ * Simple operating rule:
+ *  - if a direct/fingerprint/reference model exists, it wins on that sensor;
+ *  - if no direct model exists for a material, PubChem/QSPR is allowed to be the primary
+ *    identification path using whatever independently validated MQ-QSPR sensor models exist;
+ *  - QSPR-only identity remains explicitly marked as estimated and never creates reportable ppm;
  *  - mixtures/materials/isomer groups/occupational categories curated as non-molecular are excluded.
  *
- * QSPR is therefore a ranking/screening indicator. It is not a reportable ppm calibration and
- * cannot independently promote an identity to M3/M4.
+ * QSPR models are trained only from accepted source-backed M2 response relations and must pass
+ * leave-compound-out validation before they are enabled. This keeps the scientific validation
+ * inside the engine while the operator sees a simple direct-vs-QSPR result.
  */
 public final class ChemCoreQsprRuntimeRegistry {
-    public static final String VERSION="pubchem-qspr-mox-runtime/1";
+    public static final String VERSION="pubchem-qspr-mox-runtime/2-simple";
     private static final int TRAINING_POINTS_PER_COMPOUND=8;
     private static final int MIN_TRAINING_COMPOUNDS=5;
-    private static final int MIN_QSPR_CONTRIBUTORS=3;
+    /** At least one independently validated sensor-QSPR model is enough to keep the compound readable. */
+    private static final int MIN_QSPR_CONTRIBUTORS=1;
     private static final double RIDGE_LAMBDA=0.10;
     private static final double MAX_LCO_RMSE_LOG10=0.60;
     private static final double MAX_LCO_ABS_BIAS_LOG10=0.40;
@@ -121,7 +121,7 @@ public final class ChemCoreQsprRuntimeRegistry {
         }
         cached=Collections.unmodifiableList(next);
         lastStatus=new Status(liveTargets.size(),sensorModels.size(),next.size(),String.join(",",enabledSensorNames),
-                sensorModels.size()>=MIN_QSPR_CONTRIBUTORS?"M1 QSPR available for live ranking":"fewer than three independently validated sensor-QSPR models; QSPR live ranking withheld");
+                sensorModels.size()>=MIN_QSPR_CONTRIBUTORS?"QSPR-only compounds are available for estimated identification":"no independently validated sensor-QSPR model is available");
         return lastStatus;
     }
 
@@ -130,7 +130,8 @@ public final class ChemCoreQsprRuntimeRegistry {
 
     /**
      * Adds QSPR support to a direct/stable candidate set. For the same chemical+sensor, the
-     * higher-tier direct model wins. QSPR-only candidates retain a 3-channel minimum.
+     * higher-tier direct model wins. QSPR-only candidates remain readable with the validated
+     * QSPR channels that are available.
      */
     public static List<InverseMolecularSolver.Candidate> supplement(List<InverseMolecularSolver.Candidate> base){
         List<InverseMolecularSolver.Candidate> molecular=cached;
