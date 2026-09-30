@@ -2,8 +2,10 @@
 
 Status: ACTIVE / RESUMABLE
 Created: 2026-09-30
+Last updated: 2026-09-30
 Scope: `release/hazrob-0.10.2` / HR069 only
 Starting HEAD: `a29101b3c3abda8ab7127087b2d403b7e606cdf4`
+Current pre-qualification checkpoint: `65a723a023b2437c3e8fbd6057d5ae4696a50ce8`
 
 ## Scope rule
 
@@ -34,27 +36,115 @@ This workplan is intentionally limited to the current HazRob 0.10.2 / HR069 impl
 
 | Phase | Scope | State | Acceptance gate |
 |---|---|---|---|
-| UI-01 | Landscape full-screen driving | DONE / VERIFYING | camera occupies full content area; system chrome hidden; controls/status float over video |
-| UI-02 | Four independent drive modes | DONE / VERIFYING | TANK/WHEEL/JOYSTICK/BUTTONS all selectable; canonical left/right commands; pivot and progressive-turn matrix tested |
-| UI-03 | Drive hazard/status overlays | DONE / VERIFYING | gas, relay, Wi-Fi, Echo cm and IR ground/cliff visible on driving screen |
-| UI-04 | Measurement workspace redesign | ACTIVE | operator cards for power, acquisition readiness, live gas state, channel validity, session progress and actions; reduce narrative text |
-| UI-05 | Analysis/results dashboard redesign | PENDING | top hypothesis, posterior/margin, OOD/entropy, evidence tier, quantitative gate, residuals and dynamic candidate cards |
-| UI-06 | Smart reports and charts | PENDING | report KPIs, evidence provenance, safety state and chart capability matrix mapped to recorded data |
-| UI-07 | Contrast/readability audit | PENDING | no white-on-white or low-contrast operator text; candidate cards choose foreground by background luminance |
-| UI-08 | HR069 current-source qualification | PENDING | current HR069 contract + Android tests + firmware compile; no release artifact unless explicitly requested |
+| UI-01 | Landscape full-screen driving | **DONE — SOURCE VERIFIED** | camera occupies full content area; system chrome hidden; controls/status float over video |
+| UI-02 | Four independent drive modes | **DONE — SOFTWARE MATRIX LOCKED** | TANK/WHEEL/JOYSTICK/BUTTONS all selectable; pivot/progressive matrix locked by `HR069OperatorDriveTest`; physical wheel acceptance still requires robot |
+| UI-03 | Drive hazard/status overlays | **DONE — SOURCE VERIFIED** | gas, relay, Wi-Fi, Echo cm and IR ground/cliff visible on driving screen; protocol normalizes raw Echo `cm` to UI `distance_cm` |
+| UI-04 | Measurement workspace redesign | **DONE — PRE-QUALIFICATION** | four operational KPI cards, progress, power/start/cancel/save actions, concise per-channel diagnostics |
+| UI-05 | Analysis/results dashboard redesign | **DONE — PRE-QUALIFICATION** | top hypothesis, posterior/margin, OOD/entropy, evidence tier, quantitative gate, dynamic candidates, on-demand 144 panel, expandable residuals |
+| UI-06 | Smart reports and charts | **DONE — PRE-QUALIFICATION** | smart report dashboard; 20 existing analytical charts retained; evidence-aware chart availability; `ReportIntelligence` state/recommendation policy; PDF/XLSX remain session-bound |
+| UI-07 | Contrast/readability audit | **DONE — PRE-QUALIFICATION** | explicit dark/light foreground/background primitives; luminance-aware candidate text; dark sensor details; no dependence on phone theme for button contrast |
+| UI-08 | HR069 current-source qualification | **ACTIVE** | current HR069 source contract + selected current tests + Android compile + firmware compile; no APK/release artifact |
 
-## Current implementation checkpoint
+## Implementation checkpoints
 
-At starting HEAD `a29101b3...`:
+- `6170600a...` — full-screen drive, four-mode presentation and live overlays introduced.
+- `60413200...` — current HR069 drive acceptance matrix added.
+- `ed9f9877...` — measurement and ChemCore operator dashboards rebuilt.
+- `986bd1e8...` — smart report workspace rebuilt.
+- `ed1289e1...` — `ReportIntelligence` evidence/readiness policy added.
+- `167079b0...` — report intelligence unit tests added.
+- `7d57844d...` — theme-independent contrast primitives added.
+- `65a723a0...` — current HR069 operator UI contract extended through UI-07.
 
-- `ControlTab` detects landscape, expands `cameraBox`, hides surrounding app chrome and applies immersive system UI flags.
-- Four drive presentations exist through `DriveMode`: `TANK`, `WHEEL`, `JOYSTICK`, `BUTTONS`.
-- `DualTankDriveControl` directly emits one signed speed per physical side.
-- `SteeringWheelView` and `JoystickView` both use the current `DriveMixer`.
-- `DirectionPadView` uses fixed `DiscreteDrive` commands including progressive forward/reverse turns and in-place pivots.
-- Driving overlay contains Wi-Fi RSSI/quality, live gas state, MQ relay toggle, Echo front distance, IR ground/cliff state, flame state, camera state, tracking state and E-STOP.
-- Echo distance is displayed in centimetres when valid.
-- Current IR UI treats `cliff_warning=true` as "no ground" and `ground_detected=true` as safe ground.
+## Current implementation details
+
+### UI-01 / Driving landscape
+
+`ControlTab` detects landscape, makes `cameraBox` occupy the content area, hides surrounding application chrome/system bars while driving and places controls as floating overlays over live video.
+
+### UI-02 / Four independent drive modes
+
+`DriveMode` contains exactly `TANK`, `WHEEL`, `JOYSTICK`, `BUTTONS`. The Joystick is an additional mode and does not replace the steering wheel.
+
+The canonical differential matrix is:
+
+| Demand | Left | Right |
+|---|---:|---:|
+| Forward | +100 | +100 |
+| Reverse | -100 | -100 |
+| Pivot right / 3 o'clock | +100 | -100 |
+| Pivot left / 9 o'clock | -100 | +100 |
+| Forward-right | +100 | +50 |
+| Forward-left | +50 | +100 |
+| Reverse-right | -100 | -50 |
+| Reverse-left | -50 | -100 |
+
+`DualTankDriveControl` emits each physical side independently. `SteeringWheelView` and `JoystickView` use the same `DriveMixer`. `DirectionPadView` uses the equivalent fixed `DiscreteDrive` commands.
+
+Software mapping is therefore internally consistent. If the robot does not physically pivot or slow the intended inside side after this source is installed, the next acceptance step is physical wiring/channel mapping verification rather than changing the mathematical mixer blindly.
+
+### UI-03 / Situational overlays
+
+Driving overlay contains:
+
+- live gas-response state;
+- floating MQ relay ON/OFF control;
+- Wi-Fi RSSI/quality;
+- Echo forward distance in cm;
+- IR ground/cliff state;
+- flame/camera/tracking state;
+- E-STOP, speed and current left/right command.
+
+Raw firmware Echo telemetry publishes `cm`; `RobotProtocolV4` normalizes it into canonical `device.proximity.distance_cm` before `ControlTab` displays it. IR uses `ground_detected` and `cliff_warning`; ground present is safe, ground absent is a cliff warning.
+
+### UI-04 / Measurement workspace
+
+The live measurement screen now answers at a glance:
+
+1. MQ power and ADS readiness;
+2. valid/available MQ channels and unstable channels;
+3. array response state and responding channel count;
+4. controlled session state, progress and remaining time;
+5. direct operator actions for MQ power, start, cancel and save.
+
+Per-sensor cards retain Raw/Vadc/Vao/Rs/Rs-R0, baseline delta, direction, noise CV, R0 synchronization and health state but no longer dominate the top of the screen with long narrative status text.
+
+### UI-05 / ChemCore analysis and results
+
+The analysis dashboard prioritizes:
+
+- analytical readiness;
+- top candidate;
+- posterior and separation margin;
+- evidence tier/outcome;
+- quantitative PPM gate;
+- MQ/ENV quality, OOD and normalized entropy;
+- compact candidate preview.
+
+Equations and residuals are hidden in an operator-selectable technical-details area. Results show dynamic candidate cards, optional full 144 screening, safety/exposure state and operator candidate tracking. Selecting/tracking a candidate is explicitly not treated as automatic identity acceptance.
+
+### UI-06 / Smart reports and charts
+
+The current chart engine already derives points from either recorded `SessionSeries` data or a saved ChemCore payload. It does not synthesize missing time-series or ChemCore points.
+
+The report workspace now presents session, decision, quality, safety and candidate KPIs first. Each selected chart states its evidence source or the exact missing prerequisite.
+
+`ReportIntelligence` provides report states:
+
+- `EMPTY`;
+- `SIGNAL_ONLY`;
+- `ANALYTICAL_ONLY`;
+- `SCREENING`;
+- `IDENTIFIED`;
+- `QUANTIFIED`.
+
+It also identifies available charts and recommends the highest-value charts based on whether recorded signal data, ChemCore results, 144 screening and gas-safety payloads are actually present.
+
+The existing XLSX exporter remains evidence-rich: summary, time-series, MQ, analysis, hardware/state, charts, gas safety, 144 screening, provenance and identification matrix. PDF/XLSX outputs remain bound to the exact saved session.
+
+### UI-07 / Contrast
+
+`UiKit` now defines explicit high-contrast dark-surface and light-button foreground/background colors. Generic buttons no longer rely on the phone Theme to choose text color. Candidate/risk surfaces use luminance-aware foreground selection. Sensor detail text was raised from low-contrast gray to a readable light gray on the dark workspace.
 
 ## UI architecture rules
 
@@ -98,6 +188,10 @@ Reports must distinguish:
 
 No chart may be rendered as factual if its required source series/payload is missing.
 
-## Validation policy
+## UI-08 qualification policy
 
-Only current 0.10.2 / HR069 source contracts are authoritative for UI-01..UI-08. A dedicated `audit_hr069_operator_ui_contract.py` is the UI source gate for this workstream. Historical revision-specific UI audits may remain in repository history but are not called by the HR069 UI qualification path.
+Only current 0.10.2 / HR069 source contracts are authoritative. The dedicated `audit_hr069_operator_ui_contract.py` is the UI source gate for this workstream. Historical revision-specific UI audits may remain in repository history but are not called by the current qualification path.
+
+The application-repository Actions jobs observed during this workstream terminate before executing any step (`steps=[]`). That infrastructure condition is not classified as a source-code test failure. UI-08 therefore uses the independent `HazRob/build-harness` qualification path to check the exact current source SHA.
+
+No UI-08 workflow may create/sign/publish an APK, create a firmware release ZIP or deploy a release unless that is separately requested after qualification.
