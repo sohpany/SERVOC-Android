@@ -28,6 +28,7 @@ def main():
     for n in ['MAX_SUPPORT_STANDARDIZED_RESIDUAL=2.50','filterChemical&&e.chemicalUid!=chemicalUid','representative.get(e.independenceGroup)','representative.put(e.independenceGroup,e)','!e.insideDomain','Math.abs(e.standardizedResidual)>MAX_SUPPORT_STANDARDIZED_RESIDUAL','scoreIndependent(q,r,m4,breadth)']:
         req(fusion,n,'runtime evidence fusion')
     req(fusion,'REFERENCE_FINGERPRINT&&hasDirectReference','derived reference fingerprint double-count guard')
+    req(fusion,'int contributingGroups=q+r+m4','reported confidence evidence-group count excludes non-contributing derived groups')
     req(fusion,'posterior/model ranking is intentionally not used here','posterior separation')
 
     # Result contract exposes confidence separately from posterior and retains the evidence trail.
@@ -45,7 +46,7 @@ def main():
     # Keep the initial P6 regressions and add runtime/result integration regressions.
     for n in ['correlatedQsprChannelsCountAsOneIndependentEvidenceGroup','strongestTierWinsInsideOneIndependenceGroup','independentReferenceGroupsRemainIndependent','outOfDomainAndOtherChemicalDoNotBoostCandidateConfidence','m3IdentityEvidenceIsNonM4SupportedEvidenceUntilWeightCalibration']:
         req(legacy_test,n,'initial P6 tests')
-    for n in ['threeQsprSensorChannelsFromOneModelAreOneEvidenceGroup','assertEquals(25.0,r.score.totalPct','assertEquals(41.0,r.score.totalPct','outOfDomainOrPoorFitAddsNoPointsAndNeverSubtracts','derivedReferenceFingerprintDoesNotDoubleCountDirectReferenceCurve','resultEnvelopeKeepsPosteriorAndAnalyticalConfidenceSemanticallySeparate','acceptedFingerprintProducesStructuredConfidenceButNeverReportablePpm']:
+    for n in ['threeQsprSensorChannelsFromOneModelAreOneEvidenceGroup','assertEquals(25.0,r.score.totalPct','assertEquals(41.0,r.score.totalPct','outOfDomainOrPoorFitAddsNoPointsAndNeverSubtracts','derivedReferenceFingerprintDoesNotDoubleCountDirectReferenceCurve','assertEquals(1,r.referenceGroups);assertEquals(1,r.uniqueEvidenceGroups)','resultEnvelopeKeepsPosteriorAndAnalyticalConfidenceSemanticallySeparate','acceptedFingerprintProducesStructuredConfidenceButNeverReportablePpm']:
         req(runtime_test,n,'runtime P6 tests')
 
     print('HazRob 0.10.2 / HR069 P6 confidence fusion contract: PASS')

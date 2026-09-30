@@ -25,6 +25,7 @@ public final class ChemCoreEvidenceFusion {
     public static final class Result {
         public final ChemCoreConfidenceMatrix.Score score;
         public final List<ChemCoreEvidenceObservation> supportingEvidence;
+        /** Number of independent groups that actually contribute confidence points after de-duplication guards. */
         public final int uniqueEvidenceGroups;
         public final int sensorBreadth;
         public final int qsprGroups,referenceGroups,hr069Groups;
@@ -81,7 +82,11 @@ public final class ChemCoreEvidenceFusion {
         }
         int breadth=ChemCoreEvidenceObservation.uniqueSensors(supporting);
         ChemCoreConfidenceMatrix.Score score=ChemCoreConfidenceMatrix.scoreIndependent(q,r,m4,breadth);
-        return new Result(score,supporting,representative.size(),breadth,q,r,m4);
+        // This count is deliberately the number of groups that contributed points. The complete
+        // supportingEvidence trail is retained separately for audit, including derived patterns
+        // that may add sensor breadth but are blocked from adding another independent proof.
+        int contributingGroups=q+r+m4;
+        return new Result(score,supporting,contributingGroups,breadth,q,r,m4);
     }
 
     static boolean isPositiveSupport(ChemCoreEvidenceObservation e){
