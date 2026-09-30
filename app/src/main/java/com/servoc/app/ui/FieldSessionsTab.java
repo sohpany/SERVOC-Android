@@ -9,6 +9,7 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.servoc.app.SiteSummaryExportActivity;
 import com.servoc.app.field.FieldSessionRepository;
 
 import java.util.List;
@@ -40,7 +41,7 @@ public final class FieldSessionsTab {
         root.addView(UiKit.title(c,"مكتبة المواقع والجلسات"),UiKit.full(c));
         sites=UiKit.vbox(c);root.addView(sites,UiKit.full(c));
         selectedSiteSummary=UiKit.text(c,"اختر موقعًا");selectedSiteSummary.setBackgroundColor(0xFF151A20);root.addView(selectedSiteSummary,UiKit.full(c));
-        siteReport=UiKit.button(c,"تقرير الموقع PDF");siteReport.setEnabled(false);siteReport.setOnClickListener(v->{if(selectedSiteId.isEmpty()){host.showToast("اختر موقعًا أولًا");return;}host.requestSiteSummaryExport("pdf",selectedSiteId);});root.addView(siteReport,UiKit.full(c));
+        siteReport=UiKit.button(c,"تقرير الموقع PDF");siteReport.setEnabled(false);siteReport.setOnClickListener(v->{if(selectedSiteId.isEmpty()){host.showToast("اختر موقعًا أولًا");return;}SiteSummaryExportActivity.start(c,selectedSiteId);});root.addView(siteReport,UiKit.full(c));
         sessions=UiKit.vbox(c);root.addView(sessions,UiKit.full(c));
     }
 
