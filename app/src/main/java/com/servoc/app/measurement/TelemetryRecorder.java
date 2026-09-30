@@ -14,7 +14,7 @@ import java.util.TimeZone;
 
 /** Automatically records normalized telemetry across ESP32 MQ cycles and controlled ChemCore captures. */
 public final class TelemetryRecorder {
-    private final ExperimentsDb db;private final FieldSessionRepository fieldSessions;private String sessionId,lastCompletedSessionId="";private long startedElapsed,lastSampleElapsed,sampleSeq;private boolean chemCoreCaptureSession=false;
+    private final ExperimentsDb db;private final FieldSessionRepository fieldSessions;private String sessionId,lastCompletedSessionId="";private long startedElapsed,startedUtcMs,lastSampleElapsed,sampleSeq;private boolean chemCoreCaptureSession=false;
     public TelemetryRecorder(ExperimentsDb db){this.db=db;this.fieldSessions=new FieldSessionRepository(db);ChemCoreSchema.ensure(db.getWritableDatabase());lastCompletedSessionId=db.getMeta("last_measurement_session_id","");}
 
     public synchronized void accept(JSONObject snapshot,int left,int right,boolean developer){
@@ -36,9 +36,9 @@ public final class TelemetryRecorder {
     public synchronized String lastCompletedSessionId(){return lastCompletedSessionId==null?"":lastCompletedSessionId;}
 
     private void start(boolean developer,long now,boolean chemCore){
-        chemCoreCaptureSession=chemCore;sessionId=(developer?"DEV":"FIELD")+(chemCore?"-CHEMCORE-":"-")+System.currentTimeMillis();startedElapsed=lastSampleElapsed=now;sampleSeq=0;
-        ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("started_ts",isoNow());v.put("kind",chemCore?"developer_chemcore_controlled_capture":(developer?"developer_mq_cycle":"field_mq_cycle"));v.put("operator_role",developer?"DEVELOPER":"USER");
-        try{JSONObject meta=new JSONObject();meta.put("chemcore_controlled_capture",chemCore);meta.put("sample_period_ms",chemCore?200:250);meta.put("mq_scan_timing_capture",chemCore);meta.put("measurement_schema",CanonicalMeasurementNormalizer.SCHEMA);v.put("analytics",meta.toString());}catch(Exception ignored){}
+        long utc=System.currentTimeMillis();chemCoreCaptureSession=chemCore;sessionId=(developer?"DEV":"FIELD")+(chemCore?"-CHEMCORE-":"-")+utc;startedElapsed=lastSampleElapsed=now;startedUtcMs=utc;sampleSeq=0;
+        ContentValues v=new ContentValues();v.put("session_id",sessionId);v.put("started_ts",isoUtc(utc));v.put("kind",chemCore?"developer_chemcore_controlled_capture":(developer?"developer_mq_cycle":"field_mq_cycle"));v.put("operator_role",developer?"DEVELOPER":"USER");
+        try{JSONObject meta=new JSONObject();meta.put("chemcore_controlled_capture",chemCore);meta.put("sample_period_ms",chemCore?200:250);meta.put("mq_scan_timing_capture",chemCore);meta.put("measurement_schema",CanonicalMeasurementNormalizer.SCHEMA);meta.put("started_utc_ms",utc);meta.put("started_monotonic_ms",now);meta.put("clock_contract","UTC_EPOCH_MS_PLUS_ANDROID_ELAPSED_REALTIME");v.put("analytics",meta.toString());}catch(Exception ignored){}
         db.getWritableDatabase().insertOrThrow("measurement_sessions",null,v);
         // Bind only ordinary USER field acquisitions. Developer/ChemCore controlled captures stay outside the user domain.
         if(!developer&&!chemCore){
@@ -90,10 +90,11 @@ public final class TelemetryRecorder {
     }
 
     private void finish(JSONObject snapshot,String state){
-        final String completed=sessionId;final boolean wasChemCore=chemCoreCaptureSession;ContentValues v=new ContentValues();v.put("ended_ts",isoNow());v.put("payload",snapshot.toString());
+        final String completed=sessionId;final boolean wasChemCore=chemCoreCaptureSession;final long endedMonotonic=SystemClock.elapsedRealtime(),endedUtcMs=System.currentTimeMillis();ContentValues v=new ContentValues();v.put("ended_ts",isoUtc(endedUtcMs));v.put("payload",snapshot.toString());
         try{
             JSONObject meta=new JSONObject();meta.put("terminal_state",state);meta.put("contains_aux_sensors",true);meta.put("chemcore_controlled_capture",wasChemCore);
             meta.put("hardware_profile",HazRobHardwareProfile.ID);meta.put("measurement_schema",CanonicalMeasurementNormalizer.SCHEMA);meta.put("sample_count",sampleSeq);
+            meta.put("started_utc_ms",startedUtcMs);meta.put("ended_utc_ms",endedUtcMs);meta.put("started_monotonic_ms",startedElapsed);meta.put("ended_monotonic_ms",endedMonotonic);meta.put("duration_monotonic_ms",Math.max(0,endedMonotonic-startedElapsed));meta.put("clock_contract","UTC_EPOCH_MS_PLUS_ANDROID_ELAPSED_REALTIME");
             meta.put("mq_power_architecture","single_relay_8_sensors");meta.put("installed_relays","R1");meta.put("relay_gpio",25);meta.put("mq_sensor_count",8);meta.put("manual_warmup",true);meta.put("sample_period_ms",wasChemCore?200:250);meta.put("mq_scan_timing_capture",wasChemCore);
             JSONObject transport=snapshot.optJSONObject("_transport");if(transport!=null)meta.put("terminal_transport",transport.optString("mode","UNKNOWN"));
             JSONObject adc=snapshot.optJSONObject("adc");if(adc!=null&&adc.optJSONObject("acquisition")!=null)meta.put("adc_acquisition",adc.optJSONObject("acquisition"));
@@ -101,8 +102,8 @@ public final class TelemetryRecorder {
         }catch(Exception ignored){}
         db.getWritableDatabase().update("measurement_sessions",v,"session_id=?",new String[]{completed});
         lastCompletedSessionId=completed;db.putMeta("last_measurement_session_id",completed);db.putMeta("last_measurement_session_terminal_state",state);
-        MeasurementSessionRegistry.completed(completed);if(wasChemCore)MeasurementSessionRegistry.clearChemCoreCapture();sessionId=null;startedElapsed=lastSampleElapsed=sampleSeq=0;chemCoreCaptureSession=false;
+        MeasurementSessionRegistry.completed(completed);if(wasChemCore)MeasurementSessionRegistry.clearChemCoreCapture();sessionId=null;startedElapsed=startedUtcMs=lastSampleElapsed=sampleSeq=0;chemCoreCaptureSession=false;
     }
 
-    private static String isoNow(){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
+    private static String isoUtc(long utcMs){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date(utcMs));}
 }
