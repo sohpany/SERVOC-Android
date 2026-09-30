@@ -1,5 +1,6 @@
 package com.servoc.app.chemcore;
 
+import com.servoc.app.fingerprint.ChemicalFingerprint;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -50,14 +51,23 @@ public final class ChemCoreEvidenceObservationTest {
         assertTrue(e.quantitativeEstimateSupported);assertFalse(e.reportableQuantitative);assertFalse(e.insideDomain);
     }
 
+    @Test public void futureHr069ExperimentalFingerprintNeedsNoNewEngineAndRemainsIdentityOnly(){
+        double[] mean={Math.log10(.60),Math.log10(.85),Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN};
+        double[] sigma={.08,.08,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN};
+        ChemicalFingerprint fp=new ChemicalFingerprint(103,"HR069-EXP-ETHANOL",12,mean,sigma);
+        ChemCoreFingerprintEvidenceEngine.SourceProfile source=ChemCoreFingerprintEvidenceEngine.SourceProfile.hr069Experimental("EXP-2026-001");
+        ChemCoreFingerprintEvidenceEngine.Decision d=ChemCoreFingerprintEvidenceEngine.evaluate(
+                Map.of("mq2",.60,"mq3",.85),List.of(fp),source,2,1.5,5,.20);
+        assertTrue(d.accepted);assertNotNull(d.evidence);
+        assertEquals(ChemCoreEvidenceObservation.Type.HR069_EXPERIMENTAL_FINGERPRINT,d.evidence.type);
+        assertEquals(ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,d.evidence.tier);
+        assertEquals(2,d.evidence.sensorKeys.size());assertFalse(d.evidence.quantitativeEstimateSupported);assertFalse(d.evidence.reportableQuantitative);
+        assertEquals("EXP-2026-001",d.evidence.sourceId);
+    }
+
     private static QsprMoxModel qspr(String sensor){
-        List<QsprMoxModel.Observation> rows=new ArrayList<>();
-        double[] ppm={5,8,12,20,30,40,60,90,140,220,340,500};
-        for(int i=0;i<ppm.length;i++){
-            double t=20+(i%3)*5,rh=40+(i%3)*10;
-            double y=Math.log10(2.0)-0.40*Math.log10(ppm[i])+0.001*(t-25)-0.0005*(rh-50);
-            rows.add(new QsprMoxModel.Observation(Collections.emptyMap(),ppm[i],t,rh,y,1));
-        }
+        List<QsprMoxModel.Observation> rows=new ArrayList<>();double[] ppm={5,8,12,20,30,40,60,90,140,220,340,500};
+        for(int i=0;i<ppm.length;i++){double t=20+(i%3)*5,rh=40+(i%3)*10;double y=Math.log10(2.0)-0.40*Math.log10(ppm[i])+0.001*(t-25)-0.0005*(rh-50);rows.add(new QsprMoxModel.Observation(Collections.emptyMap(),ppm[i],t,rh,y,1));}
         return QsprMoxModel.fit(sensor,ChemCoreQsprRuntimeRegistry.VERSION+"/"+sensor,new String[0],rows,.10);
     }
 }
