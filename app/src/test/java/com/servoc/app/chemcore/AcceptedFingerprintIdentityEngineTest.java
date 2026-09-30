@@ -14,7 +14,7 @@ import java.util.Map;
 import static org.junit.Assert.*;
 
 public class AcceptedFingerprintIdentityEngineTest {
-    @Test public void exactMultichannelEthanolReferencePromotesScreeningToIdentityButNeverM4(){
+    @Test public void exactMultichannelEthanolReferencePromotesScreeningToIdentityButNeverM4AfterOpenSetAcceptance(){
         ChemicalFingerprint ethanol=template(103,"|300ppm|");assertNotNull(ethanol);Map<String,Double> ratios=ratios(ethanol);
         AcceptedFingerprintIdentityEngine.Decision decision=AcceptedFingerprintIdentityEngine.evaluate(ratios);
         assertTrue(decision.accepted);assertNotNull(decision.evidence);
@@ -24,31 +24,69 @@ public class AcceptedFingerprintIdentityEngineTest {
         assertTrue(decision.evidence.sensorKeys.size()>=2);assertFalse(decision.evidence.quantitativeEstimateSupported);assertFalse(decision.evidence.reportableQuantitative);
         assertTrue(decision.evidence.sourceId.contains("ResearchIdentificationFingerprintRegistry"));
 
-        ChemCoreResultEnvelope fused=AcceptedFingerprintIdentityEngine.fuse(screening(),ratios);
+        ChemCoreResultEnvelope fused=AcceptedFingerprintIdentityEngine.fuse(screening(),ratios,acceptedOpenSet());
         assertNotNull(fused);assertTrue(AcceptedFingerprintIdentityEngine.isAcceptedIdentity(fused));
         assertEquals(ChemCoreDecision.Outcome.IDENTIFIED,fused.outcome);assertEquals(ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,fused.evidenceTier);
         assertEquals(Long.valueOf(104L),fused.chemicalUid);assertEquals("Ethanol",fused.chemicalLabel);assertFalse(Double.isFinite(fused.ppm));
         JSONObject json=fused.toJson();assertFalse(json.optBoolean("ppm_reportable",true));assertFalse(json.optBoolean("quantitative_occupational_interpretation_permitted",true));
-        assertTrue(fused.note.contains(ResearchIdentificationFingerprintRegistry.IDENTITY_ACCEPTANCE_STATE));
+        assertTrue(fused.note.contains(ResearchIdentificationFingerprintRegistry.IDENTITY_ACCEPTANCE_STATE));assertTrue(fused.note.contains("after open-set acceptance"));
+    }
+
+    @Test public void missingOpenSetGateFailsClosedEvenForExactAcceptedFingerprint(){
+        ChemicalFingerprint ethanol=template(103,"|300ppm|");assertNotNull(ethanol);Map<String,Double> r=ratios(ethanol);
+        ChemCoreResultEnvelope base=screening();
+        assertSame(base,AcceptedFingerprintIdentityEngine.fuse(base,r,null));
+        assertSame(base,AcceptedFingerprintIdentityEngine.fuse(base,r));
+        assertEquals(ChemCoreDecision.Outcome.SCREENING,base.outcome);
+    }
+
+    @Test public void rejectedOpenSetGateCannotBeOverriddenByExactAcceptedFingerprint(){
+        ChemicalFingerprint ethanol=template(103,"|300ppm|");assertNotNull(ethanol);Map<String,Double> r=ratios(ethanol);
+        ChemCoreResultEnvelope base=screening();
+        ChemCoreResultEnvelope fused=AcceptedFingerprintIdentityEngine.fuse(base,r,rejectedOpenSet());
+        assertSame(base,fused);assertFalse(AcceptedFingerprintIdentityEngine.isAcceptedIdentity(fused));
     }
 
     @Test public void singleChannelAcetonePriorDoesNotBecomeNamedIdentity(){
         ChemicalFingerprint acetone=template(110,"|50ppm|");assertNotNull(acetone);
         AcceptedFingerprintIdentityEngine.Decision d=AcceptedFingerprintIdentityEngine.evaluate(ratios(acetone));assertFalse(d.accepted);assertNull(d.evidence);
-        ChemCoreResultEnvelope fused=AcceptedFingerprintIdentityEngine.fuse(screening(),ratios(acetone));assertEquals(ChemCoreDecision.Outcome.SCREENING,fused.outcome);assertFalse(AcceptedFingerprintIdentityEngine.isAcceptedIdentity(fused));
+        ChemCoreResultEnvelope fused=AcceptedFingerprintIdentityEngine.fuse(screening(),ratios(acetone),acceptedOpenSet());assertEquals(ChemCoreDecision.Outcome.SCREENING,fused.outcome);assertFalse(AcceptedFingerprintIdentityEngine.isAcceptedIdentity(fused));
     }
 
-    @Test public void acceptedFingerprintLayerCannotOverrideUnknown(){
+    @Test public void acceptedFingerprintLayerCannotOverrideUnknownEvenWhenGateObjectIsAccepted(){
         ChemicalFingerprint ethanol=template(103,"|300ppm|");assertNotNull(ethanol);
         ChemCoreResultEnvelope unknown=new ChemCoreResultEnvelope("T",ChemCoreDecision.Outcome.UNKNOWN,
                 ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,null,"",
                 Double.NaN,Double.NaN,Double.NaN,2.0,Double.NaN,Double.NaN,"profile","features","model",
                 "validated open-set rejection",Collections.emptyList());
-        ChemCoreResultEnvelope fused=AcceptedFingerprintIdentityEngine.fuse(unknown,ratios(ethanol));assertSame(unknown,fused);assertEquals(ChemCoreDecision.Outcome.UNKNOWN,fused.outcome);
+        ChemCoreResultEnvelope fused=AcceptedFingerprintIdentityEngine.fuse(unknown,ratios(ethanol),acceptedOpenSet());assertSame(unknown,fused);assertEquals(ChemCoreDecision.Outcome.UNKNOWN,fused.outcome);
+    }
+
+    @Test public void inferenceWithoutOpenSetCannotPromoteFingerprintOnlyPath(){
+        ChemicalFingerprint ethanol=template(103,"|300ppm|");assertNotNull(ethanol);Map<String,Double> r=ratios(ethanol);
+        ChemCoreInferenceEngine.Context c=new ChemCoreInferenceEngine.Context("T","profile","model",25.0,50.0,null);
+        ChemCoreResultEnvelope out=ChemCoreInferenceEngine.analyze(r,Collections.emptyList(),null,c);
+        assertEquals(ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,out.outcome);assertFalse(AcceptedFingerprintIdentityEngine.isAcceptedIdentity(out));assertFalse(Double.isFinite(out.ppm));
+    }
+
+    @Test public void inferenceRejectedOpenSetReturnsUnknownBeforeFingerprintOnlyPath(){
+        ChemicalFingerprint ethanol=template(103,"|300ppm|");assertNotNull(ethanol);Map<String,Double> r=ratios(ethanol);
+        ChemCoreInferenceEngine.Context c=new ChemCoreInferenceEngine.Context("T","profile","model",25.0,50.0,rejectedOpenSet());
+        ChemCoreResultEnvelope out=ChemCoreInferenceEngine.analyze(r,Collections.emptyList(),null,c);
+        assertEquals(ChemCoreDecision.Outcome.UNKNOWN,out.outcome);assertFalse(AcceptedFingerprintIdentityEngine.isAcceptedIdentity(out));assertFalse(Double.isFinite(out.ppm));
+    }
+
+    @Test public void inferenceAcceptedOpenSetMayUseAcceptedFingerprintIdentityButStillNoPpm(){
+        ChemicalFingerprint ethanol=template(103,"|300ppm|");assertNotNull(ethanol);Map<String,Double> r=ratios(ethanol);
+        ChemCoreInferenceEngine.Context c=new ChemCoreInferenceEngine.Context("T","profile","model",25.0,50.0,acceptedOpenSet());
+        ChemCoreResultEnvelope out=ChemCoreInferenceEngine.analyze(r,Collections.emptyList(),null,c);
+        assertEquals(ChemCoreDecision.Outcome.IDENTIFIED,out.outcome);assertTrue(AcceptedFingerprintIdentityEngine.isAcceptedIdentity(out));assertFalse(Double.isFinite(out.ppm));
     }
 
     @Test public void registryAcceptanceIsIdentityOnly(){assertTrue(ResearchIdentificationFingerprintRegistry.IDENTITY_REFERENCE_ACCEPTED);assertEquals("ACCEPTED_FOR_IDENTIFICATION",ResearchIdentificationFingerprintRegistry.IDENTITY_ACCEPTANCE_STATE);assertFalse(ResearchIdentificationFingerprintRegistry.M4);}
 
+    private static ChemCoreOpenSetGate.Result acceptedOpenSet(){return new ChemCoreOpenSetGate.Result(true,0.5,1.0,1.0,"inside trained feature domain");}
+    private static ChemCoreOpenSetGate.Result rejectedOpenSet(){return new ChemCoreOpenSetGate.Result(false,2.0,1.0,1.0,"outside trained feature domain");}
     private static ChemCoreResultEnvelope screening(){return new ChemCoreResultEnvelope("T",ChemCoreDecision.Outcome.SCREENING,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,0.2,Double.NaN,"profile","features","base","screening only",Collections.emptyList());}
     private static ChemicalFingerprint template(int chemical,String labelPart){for(ChemicalFingerprint f:ResearchIdentificationFingerprintRegistry.library())if(f.chemicalId==chemical&&f.label.contains(labelPart))return f;return null;}
     private static Map<String,Double> ratios(ChemicalFingerprint f){Map<String,Double> out=new LinkedHashMap<>();for(int i=0;i<Math.min(RobotTelemetry.MQ_KEYS.length,f.meanLogRatio.length);i++)if(Double.isFinite(f.meanLogRatio[i]))out.put(RobotTelemetry.MQ_KEYS[i],Math.pow(10.0,f.meanLogRatio[i]));return out;}

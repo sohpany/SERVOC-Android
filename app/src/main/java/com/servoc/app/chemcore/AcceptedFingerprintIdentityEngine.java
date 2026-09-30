@@ -14,8 +14,9 @@ import java.util.Map;
 
 /**
  * HR069 identity-only fusion for source-backed fingerprints accepted as identification references.
- * It can promote a separated multi-channel match to IDENTIFIED/M3, but never creates M4 evidence
- * or reportable ppm. P6 re-runs independence-aware confidence fusion after adding the fingerprint.
+ * It can promote a separated multi-channel match to IDENTIFIED/M3 only after an explicit accepted
+ * open-set/OOD gate. It never creates M4 evidence or reportable ppm. P6/P7 re-run
+ * independence-aware confidence fusion after adding the fingerprint.
  */
 public final class AcceptedFingerprintIdentityEngine {
     private AcceptedFingerprintIdentityEngine() {}
@@ -47,14 +48,30 @@ public final class AcceptedFingerprintIdentityEngine {
         return new Decision(true,top,runner,fingerprintEvidence(top,ratios),"accepted source-backed multi-channel fingerprint");
     }
 
+    /**
+     * Legacy two-argument entry point retained only so old callers fail closed. It deliberately
+     * cannot promote a candidate because no explicit open-set/OOD acceptance was supplied.
+     */
+    @Deprecated
     public static ChemCoreResultEnvelope fuse(ChemCoreResultEnvelope base,Map<String,Double> ratios){
-        if(base==null)return null;if(!promotable(base.outcome))return base;
+        return base;
+    }
+
+    /**
+     * P7 identity fusion. A named identity is permitted only after the independent open-set/OOD
+     * gate explicitly accepts the session feature vector. Missing or rejected gate results fail
+     * closed and preserve the base outcome.
+     */
+    public static ChemCoreResultEnvelope fuse(ChemCoreResultEnvelope base,Map<String,Double> ratios,ChemCoreOpenSetGate.Result openSetResult){
+        if(base==null)return null;
+        if(openSetResult==null||!openSetResult.accepted)return base;
+        if(!promotable(base.outcome))return base;
         Decision d=evaluate(ratios);if(!d.accepted||d.top==null)return base;
         int chemical=d.top.fingerprint.chemicalId;long uid=chemical+1L;
         String label=chemical>=0&&chemical<ChemicalCatalog.COUNT?ChemicalCatalog.NAMES[chemical]:d.top.fingerprint.label;
         List<ChemCoreResultEnvelope.CandidateSummary> merged=mergeCandidates(base.candidates,d.top,d.evidence,uid,label);double rankingWeight=identityRankingWeight(d.top);
         String source=d.evidence==null?"":d.evidence.sourceId;
-        String note=append(base.note,"accepted fingerprint identity reference: "+label+"; "+d.top.contributors+" HR069 channels; distance="+fmt(d.top.distance)+"; score="+fmt(d.top.score)+"; source="+source+"; state="+ACCEPTANCE_STATE+"; non-M4 identity only; reportable ppm remains withheld");
+        String note=append(base.note,"accepted fingerprint identity reference after open-set acceptance: "+label+"; "+d.top.contributors+" HR069 channels; distance="+fmt(d.top.distance)+"; score="+fmt(d.top.score)+"; source="+source+"; state="+ACCEPTANCE_STATE+"; non-M4 identity only; reportable ppm remains withheld");
         String model=appendModel(base.modelVersion,VERSION);
         return new ChemCoreResultEnvelope(base.sessionId,ChemCoreDecision.Outcome.IDENTIFIED,ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,uid,label,Double.NaN,Double.NaN,Double.NaN,base.oodScore,rankingWeight,base.normalizedEntropy,base.samplingProfileId,base.featureSchema,model,note,merged,base.libraryVersion,base.librarySha256,base.librarySourceCommit);
     }

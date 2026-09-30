@@ -30,7 +30,13 @@ public final class ChemCoreInferenceEngine {
         if(observedChannels==0)return envelope(context,ChemCoreDecision.Outcome.INVALID_MEASUREMENT,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no valid MQ ratios",Collections.emptyList());
         List<InverseMolecularSolver.Result> ranked=InverseMolecularSolver.solve(observedRatios,candidates,context.temperatureC,context.rh,samplingProfile);
         List<InverseMolecularSolver.Result> solvable=new ArrayList<>();for(InverseMolecularSolver.Result r:ranked)if(r!=null&&r.solvable)solvable.add(r);
-        if(solvable.isEmpty()){ChemCoreResultEnvelope base=envelope(context,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no candidate has enough overlapping response evidence",summaries(ranked,observedChannels));return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios);}
+        if(solvable.isEmpty()){
+            ChemCoreDecision.Outcome emptyOutcome=context.openSetResult!=null&&!context.openSetResult.accepted?ChemCoreDecision.Outcome.UNKNOWN:ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;
+            String emptyNote=context.openSetResult!=null&&!context.openSetResult.accepted?"open-set rejection: "+context.openSetResult.reason:"no candidate has enough overlapping response evidence";
+            double emptyOod=context.openSetResult==null?Double.NaN:context.openSetResult.distance;
+            ChemCoreResultEnvelope base=envelope(context,emptyOutcome,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,emptyOod,Double.NaN,Double.NaN,emptyNote,summaries(ranked,observedChannels));
+            return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios,context.openSetResult);
+        }
 
         InverseMolecularSolver.Result top=solvable.get(0);double[] p=new double[solvable.size()];for(int i=0;i<p.length;i++)p[i]=solvable.get(i).posterior;double entropy=ChemCoreOpenSetGate.normalizedEntropy(p);
         MixtureResidualGuard.Result consistency=MixtureResidualGuard.evaluate(solvable,2.5,.80,.25);
@@ -46,12 +52,12 @@ public final class ChemCoreInferenceEngine {
         else if(allContributorsDeviceCalibrated&&openSetAccepted&&!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN;note="device-calibrated response exists but the fitted concentration is outside one or more validated contributor domains";}
         else if(tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED&&openSetAccepted&&top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.QUANTIFIED;note="all contributing response curves are device/reference calibrated, identity is accepted, and the joint solution remains inside every validated domain";}
         else if(tier.ordinal()>=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT.ordinal()&&openSetAccepted){outcome=ChemCoreDecision.Outcome.IDENTIFIED;note="multisensor identity is array-consistent with at least two direct/reference M2+ channels and inside the trained identity domain; concentration is withheld until all contributing quantitative curves satisfy M4";}
-        else{outcome=ChemCoreDecision.Outcome.SCREENING;note="model-supported candidate only";}
+        else{outcome=ChemCoreDecision.Outcome.SCREENING;note=openSetAccepted?"model-supported candidate only":"model-supported candidate only; named identity withheld until an explicit open-set/OOD gate accepts the session";}
         if(top.molecularContributors>0){String idx=Double.isFinite(top.qsprIndicatorPct)?String.format(Locale.US,"%.1f%%",top.qsprIndicatorPct):"—";note+="; PubChem/QSPR fit="+idx;}
 
         double reportablePpm=outcome==ChemCoreDecision.Outcome.QUANTIFIED?top.bestPpm:Double.NaN;
         ChemCoreResultEnvelope base=envelope(context,outcome,tier,top.chemicalUid,top.label,reportablePpm,Double.NaN,Double.NaN,ood,top.posterior,entropy,note,summaries(solvable,observedChannels));
-        return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios);
+        return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios,context.openSetResult);
     }
 
     @Deprecated public static int reliabilityRating(ChemCoreDecision.EvidenceTier tier){if(tier==null)return 1;switch(tier){case M4_HAZROB_VALIDATED:return 5;case M3_ARRAY_CONSISTENT:return 4;case M2_LITERATURE_OR_MANUFACTURER_SUPPORTED:return 3;case M1_MOLECULARLY_INFERRED:return 2;default:return 1;}}
