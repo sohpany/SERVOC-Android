@@ -80,7 +80,7 @@ public final class GitHubReferencePublisher {
         JSONObject j=new JSONObject();j.put("message",prefix+fileName);j.put("content",Base64.getEncoder().encodeToString(bytes));j.put("branch",BRANCH);return j;
     }
     private static byte[] serialize(ExperimentQueries.Record r)throws Exception{ByteArrayOutputStream out=new ByteArrayOutputStream(32*1024);ReferenceBankExporter.writeJson(out,r);return out.toByteArray();}
-    private static String secret(String token){String s=token==null?"":token.trim();if(s.length()<20)throw new IllegalArgumentException("GitHub token required");return s;}
+    private static String secret(String token){String s=token==null?"":token.trim();if(s.length()<20)throw new IllegalArgumentException("GitHub token required");GitHubSessionAuth.set(s);return s;}
     private static String safeName(String s){String x=s==null?"reference":s.toLowerCase(Locale.US).replaceAll("[^a-z0-9_-]","_");return x.isEmpty()?"reference":x;}
     private static String sha256(byte[] data)throws Exception{byte[] h=MessageDigest.getInstance("SHA-256").digest(data);StringBuilder s=new StringBuilder(64);for(byte b:h)s.append(String.format(Locale.US,"%02x",b&255));return s.toString();}
     private static JSONObject json(String s){try{return s==null||s.isEmpty()?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
