@@ -12,6 +12,7 @@ ARG ANDROID_CMDLINE_TOOLS=11076708
 ENV ANDROID_SDK_ROOT=/opt/android-sdk \
     ANDROID_HOME=/opt/android-sdk \
     GRADLE_HOME=/opt/gradle-9.5.0 \
+    GRADLE_OPTS="-Dorg.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8" \
     PATH=/opt/gradle-9.5.0/bin:/opt/android-sdk/cmdline-tools/latest/bin:/opt/android-sdk/platform-tools:/opt/android-sdk/build-tools/36.0.0:$PATH
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -52,7 +53,8 @@ RUN python3 tools/audit_0101_integration_contract.py && \
     python3 tools/audit_0104_chemcore_library.py && \
     python3 tools/audit_0105_analytical_engines.py && \
     python3 tools/audit_0106_confidence_fusion.py && \
-    python3 tools/audit_0107_open_set_decision_gate.py
+    python3 tools/audit_0107_open_set_decision_gate.py && \
+    python3 tools/audit_0107_live_sensing.py
 
 # Compile both firmware targets internally. Outputs remain ephemeral in this build stage.
 RUN python3 tools/audit_0101_firmware_baseline.py && \
