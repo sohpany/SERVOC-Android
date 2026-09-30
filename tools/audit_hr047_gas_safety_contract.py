@@ -56,10 +56,15 @@ def main() -> int:
     req(fl_import, '"LFL"', "flammability importer LFL")
     req(fl_import, '"UFL"', "flammability importer UFL")
 
-    req(gas, 'SCHEMA="hazrob-gas-exposure-ppm/2"', "gas safety schema")
-    req(gas, 'unit_policy","TOXICOLOGY_PPM_ONLY_NO_MASS_CONCENTRATION_CONVERSION', "ppm-only policy")
-    req(gas, 'if(!isPpmUnit(l.unit)){nonPpm++;continue;}', "non-ppm exclusion")
-    req(gas_test, "massConcentrationLimitsAreExcludedWithoutConversion", "ppm-only regression")
+    # Schema /4 adds condition-aware mg/m3 -> ppm conversion while remaining fail-closed:
+    # conversion is permitted only with canonical MW plus measured session temperature/pressure.
+    req(gas, 'SCHEMA="hazrob-gas-exposure-ppm/4"', "gas safety schema")
+    req(gas, 'condition_aware_mass_conversion_available', "condition-aware mass conversion disclosure")
+    req(gas, 'IDEAL_GAS_SESSION_T_P_MW', "condition-aware mass conversion method")
+    req(gas, 'mgM3ToPpm', "mass concentration conversion implementation")
+    req(gas, 'else if(isMassUnit(l.unit)){if(!canMassConvert', "non-convertible mass fail-closed gate")
+    req(gas_test, "massConcentrationLimitsRemainExcludedWithoutMwTemperaturePressure", "mass conversion fail-closed regression")
+    req(gas_test, "massConcentrationConvertsUsingSessionConditionsAndMolarMass", "condition-aware mass conversion regression")
 
     for needle in [
         'ppm_reportable',
@@ -76,7 +81,13 @@ def main() -> int:
     req(gas, 'symbols(toxicReferenceCrossed,flame)', "hazard symbols")
     req(gas, 'if(skull)s.append("☠")', "skull marker")
     req(gas, 'if(flame)s.append("🔥")', "flame marker")
-    req(gas_test, "lflUsesVolPercentToPpmAndFlameOnlyAtFullLfl", "LFL marker regression")
+    req(gas_test, "lflUsesVolPercentToPpmAndReportsMarginAndFlameAtFullLfl", "LFL marker regression")
+
+    req(gas_test, "oneMinuteAboveTwaIsImmediateCurrentWarningNotEightHourClaim", "TWA no-false-duration regression")
+    req(gas_test, "shortCaptureCrossingStelShowsCurrentWarningButNotTemporalExceedance", "STEL no-false-duration regression")
+    req(gas_test, "fullStelWindowUsesTimeIntegratedAverage", "STEL exact-window regression")
+    req(gas_test, "exactDurationWindowIsMatchedWhenSameRoleHasMultipleWindows", "exact temporal window selection regression")
+    req(gas_test, "durationAloneNeverCreatesStelOrTwaExceedance", "duration-alone fail-closed regression")
 
     req(priority, "enum Mode { HAZARD, CONCENTRATION }", "sort modes")
     req(priority, 'return mode==Mode.CONCENTRATION?"التركيز":"الخطر"', "Arabic sort labels")
@@ -136,7 +147,8 @@ def main() -> int:
         raise AssertionError(f"HR051 camera recovery contract returned {hr051_rc}")
 
     print("HazRob HR-0101-047 gas-safety integration gate: PASS")
-    print("Policy: reportable M4 ppm -> ppm-only health refs + pinned LFL/UFL -> relative hazard")
+    print("Policy: reportable M4 ppm -> direct ppm or condition-aware MW+T+P conversion + pinned LFL/UFL -> relative hazard")
+    print("Temporal policy: TWA/STEL require explicit time-integrated M4 series covering the exact reference window")
     print("Sort modes: hazard_priority_ratio_desc (default), ppm_desc (operator view)")
     print("R0 authority: FIELD-R0-3SESSION-20260913 synchronized app <-> ESP32 source")
     print("Consolidated release gate: HR048 PASS; HR049 PASS; HR050 PASS; HR051 PASS")
