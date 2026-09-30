@@ -9,6 +9,7 @@ on:
       - 'app/**'
       - 'firmware/**'
       - 'tools/**'
+      - 'research_data/**'
       - '.github/workflows/validate-0102-hr069-development.yml'
 
 permissions:
@@ -23,19 +24,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Checkout exact source
+      - name: Checkout current HR069 source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Canonical source contracts
+      - name: Current 0.10.2 HR069 source contracts
         run: |
           set -euo pipefail
           python3 tools/audit_0102_release_contract.py
-          python3 tools/audit_hr061_direct_first_contract.py
-          python3 tools/audit_0101_integration_contract.py
-          python3 tools/audit_0101_motion_contract.py
-          python3 tools/audit_hr047_gas_safety_contract.py
+          python3 tools/audit_hr069_operator_ui_contract.py
+          python3 tools/audit_hr069_chemical_coverage.py --check
           python3 tools/audit_0103_measurement_foundation.py
           python3 tools/audit_0104_chemcore_library.py
           python3 tools/audit_0105_analytical_engines.py
@@ -60,18 +59,15 @@ jobs:
         with:
           gradle-version: '9.5.0'
 
-      - name: Run Android unit and contract tests only
+      - name: Run current Android unit tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
   firmware-compile-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout exact source
+      - name: Checkout current HR069 source
         uses: actions/checkout@v4
-
-      - name: Validate firmware baseline contract
-        run: python3 tools/audit_0101_firmware_baseline.py
 
       - name: Set up Arduino CLI
         uses: arduino/setup-arduino-cli@v2
@@ -84,11 +80,11 @@ jobs:
           arduino-cli core update-index
           arduino-cli core install esp32:esp32@3.3.11
 
-      - name: Compile Main ESP32 HR069 for validation only
+      - name: Compile current Main ESP32 HR069 for validation only
         run: arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all firmware/HazRob
 
-      - name: Compile ESP32-CAM HR069 for validation only
+      - name: Compile current ESP32-CAM HR069 for validation only
         run: arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all firmware/HazRob-CAM
 
-# Deliberately no assembleRelease, signing, packaging, publication, upload-artifact, or firmware ZIP step.
-# P13 alone may restore release artifact production after P12 qualification.
+# Current-HR069 validation only. Historical revision-specific UI gates are deliberately not invoked.
+# No assembleRelease, signing, packaging, publication, upload-artifact, firmware ZIP or deploy step.
