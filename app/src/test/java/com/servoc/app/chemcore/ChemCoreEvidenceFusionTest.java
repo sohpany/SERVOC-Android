@@ -75,7 +75,7 @@ public class ChemCoreEvidenceFusionTest {
         assertEquals(1,r.referenceGroups);assertEquals(1,r.uniqueEvidenceGroups);assertEquals(2,r.sensorBreadth);assertEquals(2,r.supportingEvidence.size());assertEquals(48.0,r.score.totalPct,1e-9);
     }
 
-    @Test public void resultEnvelopeKeepsPosteriorAndAnalyticalConfidenceSemanticallySeparate(){
+    @Test public void resultEnvelopeKeepsPosteriorAndAnalyticalConfidenceSemanticallySeparate() throws Exception {
         ChemCoreEvidenceObservation e=ev(ChemCoreEvidenceObservation.Type.LITERATURE_CURVE,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,"REF:a",List.of("mq135"),0.2,true);
         ChemCoreEvidenceFusion.Result f=ChemCoreEvidenceFusion.fuseForChemical(1,List.of(e));
         ChemCoreResultEnvelope.CandidateSummary c=new ChemCoreResultEnvelope.CandidateSummary(1,"X",0.93,40,0.2,1,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,50,90,60,0,true,Collections.emptyMap(),f.score.totalPct,f.uniqueEvidenceGroups,f.sensorBreadth,List.of(e));
