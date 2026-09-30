@@ -85,7 +85,16 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     public void alertTest()throws Exception{command("alert_test",new JSONObject(),2000,true,1500);}
     public void cameraFlash(String mode)throws Exception{JSONObject p=new JSONObject();p.put("mode",mode==null?"off":mode);command("camera_flash",p,3000,true,2500);}
 
-    public JSONObject snapshot(int left,int right){JSONObject t=latestTelemetry;if(t==null)return null;JSONObject s=t.optJSONObject("snapshot");if(s!=null)return s;JSONObject diag=t.optJSONObject("diag"),data=t.optJSONObject("data");if(diag!=null||data!=null)return RobotProtocolV4.normalize(diag,data,left,right);return t;}
+    public JSONObject snapshot(int left,int right){
+        JSONObject t=latestTelemetry;if(t==null)return null;JSONObject s=t.optJSONObject("snapshot");if(s!=null)return s;
+        JSONObject sourceDiag=t.optJSONObject("diag"),data=t.optJSONObject("data");
+        if(sourceDiag!=null||data!=null){
+            JSONObject diag=sourceDiag==null?new JSONObject():new JSONObject(sourceDiag.toString());
+            JSONObject safety=t.optJSONObject("safety");if(safety!=null&&safety.has("estop_latched"))try{diag.put("estop_latched",safety.optBoolean("estop_latched",false));}catch(Exception ignored){}
+            return RobotProtocolV4.normalize(diag,data,left,right);
+        }
+        return t;
+    }
     public JSONObject status(){return latestStatus;}
 
     @Override public void onMessage(String topic,String payload){try{JSONObject j=new JSONObject(payload);if(topic.equals(root+"ack")){String nonce=j.optString("nonce","");Pending p=pending.get(nonce);if(p!=null){p.ack=j;p.latch.countDown();}}else if(topic.equals(root+"telemetry")){latestTelemetry=j;telemetryAt=SystemClock.elapsedRealtime();}else if(topic.equals(root+"status")){latestStatus=j;}}catch(Exception ignored){}}
