@@ -37,6 +37,11 @@ public final class ChemCoreQuantitativeTimeSeries {
         public Point(long tMs,double ppm){this.tMs=Math.max(0,tMs);this.ppm=ppm;}
     }
 
+    private static final class WindowSpec {
+        final String role;final double durationMin;
+        WindowSpec(String role,double durationMin){this.role=role;this.durationMin=durationMin;}
+    }
+
     public static JSONObject extract(ExperimentsDb db,String sessionId,long chemicalUid,
                                      List<InverseMolecularSolver.Candidate> candidates,
                                      SamplingProfile profile,List<ExposureRepository.Limit> limits){
@@ -72,7 +77,7 @@ public final class ChemCoreQuantitativeTimeSeries {
             out.put("valid",true);out.put("first_t_ms",clean.get(0).tMs);out.put("last_t_ms",clean.get(clean.size()-1).tMs);out.put("latest_ppm",clean.get(clean.size()-1).ppm);
             double min=Double.POSITIVE_INFINITY,max=Double.NEGATIVE_INFINITY;for(Point p:clean){min=Math.min(min,p.ppm);max=Math.max(max,p.ppm);}out.put("min_ppm",min);out.put("max_ppm",max);
             Integration full=integrate(clean,clean.get(0).tMs,clean.get(clean.size()-1).tMs);putFinite(out,"covered_minutes",full.coveredMs/60_000.0);putFinite(out,"time_weighted_mean_ppm",full.valid?full.averagePpm:Double.NaN);
-            JSONArray windows=new JSONArray();Map<String,Double> wanted=windowDurations(limits);for(Map.Entry<String,Double> e:wanted.entrySet()){String role=e.getKey();double minReq=e.getValue();long end=clean.get(clean.size()-1).tMs,start=end-Math.round(minReq*60_000.0);Integration w=integrate(clean,start,end);JSONObject j=new JSONObject();j.put("role",role);j.put("duration_min",minReq);j.put("covered_minutes",w.coveredMs/60_000.0);j.put("average_ppm",w.valid?w.averagePpm:JSONObject.NULL);j.put("valid",w.valid&&w.coveredMs+1000>=Math.round(minReq*60_000.0));j.put("coverage_fraction",minReq>0?Math.min(1.0,w.coveredMs/(minReq*60_000.0)):0);windows.put(j);}out.put("windows",windows);
+            JSONArray windows=new JSONArray();for(WindowSpec e:windowDurations(limits)){String role=e.role;double minReq=e.durationMin;long end=clean.get(clean.size()-1).tMs,start=end-Math.round(minReq*60_000.0);Integration w=integrate(clean,start,end);JSONObject j=new JSONObject();j.put("role",role);j.put("duration_min",minReq);j.put("covered_minutes",w.coveredMs/60_000.0);j.put("average_ppm",w.valid?w.averagePpm:JSONObject.NULL);j.put("valid",w.valid&&w.coveredMs+1000>=Math.round(minReq*60_000.0));j.put("coverage_fraction",minReq>0?Math.min(1.0,w.coveredMs/(minReq*60_000.0)):0);windows.put(j);}out.put("windows",windows);
             return out;
         }catch(Exception e){return withheld(sessionId,chemicalUid,"temporal_summary_failure");}
     }
@@ -86,13 +91,21 @@ public final class ChemCoreQuantitativeTimeSeries {
         return new Integration(covered>0,covered,covered>0?area/covered:Double.NaN);
     }
 
-    private static Map<String,Double> windowDurations(List<ExposureRepository.Limit> limits){Map<String,Double> out=new LinkedHashMap<>();if(limits==null)return out;for(ExposureRepository.Limit l:limits){if(l==null||l.durationMin==null||!Double.isFinite(l.durationMin)||l.durationMin<=0)continue;String role=role(l.type);if(!"STEL".equals(role)&&!"TWA".equals(role))continue;Double old=out.get(role);if(old==null||l.durationMin<old)out.put(role,l.durationMin);}return out;}
+    private static List<WindowSpec> windowDurations(List<ExposureRepository.Limit> limits){
+        Map<String,WindowSpec> unique=new LinkedHashMap<>();if(limits==null)return new ArrayList<>();
+        for(ExposureRepository.Limit l:limits){
+            if(l==null||l.durationMin==null||!Double.isFinite(l.durationMin)||l.durationMin<=0)continue;
+            String r=role(l.type);if(!"STEL".equals(r)&&!"TWA".equals(r))continue;
+            String key=r+"@"+Long.toString(Math.round(l.durationMin*60_000.0));unique.putIfAbsent(key,new WindowSpec(r,l.durationMin));
+        }
+        return new ArrayList<>(unique.values());
+    }
     private static String role(String type){String t=type==null?"":type.trim().toUpperCase(Locale.US).replace('-','_').replace(' ','_');if(t.contains("STEL")||t.contains("SHORT_TERM"))return"STEL";if(t.contains("TWA")||t.contains("PEL")||t.contains("REL"))return"TWA";return"OTHER";}
     private static List<Point> clean(List<Point> in){List<Point> out=new ArrayList<>();if(in!=null)for(Point p:in)if(p!=null&&Double.isFinite(p.ppm)&&p.ppm>=0){if(out.isEmpty()||p.tMs>out.get(out.size()-1).tMs)out.add(p);}return out;}
     private static InverseMolecularSolver.Candidate findCandidate(List<InverseMolecularSolver.Candidate> rows,long uid){if(rows!=null)for(InverseMolecularSolver.Candidate c:rows)if(c!=null&&c.chemicalUid==uid)return c;return null;}
     private static InverseMolecularSolver.Candidate m4Only(InverseMolecularSolver.Candidate c){List<ChemCoreResponseModel> models=new ArrayList<>();for(ChemCoreResponseModel m:c.models)if(m!=null&&m.evidenceTier()==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED&&m.reportableQuantitative())models.add(m);if(models.size()<c.minimumContributors)return null;return new InverseMolecularSolver.Candidate(c.chemicalUid,c.label,models,c.priorLogWeight,c.minimumContributors);}
     private static JSONObject withheld(String session,long uid,String reason){try{return new JSONObject().put("schema",SCHEMA).put("session_id",session==null?"":session).put("chemical_uid",uid).put("valid",false).put("m4_only",true).put("raw_telemetry_preserved_elsewhere",true).put("raw_telemetry_source","telemetry_samples").put("all_valid_quantitative_points_preserved",true).put("reason",reason).put("points",new JSONArray()).put("windows",new JSONArray());}catch(Exception e){return new JSONObject();}}
     private static JSONObject json(String s){try{return s==null||s.isEmpty()?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
-    private static double finite(JSONObject q,String...keys){if(q==null)return Double.NaN;for(String k:keys){if(q.isNull(k))continue;double v=q.optDouble(k,Double.NaN);if(Double.isFinite(v))return v;}return Double.NaN;}
+    private static double finite(JSONObject q,String...keys){if(q==null||keys==null)return Double.NaN;for(String k:keys){if(q.isNull(k))continue;double v=q.optDouble(k,Double.NaN);if(Double.isFinite(v))return v;}return Double.NaN;}
     private static void putFinite(JSONObject o,String key,double v)throws Exception{o.put(key,Double.isFinite(v)?v:JSONObject.NULL);}
 }
