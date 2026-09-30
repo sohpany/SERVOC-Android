@@ -21,9 +21,11 @@ import java.util.concurrent.Executors;
 /** Unified HazRob camera surface. Camera bytes stay untouched; all presentation effects are phone-side GPU work. */
 public final class MjpegView extends FrameLayout {
     public interface FrameListener { void onJpegFrame(byte[] jpeg,long elapsedMs); }
+    public interface DecodedFrameListener { void onDecodedFrame(SharedVideoFrame frame); }
     public interface StatusListener { void onStatus(String state,String detail); }
 
     private static final int MAX_JPEG=1024*1024;
+    private static final long AUTO_SAMPLE_INTERVAL_MS=400;
     private final ExecutorService streamWorker=Executors.newSingleThreadExecutor();
     private final ExecutorService decodeWorker=Executors.newSingleThreadExecutor();
     private final Object decodeLock=new Object();
@@ -37,9 +39,10 @@ public final class MjpegView extends FrameLayout {
     private volatile HttpURLConnection connection;
     private volatile long generation=0;
     private volatile FrameListener frameListener;
+    private volatile DecodedFrameListener decodedFrameListener;
     private volatile StatusListener statusListener;
-    private byte[] latestJpeg;
-    private boolean decodeBusy=false;
+    private byte[] latestJpeg;private long latestElapsedMs=0;
+    private boolean decodeBusy=false;private long lastAutoSampleMs=0;
     private VideoEffectProfile.DisplayMode displayMode;
     private VideoEffectProfile.Enhancement enhancement;
 
@@ -58,24 +61,36 @@ public final class MjpegView extends FrameLayout {
     private void renderButtons(){displayButton.setText("عرض: "+displayMode.arabic);enhancementButton.setText("تحسين: "+enhancement.arabic);}
     private void applyProfile(boolean persist){effectRenderer.setProfile(displayMode,enhancement);VideoEffectState.set(displayMode,enhancement);if(persist)prefs.edit().putString("video_display_mode",displayMode.key).putString("video_enhancement_mode",enhancement.key).apply();renderButtons();surface.requestRender();}
     public void setVideoEffects(VideoEffectProfile.DisplayMode display,VideoEffectProfile.Enhancement effect){displayMode=display==null?VideoEffectProfile.DisplayMode.NORMAL:display;enhancement=effect==null?VideoEffectProfile.Enhancement.NORMAL:effect;applyProfile(true);}
-    public VideoEffectProfile.DisplayMode displayMode(){return displayMode;}
-    public VideoEffectProfile.Enhancement enhancement(){return enhancement;}
+    public VideoEffectProfile.DisplayMode displayMode(){return displayMode;}public VideoEffectProfile.Enhancement enhancement(){return enhancement;}
 
     public void setFrameListener(FrameListener listener){frameListener=listener;}
+    public void setDecodedFrameListener(DecodedFrameListener listener){decodedFrameListener=listener;}
     public void setStatusListener(StatusListener listener){statusListener=listener;}
     public void start(String url){start(new String[]{url});}
     public synchronized void start(String[] urls){if(released)return;resetTransport();if(urls==null||urls.length==0)return;running=true;final long token=generation;final String[] copy=urls.clone();status("connecting",copy[0]);streamWorker.execute(()->streamLoop(copy,token));}
     public synchronized void startWss(String url,String bearer){if(released)return;resetTransport();if(url==null||url.trim().isEmpty()){status("retrying","Remote video not configured");return;}running=true;final long token=generation;final String target=url.trim();final String auth=bearer==null?"":bearer;status("connecting",target);streamWorker.execute(()->remoteLoop(target,auth,token));}
-    private void resetTransport(){running=false;generation++;HttpURLConnection c=connection;if(c!=null)c.disconnect();connection=null;remoteClient.close();synchronized(decodeLock){latestJpeg=null;}}
+    private void resetTransport(){running=false;generation++;HttpURLConnection c=connection;if(c!=null)c.disconnect();connection=null;remoteClient.close();synchronized(decodeLock){latestJpeg=null;latestElapsedMs=0;}}
     public synchronized void stop(){resetTransport();status("stopped","");}
-    public synchronized void release(){if(released)return;stop();released=true;frameListener=null;statusListener=null;effectRenderer.releasePending();streamWorker.shutdownNow();decodeWorker.shutdownNow();}
+    public synchronized void release(){if(released)return;stop();released=true;frameListener=null;decodedFrameListener=null;statusListener=null;effectRenderer.releasePending();streamWorker.shutdownNow();decodeWorker.shutdownNow();}
     private boolean active(long token){return !released&&running&&generation==token;}
     private void status(String state,String detail){StatusListener s=statusListener;if(s==null)return;post(()->{StatusListener x=statusListener;if(x!=null)x.onStatus(state,detail==null?"":detail);});}
 
-    private void deliver(byte[] jpeg,long token){if(jpeg==null||!active(token))return;long now=SystemClock.elapsedRealtime();FrameListener listener=frameListener;if(listener!=null)try{listener.onJpegFrame(jpeg,now);}catch(Exception ignored){}if(active(token))queueDecode(jpeg,token);}
-    /** Decode queue is deliberately size one: old frames are replaced so filters never build latency. */
-    private void queueDecode(byte[] jpeg,long token){synchronized(decodeLock){latestJpeg=jpeg;if(decodeBusy)return;decodeBusy=true;}decodeWorker.execute(()->decodeLoop(token));}
-    private void decodeLoop(long token){try{while(active(token)){byte[] jpeg;synchronized(decodeLock){jpeg=latestJpeg;latestJpeg=null;if(jpeg==null){decodeBusy=false;return;}}Bitmap bitmap=BitmapFactory.decodeByteArray(jpeg,0,jpeg.length);if(bitmap!=null){if(active(token)){effectRenderer.submit(bitmap);surface.requestRender();}else bitmap.recycle();}}}finally{synchronized(decodeLock){decodeBusy=false;if(!active(token))latestJpeg=null;}}}
+    private void deliver(byte[] jpeg,long token){if(jpeg==null||!active(token))return;long now=SystemClock.elapsedRealtime();FrameListener listener=frameListener;if(listener!=null)try{listener.onJpegFrame(jpeg,now);}catch(Exception ignored){}if(active(token))queueDecode(jpeg,now,token);}
+    /** Decode queue is deliberately size one: old frames are replaced so effects never build latency. */
+    private void queueDecode(byte[] jpeg,long elapsedMs,long token){synchronized(decodeLock){latestJpeg=jpeg;latestElapsedMs=elapsedMs;if(decodeBusy)return;decodeBusy=true;}decodeWorker.execute(()->decodeLoop(token));}
+    private void decodeLoop(long token){
+        try{
+            while(active(token)){
+                byte[] jpeg;long elapsed;
+                synchronized(decodeLock){jpeg=latestJpeg;elapsed=latestElapsedMs;latestJpeg=null;latestElapsedMs=0;if(jpeg==null){decodeBusy=false;return;}}
+                Bitmap bitmap=BitmapFactory.decodeByteArray(jpeg,0,jpeg.length);if(bitmap==null)continue;
+                if(enhancement==VideoEffectProfile.Enhancement.AUTO&&elapsed-lastAutoSampleMs>=AUTO_SAMPLE_INTERVAL_MS){VideoEffectState.setAutoGain(VideoEffectMath.autoGain(VideoEffectMath.sampleLuma(bitmap)));lastAutoSampleMs=elapsed;}
+                DecodedFrameListener extra=decodedFrameListener;int consumers=extra==null?1:2;SharedVideoFrame shared=new SharedVideoFrame(bitmap,elapsed,consumers);
+                if(active(token)){effectRenderer.submit(shared);surface.requestRender();}else{shared.release();if(extra!=null)shared.release();continue;}
+                if(extra!=null){try{extra.onDecodedFrame(shared);}catch(Exception ignored){shared.release();}}
+            }
+        }finally{synchronized(decodeLock){decodeBusy=false;if(!active(token)){latestJpeg=null;latestElapsedMs=0;}}}
+    }
 
     private void remoteLoop(String url,String bearer,long token){int cycle=0;while(active(token)){status(cycle==0?"connecting":"retrying",url);try{final long[] fpsAt={SystemClock.elapsedRealtime()};final int[] frames={0};remoteClient.stream(url,bearer,new RemoteJpegWebSocketClient.Sink(){@Override public boolean active(){return MjpegView.this.active(token);}@Override public void frame(byte[] jpeg){deliver(jpeg,token);frames[0]++;long now=SystemClock.elapsedRealtime();if(now-fpsAt[0]>=2000){double fps=frames[0]*1000.0/(now-fpsAt[0]);status("streaming",String.format(Locale.US,"WSS • %.2f FPS",fps));fpsAt[0]=now;frames[0]=0;}}@Override public void status(String state,String detail){MjpegView.this.status(state,detail);}});}catch(Exception e){if(active(token))status("retrying","WSS • "+e.getClass().getSimpleName());}if(!active(token))return;cycle++;try{Thread.sleep(800);}catch(InterruptedException e){Thread.currentThread().interrupt();return;}}}
     private void streamLoop(String[] urls,long token){int cycle=0;while(active(token)){boolean gotFrame=false;String lastError="";for(String u:urls){if(!active(token))return;status(cycle==0?"connecting":"retrying",u);try{gotFrame=streamOnce(u,token);if(gotFrame&&active(token))break;}catch(Exception e){lastError=e.getClass().getSimpleName();}}if(!active(token))return;cycle++;status("retrying",gotFrame?"انقطع البث":("تعذر البث"+(lastError.isEmpty()?"":" • "+lastError)));try{Thread.sleep(gotFrame?450:700);}catch(InterruptedException e){Thread.currentThread().interrupt();return;}}}
