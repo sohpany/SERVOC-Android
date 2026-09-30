@@ -20,6 +20,7 @@ public class AcceptedFingerprintIdentityEngineTest {
         assertTrue(decision.accepted);assertNotNull(decision.evidence);
         assertEquals(ChemCoreEvidenceObservation.Type.REFERENCE_FINGERPRINT,decision.evidence.type);
         assertEquals(ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,decision.evidence.tier);
+        assertEquals(decision.top.contributors,decision.evidence.sensorKeys.size());
         assertTrue(decision.evidence.sensorKeys.size()>=2);assertFalse(decision.evidence.quantitativeEstimateSupported);assertFalse(decision.evidence.reportableQuantitative);
         assertTrue(decision.evidence.sourceId.contains("ResearchIdentificationFingerprintRegistry"));
 
