@@ -19,6 +19,7 @@
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
         <activity android:name=".MainActivity" android:exported="false"/>
+        <activity android:name=".SiteSummaryExportActivity" android:exported="false" android:noHistory="true"/>
         <service android:name=".communication.RobotLinkService" android:exported="false" android:foregroundServiceType="connectedDevice"/>
         <provider
             android:name="androidx.core.content.FileProvider"
