@@ -17,11 +17,14 @@ public class AcceptedR0NormalizerTest {
         JSONObject q=new JSONObject().put("valid",true).put("ratio",0.75);
         assertEquals(0.75,AcceptedR0Normalizer.ratio("mq2",q),1e-9);
         assertFalse(AcceptedR0Normalizer.usesAcceptedFieldR0("mq2",q));
-        assertEquals("telemetry_ratio_fallback",AcceptedR0Normalizer.provenance("mq2",q));
+        assertEquals("telemetry_or_rs_ratio_corroborative",AcceptedR0Normalizer.provenance("mq2",q));
     }
 
-    @Test public void invalidChannelNeverProducesRatio()throws Exception{
-        JSONObject q=new JSONObject().put("ok",false).put("rs",FieldR0Baseline.value("mq2"));
+    @Test public void invalidChannelNeverProducesStrictRatioButCanRemainSupportOnly()throws Exception{
+        JSONObject q=new JSONObject().put("ok",false).put("status","INVALID").put("rs",FieldR0Baseline.value("mq2"));
         assertTrue(Double.isNaN(AcceptedR0Normalizer.ratio("mq2",q)));
+        assertEquals(1.0,AcceptedR0Normalizer.availableRatio("mq2",q),1e-9);
+        assertEquals(0.35,AcceptedR0Normalizer.evidenceWeight(q),1e-9);
+        assertEquals("telemetry_or_rs_ratio_corroborative",AcceptedR0Normalizer.provenance("mq2",q));
     }
 }
