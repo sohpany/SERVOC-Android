@@ -101,10 +101,20 @@ public final class ChemicalExperimentStatusRepository {
         if(r==null)r="";r=r.trim();return r.length()<=28?r:r.substring(0,28)+"…";
     }
 
+    /** Any usable identity/fingerprint coverage from the active central snapshot or approved local artifact. */
     public int countFingerprintMaterials(){return scalar("SELECT COUNT(DISTINCT uid) FROM chemicals WHERE uid IN (SELECT chemical_uid FROM reference_artifacts WHERE kind='fingerprint' AND active=1) OR uid IN (SELECT chemical_uid FROM sensor_evidence WHERE chemical_uid IS NOT NULL AND status NOT LIKE 'REJECT%' AND (lower(evidence_type) LIKE '%fingerprint%' OR lower(evidence_type) LIKE '%identity%'))");}
+    /** READY fingerprints only: approved local artifact or centrally accepted/verified identity fingerprint. */
+    public int countReadyFingerprintMaterials(){return scalar("SELECT COUNT(DISTINCT uid) FROM chemicals WHERE uid IN (SELECT chemical_uid FROM reference_artifacts WHERE kind='fingerprint' AND active=1) OR uid IN (SELECT chemical_uid FROM sensor_evidence WHERE chemical_uid IS NOT NULL AND status NOT LIKE 'REJECT%' AND (lower(evidence_type) LIKE '%fingerprint%' OR lower(evidence_type) LIKE '%identity%') AND (upper(status) LIKE 'ACCEPTED_IDENTITY_FINGERPRINT%' OR upper(status) LIKE 'VERIFIED%FINGERPRINT%'))");}
+    /** Any known concentration/curve evidence, including transfer evidence. */
     public int countPpmMaterials(){return scalar("SELECT COUNT(DISTINCT uid) FROM chemicals WHERE legacy_id IN (SELECT chemical_id FROM calibration_curves WHERE active=1) OR uid IN (SELECT chemical_uid FROM sensor_evidence WHERE chemical_uid IS NOT NULL AND status NOT LIKE 'REJECT%' AND ((min_ppm IS NOT NULL AND min_ppm>=0) OR (max_ppm IS NOT NULL AND max_ppm>0)))");}
+    /** Strict reportable HR069 M4 material count. */
     public int countM4Materials(){return scalar("SELECT COUNT(DISTINCT chemical_id) FROM calibration_curves WHERE active=1 AND source_note LIKE '"+ReferenceArtifactBuilder.HR069_M4_SOURCE_PREFIX+"%'");}
+    /** Union of local experiment activity and active central scientific evidence. */
     public int countTestedMaterials(){return scalar("SELECT COUNT(DISTINCT uid) FROM chemicals WHERE uid IN (SELECT chemical_uid FROM experiments WHERE chemical_uid IS NOT NULL AND chemical_uid>0) OR uid IN (SELECT chemical_uid FROM sensor_evidence WHERE chemical_uid IS NOT NULL AND status NOT LIKE 'REJECT%')");}
+    public int countLocalExperimentMaterials(){return scalar("SELECT COUNT(DISTINCT chemical_uid) FROM experiments WHERE chemical_uid IS NOT NULL AND chemical_uid>0");}
+    public int countCentralEvidenceMaterials(){return scalar("SELECT COUNT(DISTINCT chemical_uid) FROM sensor_evidence WHERE chemical_uid IS NOT NULL AND status NOT LIKE 'REJECT%'");}
+    public int countExposureLimitMaterials(){return scalar("SELECT COUNT(DISTINCT chemical_uid) FROM exposure_limits WHERE chemical_uid IS NOT NULL");}
+    public int countUntestedNoEvidenceMaterials(){int total=chemicals.count();return Math.max(0,total-countTestedMaterials());}
 
     private boolean exists(String sql,long value){
         try(Cursor c=db.getReadableDatabase().rawQuery(sql,new String[]{String.valueOf(value)})){return c.moveToFirst();}
