@@ -20,6 +20,12 @@ DATASET_REGISTRY=ROOT/'research_data/external_mq_fingerprints/manifest.json'
 CURVE_REGISTRY=ROOT/'research_data/hr069_analytical_library/mq_research_curves_43.json'
 MODEL_REGISTRY=ROOT/'research_data/hr069_analytical_library/mq_models_76.json'
 
+# The pinned 652-record NIOSH Pocket Guide identity seed is authoritative where it has a
+# record, but it is not an exhaustive registry of every HazRob sensor target. In the
+# current pinned seed, Hydrogen and Methane are intentionally absent. Lock these two
+# exceptions by legacy ID *and* CAS so a future omission cannot silently pass this audit.
+PINNED_NIOSH_SENSOR_CAS_EXCEPTIONS={75:'1333-74-0',76:'74-82-8'}
+
 def fail(msg:str)->None: raise SystemExit('HR069 CHEMICAL COVERAGE AUDIT FAILED: '+msg)
 def load(p:Path)->dict: return json.loads(p.read_text(encoding='utf-8'))
 
@@ -61,6 +67,7 @@ def main()->int:
     dbtext=DB.read_text(encoding='utf-8')
     if 'for(int i=0;i<ChemicalCatalog.COUNT;i++)' not in dbtext or 'v.put("legacy_id",i)' not in dbtext or 'db.insertOrThrow("chemicals",null,v)' not in dbtext: problems.append('legacy chemical bootstrap order changed; chemical_uid=legacy_id+1 response-prior mapping must be reworked')
 
+    niosh_absent_sensor_ids=set()
     def validate_crosswalk(rows,label,require_cas):
         seen=set()
         for row in rows:
@@ -71,8 +78,16 @@ def main()->int:
             if names[idx]!=row.get('name'): problems.append(f'{label} name mismatch {idx}')
             cas=str(row.get('cas','')).strip()
             if require_cas and not cas: problems.append(f'{label} {idx} missing CAS')
-            if cas and cas not in cas_set: problems.append(f'{label} {idx} CAS absent from NIOSH seed')
+            if cas and not re.fullmatch(r'\d{2,7}-\d{2}-\d',cas): problems.append(f'{label} {idx} malformed CAS {cas}')
+            if cas and cas not in cas_set:
+                expected=PINNED_NIOSH_SENSOR_CAS_EXCEPTIONS.get(idx) if label=='legacy sensor crosswalk' else None
+                if expected is not None and cas==expected:
+                    niosh_absent_sensor_ids.add(idx)
+                else:
+                    problems.append(f'{label} {idx} CAS absent from NIOSH seed')
     validate_crosswalk(cross,'external crosswalk',False);validate_crosswalk(pure,'legacy sensor crosswalk',True)
+    if niosh_absent_sensor_ids!=set(PINNED_NIOSH_SENSOR_CAS_EXCEPTIONS):
+        problems.append(f'pinned NIOSH sensor-CAS exception set changed: {sorted(niosh_absent_sensor_ids)}')
     for row in cross:
         for sid in row.get('sources',[]):
             if sid not in source_ids: problems.append(f"crosswalk {row['legacy_id']} references unknown source {sid}")
@@ -93,7 +108,7 @@ def main()->int:
     if set(food.get('hr069_overlap',[]))!=expected_array or food.get('published_md5')!='008b8ccb62d7a7d51ff9ffcfd698a1e5': problems.append('Food Freshness HR069 overlap/hash contract mismatch')
     if food.get('quantitative_ppm_eligible') is not False: problems.append('Food Freshness must not be direct quantitative PPM evidence')
 
-    report={'release':reg.get('release'),'hardware_revision':reg.get('hardware_revision'),'legacy_catalogue_records':len(names),'niosh_identity_records':len(nrecords),'gas_engine_curve_chemicals':len(gas_ids),'research_curve_count':len(curves),'mq_model_count':len(models),'android_native_models':modelpack.get('android_native_count'),'external_sources_registered':len(sources),'external_dataset_sources':len(dataset_sources),'legacy_chemicals_with_verified_external_evidence':len(cross_ids),'peer_reviewed_preferred_mq135_curves':len(preferred),'food_freshness_hr069_overlap':len(food.get('hr069_overlap',[])),'external_m4_allowed':reg.get('policy',{}).get('external_m4_allowed'),'problems':problems}
+    report={'release':reg.get('release'),'hardware_revision':reg.get('hardware_revision'),'legacy_catalogue_records':len(names),'niosh_identity_records':len(nrecords),'niosh_seed_absent_sensor_ids':sorted(niosh_absent_sensor_ids),'gas_engine_curve_chemicals':len(gas_ids),'research_curve_count':len(curves),'mq_model_count':len(models),'android_native_models':modelpack.get('android_native_count'),'external_sources_registered':len(sources),'external_dataset_sources':len(dataset_sources),'legacy_chemicals_with_verified_external_evidence':len(cross_ids),'peer_reviewed_preferred_mq135_curves':len(preferred),'food_freshness_hr069_overlap':len(food.get('hr069_overlap',[])),'external_m4_allowed':reg.get('policy',{}).get('external_m4_allowed'),'problems':problems}
     print(json.dumps(report,ensure_ascii=False,indent=2,sort_keys=True))
     if args.check and problems: fail('; '.join(problems))
     return 0
