@@ -18,7 +18,6 @@ import com.servoc.app.control.DualTankDriveControl;
 import com.servoc.app.control.JoystickView;
 import com.servoc.app.control.VerticalSpeedControl;
 import com.servoc.app.navigation.GasDirectionEstimator;
-import com.servoc.app.navigation.MqRelayPlanner;
 import com.servoc.app.vision.FlameEvidenceTracker;
 import com.servoc.app.vision.FlameFrameAnalyzer;
 import com.servoc.app.vision.HazardOverlayView;
@@ -29,7 +28,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
-/** HazRob 0.10.1 drive workspace. Tracking target is owned by Analysis and shared through HazRobHost. */
+/** HazRob 0.10.2 drive workspace. Tracking is arrow-only and owns no drive authority. */
 public final class ControlTab {
     private final Context appContext;private final HazRobHost host;private final LinearLayout root;
     private final TextView status,drive,cameraBadge,flameBadge,irBadge,trackingBadge,recordInfo,speedBadge,safetyWarning;
@@ -123,11 +122,12 @@ public final class ControlTab {
         int target=host.trackingTargetId();String targetName=host.trackingTargetName();if(target!=lastTarget){lastTarget=target;gasDirection.reset();overlay.clearGas();}
         cancelTracking.setVisibility(target>=0?View.VISIBLE:View.GONE);trackingBadge.setText(target>=0?"تتبع ● "+targetName:"تتبع —");trackingBadge.setTextColor(target>=0?0xFF81C784:0xFF90A4AE);
 
-        JSONObject d=host.latestDiagnostics();syncEstopFromDiagnostics(d);if(d==null){status.setText("ROBOT ○");status.setTextColor(0xFFFFB74D);irBadge.setText("أرض —");irBadge.setTextColor(0xFF90A4AE);safetyWarning.setVisibility(View.GONE);drive.setText("L "+host.driveLeft()+"   R "+host.driveRight()+"   LINK —");overlay.clearGas();return;}
+        JSONObject d=host.latestDiagnostics();syncEstopFromDiagnostics(d);if(d==null){status.setText("ROBOT ○");status.setTextColor(0xFFFFB74D);irBadge.setText("أرض —");irBadge.setTextColor(0xFF90A4AE);safetyWarning.setVisibility(View.GONE);drive.setText("L "+host.driveLeft()+"   R "+host.driveRight()+"   LINK —");overlay.clearGas();gasDirection.reset();return;}
         status.setText("ROBOT ●");status.setTextColor(0xFF81C784);JSONObject ir=d.optJSONObject("ir");boolean cliff=ir!=null&&ir.optBoolean("cliff_warning",ir.optBoolean("warning",false)),ground=ir!=null&&ir.optBoolean("ground_detected",!cliff);irBadge.setText(cliff?"⚠ حافة":ground?"أرض ●":"أرض ؟");irBadge.setTextColor(cliff?0xFFFF7043:ground?0xFF81C784:0xFFFFB74D);JSONObject device=d.optJSONObject("device"),proximity=device==null?null:device.optJSONObject("proximity");boolean collision=proximity!=null&&proximity.optBoolean("warning",false);if(cliff){safetyWarning.setText("⚠ خطر السقوط");safetyWarning.setVisibility(View.VISIBLE);}else if(collision){safetyWarning.setText("⚠ خطر الاصطدام");safetyWarning.setVisibility(View.VISIBLE);}else safetyWarning.setVisibility(View.GONE);
         JSONObject x=d.optJSONObject("drive");if(x!=null){boolean stale=x.optBoolean("stale_stop",false);drive.setText("L "+x.optInt("left",host.driveLeft())+"   R "+x.optInt("right",host.driveRight())+"   "+(estopLatched?"E-STOP":stale?"STALE STOP":"DIRECT"));drive.setTextColor(estopLatched?0xFFFF7043:stale?0xFFFFB74D:Color.LTGRAY);}
-        if(target<0){overlay.clearGas();return;}GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime(),target);int mask=MqRelayPlanner.forChemical(target);if(g.valid){overlay.setGasDirection(g.angleRad,g.confidence);trackingBadge.setText("تتبع ● "+targetName+"   "+bearingName(g.angleRad)+String.format(Locale.US," %.0f%%",100*g.confidence));}else{overlay.clearGas();trackingBadge.setText("تتبع ● "+targetName+"   "+MqRelayPlanner.rowsLabel(mask));}
+        if(target<0){overlay.clearGas();return;}
+        GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime(),target);
+        if(g.valid)overlay.setGasDirection(g.angleRad,g.confidence);else overlay.clearGas();
+        trackingBadge.setText("تتبع ● "+targetName);
     }
-
-    private static String bearingName(double a){double d=Math.toDegrees(a);if(d>=-22.5&&d<22.5)return"أمام";if(d>=22.5&&d<67.5)return"أمام-يمين";if(d>=67.5&&d<112.5)return"يمين";if(d>=112.5&&d<157.5)return"خلف-يمين";if(d>=157.5||d<-157.5)return"خلف";if(d>=-157.5&&d<-112.5)return"خلف-يسار";if(d>=-112.5&&d<-67.5)return"يسار";return"أمام-يسار";}
 }
