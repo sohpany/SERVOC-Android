@@ -10,13 +10,14 @@ import java.util.Set;
 import static org.junit.Assert.*;
 
 public class AcceptedReferenceResponseModelTest {
-    @Test public void acceptedReferenceRegistryNowExposesAllSourceBackedNumericFamilies(){
+    @Test public void acceptedReferenceRegistryRetainsAllSourceBackedNumericFamiliesWhileAllowingQsprExpansion(){
         List<InverseMolecularSolver.Candidate> rows=ChemCoreLegacyCandidateRegistry.acceptedReferenceCandidates();
         Set<Long> ids=new HashSet<>();for(InverseMolecularSolver.Candidate c:rows)ids.add(c.chemicalUid);
-        // legacy id + 1 UID mapping
+        // These 13 source-backed numeric families are a minimum retained set, not the total candidate count.
+        // acceptedReferenceCandidates() may also add molecularly eligible QSPR-only candidates.
         int[] legacy={20,21,23,34,75,76,78,84,95,103,110,135,139};
         for(int id:legacy)assertTrue("missing accepted reference candidate "+id,ids.contains(id+1L));
-        assertEquals(13,ids.size());
+        assertTrue("QSPR supplementation must not shrink the accepted reference set",ids.size()>=13);
         assertFalse(AcceptedReferenceResponseModel.M4);
         assertEquals("ACCEPTED_PROVISIONAL_REFERENCE_PPM",AcceptedReferenceResponseModel.ACCEPTANCE_STATE);
     }
