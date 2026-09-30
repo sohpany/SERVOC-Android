@@ -42,6 +42,11 @@ public final class ChemicalSeedBootstrap {
         db.putMeta("chemcore_molecular_seed_status",molecular.available?("available:"+molecular.records+":"+molecular.matched+":"+molecular.origin):molecular.message);
         ChemCoreIdentityCurationRepository.ImportResult curation=ChemCoreIdentityCurationRepository.importIfPresent(context,db);
         db.putMeta("chemcore_identity_curation_status",curation.available?("available:"+curation.records+":"+curation.sha256):curation.message);
+
+        // Priority is a view/subset over the same master chemical records. Run it only after all
+        // MQ evidence and molecular/identity enrichment have been loaded so newly supported
+        // master-library compounds are promoted automatically without duplicating chemical facts.
+        try{ChemicalPriorityBootstrap.ensure(db.getWritableDatabase());db.putMeta("chemical_priority_seed_status","available:"+ChemicalPriorityBootstrap.VERSION);}catch(Exception e){db.putMeta("chemical_priority_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));}
         return result;
     }
 }
