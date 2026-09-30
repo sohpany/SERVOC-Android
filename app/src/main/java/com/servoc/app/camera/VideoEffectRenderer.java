@@ -8,6 +8,7 @@ import android.opengl.GLUtils;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.concurrent.atomic.AtomicLong;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -20,11 +21,13 @@ public final class VideoEffectRenderer implements GLSurfaceView.Renderer {
     private int viewW=1,viewH=1,sourceW=1,sourceH=1;private boolean hasFrame=false;
     private volatile VideoEffectProfile.DisplayMode displayMode=VideoEffectProfile.DisplayMode.NORMAL;
     private volatile VideoEffectProfile.Enhancement enhancement=VideoEffectProfile.Enhancement.NORMAL;
+    private final AtomicLong renderedFrames=new AtomicLong();
     private final FloatBuffer vertices=buffer(new float[]{-1,-1,1,-1,-1,1,1,1});
     private final FloatBuffer texCoords=buffer(new float[]{0,1,1,1,0,0,1,0});
 
     public void setProfile(VideoEffectProfile.DisplayMode mode,VideoEffectProfile.Enhancement effect){displayMode=mode==null?VideoEffectProfile.DisplayMode.NORMAL:mode;enhancement=effect==null?VideoEffectProfile.Enhancement.NORMAL:effect;}
     public VideoEffectProfile.DisplayMode displayMode(){return displayMode;}public VideoEffectProfile.Enhancement enhancement(){return enhancement;}
+    public long renderedFrameCount(){return renderedFrames.get();}
 
     /** One shared decoded frame is uploaded to GPU; an older waiting frame is released immediately. */
     public void submit(SharedVideoFrame frame){if(frame==null)return;synchronized(frameLock){SharedVideoFrame old=pending;pending=frame;if(old!=null&&old!=frame)old.release();}}
@@ -48,8 +51,9 @@ public final class VideoEffectRenderer implements GLSurfaceView.Renderer {
         GLES20.glUseProgram(program);GLES20.glUniform2f(uVertexScale,vx,vy);GLES20.glUniform1i(uDisplay,displayMode.ordinal());GLES20.glUniform1i(uEnh,enhancement.ordinal());GLES20.glUniform2f(uUvScale,uv[0],uv[1]);GLES20.glUniform2f(uTexel,1f/sourceW,1f/sourceH);GLES20.glUniform1f(uAuto,VideoEffectState.autoGain());
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0);GLES20.glBindTexture(GLES20.GL_TEXTURE_2D,texture);GLES20.glUniform1i(uTex,0);vertices.position(0);texCoords.position(0);GLES20.glEnableVertexAttribArray(aPos);GLES20.glVertexAttribPointer(aPos,2,GLES20.GL_FLOAT,false,0,vertices);GLES20.glEnableVertexAttribArray(aTex);GLES20.glVertexAttribPointer(aTex,2,GLES20.GL_FLOAT,false,0,texCoords);GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP,0,4);GLES20.glDisableVertexAttribArray(aPos);GLES20.glDisableVertexAttribArray(aTex);
 
-        // Only a newly rendered video frame is offered to the recorder. Controls, tabs and Android UI are never captured.
         if(renderedFrame!=null){
+            renderedFrames.incrementAndGet();
+            // Only a newly rendered video frame is offered to the recorder. Controls, tabs and Android UI are never captured.
             VideoEffectFrameHub.Consumer recorder=VideoEffectFrameHub.get();
             if(recorder!=null){renderedFrame.retain();try{recorder.onDecodedFrame(renderedFrame);}catch(Exception ignored){renderedFrame.release();}}
             renderedFrame.release();
