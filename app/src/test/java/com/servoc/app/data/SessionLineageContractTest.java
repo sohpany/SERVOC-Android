@@ -37,9 +37,25 @@ public class SessionLineageContractTest {
   assertTrue(t.contains("sample_utc_ms"));
   assertTrue(t.contains("sample_monotonic_ms"));
   assertTrue(t.contains("session_t_ms"));
+  assertTrue(t.contains("started_utc_ms"));
+  assertTrue(t.contains("ended_utc_ms"));
+  assertTrue(t.contains("started_monotonic_ms"));
+  assertTrue(t.contains("ended_monotonic_ms"));
+  assertTrue(t.contains("duration_monotonic_ms"));
+  assertTrue(t.contains("UTC_EPOCH_MS_PLUS_ANDROID_ELAPSED_REALTIME"));
+  assertTrue(t.contains("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"));
   assertTrue(t.contains("TimeZone.getTimeZone(\"UTC\")"));
   assertTrue(t.contains("if(!developer&&!chemCore)"));
   assertTrue(t.contains("fieldSessions.linkMeasurement(active.id,sessionId)"));
+ }
+
+ @Test public void fieldSessionLifecycleCannotDetachOrCloseAroundLiveAcquisition() throws Exception {
+  String r=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/field/FieldSessionRepository.java")),StandardCharsets.UTF_8);
+  assertTrue(r.contains("JOIN measurement_sessions ms ON ms.session_id=fsm.measurement_session_id"));
+  assertTrue(r.contains("ms.ended_ts IS NULL OR TRIM(ms.ended_ts)=''"));
+  assertTrue(r.contains("STATUS_ACTIVE.equals(c.getString(0))"));
+  assertTrue(r.contains("ORDER BY linked_ts,measurement_session_id"));
+  assertTrue(r.contains("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"));
  }
 
  @Test public void r0IsDeviceLocalAndNonPublishable() throws Exception {
