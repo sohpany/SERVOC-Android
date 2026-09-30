@@ -23,6 +23,10 @@ public final class PowerLawResponseModel implements ChemCoreResponseModel {
     @Override public ChemCoreDecision.EvidenceTier evidenceTier(){return tier;}
     @Override public double minPpm(){return minPpm;}
     @Override public double maxPpm(){return maxPpm;}
+    @Override public String modelId(){return version+":"+sensorKey;}
+    @Override public String sourceId(){return version;}
+    @Override public String evidenceFamilyId(){return tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED?"HR069_POWER_LAW_CALIBRATION":"POWER_LAW_REFERENCE_CURVE";}
+    @Override public String independenceGroup(){return evidenceFamilyId()+":"+sourceId();}
 
     @Override public Estimate predict(double ppm,double temperatureC,double rh,SamplingProfile samplingProfile){
         if(!(ppm>0)||ppm<minPpm||ppm>maxPpm)return new Estimate(false,Double.NaN,sigmaLog10,false,"ppm outside model range");
@@ -30,6 +34,7 @@ public final class PowerLawResponseModel implements ChemCoreResponseModel {
         if(Double.isFinite(minTempC)&&Double.isFinite(maxTempC)&&Double.isFinite(temperatureC))env&=temperatureC>=minTempC&&temperatureC<=maxTempC;
         if(Double.isFinite(minRh)&&Double.isFinite(maxRh)&&Double.isFinite(rh))env&=rh>=minRh&&rh<=maxRh;
         double y=Math.log10(a)+b*Math.log10(ppm);
-        return new Estimate(true,y,sigmaLog10,env,env?note:"environment outside documented model domain");
+        return new Estimate(true,y,sigmaLog10,env,env?note:"environment outside documented model domain",
+                evidenceType(),evidenceFamilyId(),modelId(),sourceId(),independenceGroup());
     }
 }
