@@ -1,9 +1,10 @@
 # HazRob 0.10.2 / HR069 — External analytical-data enrichment workplan
 
 Status ledger created: 2026-09-29  
-Last updated: 2026-09-29  
+Last updated: 2026-09-30  
 Scope: `release/hazrob-0.10.2` only  
-Baseline at plan creation: `28c5bdd8f39537cc7cc242f6e47027a4e3ea0aaa`
+Baseline at plan creation: `28c5bdd8f39537cc7cc242f6e47027a4e3ea0aaa`  
+P11 synchronization source anchor: `09bfa4e87014ca6b651c2e5ffc27eb5020772ba1`
 
 ## Objective
 
@@ -35,8 +36,8 @@ Increase HazRob analytical coverage by ingesting every scientifically useful ext
 | P8 | On-phone update path | **RUNTIME READY / ONE-TIME APK KEY BLOCKER** | HTTPS updater, signed verification, staging, rollback and Arabic UI already exist. `chemcore-library-publish-0102.yml` targets HR069. Current APK source still bundles `NOT_PROVISIONED` publication key, so a one-time keyed APK rebuild/install is required before remote ChemCore libraries can be activated. See `HR069_CHEMCORE_UPDATE_READINESS.md`. |
 | P9 | HR069 analytical-engine consumption | **ACTIVE** | `ValidatedGasEngine` consumes M4, peer-reviewed literature, inherited curves and MQDataScience curves. `FingerprintClassifier.classifyResearchPriors(...)` now exposes the separate research identification-fingerprint path and collapses concentration templates to one best match per chemical; MQ7/MQ9 fail closed unless heater-cycle validity is explicitly true. |
 | P10 | Automated scientific integrity audit | **SOURCE TESTS ADDED / ORG QUALIFICATION REQUIRED** | New fingerprint tests lock non-M4 status, 11 declared numeric analytes, food/spoilage non-fabrication policy, one-best-match-per-chemical behavior and heater-cycle masking. Re-run `HazRob/build-harness` Android qualification against the final source SHA after this checkpoint. |
-| P11 | HazRob Lab synchronization | **INITIAL SYNC DONE** | Lab workplan corrected; 43 curves, 76 models and external source registry are committed under `sohpany/HazRob-Lab`. Next sync should include identification-prior metadata and derived external fingerprints. |
-| P12 | HazRob Organization qualification mirror | **NEXT** | Point `HazRob/build-harness` to the final 0.10.2/HR069 source head and run organization qualification. Do not trigger full RC build merely for this research-library checkpoint. |
+| P11 | HazRob Lab synchronization | **DONE** | HazRob-Lab `main` synchronized from production anchor `09bfa4e8`: identification-prior metadata plus Food Freshness, Multimodal MQ and UCI MQ135 derived fingerprint artifacts are committed. Target Git blobs were checked against the production-source blobs; Lab ledger records non-M4 limits and no raw third-party archive was committed. Lab checkpoint: `fb11d9415ccae8d62098f7dc3a1ed2e2a49ffc4f`. |
+| P12 | HazRob Organization qualification mirror | **NEXT** | Point `HazRob/build-harness` to the post-P11 final 0.10.2/HR069 source head and run organization qualification. Do not trigger full RC build merely for this research-library checkpoint. |
 
 ## External-source priority order
 
@@ -81,6 +82,20 @@ Implementation series through pre-ledger commit `3ea58cc358ecd6548f99a1e4205787d
 - Source priority per physical channel: peer-reviewed literature > accepted registered GasEngine relation > MQDataScience/datasheet-derived research curve.
 - These templates are `RESEARCH_EXTERNAL`, `m4=false`, and `sampleCount=0` by design. Device-specific experimental fingerprints continue to use the empirical trainer/database path.
 
+## P11 synchronization checkpoint — 2026-09-30
+
+Production source anchor: `09bfa4e87014ca6b651c2e5ffc27eb5020772ba1`.  
+HazRob-Lab checkpoint: `fb11d9415ccae8d62098f7dc3a1ed2e2a49ffc4f`.
+
+Synchronized laboratory artifacts:
+
+- `calibration/priors/identification_fingerprint_priors_v1.json` — Git blob `5be89c673bb6b2b265acb6ddd6239e7ad5683f31`.
+- `datasets/external/derived/food_freshness_headspace_fingerprints_v1.json` — Git blob `959aae7574307a0030d218d4b86eb6618a6f72b0`; 59 measured headspace sessions.
+- `datasets/external/derived/multimodal_mq_transfer_fingerprints_v1.json` — Git blob `d94a893f27b24fbbfa5175e6d406d7352933a5d5`; four classes, 6400 samples, six HR069-overlap MQ channels.
+- `datasets/external/derived/uci_mq135_lowconcentration_transfer_fingerprints_v1.json` — Git blob `bf3ab5777c3cd8fa570d75a1db117008dc751720`; 18 transfer records for six analytes at 0.05/0.10/0.20 ppm.
+
+The synchronized artifacts preserve their source acceptance semantics and remain `m4=false`. Food Freshness remains a headspace class/mixture reference rather than a pure-gas fingerprint; Multimodal MQ does not synthesize missing MQ4/MQ9 channels; the UCI artifact is one-channel MQ135 transfer evidence and cannot independently satisfy the >=2-channel HR069 named-identity gate. No raw third-party archive was added to HazRob-Lab source Git during P11.
+
 ## Common normalized research schema
 
 Every imported analytical observation/derived fingerprint should expose, when available:
@@ -119,6 +134,6 @@ A ChemCore package for the installed 0.10.2 app is publishable only when all of 
 3. Read `research_data/hr069_analytical_library/identification_fingerprint_priors_v1.json`.
 4. Read `docs/0.10.2/HR069_CHEMCORE_UPDATE_READINESS.md`.
 5. Read latest commits on `release/hazrob-0.10.2` after the baseline SHA above.
-6. Continue from P6/P7: ingest source-backed external compound fingerprints and package the identification priors into ChemCore after qualification.
+6. Continue from P12: point `HazRob/build-harness` at the final source head and run organization qualification. Return to P6/P7 when new source-backed evidence is added or when qualification requires an analytical-library correction.
 7. After each completed phase, update this ledger in the same commit or immediately following commit.
 8. Never infer that a mail was sent, a dataset downloaded, a signing key was provisioned, or a test passed without recorded evidence.
