@@ -17,6 +17,7 @@ from pathlib import Path
 MOLECULAR_SCHEMA = "chemcore-molecular-seed-v1"
 CURATION_SCHEMA = "chemcore-unresolved-curation-v1"
 SNAPSHOT_SCHEMA = "chemcore-stable-snapshot-v1"
+EVIDENCE_REVISION = "hazrob-evidence-policy/1"
 
 
 def load_json(path: Path) -> dict:
@@ -33,6 +34,11 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: f.read(1024 * 1024), b""):
             h.update(block)
     return h.hexdigest()
+
+
+def data_revision(source_files: dict) -> str:
+    canonical = json.dumps(source_files, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+    return "sha256:" + hashlib.sha256(canonical).hexdigest()
 
 
 def validate_molecular(seed: dict) -> None:
@@ -88,18 +94,22 @@ def main() -> int:
     molecular = load_json(molecular_path); curation = load_json(curation_path); validate_molecular(molecular); validate_curation(curation, molecular)
     response_priors = optional_json(args.response_priors); model_artifacts = optional_json(args.model_artifacts); calibrations = optional_json(args.calibrations); reference_artifacts = optional_json(args.reference_artifacts)
 
+    source_files = {"molecular_descriptors_sha256":sha256(molecular_path),"unresolved_curation_sha256":sha256(curation_path)}
+    for key,path in (("response_priors_sha256",args.response_priors),("model_artifacts_sha256",args.model_artifacts),("calibrations_sha256",args.calibrations),("reference_artifacts_sha256",args.reference_artifacts)):
+        if path: source_files[key]=sha256(Path(path))
+
     snapshot = {
         "schema": SNAPSHOT_SCHEMA,
         "created_at_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "source_commit_sha": args.source_commit,
+        "data_revision": data_revision(source_files),
+        "evidence_revision": EVIDENCE_REVISION,
         "policy": {"channel":"stable","molecular_presence_does_not_imply_detectability":True,"unresolved_entities_are_not_forced_to_single_molecules":True,"m4_requires_device_specific_validation":True,"external_research_packaging_does_not_promote_m4":True},
         "content_counts": {"chemical_identities":int(molecular.get("record_count",0)),"molecularly_resolved":int(molecular.get("resolved_count",0)),"identity_curation_records":int(curation.get("record_count",0)),"response_priors":count_items(response_priors),"model_artifacts":count_items(model_artifacts),"calibrations":count_items(calibrations),"reference_artifacts":count_items(reference_artifacts)},
-        "source_files": {"molecular_descriptors_sha256":sha256(molecular_path),"unresolved_curation_sha256":sha256(curation_path)},
+        "source_files": source_files,
         "knowledge": {"molecular_seed":molecular,"identity_curation":curation,"response_priors":response_priors,"model_artifacts":model_artifacts,"calibrations":calibrations,"reference_artifacts":reference_artifacts},
     }
-    for key,path in (("response_priors_sha256",args.response_priors),("model_artifacts_sha256",args.model_artifacts),("calibrations_sha256",args.calibrations),("reference_artifacts_sha256",args.reference_artifacts)):
-        if path: snapshot["source_files"][key]=sha256(Path(path))
     out=Path(args.out); out.parent.mkdir(parents=True,exist_ok=True); out.write_text(json.dumps(snapshot,ensure_ascii=False,separators=(",",":"))+"\n",encoding="utf-8")
-    print(json.dumps({"schema":SNAPSHOT_SCHEMA,"output":str(out),"sha256":sha256(out),"bytes":out.stat().st_size,**snapshot["content_counts"]},indent=2)); return 0
+    print(json.dumps({"schema":SNAPSHOT_SCHEMA,"data_revision":snapshot["data_revision"],"evidence_revision":snapshot["evidence_revision"],"output":str(out),"sha256":sha256(out),"bytes":out.stat().st_size,**snapshot["content_counts"]},indent=2)); return 0
 
 if __name__ == "__main__": raise SystemExit(main())
