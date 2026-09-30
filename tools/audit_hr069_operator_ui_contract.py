@@ -26,7 +26,7 @@ def main():
     hardware=read("firmware/HazRob/Hardware.cpp")
     protocol=read("app/src/main/java/com/servoc/app/communication/RobotProtocolV4.java")
 
-    # Full-screen driving and overlays.
+    # UI-01: full-screen driving and overlays.
     req(control,"Configuration.ORIENTATION_LANDSCAPE","landscape detection")
     req(control,"applyLandscapeFullscreenChrome","landscape immersive driving")
     req(control,"cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1))","full video surface")
@@ -41,7 +41,7 @@ def main():
     req(control,"host.robotApi().mqPower(target)","floating relay control")
     req(control,"WifiSignalReader.read(appContext)","Wi-Fi RSSI read")
 
-    # Four independent drive modes.
+    # UI-02: four independent drive modes.
     for marker in ['TANK("tank"','WHEEL("wheel"','JOYSTICK("joystick"','BUTTONS("buttons"']:
         req(mode,marker,"four-mode drive selector")
     req(control,"driveMode.next()","drive-mode cycling")
@@ -59,25 +59,44 @@ def main():
     req(mixer,"double left=y+steer;","left differential output")
     req(mixer,"double right=y-steer;","right differential output")
 
-    # Current telemetry semantics used by the UI.
+    # UI-03: canonical Echo/IR semantics used by current operator UI.
     req(hardware,'\\"cm\\":'+"num(ultraCm,1)","raw Echo centimetre telemetry")
     req(protocol,'proximity.put("distance_cm",finiteAny(p,"cm","distance_cm"))',"canonical Echo cm normalization")
     req(hardware,'\\"ground_detected\\"',"IR ground telemetry")
     req(hardware,'\\"cliff_warning\\"',"IR cliff telemetry")
     req(protocol,'x.put("installed",true);x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",i.optBoolean("ground_detected",!cliff))',"canonical IR semantics")
 
-    # Current measurement/analysis/report surfaces.
-    req(measurements,'String[] names={"الفيزيائية","القياس","التحليل","نتائج التحليل"}',"measurement workspace tabs")
+    # UI-04: operational measurement workspace.
+    req(measurements,'String[] names={"الفيزيائية","القياس الحي","التحليل","النتائج"}',"current measurement workspace tabs")
+    for marker,label in [
+        ('powerCard=kpi("MQ\\n—")',"MQ power KPI"),('arrayCard=kpi("المصفوفة\\n—")',"array KPI"),
+        ('gasCard=kpi("الاستجابة\\n—")',"gas response KPI"),('sessionCard=kpi("الجلسة\\n—")',"session KPI"),
+        ("ProgressBar","session progress"),("togglePower()","operator relay action"),("startMeasurement()","measurement start path")]:
+        req(measurements,marker,label)
     req(measurements,"LiveGasStateEngine.Snapshot gas=host.liveGasState()","live gas measurement state")
+    req(measurements,"data.setTextColor(0xFFCFD8DC)","sensor-detail contrast")
+
+    # UI-05: production analysis/results dashboard rather than long narrative-only text.
+    req(measurements,'UiKit.title(c,"ChemCore • لوحة التحليل")',"analysis dashboard title")
+    req(measurements,'quantitative=kpi("PPM الكمي\\n—")',"quantitative gate KPI")
     req(measurements,"ChemCoreLabQuality.evaluate","analysis admissibility gate")
-    req(measurements,"ChemCoreAnalysisPresenter","ChemCore presentation binding")
+    req(measurements,"top_posterior","top confidence KPI")
+    req(measurements,"posterior_separation_margin","candidate separation KPI")
+    req(measurements,"ood_score","OOD KPI")
+    req(measurements,"normalized_entropy","entropy KPI")
+    req(measurements,"ppm_reportable","quantitative reportability gate")
+    req(measurements,"إظهار فحص 144","on-demand 144 screening")
+    req(measurements,"foregroundFor","candidate contrast selection")
+    req(measurements,"ChemCoreAnalysisPresenter.equationsAndResiduals","expandable technical residual details")
+
+    # Current report engine remains bound to recorded data and ChemCore payloads.
     req(reports,"AnalyticalCharts","analytical charts integration")
     req(reports,"screening144","144-screening report view")
     req(reports,"exposureRatios","exposure/flammability chart")
     req(uikit,"setTextColor(Color.WHITE)","default dark-surface foreground")
 
     print("HazRob 0.10.2 / HR069 operator UI contract: PASS")
-    print("drive modes=TANK,WHEEL,JOYSTICK,BUTTONS; landscape=full-screen video; overlays=gas,relay,wifi,echo,IR,flame")
+    print("UI-01..UI-05: full-screen drive, four modes, live overlays, operational measurement dashboard, ChemCore results dashboard")
     return 0
 
 if __name__=="__main__":
