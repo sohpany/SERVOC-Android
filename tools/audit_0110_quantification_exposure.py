@@ -15,8 +15,13 @@ def main():
     series=txt('app/src/main/java/com/servoc/app/exposure/ChemCoreQuantitativeTimeSeries.java')
     assessment=txt('app/src/main/java/com/servoc/app/exposure/GasPpmExposureAssessment.java')
     exposure_repo=txt('app/src/main/java/com/servoc/app/exposure/ExposureRepository.java')
+    normalizer=txt('app/src/main/java/com/servoc/app/calibration/AcceptedR0Normalizer.java')
+    adapter=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreSessionFeatureAdapter.java')
+    evidence=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreEvidenceObservation.java')
+    fusion=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreEvidenceFusion.java')
+    inference=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreInferenceEngine.java')
 
-    # All analytical evidence remains available; reportability gates do not delete it.
+    # Preserve all evidence/data independently of reportability.
     for n in ['evidence_observations','screening_fit_ppm','analytical_confidence_pct','posterior']:
         req(envelope,n,'ChemCore evidence envelope')
     req(repo,'hazrob-evidence-measurement-inventory/1','evidence/measurement inventory')
@@ -25,6 +30,25 @@ def main():
     req(repo,'raw_telemetry_source','raw telemetry lineage')
     req(repo,'candidate_count','candidate inventory')
     req(repo,'evidence_observation_count','evidence inventory')
+
+    # Degraded measurements are interpreted and weighted, not discarded.
+    req(normalizer,'availableRatio','support-only physical ratio path')
+    req(normalizer,'evidenceWeight','measurement quality weighting')
+    req(normalizer,'CORROBORATIVE','quality-weighted corroboration semantics')
+    req(adapter,'corroborativeRatios','session corroborative ratios')
+    req(adapter,'corroborativeQualityWeights','session corroborative weights')
+    req(adapter,'bindCorroborativeSession','session-bound support cache')
+    req(evidence,'measurementQualityWeight','evidence quality weight')
+    req(evidence,'supportRole','primary/corroborative role')
+    req(evidence,'corroborativeFromResponseModel','corroborative evidence factory')
+    req(fusion,'MAX_CORROBORATION_BONUS=8.0','capped weak-evidence support')
+    req(fusion,'supportWeight','quality-weighted support calculation')
+    req(fusion,'isFullStrengthSupport','full-vs-weak evidence separation')
+    req(inference,'degraded/auxiliary MQ measurements retained as quality-weighted corroborative evidence','inference corroboration note')
+    req(inference,'corroborativeRatiosFor','session corroboration auto-binding')
+    req(envelope,'measurement_quality_weight','serialized evidence quality')
+    req(envelope,'support_role','serialized evidence role')
+    req(envelope,'preserve_and_use_as_quality_weighted_corroborative_evidence_never_auto_promote_to_reportable_ppm','methodology policy')
 
     # Reportable temporal ppm is M4-only, but every valid derived point is retained.
     req(series,'M4_HAZROB_VALIDATED','M4 quantitative gate')
@@ -58,7 +82,7 @@ def main():
     req(assessment,'canMassConvert','conversion gate')
     forbid(assessment,'24.45','silent 25C molar-volume shortcut')
 
-    # The final decision binds all layers to the same primary session rather than creating a second identity decision.
+    # Final decision binds all layers to the same primary session rather than creating another identity decision.
     req(repo,'payload.put("quantitative_time_series",seriesCopy)','same-row temporal attachment')
     req(repo,'payload.put(GasPpmExposureAssessment.KEY,exposure)','same-row exposure attachment')
     req(repo,'payload.put("evidence_measurement_inventory"','same-row evidence inventory')
