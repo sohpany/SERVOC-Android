@@ -38,7 +38,7 @@ public final class ChemCoreInferenceEngine {
         List<InverseMolecularSolver.Result> ranked=InverseMolecularSolver.solve(observedRatios,candidates,context.temperatureC,context.rh,samplingProfile);
         List<InverseMolecularSolver.Result> solvable=new ArrayList<>();for(InverseMolecularSolver.Result r:ranked)if(r!=null&&r.solvable)solvable.add(r);
         if(solvable.isEmpty()){
-            ChemCoreResultEnvelope base=envelope(context,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no candidate has enough overlapping response evidence",summaries(ranked,observedChannels));
+            ChemCoreResultEnvelope base=envelope(context,ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no candidate has enough overlapping response evidence; reliability=1/5",summaries(ranked,observedChannels));
             return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios);
         }
 
@@ -66,23 +66,32 @@ public final class ChemCoreInferenceEngine {
         }else if(tier.ordinal()>=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT.ordinal()&&openSetAccepted){
             outcome=ChemCoreDecision.Outcome.IDENTIFIED;note="multisensor identity is array-consistent with at least two direct/reference M2+ channels and inside the trained identity domain; concentration is withheld until all contributing quantitative curves satisfy M4";
         }else{
-            outcome=ChemCoreDecision.Outcome.SCREENING;note="model-supported candidate only; validated open-set identity and/or at least two direct/reference M2+ channels are not available";
+            outcome=ChemCoreDecision.Outcome.SCREENING;note="model-supported candidate only";
         }
         if(top.molecularContributors>0){
             String idx=Double.isFinite(top.qsprIndicatorPct)?String.format(Locale.US,"%.1f%%",top.qsprIndicatorPct):"—";
-            note+="; PubChem/QSPR M1 fit index="+idx+" across "+top.molecularContributors+" molecular channel(s), direct/reference M2+="+top.referenceContributors+". QSPR index is a ranking diagnostic, not a calibrated identity probability and not reportable ppm.";
+            note+="; PubChem/QSPR fit="+idx;
         }
+        note+="; reliability="+reliabilityRating(tier)+"/5";
 
         // A fitted ppm helps explain/rank hypotheses at M1-M3, but only M4 QUANTIFIED exposes it as a measurement result.
         double reportablePpm=outcome==ChemCoreDecision.Outcome.QUANTIFIED?top.bestPpm:Double.NaN;
         ChemCoreResultEnvelope base=envelope(context,outcome,tier,top.chemicalUid,top.label,reportablePpm,Double.NaN,Double.NaN,ood,top.posterior,entropy,note,summaries(solvable,observedChannels));
-        // Source-backed/uploaded fingerprint measurements are accepted for identity ranking in HR069.
-        // The fusion layer can promote only SCREENING/INSUFFICIENT_EVIDENCE to IDENTIFIED/M3;
-        // it cannot override UNKNOWN/mixture/domain failures and can never create M4 or reportable ppm.
         return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios);
     }
 
-    /** M1/QSPR channels can affect ranking but can never, by themselves, create M3 identity. */
+    /** Simple user-facing reliability scale: 1 weak/unknown, 2 QSPR, 3 literature/manufacturer, 4 multisensor identity, 5 HR069 calibrated. */
+    public static int reliabilityRating(ChemCoreDecision.EvidenceTier tier){
+        if(tier==null)return 1;
+        switch(tier){
+            case M4_HAZROB_VALIDATED:return 5;
+            case M3_ARRAY_CONSISTENT:return 4;
+            case M2_LITERATURE_OR_MANUFACTURER_SUPPORTED:return 3;
+            case M1_MOLECULARLY_INFERRED:return 2;
+            default:return 1;
+        }
+    }
+
     static boolean hasReferenceBackedMultisensorSupport(InverseMolecularSolver.Result r){
         return r!=null&&r.contributors>=2&&r.referenceContributors>=2;
     }
@@ -96,7 +105,6 @@ public final class ChemCoreInferenceEngine {
     private static List<ChemCoreResultEnvelope.CandidateSummary> summaries(List<InverseMolecularSolver.Result> rows,int observedChannels){
         List<ChemCoreResultEnvelope.CandidateSummary> out=new ArrayList<>();if(rows!=null)for(InverseMolecularSolver.Result r:rows)if(r!=null&&r.solvable){
             double coverage=observedChannels>0?100.0*Math.min(r.contributors,observedChannels)/observedChannels:Double.NaN;
-            // Residual-agreement index is a diagnostic, not a calibrated probability. A single sensor has no inter-sensor agreement.
             double agreement=r.contributors>=2&&Double.isFinite(r.standardizedResidualRms)?100.0*Math.exp(-0.5*r.standardizedResidualRms*r.standardizedResidualRms):Double.NaN;
             ChemCoreDecision.EvidenceTier rowTier=(r.contributors>0&&r.calibratedContributors==r.contributors)?ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED:r.highestEvidenceTier;
             double evidence=evidenceQuality(rowTier);if(!r.allContributorsInsideDomain)evidence*=0.5;
