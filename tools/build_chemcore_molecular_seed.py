@@ -11,6 +11,7 @@ Design goals:
 - explicit unresolved records instead of silently dropping compounds;
 - deterministic output ordering and SHA-256 manifest;
 - current PubChem property names (SMILES, ConnectivitySMILES and Charge);
+- curated name fallback only for a small, explicitly reviewed set of discrete pure compounds;
 - no claim that a PubChem descriptor implies MQ detectability.
 
 Typical use from repository root:
@@ -41,7 +42,19 @@ DEFAULT_CACHE = ROOT / ".cache/chemcore_pubchem"
 
 PUBCHEM_BASE = "https://pubchem.ncbi.nlm.nih.gov/rest/pug"
 PUBCHEM_SOURCE = "https://pubchem.ncbi.nlm.nih.gov/"
-UA = "HazRob-ChemCore-molecular-seed/0.10 (+scientific research; provenance-preserving)"
+UA = "HazRob-ChemCore-molecular-seed/0.10.2 (+scientific research; provenance-preserving)"
+
+# PubChem occasionally resolves a reviewed discrete compound reliably by canonical/common name
+# even when the occupational CAS/name string does not produce a PUG REST property row. Fallbacks
+# are deliberately explicit and limited to records already curated as PURE_COMPOUND. Never apply
+# this mechanism to mixtures, materials, isomer groups, fumes, mists or occupational categories.
+CURATED_NAME_FALLBACKS: dict[str, tuple[str, ...]] = {
+    "10210-68-1": ("Dicobalt octacarbonyl", "Cobalt carbonyl"),
+    "12079-65-1": ("Cyclopentadienyl manganese tricarbonyl",),
+    "12108-13-3": ("Methylcyclopentadienylmanganese tricarbonyl", "Methyl cyclopentadienyl manganese tricarbonyl"),
+    "1304-82-1": ("Bismuth telluride",),
+    "17702-41-9": ("Decaborane",),
+}
 
 # Names follow the current PubChem PUG REST specification. PubChem calls net/formal
 # molecular charge "Charge"; "FormalCharge" is not a valid PUG REST property tag.
@@ -131,39 +144,76 @@ def request_json(url: str, retries: int, backoff_s: float) -> dict[str, Any]:
     raise last
 
 
-def resolve_pubchem(cas: str, cache_dir: Path, refresh: bool, retries: int,
-                    backoff_s: float, delay_s: float) -> tuple[str, dict[str, Any] | None, str | None]:
-    cp = cache_path(cache_dir, cas)
-    if cp.exists() and not refresh:
-        cached = load_json(cp)
-        return cached.get("status", "ERROR"), cached.get("property"), cached.get("error")
-
+def property_url(identifier: str) -> str:
     prop_path = ",".join(PROPERTIES)
-    url = f"{PUBCHEM_BASE}/compound/name/{quote(cas, safe='')}/property/{prop_path}/JSON"
-    status = "ERROR"; prop = None; error = None
+    return f"{PUBCHEM_BASE}/compound/name/{quote(identifier, safe='')}/property/{prop_path}/JSON"
+
+
+def query_identifier(identifier: str, retries: int, backoff_s: float) -> tuple[str, dict[str, Any] | None, str | None, str]:
+    url = property_url(identifier)
     try:
         payload = request_json(url, retries=retries, backoff_s=backoff_s)
         rows = payload.get("PropertyTable", {}).get("Properties", [])
         if rows:
-            prop = rows[0]
-            status = "RESOLVED"
-        else:
-            status = "UNRESOLVED"
-            error = "PubChem returned no property row"
+            return "RESOLVED", rows[0], None, url
+        return "UNRESOLVED", None, "PubChem returned no property row", url
     except HTTPError as e:
         status = "UNRESOLVED" if e.code == 404 else "ERROR"
-        error = f"HTTP {e.code}: {e.reason}"
+        return status, None, f"HTTP {e.code}: {e.reason}", url
     except Exception as e:
-        status = "ERROR"
-        error = f"{type(e).__name__}: {e}"
+        return "ERROR", None, f"{type(e).__name__}: {e}", url
+
+
+def resolve_pubchem(cas: str, cache_dir: Path, refresh: bool, retries: int,
+                    backoff_s: float, delay_s: float) -> tuple[str, dict[str, Any] | None, str | None, str, str]:
+    """Resolve by CAS first, then curated pure-compound names when explicitly configured.
+
+    Returns status, property, error, resolution_method, resolution_identifier.
+    """
+    cp = cache_path(cache_dir, cas)
+    fallbacks = CURATED_NAME_FALLBACKS.get(cas, ())
+    if cp.exists() and not refresh:
+        cached = load_json(cp)
+        cached_status = cached.get("status", "ERROR")
+        # A previously unresolved CAS cache must not suppress a newly added curated fallback.
+        # Resolved/error-free records remain fully resumable.
+        if cached_status == "RESOLVED" or not fallbacks:
+            return (cached_status, cached.get("property"), cached.get("error"),
+                    cached.get("resolution_method", "CAS"), cached.get("resolution_identifier", cas))
+
+    attempts: list[dict[str, Any]] = []
+    status, prop, error, url = query_identifier(cas, retries, backoff_s)
+    attempts.append({"method": "CAS", "identifier": cas, "status": status, "error": error, "url": url})
+    method = "CAS"; identifier = cas
+
+    if status == "UNRESOLVED" and fallbacks:
+        for fallback in fallbacks:
+            s2, p2, e2, u2 = query_identifier(fallback, retries, backoff_s)
+            attempts.append({"method": "CURATED_NAME_FALLBACK", "identifier": fallback, "status": s2, "error": e2, "url": u2})
+            if s2 == "RESOLVED":
+                status, prop, error = s2, p2, None
+                method, identifier = "CURATED_NAME_FALLBACK", fallback
+                break
+            # A transient server/network failure should remain visible rather than silently becoming unresolved.
+            if s2 == "ERROR":
+                status, prop, error = s2, None, e2
+                method, identifier = "CURATED_NAME_FALLBACK", fallback
+                break
 
     cache_dir.mkdir(parents=True, exist_ok=True)
-    cp.write_text(json.dumps({"cas": cas, "status": status, "property": prop, "error": error,
-                              "retrieved_at_utc": utc_now(), "url": url}, ensure_ascii=False, indent=2),
-                  encoding="utf-8")
+    cp.write_text(json.dumps({
+        "cas": cas,
+        "status": status,
+        "property": prop,
+        "error": error,
+        "resolution_method": method,
+        "resolution_identifier": identifier,
+        "attempts": attempts,
+        "retrieved_at_utc": utc_now(),
+    }, ensure_ascii=False, indent=2), encoding="utf-8")
     if delay_s > 0:
         time.sleep(delay_s)
-    return status, prop, error
+    return status, prop, error, method, identifier
 
 
 def finite_number(value: Any) -> float | int | None:
@@ -208,16 +258,19 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
         records = records[:max(0, args.limit)]
 
     result_records: list[dict[str, Any]] = []
-    resolved = unresolved = errors = 0
+    resolved = unresolved = errors = fallback_resolved = 0
     for i, row in enumerate(records, 1):
         cas = str(row.get("cas") or "").strip()
         name = str(row.get("name_en") or "").strip()
+        method = "NONE"; identifier = ""
         if not cas:
             status, prop, error = "UNRESOLVED", None, "missing CAS in source identity record"
         else:
-            status, prop, error = resolve_pubchem(cas, args.cache_dir, args.refresh, args.retries,
-                                                  args.backoff, args.delay)
-        if status == "RESOLVED": resolved += 1
+            status, prop, error, method, identifier = resolve_pubchem(
+                cas, args.cache_dir, args.refresh, args.retries, args.backoff, args.delay)
+        if status == "RESOLVED":
+            resolved += 1
+            if method == "CURATED_NAME_FALLBACK": fallback_resolved += 1
         elif status == "UNRESOLVED": unresolved += 1
         else: errors += 1
         result_records.append({
@@ -226,9 +279,12 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
             "identity_source_url": row.get("source_url"),
             "status": status,
             "error": error,
+            "resolution_method": method,
+            "resolution_identifier": identifier or None,
             "pubchem": normalize_property(prop),
         })
-        print(f"[{i}/{len(records)}] {cas or 'NO-CAS'} {name}: {status}")
+        suffix = f" via {method}:{identifier}" if status == "RESOLVED" and identifier else ""
+        print(f"[{i}/{len(records)}] {cas or 'NO-CAS'} {name}: {status}{suffix}")
 
     root = {
         "schema": "chemcore-molecular-seed-v1",
@@ -237,6 +293,7 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
         "resolved_count": resolved,
         "unresolved_count": unresolved,
         "error_count": errors,
+        "curated_name_fallback_resolved_count": fallback_resolved,
         "interpretation": "Molecular/structural knowledge only; these records do not imply MQ detectability, calibration, or quantitative validity.",
         "identity_provenance": source.get("provenance"),
         "descriptor_provenance": {
@@ -245,6 +302,8 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
             "source_url": PUBCHEM_SOURCE,
             "interface": "PubChem PUG REST property endpoint",
             "properties_requested": PROPERTIES,
+            "resolution_order": "source CAS first; explicit curated-name fallback only for reviewed PURE_COMPOUND records",
+            "curated_name_fallbacks": CURATED_NAME_FALLBACKS,
             "usage_policy_note": "PUG REST clients should remain at or below five requests per second; bulk data should use an optimized workflow.",
         },
         "records": result_records,
@@ -257,6 +316,7 @@ def build(args: argparse.Namespace) -> tuple[dict[str, Any], dict[str, Any]]:
         "resolved_count": resolved,
         "unresolved_count": unresolved,
         "error_count": errors,
+        "curated_name_fallback_resolved_count": fallback_resolved,
         "sha256": sha256_bytes(payload),
         "source_identity_sha256": sha256_bytes(args.input.read_bytes()),
         "descriptor_source": PUBCHEM_SOURCE,
@@ -286,7 +346,7 @@ def main() -> int:
     payload = (json.dumps(root, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8")
     atomic_write(args.output, payload)
     atomic_write(args.manifest, (json.dumps(manifest, ensure_ascii=False, sort_keys=True, indent=2) + "\n").encode("utf-8"))
-    print(f"Wrote {args.output}: {manifest['record_count']} records; resolved={manifest['resolved_count']}; unresolved={manifest['unresolved_count']}; errors={manifest['error_count']}")
+    print(f"Wrote {args.output}: {manifest['record_count']} records; resolved={manifest['resolved_count']}; unresolved={manifest['unresolved_count']}; errors={manifest['error_count']}; curated-name-fallback-resolved={manifest['curated_name_fallback_resolved_count']}")
     print(f"SHA-256 {manifest['sha256']}")
     return 0 if manifest["error_count"] == 0 else 2
 
