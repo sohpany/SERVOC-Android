@@ -53,4 +53,18 @@ public class RobotProtocolV4DiagnosticsTest {
         JSONObject internal=RobotProtocolV4.normalize(new JSONObject(),data,0,0).getJSONObject("device").getJSONObject("internal_temp");
         assertFalse(internal.getBoolean("installed"));assertTrue(internal.isNull("gpio"));
     }
+
+    @Test public void hr069FieldIrHighRawMeansGroundEvenWhenOldFirmwareSaysCliff()throws Exception{
+        JSONObject data=new JSONObject("{\"ir\":{\"warning\":true,\"cliff_warning\":true,\"ground_detected\":false,\"raw_level\":1,\"level\":1,\"ground_active_level\":0,\"gpio\":35},\"mq\":{},\"measurement\":{}}");
+        JSONObject ir=RobotProtocolV4.normalize(new JSONObject(),data,0,0).getJSONObject("ir");
+        assertTrue(ir.getBoolean("ground_detected"));assertFalse(ir.getBoolean("cliff_warning"));assertFalse(ir.getBoolean("warning"));
+        assertTrue(ir.getBoolean("polarity_corrected"));assertEquals(1,ir.getInt("ground_active_level"));assertEquals(0,ir.getInt("firmware_ground_active_level"));
+    }
+
+    @Test public void hr069FieldIrLowRawMeansNoGroundAndCliffWarning()throws Exception{
+        JSONObject data=new JSONObject("{\"ir\":{\"warning\":false,\"cliff_warning\":false,\"ground_detected\":true,\"raw_level\":0,\"level\":0,\"ground_active_level\":0,\"gpio\":35},\"mq\":{},\"measurement\":{}}");
+        JSONObject ir=RobotProtocolV4.normalize(new JSONObject(),data,0,0).getJSONObject("ir");
+        assertFalse(ir.getBoolean("ground_detected"));assertTrue(ir.getBoolean("cliff_warning"));assertTrue(ir.getBoolean("warning"));
+        assertTrue(ir.getBoolean("polarity_corrected"));
+    }
 }
