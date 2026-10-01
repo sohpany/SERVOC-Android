@@ -8,6 +8,7 @@ package com.servoc.app.control;
  * slider always remains a direct command for its own physical side.
  */
 public final class DriveDirectionOption {
+    public static final String PREF_FILE = "servoc";
     public static final String PREF_REVERSE_JOYSTICK = "drive_reverse_joystick";
     public static final String PREF_REVERSE_WHEEL = "drive_reverse_wheel";
     public static final String PREF_REVERSE_BUTTONS = "drive_reverse_buttons";
