@@ -3,8 +3,11 @@ package com.servoc.app.ui;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -23,6 +26,8 @@ public final class UiKit {
     public static final int HAZ_MUTED=0xFFB0BEC5;
     public static final int HAZ_WHITE=0xFFF5F7F8;
     public static final int HAZ_YELLOW=0xFFFFC107;
+    public static final int NON_DRIVING_BG=0xFF0E1116;
+    public static final double MIN_TEXT_CONTRAST=4.5;
 
     // Functional state colors are intentionally separate from brand colors.
     public static final int STATE_GOOD=0xFF81C784;
@@ -59,6 +64,46 @@ public final class UiKit {
     public static double contrastRatio(int a,int b){double la=luminance(a),lb=luminance(b),hi=Math.max(la,lb),lo=Math.min(la,lb);return (hi+0.05)/(lo+0.05);}
     public static int foregroundFor(int background){double black=contrastRatio(background,Color.BLACK),white=contrastRatio(background,Color.WHITE);return black>=white?Color.BLACK:Color.WHITE;}
     public static void contrast(TextView t,int background){t.setBackgroundColor(background);t.setTextColor(foregroundFor(background));}
+
+    /**
+     * Runtime contrast guard for every non-driving workspace. It is intentionally not called for
+     * ControlTab because the driving/video overlay has its own transparency and visibility rules.
+     * Plain text inherits the nearest real background; explicit card/button colors are preserved.
+     * Any text below 4.5:1 contrast is replaced with black or white, whichever is more readable.
+     */
+    public static void applyNonDrivingContrast(View root){
+        if(root==null)return;
+        if(root.getBackground()==null)root.setBackgroundColor(NON_DRIVING_BG);
+        auditContrast(root,NON_DRIVING_BG);
+    }
+
+    private static void auditContrast(View v,int inheritedBackground){
+        if(v==null)return;
+        int background=backgroundColor(v,inheritedBackground);
+        if(v instanceof TextView){
+            TextView t=(TextView)v;
+            int current=t.getCurrentTextColor();
+            if(contrastRatio(current,background)<MIN_TEXT_CONTRAST)t.setTextColor(foregroundFor(background));
+            if(t instanceof EditText){
+                EditText e=(EditText)t;
+                int hint=e.getCurrentHintTextColor();
+                if(contrastRatio(hint,background)<MIN_TEXT_CONTRAST)e.setHintTextColor(foregroundFor(background));
+            }
+        }
+        if(v instanceof ViewGroup){
+            ViewGroup g=(ViewGroup)v;
+            for(int i=0;i<g.getChildCount();i++)auditContrast(g.getChildAt(i),background);
+        }
+    }
+
+    private static int backgroundColor(View v,int fallback){
+        Drawable d=v.getBackground();
+        if(d instanceof ColorDrawable){
+            int c=((ColorDrawable)d).getColor();
+            if(Color.alpha(c)>=230)return c;
+        }
+        return fallback;
+    }
 
     public static void riskColor(TextView t,int risk){
         switch(risk){
