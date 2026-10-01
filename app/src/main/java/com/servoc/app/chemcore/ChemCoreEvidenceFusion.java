@@ -62,6 +62,14 @@ public final class ChemCoreEvidenceFusion {
             if(isPositiveSupport(e)){usable.add(e);if(isFullStrengthSupport(e))full.add(e);}
         }
 
+        // Preserve the immediate evidence keys as a second de-duplication layer. This prevents a
+        // degraded copy of a strong observation from reappearing merely because its lineage class
+        // is labelled CORROBORATIVE_COPY.
+        Map<String,Boolean> fullImmediateGroups=new LinkedHashMap<>();
+        for(ChemCoreEvidenceObservation e:full){
+            if(e.independenceGroup!=null&&!e.independenceGroup.trim().isEmpty())fullImmediateGroups.put(e.independenceGroup,Boolean.TRUE);
+        }
+
         // Stage 28: full-strength evidence is de-duplicated by scientific lineage, not merely by
         // immediate independenceGroup. Distinct direct sources remain distinct lineages.
         Map<String,ChemCoreEvidenceObservation> lineageRepresentative=new LinkedHashMap<>();
@@ -106,12 +114,14 @@ public final class ChemCoreEvidenceFusion {
             }
         }
 
-        // Weak/degraded evidence contributes only when its lineage is not already represented by
-        // full-strength evidence. Derived M1/M3 evidence sharing the reference library is routed
-        // into the correlated bucket whenever a direct reference exists.
+        // Weak/degraded evidence contributes only when neither its immediate evidence group nor
+        // its scientific lineage is already represented by full-strength evidence. Derived M1/M3
+        // evidence sharing the reference library is routed into the correlated bucket whenever a
+        // direct reference exists.
         Map<String,ChemCoreEvidenceObservation> weakRepresentative=new LinkedHashMap<>();
         for(ChemCoreEvidenceObservation e:usable){
             if(isFullStrengthSupport(e))continue;
+            if(e.independenceGroup!=null&&fullImmediateGroups.containsKey(e.independenceGroup))continue;
             String key=ChemCoreEvidenceLineagePolicy.confidenceLineageKey(e);
             if(lineageRepresentative.containsKey(key))continue;
             if(hasDirectReference&&ChemCoreEvidenceLineagePolicy.correlatedDerivative(e)){
