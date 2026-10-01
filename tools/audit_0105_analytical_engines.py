@@ -50,10 +50,17 @@ def main():
     req(power,'ppm<minPpm||ppm>maxPpm','power-law no extrapolation')
     req(piece,'no extrapolation outside calibrated/source range','piecewise no extrapolation')
 
-    # Solver emits typed observations only after final fit and does not replace posterior semantics.
+    # Solver emits typed observations only after final fit. Cross-candidate ranking uses a
+    # contributor-normalized weighted residual loss, while the compatibility `posterior` field is
+    # explicitly retained only as a relative softmax model-ranking weight.
     for n in ['evidenceObservations','uniqueEvidenceGroups','evidenceSensorBreadth','evidenceAt(observedRatios,c,fittedPpm','ChemCoreEvidenceObservation.fromResponseModel']:
         req(solver,n,'solver evidence emission')
-    req(solver,'normalizePosteriors(out)','posterior ranking retained')
+    req(solver,'RANKING_SEMANTICS="relative_softmax_model_weight_not_calibrated_probability"','ranking semantics are explicit')
+    req(solver,'private static double fitLoss(Fit f)','normalized fit-loss helper')
+    req(solver,'f.chi2/Math.max(1e-12,f.weightSum)','fit loss normalized by evidence weight')
+    req(solver,'double logScore=c.priorLogWeight-0.5*normalizedLoss-domainPenalty;','candidate score uses normalized fit loss')
+    req(solver,'normalizeRankingWeights(out)','relative ranking normalization retained')
+    forbid(solver,'c.priorLogWeight-0.5*best.chi2-domainPenalty','raw contributor-count-biased chi-square ranking is forbidden')
     forbid(solver,'ChemCoreConfidenceMatrix','P5 must not perform P6 confidence fusion')
 
     # Fingerprint evidence is identity-only and future HR069 experimental fingerprints need no new engine.
