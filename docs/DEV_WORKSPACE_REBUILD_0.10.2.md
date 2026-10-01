@@ -10,9 +10,9 @@ This document is the execution log for the developer-workspace rebuild requested
 - Do not build the final APK until all affected stages have been re-qualified.
 - GitHub is the canonical scientific-library platform. Render is not part of the ChemCore/library update path.
 - Canonical private scientific repository: `HazRob/build-harness`.
-- Operator library downloads must remain read-only and must not require a developer credential. A public GitHub distribution surface is therefore required before the final build; the organization currently exposes only the private `build-harness` repository.
 - Developer uploads are allowed only from the developer workspace.
-- GitHub upload credentials are never embedded in the APK. Device persistence uses AES-GCM with an Android Keystore key.
+- The developer GitHub upload token is provisioned once on the developer device, then retained locally as AES-GCM ciphertext protected by an Android Keystore key. The token is not embedded as plaintext in the APK and is not exposed to the ordinary user workspace.
+- Read-only operator library distribution is a separate update/distribution concern; it is not a blocker for the developer experiment-upload path in P4.
 - R0 is physical robot/sensor-set calibration. It remains local and is excluded from central scientific publication.
 - External/transfer PPM evidence is PARTIAL and must not be presented as HR069 M4.
 - M4 is the gate for reportable quantitative PPM interpretation.
@@ -26,7 +26,7 @@ This document is the execution log for the developer-workspace rebuild requested
 | P1 | IN REVIEW | Consolidate and classify new modifications. |
 | P2 | SOURCE COMPLETE | App + HR069 + CAM + Direct/Remote protocol compatibility reviewed and reconciled; runtime/build qualification remains deferred to P12/P13. |
 | P3 | SOURCE COMPLETE | Site/field/measurement session lineage, UTC + monotonic timestamps, exact experiment/capture linkage, R0 locality and canonical reference publication were reviewed and hardened; runtime qualification remains deferred. |
-| P4 | BLOCKED EXTERNALLY | GitHub central library is implemented; public read-only GitHub distribution surface is still required. |
+| P4 | SOURCE COMPLETE | Developer-only one-time GitHub credential provisioning and canonical HazRob experiment/reference publication path are implemented; ordinary users do not receive the upload credential. |
 | P5 | REOPENED | Chemical-analysis engines against expanded library. |
 | P6 | REOPENED | Evidence fusion/confidence regression. |
 | P7 | TARGETED REVIEW | Live detection/alarm regression. |
@@ -48,15 +48,17 @@ Top-level developer tabs:
 
 The duplicate Robot sub-tab has been removed.
 
-### DEV-00 — Security and GitHub distribution
+### DEV-00 — Security and GitHub developer upload
 
 - [x] Android Keystore encrypted developer GitHub credential store.
-- [x] Upload action wired to stored credential with first-use provisioning.
-- [x] Routine session-token field removed from experiment workflow.
-- [x] Render application/ChemCore update endpoints disabled; update discovery fails closed.
+- [x] First-use / one-time developer token provisioning is persisted locally as ciphertext + IV; the AES key remains in Android Keystore.
+- [x] Upload action is wired to the stored developer credential.
+- [x] Routine session-token field is removed from the experiment workflow.
+- [x] Ordinary user mode does not receive or expose the developer GitHub upload credential.
+- [x] Render application/ChemCore update endpoints are disabled; update discovery fails closed.
 - [x] Approved-reference publication targets `HazRob/build-harness`.
 - [x] Published approved experiments strip device-local R0 values.
-- [ ] Public read-only GitHub distribution endpoint before final APK. **External blocker.**
+- [ ] A read-only operator distribution surface may still be added for future library-update delivery; this is separate from P4 and does not block developer experiment upload.
 - [ ] Review/remove the separate legacy build-time flammability recovery URL before P13. It is not an application/library update endpoint.
 
 ### DEV-01 — Experiments — SOURCE COMPLETE
@@ -85,7 +87,7 @@ Key commits: `71e0dcc3`, `3fe3295c`, `de878b5b`, `001df3b7`.
 
 Key commits: `cb90827a`, `5d1ec65f`, `60d0063d`.
 
-### DEV-03 — Central Library — SOURCE COMPLETE / P4 EXTERNAL DEPENDENCIES OPEN
+### DEV-03 — Central Library — SOURCE COMPLETE / distribution follow-ups separate
 
 - [x] Duplicate operator-update controls replaced by central-library dashboard.
 - [x] Dashboard sections: Library / Distribution / Platforms / Changelog.
@@ -94,8 +96,8 @@ Key commits: `cb90827a`, `5d1ec65f`, `60d0063d`.
 - [x] Platform-health/quota contract available without embedding service secrets.
 - [x] Concise scientific-library changelog contract available.
 - [x] GitHub-only / fail-closed status is visible.
-- [ ] Global update telemetry needs a central collection endpoint after public distribution is enabled.
-- [ ] Platform metrics need an Admin Metrics API or equivalent read-only backend.
+- [ ] Global operator update telemetry may use a separate read-only collection/distribution endpoint later.
+- [ ] Platform metrics need an Admin Metrics API or equivalent read-only backend if remote quota telemetry is retained.
 
 Key commits: `65babb2e`, `ff901153`, `ab725a9e`, `996f6b94`.
 
@@ -140,6 +142,18 @@ Key commits: `27780e3d`, `5a7542b1`, `4363cf81`, `49a084d4`, `71fd1773`.
 
 Key commits: `8d486781`, `35d0eaa8`, `06d08c25`, `502ab02c`, `335cce10`, `e38ce8ae`.
 
+### P4 — Developer GitHub credential and canonical upload — SOURCE COMPLETE
+
+- [x] The developer supplies/provisions the GitHub upload token once from the protected developer workflow.
+- [x] The token is not hard-coded in the APK; it is encrypted locally with AES-GCM and a device-bound Android Keystore AES-256 key.
+- [x] After provisioning, the app can reload the token internally for later developer uploads without repeatedly asking for it.
+- [x] The in-memory session holder is cleared independently of the encrypted store when required.
+- [x] Experiment/reference publication targets the HazRob organization canonical repository and is restricted to developer scientific publication flow.
+- [x] Canonical publication is append-only/fail-closed and retains the P3 lineage checks.
+- [x] R0/device-local normalization is not promoted as a centrally distributable scientific reference.
+
+Source anchors: `GitHubCredentialStore.java`, `GitHubSessionAuth.java`, `GitHubReferencePublisher.java`.
+
 ## Scientific invariants introduced by this rebuild
 
 - Central material status never depends on device-local R0.
@@ -152,4 +166,4 @@ Key commits: `8d486781`, `35d0eaa8`, `06d08c25`, `502ab02c`, `335cce10`, `e38ce8
 
 ## Validation policy
 
-No final Gradle build, APK release or P13 closure is allowed while P1–P12 contain unresolved functional or external items. Source-level changes may be committed and statically reviewed during the rebuild. The final build/test/CI pass starts only after the user confirms the modification bundles are complete.
+No final Gradle build, APK release or P13 closure is allowed while P1–P12 contain unresolved functional items. Source-level changes may be committed and statically reviewed during the rebuild. The final build/test/CI pass starts only after the user confirms the modification bundles are complete.
