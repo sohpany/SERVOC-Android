@@ -3,7 +3,11 @@ package com.servoc.app.calibration;
 import org.json.JSONObject;
 
 /**
- * Single application-side normalization authority for the accepted HazRob field R0 campaign.
+ * Single application-side normalization authority for the accepted HazRob device R0 state.
+ *
+ * The active value is resolved by ManualR0Calibration: a persisted positive device-specific
+ * override wins; otherwise the accepted field clean-air baseline is used. No synthetic/default R0
+ * is manufactured when neither source exists.
  *
  * Two deliberately separate paths are exposed:
  *  - ratio(): strict analytical/quantitative path. A channel must be marked valid.
@@ -16,10 +20,11 @@ import org.json.JSONObject;
  */
 public final class AcceptedR0Normalizer {
     public static final String SCHEMA="hazrob-r0-normalizer/2";
-    public static final String SOURCE="app_accepted_field_r0";
+    public static final String SOURCE="app_accepted_device_r0";
     private AcceptedR0Normalizer(){}
 
-    public static double acceptedR0(String sensorKey){return FieldR0Baseline.value(sensorKey);}
+    /** Active device-specific R0: manual override when present, accepted field baseline otherwise. */
+    public static double acceptedR0(String sensorKey){return ManualR0Calibration.get(sensorKey);}
 
     /** Strict path used by canonical features and reportable quantitative calculations. */
     public static double ratio(String sensorKey,JSONObject sensor){
@@ -68,15 +73,25 @@ public final class AcceptedR0Normalizer {
         double w=evidenceWeight(sensor);if(w>=0.85)return"FULL";if(w>=0.45)return"DEGRADED";if(w>0)return"WEAK";return"DIAGNOSTIC_ONLY";
     }
 
-    public static boolean usesAcceptedFieldR0(String sensorKey,JSONObject sensor){
+    /** True when a valid Rs value is normalized with any accepted device R0 source. */
+    public static boolean usesAcceptedDeviceR0(String sensorKey,JSONObject sensor){
         if(sensor==null||!sensor.optBoolean("valid",sensor.optBoolean("ok",false)))return false;
         double r0=acceptedR0(sensorKey),rs=sensor.optDouble("rs",Double.NaN);
         return Double.isFinite(r0)&&r0>0&&Double.isFinite(rs)&&rs>0;
     }
 
+    /** Backward-compatible field-baseline predicate; manual overrides intentionally return false. */
+    public static boolean usesAcceptedFieldR0(String sensorKey,JSONObject sensor){
+        return usesAcceptedDeviceR0(sensorKey,sensor)&&FieldR0Baseline.SOURCE.equals(ManualR0Calibration.getSource(sensorKey));
+    }
+
     public static String provenance(String sensorKey,JSONObject sensor){
-        if(usesAcceptedFieldR0(sensorKey,sensor))return SOURCE+":"+FieldR0Baseline.SESSION;
-        double v=availableRatio(sensorKey,sensor);return Double.isFinite(v)&&v>0?"telemetry_or_rs_ratio_corroborative":"no_chemical_ratio_available";
+        if(usesAcceptedDeviceR0(sensorKey,sensor)){
+            String source=ManualR0Calibration.getSource(sensorKey),session=ManualR0Calibration.getSession(sensorKey);
+            if(source==null||source.isEmpty())source="accepted_device_r0";
+            return session==null||session.isEmpty()?source:source+":"+session;
+        }
+        double v=availableRatio(sensorKey,sensor);return Double.isFinite(v)&&v>0?"telemetry_ratio_corroborative":"no_chemical_ratio_available";
     }
 
     private static double physicalRatio(String sensorKey,JSONObject sensor){
