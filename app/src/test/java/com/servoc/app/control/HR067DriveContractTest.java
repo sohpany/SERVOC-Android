@@ -12,11 +12,11 @@ public class HR067DriveContractTest {
         int lb=scaled(-100),rb=scaled(-100);assertEquals(-100,lb);assertEquals(-100,rb);
         assertTrue(scaled(100)*scaled(-100)<0);
     }
-    @Test public void currentJoystickCardinalsUseFiftyPercentPivot(){
+    @Test public void currentJoystickCardinalsUseSixtyPercentPivot(){
         DriveMixer.Command f=DriveMixer.mix(0,1),b=DriveMixer.mix(0,-1),r=DriveMixer.mix(1,0),l=DriveMixer.mix(-1,0);
         assertArrayEquals(new int[]{100,100},new int[]{f.left,f.right});
         assertArrayEquals(new int[]{-100,-100},new int[]{b.left,b.right});
-        assertArrayEquals(new int[]{50,-50},new int[]{r.left,r.right});
-        assertArrayEquals(new int[]{-50,50},new int[]{l.left,l.right});
+        assertArrayEquals(new int[]{60,-60},new int[]{r.left,r.right});
+        assertArrayEquals(new int[]{-60,60},new int[]{l.left,l.right});
     }
 }
