@@ -40,14 +40,14 @@ public final class UiKit {
     public static TextView small(Context c,String s){TextView t=text(c,s);t.setTextSize(12);t.setTextColor(MUTED_TEXT);return t;}
 
     /** Default secondary action: gray surface with white text. */
-    public static Button button(Context c,String s){Button b=new Button(c);b.setText(s);b.setAllCaps(false);b.setTextSize(13);b.setTextColor(HAZ_WHITE);b.setBackgroundColor(HAZ_GRAY_DARK);b.setMinHeight(dp(c,44));b.setPadding(dp(c,10),dp(c,7),dp(c,10),dp(c,7));b.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);return b;}
+    public static Button button(Context c,String s){Button b=new Button(c);b.setText(s);b.setAllCaps(false);b.setTextSize(13);b.setTextColor(HAZ_WHITE);b.setBackgroundColor(HAZ_GRAY_DARK);b.setMinHeight(dp(c,48));b.setMinWidth(dp(c,48));b.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));b.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);return b;}
     /** Primary/selected action: HazRob yellow with black text. */
     public static void primary(Button b){if(b==null)return;b.setBackgroundColor(HAZ_YELLOW);b.setTextColor(Color.BLACK);}
     public static void secondary(Button b){if(b==null)return;b.setBackgroundColor(HAZ_GRAY_DARK);b.setTextColor(HAZ_WHITE);}
     public static void selected(Button b,boolean on){if(on)primary(b);else secondary(b);}
     public static void danger(Button b){if(b==null)return;b.setBackgroundColor(STATE_CRITICAL);b.setTextColor(Color.WHITE);}
 
-    public static EditText input(Context c,String s){EditText e=new EditText(c);e.setText(s);e.setTextColor(HAZ_WHITE);e.setHintTextColor(0xFF90A4AE);e.setSingleLine(true);e.setBackgroundColor(HAZ_SURFACE_ALT);e.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));e.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);return e;}
+    public static EditText input(Context c,String s){EditText e=new EditText(c);e.setText(s);e.setTextColor(HAZ_WHITE);e.setHintTextColor(0xFF90A4AE);e.setSingleLine(true);e.setMinHeight(dp(c,48));e.setBackgroundColor(HAZ_SURFACE_ALT);e.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));e.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);return e;}
     public static LinearLayout card(Context c){LinearLayout l=vbox(c);l.setPadding(dp(c,8),dp(c,8),dp(c,8),dp(c,8));l.setBackgroundColor(HAZ_SURFACE);return l;}
     public static LinearLayout.LayoutParams full(Context c){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(c,3),0,dp(c,3));return p;}
     public static LinearLayout.LayoutParams weight(float w){return new LinearLayout.LayoutParams(0,-2,w);}
