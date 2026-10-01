@@ -100,7 +100,7 @@ def main():
     req(intelligence,"recorded_time_series_missing","series fail-closed chart gate")
     req(intelligence,"chemcore_result_missing","ChemCore fail-closed chart gate")
     req(intelligence,"screening_144_missing","144-screening evidence gate")
-    req(intelligence,"gas_safety_payload_missing","gas safety evidence gate")
+    req(intelligence,"gas_safety_gate_not_passed","gas safety evidence gate")
     req(intelligence,"recommendedCharts","smart chart recommendation list")
 
     # UI-07: theme-independent contrast rules.
