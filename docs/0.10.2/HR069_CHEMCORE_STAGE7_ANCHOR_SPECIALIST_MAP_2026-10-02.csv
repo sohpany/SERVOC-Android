@@ -1,0 +1,145 @@
+catalog_index,name_en,primary_anchor_sensors,secondary_target_sensors,anchor_state,stage_7_state,stage_7_note
+0,Phosgene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+1,Hydrogen Cyanide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+2,Arsine,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+3,Phosphine,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+4,Hydrogen Sulfide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+5,Diborane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+6,Stibine,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+7,Hydrogen Selenide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+8,Germane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+9,Silane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+10,Chlorine Dioxide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+11,Fluorine,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+12,Chlorine,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+13,Sulfur Dioxide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+14,Nitrogen Dioxide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+15,Ozone,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+16,Hydrogen Fluoride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+17,Hydrogen Chloride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+18,Hydrogen Bromide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+19,Bromine,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+20,Carbon Monoxide,MQ7,MQ9,PRIMARY_ANCHOR_PRESENT,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+21,Ammonia,MQ135,,PRIMARY_ANCHOR_PRESENT,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+22,Oxygen,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+23,Carbon Dioxide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+24,Nitric Oxide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+25,Ethylene Oxide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+26,Methyl Isocyanate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+27,Formaldehyde,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+28,Acrolein,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+29,Hydrazine,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+30,Propylene Oxide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+31,Epichlorohydrin,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+32,Acrylonitrile,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+33,Vinyl Chloride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+34,Benzene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+35,"1,3-Butadiene",,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+36,Carbon Disulfide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+37,Carbonyl Sulfide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+38,Methanethiol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+39,Ethanethiol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+40,Dimethyl Sulfide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+41,Dimethyl Disulfide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+42,Sulfur Tetrafluoride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+43,Boron Trifluoride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+44,Tungsten Hexafluoride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+45,Silicon Tetrafluoride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+46,Titanium Tetrachloride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+47,Sulfuryl Fluoride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+48,Methyl Bromide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+49,Nitrous Oxide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+50,Styrene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+51,Phenol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+52,Aniline,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+53,Pyridine,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+54,Acetaldehyde,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+55,Crotonaldehyde,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+56,Propionaldehyde,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+57,Butyraldehyde,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+58,Furfural,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+59,Acetic Acid,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+60,Formic Acid,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+61,Hydrogen Peroxide,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+62,Chloromethane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+63,Dichloromethane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+64,Chloroform,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+65,Carbon Tetrachloride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+66,"1,2-Dichloroethane",,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+67,Trichloroethylene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+68,Tetrachloroethylene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+69,"1,2-Dichloropropane",,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+70,Chloroethane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+71,Vinyl Acetate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+72,Ethyl Acrylate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+73,Methyl Acrylate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+74,Methyl Methacrylate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+75,Hydrogen,MQ8,MQ135,PRIMARY_ANCHOR_PRESENT,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+76,Methane,MQ4,MQ2|MQ5|MQ9,PRIMARY_ANCHOR_PRESENT,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+77,Ethane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+78,Propane,,MQ2|MQ5,SECONDARY_TARGET_ONLY,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+79,n-Butane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+80,Isobutane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+81,n-Pentane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+82,Isopentane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+83,Neopentane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+84,n-Hexane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+85,n-Heptane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+86,n-Octane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+87,n-Nonane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+88,n-Decane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+89,Ethylene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+90,Propylene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+91,Acetylene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+92,Cyclopropane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+93,Cyclohexane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+94,Cyclopentane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+95,Toluene,,MQ135,SECONDARY_TARGET_ONLY,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+96,Ethylbenzene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+97,o-Xylene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+98,m-Xylene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+99,p-Xylene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+100,Cumene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+101,Mesitylene,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+102,Methanol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+103,Ethanol,MQ3,,PRIMARY_ANCHOR_PRESENT,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+104,1-Propanol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+105,Isopropanol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+106,1-Butanol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+107,2-Butanol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+108,Isobutanol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+109,tert-Butanol,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+110,Acetone,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+111,2-Butanone / MEK,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+112,MIBK,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+113,Cyclohexanone,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+114,Methyl Acetate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+115,Ethyl Acetate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+116,Propyl Acetate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+117,Isopropyl Acetate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+118,n-Butyl Acetate,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+119,Diethyl Ether,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+120,MTBE,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+121,Tetrahydrofuran,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+122,"1,4-Dioxane",,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+123,Difluoromethane / R32,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+124,Chlorodifluoromethane / R22,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+125,R134a,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+126,R125,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+127,R143a,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+128,R152a,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+129,Radon,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+130,R1234yf,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+131,R1234ze(E),,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+132,Carbon Tetrafluoride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+133,Hexafluoroethane,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+134,Sulfur Hexafluoride,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+135,LPG,,MQ2|MQ5,SECONDARY_TARGET_ONLY,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+136,CNG,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+137,Natural Gas,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+138,Town Gas,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+139,Smoke,,MQ2|MQ135,SECONDARY_TARGET_ONLY,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+140,TVOC,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+141,NOx,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+142,LEL,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
+143,R410A,,,NO_TARGET_ANCHOR,REVIEWED_ACCEPTED,Anchor map is evidence-role metadata only; identity still requires quality/domain/open-set and route-specific gates.
