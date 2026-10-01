@@ -31,6 +31,7 @@ public final class AnalyticalLabTab {
     public AnalyticalLabTab(Context c,HazRobHost host){
         context=c;this.host=host;this.session=new ChemCoreAnalysisTab(c,host);this.decisions=new ChemCoreDecisionRepository(host.database());
         root=UiKit.vbox(c);root.setBackgroundColor(0xFF0E1116);root.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,8));
+        root.addView(UiKit.title(c,"المختبر الكيميائي التحليلي الموسع • HazRob "+ReleaseAudit.VERSION),UiKit.full(c));
         bar=UiKit.hbox(c);sessionButton=UiKit.button(c,"الجلسة المضبوطة");dashboardButton=UiKit.button(c,"النتائج والتشخيص");bar.addView(sessionButton,UiKit.weight(1));bar.addView(dashboardButton,UiKit.weight(1));root.addView(bar,UiKit.full(c));
         page=new FrameLayout(c);root.addView(page,new LinearLayout.LayoutParams(-1,0,1f));sessionView=session.view();
 
