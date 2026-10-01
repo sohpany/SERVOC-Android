@@ -21,33 +21,33 @@ public final class HR069OperatorDriveTest {
         assertEquals(DriveMode.TANK,DriveMode.BUTTONS.next());
     }
 
-    @Test public void joystickVehiclePathAndPivotContract(){
-        mix(0,1,100,100);mix(0,-1,-100,-100);mix(1,0,50,-50);mix(-1,0,-50,50);
-        mix(0.5,0.8,80,56);mix(-0.5,0.8,56,80);mix(1.0,0.8,80,32);mix(-1.0,0.8,32,80);
+    @Test public void joystickUsesRequestedWheelSteeringAndPivotContract(){
+        mix(0,1,100,100);mix(0,-1,-100,-100);mix(1,0,65,-65);mix(-1,0,-65,65);
+        mix(0.5,0.8,56,80);mix(-0.5,0.8,80,56);mix(1.0,0.8,32,80);mix(-1.0,0.8,80,32);
+        mix(0.5,-0.8,-80,-56);mix(-0.5,-0.8,-56,-80);
     }
 
-    @Test public void wheelUsesRequestedForwardAndReverseConvention(){
+    @Test public void wheelUsesExactlySameForwardReverseConvention(){
         wheel(0,1,100,100);
         wheel(0.5,0.8,56,80);
         wheel(1.0,0.8,32,80);
         wheel(-0.5,0.8,80,56);
         wheel(-1.0,0.8,80,32);
 
-        // Reverse remains intuitive relative to the path direction:
-        // finger right slows RIGHT, finger left slows LEFT.
+        // Reverse remains intuitive relative to the requested path direction.
         wheel(0.5,-0.8,-80,-56);
         wheel(1.0,-0.8,-80,-32);
         wheel(-0.5,-0.8,-56,-80);
         wheel(-1.0,-0.8,-32,-80);
 
-        wheel(1,0,50,-50);
-        wheel(-1,0,-50,50);
+        wheel(1,0,65,-65);
+        wheel(-1,0,-65,65);
     }
 
     @Test public void eightButtonContractMatchesCurrentDriveMatrix(){
         discrete(DiscreteDrive.Intent.FORWARD,100,100);discrete(DiscreteDrive.Intent.FORWARD_RIGHT,100,40);discrete(DiscreteDrive.Intent.FORWARD_LEFT,40,100);
         discrete(DiscreteDrive.Intent.REVERSE,-100,-100);discrete(DiscreteDrive.Intent.REVERSE_RIGHT,-100,-40);discrete(DiscreteDrive.Intent.REVERSE_LEFT,-40,-100);
-        discrete(DiscreteDrive.Intent.PIVOT_RIGHT,50,-50);discrete(DiscreteDrive.Intent.PIVOT_LEFT,-50,50);discrete(DiscreteDrive.Intent.STOP,0,0);
+        discrete(DiscreteDrive.Intent.PIVOT_RIGHT,65,-65);discrete(DiscreteDrive.Intent.PIVOT_LEFT,-65,65);discrete(DiscreteDrive.Intent.STOP,0,0);
     }
 
     @Test public void dualTankControlsPreserveDirectIndependentSpeedAuthority(){
