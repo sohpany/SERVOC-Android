@@ -28,5 +28,9 @@ public class QsprValidationProtocolTest {
         assertTrue(r.compoundsEvaluated>=3);
         assertTrue(r.predictions>0);
         assertTrue(Double.isFinite(r.rmseLog10));
+        assertTrue(Double.isFinite(r.meanCompoundRmseLog10));
+        assertTrue(Double.isFinite(r.worstCompoundRmseLog10));
+        assertTrue(Double.isFinite(r.worstCompoundAbsBiasLog10));
+        assertTrue(r.worstCompoundRmseLog10>=r.meanCompoundRmseLog10-1e-12);
     }
 }
