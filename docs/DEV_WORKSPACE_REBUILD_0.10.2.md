@@ -25,7 +25,7 @@ This document is the execution log for the developer-workspace rebuild requested
 | P0 | CLOSED | Baseline/release guard remains fixed. |
 | P1 | IN REVIEW | Consolidate and classify new modifications. |
 | P2 | SOURCE COMPLETE | App + HR069 + CAM + Direct/Remote protocol compatibility reviewed and reconciled; runtime/build qualification remains deferred to P12/P13. |
-| P3 | TARGETED REVIEW | Sessions, timestamps and scientific lineage. |
+| P3 | SOURCE COMPLETE | Site/field/measurement session lineage, UTC + monotonic timestamps, exact experiment/capture linkage, R0 locality and canonical reference publication were reviewed and hardened; runtime qualification remains deferred. |
 | P4 | BLOCKED EXTERNALLY | GitHub central library is implemented; public read-only GitHub distribution surface is still required. |
 | P5 | REOPENED | Chemical-analysis engines against expanded library. |
 | P6 | REOPENED | Evidence fusion/confidence regression. |
@@ -124,6 +124,22 @@ Key commits: `6414ae62`, `ca20b1b9`.
 
 Key commits: `27780e3d`, `5a7542b1`, `4363cf81`, `49a084d4`, `71fd1773`.
 
+### P3 — Sessions, timestamps and scientific lineage — SOURCE COMPLETE
+
+- [x] Modern 0.10.2 / HR069 experiment analysis resolves only the explicit `session_id`; timestamp-nearest fallback is legacy inspection only and is excluded from new reference generation, M4 and reports.
+- [x] Measurement sessions persist UTC start/end timestamps and Android monotonic timing metadata; telemetry samples persist `session_t_ms`, monotonic receive time, UTC receive time and a sequence counter.
+- [x] Developer reference evidence requires an exact match across experiment, READY-average capture, chemical UID, session ID and known concentration where applicable.
+- [x] Reference lineage additionally requires a completed DEVELOPER measurement session with persisted telemetry samples.
+- [x] HR069 capture provenance requires the current capture schema and hardware profile; R0 is explicitly device-local/non-distributable.
+- [x] Database approval triggers fail closed when reference lineage is invalid.
+- [x] Derived fingerprint/calibration artifacts revalidate every source experiment through the exact-lineage guard.
+- [x] Canonical GitHub publication performs a second publication-boundary validation and remains append-only.
+- [x] User field containers accept only `USER` + `field_*` measurement sessions; developer/scientific sessions cannot be attached accidentally.
+- [x] Field-session closure refuses to close around a still-running linked measurement session.
+- [x] Site-level intelligence counts recurrence across independent sessions but never averages PPM across sessions.
+
+Key commits: `8d486781`, `35d0eaa8`, `06d08c25`, `502ab02c`, `335cce10`, `e38ce8ae`.
+
 ## Scientific invariants introduced by this rebuild
 
 - Central material status never depends on device-local R0.
@@ -131,6 +147,8 @@ Key commits: `27780e3d`, `5a7542b1`, `4363cf81`, `49a084d4`, `71fd1773`.
 - Reportable quantitative status is based on explicit HR069 M4 provenance, not on a generic active-curve flag.
 - Active HR069 M4 curves are generated only from approved, session-linked, READY-average HR069 captures with known concentration.
 - A channel whose physical heater protocol is not qualified cannot become an operational M4 contributor.
+- Modern HR069 scientific lineage is explicit-ID based; time proximity is never accepted as a substitute for a measurement-session identity.
+- Independent field measurement sessions remain separate quantitative observations; site summaries may aggregate counts/recurrence but not PPM values.
 
 ## Validation policy
 
