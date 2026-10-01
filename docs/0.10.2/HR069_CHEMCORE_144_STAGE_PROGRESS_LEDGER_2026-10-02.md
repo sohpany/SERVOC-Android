@@ -38,10 +38,10 @@ Agreed general session warm-up: `300 s`. MQ7/MQ9 special heater-cycle validity r
 | 21 | Fingerprint covariance readiness | COMPLETE | 144/144 | 0 covariance-ready | 13 model priors no empirical covariance + remaining data gaps | — | — | `2f015319538fa09524eda3eb1c990816366757eb` |
 | 22 | Temporal-feature readiness | COMPLETE | 144/144 | feature extractor implemented globally | 0 validated chemical temporal identity models | hardware/object-specific N/A retained | — | `e650d124f4f49129d7c8b80b474b725bb4ea9b1e` |
 | 23 | Family-first hierarchical classifier design | COMPLETE | 144/144 | all 144 have route/terminal state | empirical thresholds/weights pending later stages | 0 silent forced winner | — | `ec3bf6fb6e999d1bc7948be824fb81b01a10aed7` |
-| 24 | PubChem molecular-record coverage | IN PROGRESS | 0/144 | 0 | 0 | 0 | — | molecular seed audit next |
-| 25 | QSPR applicability-domain audit | NOT STARTED | 0/144 | 0 | 0 | 0 | — | — |
-| 26 | QSPR leakage / leave-compound-out audit | NOT STARTED | 0/144 | 0 | 0 | 0 | — | — |
-| 27 | Evidence-lineage and correlation map | NOT STARTED | 0/144 | 0 | 0 | 0 | — | — |
+| 24 | PubChem molecular-record coverage | IN PROGRESS | 144/144 audit contract implemented | exact per-entry runtime audit available | initialized-device counts pending seed/import execution | curated non-molecular objects retained | — | `8648097a48a265c811ba8a0828e1a07414322156` |
+| 25 | QSPR applicability-domain audit | COMPLETE | 144/144 routed by eligibility | sensor-specific descriptor AD + fail-closed runtime gate | environmental diversity beyond 25 C / 50% RH pending experiments | non-QSPR objects N/A | sensor-specific | `HR069_CHEMCORE_STAGE25_QSPR_APPLICABILITY_DOMAIN_AUDIT_2026-10-02.md` |
+| 26 | QSPR leakage / leave-compound-out audit | COMPLETE | 144/144 policy-routed | whole-compound LCO + pooled/worst-fold gates | independent HR069 unseen-compound validation pending | non-QSPR objects N/A | sensor-specific | `HR069_CHEMCORE_STAGE26_QSPR_LEAKAGE_LCO_AUDIT_2026-10-02.md` |
+| 27 | Evidence-lineage and correlation map | IN PROGRESS | 0/144 | 0 | source/model lineage mapping next | 0 | — | — |
 | 28 | Unified evidence-weighting policy | NOT STARTED | 0/144 | 0 | 0 | 0 | — | — |
 | 29 | Specialist-conflict engine | NOT STARTED | 0/144 | 0 | 0 | 0 | — | — |
 | 30 | Progressive result-state engine | NOT STARTED | 0/144 | 0 | 0 | 0 | — | — |
@@ -70,6 +70,11 @@ Agreed general session warm-up: `300 s`. MQ7/MQ9 special heater-cycle validity r
 - Stage 21 requires >=20 independent HR069 sessions for covariance, preferably >=30; deterministic grids are not samples.
 - Stage 22 canonical temporal schema is `chemcore-features/1`, 17 features/sensor = 136 for eight MQ channels. Legacy 8-feature extraction is compatibility-only.
 - Stage 23 prohibits a mandatory flat 144-way winner and requires family/unknown/OOD/mixture routes before final identity and M4 quantitation.
+- Stage 24 now has an executable exact 144-entry audit (`ChemCore144MolecularCoverageAudit`) that distinguishes missing CAS/structure/core descriptors, curated non-molecular records and QSPR-ready molecular records. Exact deployed counts remain pending initialized database execution and are not inferred from the 615/652 whole-seed resolution count.
+- Stage 25 adds a per-sensor molecular descriptor applicability domain (CORE-descriptor min/max plus RMS standardized distance <=3.0) and rejects QSPR runtime extrapolation outside the training envelope. Current source-backed QSPR environmental training is at 25 C / 50% RH only.
+- Stage 26 uses whole-compound LCO. Synthetic concentration points are model-transfer rows, not independent sessions. Runtime enablement requires all held-out compounds to evaluate, pooled-error gates, worst-compound-error gates and inside-envelope coverage.
+- RC2 workflow run `36939753102` passed runtime contract, Android unit tests, debug APK build and integrity verification at head `2cda7bd744ad666ec33df6585e85fd0aa10a0329`; artifact `HazRob-0.10.2-HR069-RC2-test` SHA-256 `036a5d72061f6525fad78705d9e436f325d5538325db2b06cd819b66ad259da7`.
+- Internal-validation workflow currently stops before Gradle on an unrelated legacy Remote diagnostics source-contract literal; no network-layer change is made by this analytical workstream.
 
 ## Current execution point
-Stage 24 — PubChem molecular-record coverage: enumerate the 144 catalogue entries against the embedded PubChem molecular seed, distinguish pure molecular records from mixtures/aggregates/non-molecular objects, and record descriptor completeness for QSPR eligibility.
+Stage 27 — Evidence-lineage and correlation map: map direct curves, model-derived fingerprints, QSPR transfer models, specialist channels, temporal/empirical evidence and calibration evidence into explicit lineage/independence groups so correlated derivatives cannot be counted as independent confirmations.
