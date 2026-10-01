@@ -36,4 +36,31 @@ public class InverseMolecularSolverTest {
         InverseMolecularSolver.Result r=InverseMolecularSolver.solveOne(Map.of("mq2",.5),c,25,50,SamplingProfile.hazRobPrototypeV1());
         assertFalse(r.solvable);
     }
+
+    @Test public void equivalentPerChannelFitIsNotPenalizedByContributorCount(){
+        double ppm=40.0;
+        double predicted=2.0*Math.pow(ppm,-.40);
+        // PowerLawResponseModel sigmaLog10 is 0.05 in helper p(). These observations create
+        // symmetric +/-1 sigma residuals that cannot be removed by a common concentration shift.
+        double up=predicted*Math.pow(10.0,0.05);
+        double down=predicted/Math.pow(10.0,0.05);
+        Map<String,Double> observed=Map.of("mq2",up,"mq3",down,"mq4",up,"mq5",down);
+        ChemCoreDecision.EvidenceTier m2=ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED;
+        InverseMolecularSolver.Candidate two=new InverseMolecularSolver.Candidate(1,"two-channel",List.of(
+                p("mq2",2.0,-.40,m2),p("mq3",2.0,-.40,m2)),0,2);
+        InverseMolecularSolver.Candidate four=new InverseMolecularSolver.Candidate(2,"four-channel",List.of(
+                p("mq2",2.0,-.40,m2),p("mq3",2.0,-.40,m2),p("mq4",2.0,-.40,m2),p("mq5",2.0,-.40,m2)),0,2);
+
+        InverseMolecularSolver.Result a=InverseMolecularSolver.solveOne(observed,two,25,50,SamplingProfile.hazRobPrototypeV1());
+        InverseMolecularSolver.Result b=InverseMolecularSolver.solveOne(observed,four,25,50,SamplingProfile.hazRobPrototypeV1());
+        assertTrue(a.solvable);assertTrue(b.solvable);
+        assertEquals(a.standardizedResidualRms,b.standardizedResidualRms,1e-6);
+        assertEquals(a.logScore,b.logScore,1e-6);
+
+        List<InverseMolecularSolver.Result> ranked=InverseMolecularSolver.solve(observed,List.of(two,four),25,50,SamplingProfile.hazRobPrototypeV1());
+        assertEquals(2,ranked.size());
+        assertEquals(1.0,ranked.get(0).posterior+ranked.get(1).posterior,1e-12);
+        assertEquals(ranked.get(0).posterior,ranked.get(1).posterior,1e-6);
+        assertEquals("relative_softmax_model_weight_not_calibrated_probability",InverseMolecularSolver.RANKING_SEMANTICS);
+    }
 }
