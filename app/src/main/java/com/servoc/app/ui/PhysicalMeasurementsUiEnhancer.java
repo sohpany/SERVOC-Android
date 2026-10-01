@@ -10,6 +10,8 @@ import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 
+import com.servoc.app.calibration.MicrophoneDbCalibration;
+
 import org.json.JSONObject;
 
 import java.util.Locale;
@@ -20,8 +22,11 @@ import java.util.Locale;
  * The original four-column table allowed Android to shrink every column, which made Arabic labels
  * and engineering units wrap character-by-character on narrow phones. This enhancer applies fixed
  * proportional column weights, keeps the unit column on one line, emphasizes the measured value,
- * and only presents dB SPL when the telemetry itself provides a finite value. A trimmer end-stop is
- * not treated as a known 25x gain and is never converted into a +25 dB reading offset.
+ * and applies the operator's persisted one-point MAX4466 dB compensation when configured.
+ *
+ * HR069 deliberately does not assume a fixed MAX4466 analogue gain. The raw acoustic level shown
+ * before compensation is ADC-relative dBFS derived from measured RMS voltage. Once the operator
+ * stores a reference-meter offset in Settings, the displayed dB value is raw dBFS + offset.
  */
 public final class PhysicalMeasurementsUiEnhancer implements Runnable {
     private static final String TAG="hazrob_physical_measurements_enhancer";
@@ -145,28 +150,27 @@ public final class PhysicalMeasurementsUiEnhancer implements Runnable {
         TextView value=(TextView)row.getChildAt(1),state=(TextView)row.getChildAt(3);
         JSONObject d=host.latestDiagnostics();
         JSONObject sound=d==null?null:d.optJSONObject("sound");
-        double db=sound==null?Double.NaN:sound.optDouble("db_spl",Double.NaN);
-        double gain=sound==null?Double.NaN:sound.optDouble("gain_reference",Double.NaN);
-        boolean calibrated=sound!=null&&sound.optBoolean("calibrated_db_spl",false);
-        if(!Double.isFinite(db)&&d!=null){
-            JSONObject raw=d.optJSONObject("_data_api");
-            JSONObject rs=raw==null?null:raw.optJSONObject("sound");
-            if(rs!=null){
-                db=rs.optDouble("db_spl",Double.NaN);
-                gain=rs.optDouble("gain_reference",Double.NaN);
-                calibrated=rs.optBoolean("calibrated_db_spl",false);
-            }
-        }
-        if(Double.isFinite(db)){
-            value.setText(String.format(Locale.US,"%.1f",db));
-            value.setTextColor(Color.WHITE);
+        if(sound==null&&d!=null){JSONObject raw=d.optJSONObject("_data_api");sound=raw==null?null:raw.optJSONObject("sound");}
+        double rawDb=MicrophoneDbCalibration.rawDbFs(sound);
+        boolean configured=MicrophoneDbCalibration.configured(host.preferences());
+        double offset=MicrophoneDbCalibration.offsetDb(host.preferences());
+        if(Double.isFinite(rawDb)){
             value.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-            String suffix=Double.isFinite(gain)?" • Gain "+String.format(Locale.US,"%.0f×",gain):"";
-            state.setText("MAX4466 • "+(calibrated?"dB SPL معاير":"dB SPL تقديري")+suffix);
-            state.setTextColor(calibrated?0xFF81C784:0xFFFFB74D);
+            if(configured){
+                double corrected=MicrophoneDbCalibration.compensate(rawDb,offset);
+                value.setText(String.format(Locale.US,"%.1f",corrected));
+                value.setTextColor(Color.WHITE);
+                state.setText("MAX4466 • معوض بمرجع خارجي • raw "+String.format(Locale.US,"%.1f dBFS",rawDb)+" • offset "+String.format(Locale.US,"%+.1f dB",offset));
+                state.setTextColor(0xFF81C784);
+            }else{
+                value.setText(String.format(Locale.US,"%.1f",rawDb));
+                value.setTextColor(0xFFFFB74D);
+                state.setText("MAX4466 • dBFS خام • أدخل التعويض من الإعدادات");
+                state.setTextColor(0xFFFFB74D);
+            }
         }else{
             value.setText("—");
-            state.setText("MAX4466 • RMS/P-P متاح • dB SPL غير معاير");
+            state.setText("MAX4466 • لا توجد قراءة RMS صالحة");
             state.setTextColor(0xFFFFB74D);
         }
     }
