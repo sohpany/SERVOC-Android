@@ -16,8 +16,8 @@ Every stage carries a catalogue coverage accounting over all 144 entries. A stag
 |---:|---|---|---:|---:|---:|---:|---:|---:|---|
 | 1 | Freeze and census 144-entry catalogue | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | — | inventory commit `da68e56e3c83088ec4042735bdce2a74a27707a9` |
 | 2 | Structural chemical taxonomy | COMPLETE | 144/144 | 135 | 0 | 0 | 9 | — | taxonomy commit `35b1e9fc9cda647d96e58dc5e6f734fcf2568080` |
-| 3 | Sensor-response family taxonomy | IN PROGRESS | 0/144 | 0 | 0 | 0 | 0 | — | started after Stage 2 closure |
-| 4 | Object-type taxonomy | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
+| 3 | Sensor-response family taxonomy | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | — | response-taxonomy commit `2ba4378bf2f6992a0c9ce9f3c72d4e1a4ca4b74c` |
+| 4 | Object-type taxonomy | IN PROGRESS | 0/144 | 0 | 0 | 0 | 0 | — | started after Stage 3 closure |
 | 5 | Analytical-route assignment | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
 | 6 | 144 x 8 sensor-role matrix | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | 0/1152 | — |
 | 7 | Anchor and specialist map | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
@@ -93,8 +93,32 @@ Validation/accounting:
 
 Stage 2 result: COMPLETE.
 
+## Stage 3 execution record — Sensor-response family taxonomy
+
+Artifact: `HR069_CHEMCORE_STAGE3_SENSOR_RESPONSE_TAXONOMY_2026-10-02.csv`.
+Commit: `2ba4378bf2f6992a0c9ce9f3c72d4e1a4ca4b74c`.
+
+Uniform rule:
+- response family is operational and independent of structural taxonomy;
+- current `MqSensorAffinity`, manufacturer target context and existing direct-response relations are starting evidence, not immutable truth;
+- known target-pattern families are separated for CO, NH3 and H2;
+- broad families include combustible hydrocarbons, alcohol/VOC, aromatic VOC, oxygenated VOC, sulfur/reducing and halogenated organics;
+- reactive/compatibility-review and unsupported-current-array families remain explicit rather than being forced into a detectable class;
+- this stage does not assert selective identity or reportable ppm.
+
+Validation/accounting:
+- reviewed: 144/144;
+- accepted: 144;
+- gaps: 0;
+- blocked: 0;
+- N/A: 0;
+- unique catalogue indices/names preserved: 144/144;
+- all rows use one declared primary response family and preserve a classification basis for later revision.
+
+Stage 3 result: COMPLETE.
+
 ## Next executable stage
 
-Stage 3 — Sensor-response family taxonomy.
+Stage 4 — Object-type taxonomy.
 
-Execution rule: assign operational sensor-response families independently of structural chemistry. A chemically related group may split into different sensor-response families, and unrelated structures may share an operational response family when the installed SnO2 array responds similarly. Existing `MqSensorAffinity`, manufacturer evidence and registered response relations are inputs, not unquestioned truth; gaps/conflicts remain explicit for later experimental revision.
+Execution rule: distinguish `PURE_ANALYTE`, `MIXTURE`, `AGGREGATE_METRIC`, and `SOURCE_MATERIAL_HEADSPACE` without using sensor response to change the object type. Catalogue entries that represent mixtures or operational indices must remain non-pure even if an MQ equation exists for legacy compatibility.
