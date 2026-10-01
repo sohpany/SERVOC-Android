@@ -8,9 +8,6 @@ package com.servoc.app.chemcore;
  * types are derived from the same upstream scientific information. A model-derived fingerprint
  * and a PubChem/QSPR transfer model can therefore have different independenceGroup values while
  * still sharing the accepted-reference response library as an upstream dependency.
- *
- * This class does not assign confidence weights. Stage 28 consumes this map when defining the
- * unified weighting policy.
  */
 public final class ChemCoreEvidenceLineagePolicy {
     public static final String VERSION="chemcore-evidence-lineage/1";
@@ -95,6 +92,33 @@ public final class ChemCoreEvidenceLineagePolicy {
     }
 
     /**
+     * Canonical key for confidence de-duplication. Unlike independenceGroup, this key collapses
+     * model-derived fingerprint and QSPR evidence onto their common upstream response library.
+     * Direct references remain source-specific so distinct papers/manufacturer sources can retain
+     * independence when provenance supports it.
+     */
+    public static String confidenceLineageKey(ChemCoreEvidenceObservation e){
+        Lineage x=classify(e);
+        switch(x.kind){
+            case MODEL_DERIVED_REFERENCE_FINGERPRINT:
+            case QSPR_MODEL_TRANSFER:
+                return ACCEPTED_REFERENCE_LIBRARY;
+            case DIRECT_EXTERNAL_REFERENCE:
+                return "DIRECT:"+fallback(x.rootSourceId,x.immediateGroup,"unknown-reference-source");
+            case HR069_DEVICE_CALIBRATION:
+                return "HR069_CAL:"+fallback(x.rootSourceId,x.immediateGroup,"unknown-device-calibration");
+            case HR069_DEVICE_EXPERIMENTAL_FINGERPRINT:
+                return "HR069_FP:"+fallback(x.rootSourceId,x.immediateGroup,"unknown-device-fingerprint");
+            case EXTERNAL_REFERENCE_FINGERPRINT:
+                return "EXT_FP:"+fallback(x.rootSourceId,x.immediateGroup,"unknown-reference-fingerprint");
+            case CORROBORATIVE_COPY:
+                return "CORR:"+fallback(x.immediateGroup,x.rootSourceId,"unknown-corroborative");
+            default:
+                return "UNKNOWN:"+fallback(x.immediateGroup,x.rootSourceId,"unresolved");
+        }
+    }
+
+    /**
      * Correlation relation used by Stage 28. It is intentionally conservative: unknown lineage is
      * not automatically declared independent.
      */
@@ -148,6 +172,7 @@ public final class ChemCoreEvidenceLineagePolicy {
                 source.contains("ACCEPTED_REFERENCE_RESPONSE_LIBRARY");
     }
 
+    private static String fallback(String a,String b,String c){return nonblank(a)?a:nonblank(b)?b:c;}
     private static String clean(String s){return s==null?"":s.trim();}
     private static boolean nonblank(String s){return s!=null&&!s.trim().isEmpty();}
 }
