@@ -3,6 +3,7 @@ package com.servoc.app;
 /** Build markers for the HazRob 0.10.2 integrated connectivity release. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
+    // HR069 RC2 delivery gate: app + Main ESP32 + ESP32-CAM are validated from one commit.
     public static final String VERSION="0.10.2";
     public static final String ENGINEERING_REVISION="HR069";
     public static final String PROJECT_PREPARERS="شهاب الصهباني، مجدي ذيبان";
