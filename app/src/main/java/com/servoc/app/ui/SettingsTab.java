@@ -2,6 +2,7 @@ package com.servoc.app.ui;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -11,6 +12,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
+import com.servoc.app.calibration.MicrophoneDbCalibration;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
@@ -23,9 +25,9 @@ import java.util.Locale;
 public final class SettingsTab {
     private static final int DRIVE_FIRMWARE_LIMIT=100;
     private final HazRobHost host;private final ScrollView scroll;
-    private final EditText robot,camera,warm,measure;
+    private final EditText robot,camera,warm,measure,micOffset;
     private final CheckBox safetyAutoStop;
-    private final TextView compatibility,cameraState,libraryInfo,analysisUpdateInfo;
+    private final TextView compatibility,cameraState,libraryInfo,analysisUpdateInfo,micCalibrationInfo;
     private final ChemCoreLibraryManager libraryManager;
 
     public SettingsTab(Context c,HazRobHost host){
@@ -45,6 +47,14 @@ public final class SettingsTab {
         TextView safetyHelp=UiKit.small(c,"حساسا IR وEcho يعرضان التحذيرات فقط ولا يمنعان حركة المركبة. E-STOP وزر الإيقاف وwatchdog انقطاع أوامر القيادة تبقى فعالة ومستقلة.");safetyHelp.setTextColor(0xFFFFB74D);cfg.addView(safetyHelp,UiKit.full(c));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
+        LinearLayout mic=UiKit.card(c);mic.addView(UiKit.title(c,"معايرة الميكروفون MAX4466"),UiKit.full(c));
+        micOffset=field(c,mic,"تعويض الميكروفون (dB)",String.format(Locale.US,"%.1f",MicrophoneDbCalibration.offsetDb(host.preferences())));
+        micOffset.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL|InputType.TYPE_NUMBER_FLAG_SIGNED);
+        TextView micHelp=UiKit.small(c,"أدخل الفرق: قراءة جهاز القياس المعاير − قراءة HazRob الخام. التطبيق يستخدم تعويض نقطة واحدة: القراءة المعوضة = القراءة الخام + التعويض. يجب إبقاء مقبض Gain في نفس الموضع بعد المعايرة.");
+        micHelp.setTextColor(0xFFFFB74D);mic.addView(micHelp,UiKit.full(c));
+        micCalibrationInfo=UiKit.small(c,"");micCalibrationInfo.setBackgroundColor(0xFF151A20);mic.addView(micCalibrationInfo,UiKit.full(c));
+        LinearLayout micButtons=UiKit.hbox(c);Button saveMic=UiKit.button(c,"حفظ التعويض");saveMic.setOnClickListener(v->saveMicrophoneOffset());micButtons.addView(saveMic,UiKit.weight(1));Button clearMic=UiKit.button(c,"مسح التعويض");clearMic.setOnClickListener(v->clearMicrophoneOffset());micButtons.addView(clearMic,UiKit.weight(1));mic.addView(micButtons,UiKit.full(c));root.addView(mic,UiKit.full(c));
+
         LinearLayout compat=UiKit.card(c);compat.addView(UiKit.title(c,"النظام والتنبيهات"),UiKit.full(c));compatibility=UiKit.text(c,"Firmware —");compat.addView(compatibility,UiKit.full(c));
         LinearLayout alertButtons=UiKit.hbox(c);Button robotAlert=UiKit.button(c,"اختبار تنبيه الروبوت");robotAlert.setOnClickListener(v->testAlert());alertButtons.addView(robotAlert,UiKit.weight(1));Button phoneAlert=UiKit.button(c,"اختبار صوت الهاتف");phoneAlert.setOnClickListener(v->host.testPhoneAlert());alertButtons.addView(phoneAlert,UiKit.weight(1));compat.addView(alertButtons,UiKit.full(c));root.addView(compat,UiKit.full(c));
 
@@ -52,12 +62,14 @@ public final class SettingsTab {
         info.setOnClickListener(v->{boolean show=libraryInfo.getVisibility()!=View.VISIBLE;libraryInfo.setVisibility(show?View.VISIBLE:View.GONE);if(show)libraryInfo.setText("Chemicals "+host.database().chemicalCount()+"   •   MQDataScience "+MqDataScience76Catalog.COUNT+"   •   Native "+ModelRuntimeRegistry.nativeCount()+"   •   Verified "+ModelRuntimeRegistry.verifiedCount()+"   •   Pending "+ModelRuntimeRegistry.pendingPortCount());});root.addView(science,UiKit.full(c));
 
         LinearLayout updates=UiKit.card(c);updates.addView(UiKit.title(c,"تحديثات منظومة التحليل"),UiKit.full(c));analysisUpdateInfo=UiKit.small(c,"");analysisUpdateInfo.setBackgroundColor(0xFF151A20);updates.addView(analysisUpdateInfo,UiKit.full(c));Button checkUpdate=UiKit.button(c,"التحقق من تحديثات منظومة التحليل");checkUpdate.setOnClickListener(v->checkAnalysisUpdate());updates.addView(checkUpdate,UiKit.full(c));root.addView(updates,UiKit.full(c));
+        refreshMicrophoneCalibration();
     }
 
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
     public View view(){return scroll;}
 
     public void refresh(){
+        refreshMicrophoneCalibration();
         ChemCoreLibraryManager.Status ls=libraryManager.status();analysisUpdateInfo.setText("الإصدار المثبت: "+ls.version+" • "+(ls.remoteSnapshotActive?"مكتبة Stable مثبتة":"المكتبة المدمجة")+"\nمصدر المعرفة: "+ls.sourceLabel);
         JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware —   •   API —   •   Profile —");compatibility.setTextColor(0xFFFFB74D);return;}
         JSONObject adc=d.optJSONObject("adc"),env=d.optJSONObject("env"),ldr=d.optJSONObject("ldr"),alert=d.optJSONObject("alert"),drive=d.optJSONObject("drive");
@@ -70,6 +82,25 @@ public final class SettingsTab {
         String envAck=env==null?"76:— 77:—":"76:"+(env.optBoolean("ack_0x76",false)?"ACK":"—")+" 77:"+(env.optBoolean("ack_0x77",false)?"ACK":"—");
         compatibility.setText("Firmware "+d.optString("firmware",d.optString("fw","—"))+"   •   API "+d.optInt("api_version",d.optInt("api",0))+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"\nDrive "+driver+" • L "+HazRobHardwareProfile.DRIVE_L_IN1+"/"+HazRobHardwareProfile.DRIVE_L_IN2+" • R "+HazRobHardwareProfile.DRIVE_R_IN1+"/"+HazRobHardwareProfile.DRIVE_R_IN2+" • Auto-stop OFF\nADS bus SDA21/SCL22 • ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+" • ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—")+"\nENV bus SDA13/SCL14 • "+(envOk?"OK":envStatus)+" • "+envType+" "+envAddr+" chip "+envChip+" • "+envAck+"\nLDR GPIO34 "+(ldr!=null&&ldr.optBoolean("installed",false)?"OK":"—")+"   •   ALERT GPIO"+(alert==null?26:alert.optInt("gpio",26))+" "+(alert!=null?"OK":"—"));compatibility.setTextColor(envOk?0xFF81C784:0xFFFFB74D);
     }
+
+    private void refreshMicrophoneCalibration(){
+        JSONObject d=host.latestDiagnostics(),sound=d==null?null:d.optJSONObject("sound");
+        double raw=MicrophoneDbCalibration.rawDbFs(sound),offset=MicrophoneDbCalibration.offsetDb(host.preferences());boolean configured=MicrophoneDbCalibration.configured(host.preferences());
+        if(!Double.isFinite(raw)){
+            micCalibrationInfo.setText("MAX4466 • لا توجد قراءة RMS صالحة الآن • التعويض "+(configured?String.format(Locale.US,"%+.1f dB",offset):"غير محفوظ"));micCalibrationInfo.setTextColor(0xFFFFB74D);return;
+        }
+        double corrected=MicrophoneDbCalibration.compensate(raw,offset);
+        micCalibrationInfo.setText("HazRob الخام "+String.format(Locale.US,"%.1f dBFS",raw)+" • التعويض "+(configured?String.format(Locale.US,"%+.1f dB",offset):"غير محفوظ")+" • "+(configured?"المعوض "+String.format(Locale.US,"%.1f dB",corrected):"احفظ التعويض لإظهار dB المعوض"));
+        micCalibrationInfo.setTextColor(configured?0xFF81C784:0xFFFFB74D);
+    }
+
+    private void saveMicrophoneOffset(){
+        String text=micOffset.getText().toString().trim();double v;try{v=Double.parseDouble(text);}catch(Exception e){host.showToast("قيمة تعويض الميكروفون غير صالحة");return;}
+        if(!Double.isFinite(v)||v<MicrophoneDbCalibration.MIN_OFFSET_DB||v>MicrophoneDbCalibration.MAX_OFFSET_DB){host.showToast("تعويض الميكروفون يجب أن يكون بين -160 و +160 dB");return;}
+        MicrophoneDbCalibration.save(host.preferences(),v);micOffset.setText(String.format(Locale.US,"%.1f",MicrophoneDbCalibration.offsetDb(host.preferences())));refreshMicrophoneCalibration();host.refreshAllTabs();host.showToast("تم حفظ تعويض الميكروفون");
+    }
+
+    private void clearMicrophoneOffset(){MicrophoneDbCalibration.clear(host.preferences());micOffset.setText("0.0");refreshMicrophoneCalibration();host.refreshAllTabs();host.showToast("تم مسح تعويض الميكروفون");}
 
     private void checkAnalysisUpdate(){
         host.io().execute(()->{
