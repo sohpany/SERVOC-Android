@@ -5,16 +5,16 @@ package com.servoc.app.control;
  *
  * The vertical axis is travel demand. Horizontal displacement follows one fixed operator rule
  * in BOTH forward and reverse:
- * - touch/right (+X) progressively slows the LEFT side;
- * - touch/left  (-X) progressively slows the RIGHT side.
+ * - touch/right (+X) progressively slows the RIGHT side;
+ * - touch/left  (-X) progressively slows the LEFT side.
  *
  * The slowed side remains at 40% at full steering deflection so translating turns never reverse
  * a side. With no meaningful translation, horizontal input is a true in-place pivot capped at
- * 65% motor command. Release/cancel is handled by the owning control view.
+ * 60% motor command. Release/cancel is handled by the owning control view.
  */
 public final class DriveMixer {
     public static final double MIN_INNER_RATIO = 0.40;
-    public static final double PIVOT_MAX = 0.65;
+    public static final double PIVOT_MAX = 0.60;
     private static final double TRANSLATION_DEADZONE = 0.08;
 
     public static final class Command {
@@ -40,9 +40,10 @@ public final class DriveMixer {
         double full=y;
         double slowed=y*ratio;
 
-        // Deliberately identical side selection in forward and reverse.
-        if(x>0)return new Command(pct(slowed),pct(full)); // right touch: slow LEFT
-        if(x<0)return new Command(pct(full),pct(slowed)); // left touch: slow RIGHT
+        // Deliberately identical side selection in forward and reverse:
+        // steer right => slow right; steer left => slow left.
+        if(x>0)return new Command(pct(full),pct(slowed));
+        if(x<0)return new Command(pct(slowed),pct(full));
         return new Command(pct(full),pct(full));
     }
 }
