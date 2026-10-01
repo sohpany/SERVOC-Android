@@ -116,12 +116,12 @@ public final class RobotProtocolV4 {
     private static JSONObject sound(JSONObject s){
         JSONObject x=new JSONObject();try{
             if(s==null)s=new JSONObject();
-            Object rms=finiteAny(s,"rms_v","rms"),p2p=finiteAny(s,"p2p_v","p2p"),db=finiteAny(s,"db_spl","db");
+            Object rms=finiteAny(s,"rms_v","rms"),p2p=finiteAny(s,"p2p_v","p2p"),db=finiteAny(s,"db_spl","db"),gain=finiteAny(s,"gain_reference","gain");
             x.put("rms_v",rms);x.put("p2p_v",p2p);x.put("db_spl",db);
             x.put("db_estimated",s.optBoolean("db_estimated",db!=JSONObject.NULL));
-            x.put("gain_reference",s.has("gain_reference")?s.optDouble("gain_reference",25.0):25.0);
+            x.put("gain_reference",gain);
             x.put("ok",rms!=JSONObject.NULL||p2p!=JSONObject.NULL||db!=JSONObject.NULL);
-            x.put("calibrated_db_spl",false);
+            x.put("calibrated_db_spl",s.optBoolean("calibrated_db_spl",false));
         }catch(Exception ignored){}return x;
     }
 
