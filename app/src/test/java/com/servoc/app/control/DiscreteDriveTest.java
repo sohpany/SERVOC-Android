@@ -8,12 +8,12 @@ public final class DiscreteDriveTest {
     @Test public void buttonMatrixMatchesDifferentialDriveContract(){
         assertCmd(DiscreteDrive.Intent.FORWARD,100,100);
         assertCmd(DiscreteDrive.Intent.REVERSE,-100,-100);
-        assertCmd(DiscreteDrive.Intent.PIVOT_RIGHT,100,-100);
-        assertCmd(DiscreteDrive.Intent.PIVOT_LEFT,-100,100);
-        assertCmd(DiscreteDrive.Intent.FORWARD_RIGHT,100,60);
-        assertCmd(DiscreteDrive.Intent.FORWARD_LEFT,60,100);
-        assertCmd(DiscreteDrive.Intent.REVERSE_RIGHT,-100,-60);
-        assertCmd(DiscreteDrive.Intent.REVERSE_LEFT,-60,-100);
+        assertCmd(DiscreteDrive.Intent.PIVOT_RIGHT,50,-50);
+        assertCmd(DiscreteDrive.Intent.PIVOT_LEFT,-50,50);
+        assertCmd(DiscreteDrive.Intent.FORWARD_RIGHT,100,40);
+        assertCmd(DiscreteDrive.Intent.FORWARD_LEFT,40,100);
+        assertCmd(DiscreteDrive.Intent.REVERSE_RIGHT,-100,-40);
+        assertCmd(DiscreteDrive.Intent.REVERSE_LEFT,-40,-100);
         assertCmd(DiscreteDrive.Intent.STOP,0,0);
     }
 }
