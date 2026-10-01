@@ -6,7 +6,11 @@ import android.graphics.Paint;
 import android.view.MotionEvent;
 import android.view.View;
 
-/** Wide spring-centred vertical control for one physical side of the HazRob differential drive. */
+/**
+ * Wide latching vertical speed control for one physical side of the HazRob differential drive.
+ * Top is +100, centre 0 and bottom -100. The selected value remains active after finger-up so
+ * the operator can independently set both sides. Mode changes, reset and E-STOP still force 0.
+ */
 public final class DualTankDriveControl extends View {
     public interface Listener { void onCommand(int value); }
     private final Paint track=new Paint(Paint.ANTI_ALIAS_FLAG),fill=new Paint(Paint.ANTI_ALIAS_FLAG),knob=new Paint(Paint.ANTI_ALIAS_FLAG),text=new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -31,12 +35,15 @@ public final class DualTankDriveControl extends View {
         c.drawText("+100",cx,dp(15),text);c.drawText("0",cx,mid+dp(4),text);c.drawText("-100",cx,getHeight()-dp(5),text);
     }
     @Override public boolean onTouchEvent(MotionEvent e){
-        int a=e.getActionMasked();if(a==MotionEvent.ACTION_DOWN){if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);update(e.getY());return true;}
+        int a=e.getActionMasked();
+        if(a==MotionEvent.ACTION_DOWN){if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);update(e.getY());return true;}
         if(a==MotionEvent.ACTION_MOVE){update(e.getY());return true;}
-        if(a==MotionEvent.ACTION_UP||a==MotionEvent.ACTION_CANCEL){if(a==MotionEvent.ACTION_UP)performClick();if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);setValue(0,true);return true;}return true;
+        if(a==MotionEvent.ACTION_UP){update(e.getY());performClick();if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);return true;}
+        if(a==MotionEvent.ACTION_CANCEL){if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);setValue(0,true);return true;}
+        return true;
     }
     private void update(float py){float top=dp(25),bottom=getHeight()-dp(25),mid=(top+bottom)/2f,half=(bottom-top)/2f;float y=Math.max(top,Math.min(bottom,py));setValue(Math.round((mid-y)*100f/half),true);}
     @Override public boolean performClick(){super.performClick();return true;}
-    private void updateDescription(){setContentDescription("تحكم جهة العجلات "+value);}
+    private void updateDescription(){setContentDescription("تحكم سرعة جهة العجلات "+value+" من -100 إلى +100");}
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
 }
