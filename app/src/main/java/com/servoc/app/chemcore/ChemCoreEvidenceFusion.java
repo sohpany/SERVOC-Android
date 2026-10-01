@@ -7,15 +7,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Positive-only evidence fusion for the HazRob Analytical Confidence Index.
+ * Positive-only, lineage-aware evidence fusion for the HazRob Analytical Confidence Index.
  *
  * Policy:
- *  - every chemically interpretable observation is retained and considered;
+ *  - every chemically interpretable observation is retained;
  *  - full-quality independent evidence supplies the main confidence score;
- *  - degraded/out-of-domain/poor-fit evidence may still corroborate with a small capped bonus;
- *  - evidence from the same independenceGroup never becomes a second proof merely because another
- *    MQ channel or lower-quality copy exists;
- *  - missing power/ADC/source information is diagnostic-only, not fabricated chemical evidence;
+ *  - immediate duplicates and upstream-lineage derivatives are de-duplicated separately;
+ *  - QSPR/model-derived fingerprints that share the accepted reference-response library do not
+ *    become additional independent proofs when direct source evidence is already present;
+ *  - correlated derivatives may provide a small capped corroboration bonus;
+ *  - degraded/out-of-domain evidence is support-only and capped;
  *  - posterior/model ranking remains separate from the Analytical Confidence Index.
  */
 public final class ChemCoreEvidenceFusion {
@@ -23,18 +24,22 @@ public final class ChemCoreEvidenceFusion {
 
     public static final double FULL_SUPPORT_STANDARDIZED_RESIDUAL=2.50;
     public static final double MAX_CORROBORATION_BONUS=8.0;
+    public static final double MAX_CORRELATED_DERIVED_BONUS=3.0;
 
     public static final class Result {
         public final ChemCoreConfidenceMatrix.Score score;
-        /** All chemically interpretable evidence, including degraded support-only observations. */
+        /** All chemically interpretable evidence, including degraded and correlated support. */
         public final List<ChemCoreEvidenceObservation> supportingEvidence;
-        /** Number of independent groups that actually add positive confidence points. */
+        /** Independent confidence lineages that contribute points; correlated derivatives excluded. */
         public final int uniqueEvidenceGroups;
         public final int sensorBreadth;
         public final int qsprGroups,referenceGroups,hr069Groups,corroborativeGroups;
+        /** Derived reference-library groups retained as corroboration but not independent proof. */
+        public final int lineageCorrelatedGroups;
 
         Result(ChemCoreConfidenceMatrix.Score score,List<ChemCoreEvidenceObservation> supportingEvidence,
-               int uniqueEvidenceGroups,int sensorBreadth,int qsprGroups,int referenceGroups,int hr069Groups,int corroborativeGroups){
+               int uniqueEvidenceGroups,int sensorBreadth,int qsprGroups,int referenceGroups,int hr069Groups,
+               int corroborativeGroups,int lineageCorrelatedGroups){
             this.score=score;
             this.supportingEvidence=Collections.unmodifiableList(new ArrayList<>(supportingEvidence));
             this.uniqueEvidenceGroups=Math.max(0,uniqueEvidenceGroups);
@@ -43,6 +48,7 @@ public final class ChemCoreEvidenceFusion {
             this.referenceGroups=Math.max(0,referenceGroups);
             this.hr069Groups=Math.max(0,hr069Groups);
             this.corroborativeGroups=Math.max(0,corroborativeGroups);
+            this.lineageCorrelatedGroups=Math.max(0,lineageCorrelatedGroups);
         }
     }
 
@@ -56,35 +62,84 @@ public final class ChemCoreEvidenceFusion {
             if(isPositiveSupport(e)){usable.add(e);if(isFullStrengthSupport(e))full.add(e);}
         }
 
-        Map<String,ChemCoreEvidenceObservation> representative=new LinkedHashMap<>();
-        for(ChemCoreEvidenceObservation e:full){ChemCoreEvidenceObservation current=representative.get(e.independenceGroup);if(current==null||preferred(e,current))representative.put(e.independenceGroup,e);}
-
-        boolean hasDirectReference=false;for(ChemCoreEvidenceObservation e:representative.values())if(isDirectReference(e)){hasDirectReference=true;break;}
-        int q=0,r=0,m4=0;
-        for(ChemCoreEvidenceObservation e:representative.values()){
-            if(isM4(e)){m4++;continue;}if(isQspr(e)){q++;continue;}
-            if(isReference(e)){if(e.type==ChemCoreEvidenceObservation.Type.REFERENCE_FINGERPRINT&&hasDirectReference)continue;r++;}
+        // Stage 28: full-strength evidence is de-duplicated by scientific lineage, not merely by
+        // immediate independenceGroup. Distinct direct sources remain distinct lineages.
+        Map<String,ChemCoreEvidenceObservation> lineageRepresentative=new LinkedHashMap<>();
+        for(ChemCoreEvidenceObservation e:full){
+            String key=ChemCoreEvidenceLineagePolicy.confidenceLineageKey(e);
+            ChemCoreEvidenceObservation current=lineageRepresentative.get(key);
+            if(current==null||preferred(e,current))lineageRepresentative.put(key,e);
         }
 
-        // Weak/degraded evidence contributes only when its independence group is not already
-        // represented by full-strength evidence. It is de-duplicated and capped so it can support
-        // a decision without overpowering strong reference/M4 evidence.
+        boolean hasDirectReference=false;
+        for(ChemCoreEvidenceObservation e:lineageRepresentative.values()){
+            if(ChemCoreEvidenceLineagePolicy.classify(e).kind==ChemCoreEvidenceLineagePolicy.Kind.DIRECT_EXTERNAL_REFERENCE){
+                hasDirectReference=true;break;
+            }
+        }
+
+        int q=0,r=0,m4=0;
+        Map<String,ChemCoreEvidenceObservation> correlatedDerived=new LinkedHashMap<>();
+        for(Map.Entry<String,ChemCoreEvidenceObservation> entry:lineageRepresentative.entrySet()){
+            ChemCoreEvidenceObservation e=entry.getValue();
+            ChemCoreEvidenceLineagePolicy.Kind kind=ChemCoreEvidenceLineagePolicy.classify(e).kind;
+            switch(kind){
+                case HR069_DEVICE_CALIBRATION:
+                    m4++;break;
+                case DIRECT_EXTERNAL_REFERENCE:
+                case HR069_DEVICE_EXPERIMENTAL_FINGERPRINT:
+                case EXTERNAL_REFERENCE_FINGERPRINT:
+                    r++;break;
+                case MODEL_DERIVED_REFERENCE_FINGERPRINT:
+                    if(hasDirectReference)correlatedDerived.put(entry.getKey(),e);else r++;
+                    break;
+                case QSPR_MODEL_TRANSFER:
+                    if(hasDirectReference)correlatedDerived.put(entry.getKey(),e);else q++;
+                    break;
+                default:
+                    // Preserve safe compatibility for future typed evidence while refusing to
+                    // manufacture independence from an unknown lineage.
+                    if(isM4(e))m4++;
+                    else if(isQspr(e))correlatedDerived.put(entry.getKey(),e);
+                    else if(isReference(e))r++;
+                    break;
+            }
+        }
+
+        // Weak/degraded evidence contributes only when its lineage is not already represented by
+        // full-strength evidence. Derived M1/M3 evidence sharing the reference library is routed
+        // into the correlated bucket whenever a direct reference exists.
         Map<String,ChemCoreEvidenceObservation> weakRepresentative=new LinkedHashMap<>();
         for(ChemCoreEvidenceObservation e:usable){
-            if(isFullStrengthSupport(e)||representative.containsKey(e.independenceGroup))continue;
-            ChemCoreEvidenceObservation current=weakRepresentative.get(e.independenceGroup);
-            if(current==null||supportWeight(e)>supportWeight(current))weakRepresentative.put(e.independenceGroup,e);
+            if(isFullStrengthSupport(e))continue;
+            String key=ChemCoreEvidenceLineagePolicy.confidenceLineageKey(e);
+            if(lineageRepresentative.containsKey(key))continue;
+            if(hasDirectReference&&ChemCoreEvidenceLineagePolicy.correlatedDerivative(e)){
+                ChemCoreEvidenceObservation current=correlatedDerived.get(key);
+                if(current==null||supportWeight(e)>supportWeight(current))correlatedDerived.put(key,e);
+                continue;
+            }
+            ChemCoreEvidenceObservation current=weakRepresentative.get(key);
+            if(current==null||supportWeight(e)>supportWeight(current))weakRepresentative.put(key,e);
         }
-        double corroboration=0;int weakGroups=0;
+
+        double weakCorroboration=0;int weakGroups=0;
         for(ChemCoreEvidenceObservation e:weakRepresentative.values()){
-            double pts=corroborationPoints(e);if(pts>0){corroboration+=pts;weakGroups++;}
+            double pts=corroborationPoints(e);if(pts>0){weakCorroboration+=pts;weakGroups++;}
         }
-        corroboration=Math.min(MAX_CORROBORATION_BONUS,corroboration);
+
+        double derivedCorroboration=0;int correlatedGroups=0;
+        for(ChemCoreEvidenceObservation e:correlatedDerived.values()){
+            double pts=corroborationPoints(e);if(pts>0){derivedCorroboration+=pts;correlatedGroups++;}
+        }
+        derivedCorroboration=Math.min(MAX_CORRELATED_DERIVED_BONUS,derivedCorroboration);
+        double corroboration=Math.min(MAX_CORROBORATION_BONUS,weakCorroboration+derivedCorroboration);
 
         int breadth=ChemCoreEvidenceObservation.uniqueSensors(usable);
         ChemCoreConfidenceMatrix.Score score=ChemCoreConfidenceMatrix.scoreIndependent(q,r,m4,breadth,corroboration);
-        int contributingGroups=q+r+m4+weakGroups;
-        return new Result(score,usable,contributingGroups,breadth,q,r,m4,weakGroups);
+        int independentGroups=q+r+m4+weakGroups;
+        return new Result(score,usable,independentGroups,breadth,q,r,m4,
+                weakGroups+correlatedGroups,correlatedGroups);
     }
 
     /** Any non-M0 observation with some interpretable quality remains in positive-support fusion. */
@@ -92,7 +147,7 @@ public final class ChemCoreEvidenceFusion {
         return e!=null&&e.tier!=null&&e.tier!=ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY&&supportWeight(e)>0;
     }
 
-    /** Full-strength proof keeps the historical domain/fit requirements and requires PRIMARY quality. */
+    /** Full-strength proof keeps domain/fit requirements and requires PRIMARY quality. */
     static boolean isFullStrengthSupport(ChemCoreEvidenceObservation e){
         if(e==null||!e.insideDomain||!"PRIMARY".equals(e.supportRole)||e.measurementQualityWeight<0.75)return false;
         return !Double.isFinite(e.standardizedResidual)||Math.abs(e.standardizedResidual)<=FULL_SUPPORT_STANDARDIZED_RESIDUAL;
@@ -130,8 +185,5 @@ public final class ChemCoreEvidenceFusion {
     private static boolean isQspr(ChemCoreEvidenceObservation e){return e.type==ChemCoreEvidenceObservation.Type.QSPR||e.tier==ChemCoreDecision.EvidenceTier.M1_MOLECULARLY_INFERRED;}
     private static boolean isM4(ChemCoreEvidenceObservation e){return e.type==ChemCoreEvidenceObservation.Type.HR069_CALIBRATION||e.tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED;}
     private static boolean isReference(ChemCoreEvidenceObservation e){int x=rank(e.tier);return x>=rank(ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED)&&x<rank(ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED);}
-    private static boolean isDirectReference(ChemCoreEvidenceObservation e){
-        if(e==null||!isReference(e))return false;switch(e.type){case LITERATURE_CURVE:case MANUFACTURER_CURVE:case RESEARCH_CURVE:case LEGACY_CURVE:case REFERENCE_CURVE:return true;default:return false;}
-    }
     private static int rank(ChemCoreDecision.EvidenceTier t){return t==null?0:t.ordinal();}
 }
