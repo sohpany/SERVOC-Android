@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.calibration.MicrophoneDbCalibration;
+import com.servoc.app.control.DriveDirectionOption;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
@@ -43,6 +44,10 @@ public final class SettingsTab {
         warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));
         cfg.addView(UiKit.small(c,"سرعة حركة المركبة تضبط من عمود السرعة في شاشة القيادة: 0–100%، والقيمة الافتراضية عند بدء التطبيق 100%."),UiKit.full(c));
         cfg.addView(UiKit.small(c,"منظومة الحركة: L298N • LEFT=B: EN17/IN19/32 • RIGHT=A: EN16/IN18/27 • تزال جمبرا ENA/ENB عند تحكم PWM من ESP32."),UiKit.full(c));
+        TextView reverseHelp=UiKit.small(c,"عكس التوجيه مستقل لكل طريقة: يبدل يمين/يسار فقط ولا يغيّر الأمام/الخلف. المساطر المزدوجة مستثناة وتبقى كل مسطرة مرتبطة بجهتها مباشرة.");reverseHelp.setTextColor(0xFF90CAF9);cfg.addView(reverseHelp,UiKit.full(c));
+        cfg.addView(directionReverseCheck(c,"العجلة: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_WHEEL),UiKit.full(c));
+        cfg.addView(directionReverseCheck(c,"Joystick: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_JOYSTICK),UiKit.full(c));
+        cfg.addView(directionReverseCheck(c,"الأزرار: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_BUTTONS),UiKit.full(c));
         safetyAutoStop=new CheckBox(c);safetyAutoStop.setText("التوقف التلقائي للحركة: ملغي — تنبيه فقط");safetyAutoStop.setTextColor(Color.LTGRAY);safetyAutoStop.setChecked(false);safetyAutoStop.setEnabled(false);cfg.addView(safetyAutoStop,UiKit.full(c));
         TextView safetyHelp=UiKit.small(c,"حساسا IR وEcho يعرضان التحذيرات فقط ولا يمنعان حركة المركبة. E-STOP وزر الإيقاف وwatchdog انقطاع أوامر القيادة تبقى فعالة ومستقلة.");safetyHelp.setTextColor(0xFFFFB74D);cfg.addView(safetyHelp,UiKit.full(c));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
@@ -65,6 +70,7 @@ public final class SettingsTab {
         refreshMicrophoneCalibration();
     }
 
+    private CheckBox directionReverseCheck(Context c,String label,String key){CheckBox b=new CheckBox(c);b.setText(label);b.setTextColor(Color.LTGRAY);b.setChecked(host.preferences().getBoolean(key,false));b.setOnCheckedChangeListener((buttonView,checked)->{host.setDriveCommand(0,0);host.preferences().edit().putBoolean(key,checked).apply();host.refreshAllTabs();host.showToast(label+" • "+(checked?"معكوس":"طبيعي"));});return b;}
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
     public View view(){return scroll;}
 
