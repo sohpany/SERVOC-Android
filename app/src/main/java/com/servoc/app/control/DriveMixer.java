@@ -1,17 +1,16 @@
 package com.servoc.app.control;
 
 /**
- * Operator-requested two-axis differential-drive mixer used by the HazRob joystick.
+ * Operator-requested two-axis differential-drive mixer shared by Joystick and "العجلة".
  *
- * The vertical axis is travel demand. While translating, horizontal displacement is curvature:
- * - forward + right progressively slows LEFT;
- * - forward + left progressively slows RIGHT;
- * - reverse preserves the requested path-relative steering feel used by the wheel control:
- *   reverse + right slows RIGHT, reverse + left slows LEFT.
+ * The vertical axis is travel demand. Horizontal displacement follows one fixed operator rule
+ * in BOTH forward and reverse:
+ * - touch/right (+X) progressively slows the LEFT side;
+ * - touch/left  (-X) progressively slows the RIGHT side.
  *
- * The slowed side remains at 40% at full steering lock so translating turns do not abruptly
- * stop/reverse one side. With no meaningful translation, horizontal input is a true in-place
- * pivot capped at 65% motor command. Release/cancel is handled by the owning control view.
+ * The slowed side remains at 40% at full steering deflection so translating turns never reverse
+ * a side. With no meaningful translation, horizontal input is a true in-place pivot capped at
+ * 65% motor command. Release/cancel is handled by the owning control view.
  */
 public final class DriveMixer {
     public static final double MIN_INNER_RATIO = 0.40;
@@ -41,13 +40,9 @@ public final class DriveMixer {
         double full=y;
         double slowed=y*ratio;
 
-        if(y>0){
-            if(x>0)return new Command(pct(slowed),pct(full)); // forward + right: slow LEFT
-            if(x<0)return new Command(pct(full),pct(slowed)); // forward + left: slow RIGHT
-        }else{
-            if(x>0)return new Command(pct(full),pct(slowed)); // reverse + right: slow RIGHT
-            if(x<0)return new Command(pct(slowed),pct(full)); // reverse + left: slow LEFT
-        }
-        return new Command(pct(y),pct(y));
+        // Deliberately identical side selection in forward and reverse.
+        if(x>0)return new Command(pct(slowed),pct(full)); // right touch: slow LEFT
+        if(x<0)return new Command(pct(full),pct(slowed)); // left touch: slow RIGHT
+        return new Command(pct(full),pct(full));
     }
 }
