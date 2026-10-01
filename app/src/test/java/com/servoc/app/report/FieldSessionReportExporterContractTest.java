@@ -58,7 +58,10 @@ public class FieldSessionReportExporterContractTest {
   String x=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/SmartFieldSessionXlsxWriter.java")),StandardCharsets.UTF_8);
   assertTrue(s.contains("SmartFieldSessionXlsxWriter.write(out,db,b,chemicals)"));
   assertFalse(s.contains("new ZipOutputStream(out)"));
-  assertTrue(x.contains("السلسلة الزمنية — لا يتم دمج الجلسات الفنية في منحنى مصطنع"));
+  assertTrue(x.contains("السلاسل الزمنية — لا يتم دمج الجلسات الفنية في منحنى مصطنع"));
+  assertTrue(x.contains("for(String sid:b.measurementSessionIds)"));
+  assertTrue(x.contains("h.add(\"Measurement Session\")"));
+  assertTrue(x.contains("r.add(sid)"));
   assertTrue(x.contains("CandidateHazardContext.evaluate(db,cc)"));
   assertTrue(x.contains("مصفوفة 144"));
   assertTrue(x.contains("حدود التعرض"));
