@@ -41,7 +41,7 @@ public final class ChemicalExperimentMatrixDialog {
     }
 
     public void show(){
-        LinearLayout root=UiKit.vbox(context);root.setPadding(UiKit.dp(context,10),UiKit.dp(context,8),UiKit.dp(context,10),UiKit.dp(context,8));
+        LinearLayout root=UiKit.vbox(context);root.setBackgroundColor(UiKit.NON_DRIVING_BG);root.setPadding(UiKit.dp(context,10),UiKit.dp(context,8),UiKit.dp(context,10),UiKit.dp(context,8));
         TextView source=UiKit.small(context,"حالة المواد من نسخة المكتبة المفعلة • Evidence revision: "+blank(repository.libraryRevision()));
         source.setTextColor(0xFF90A4AE);root.addView(source,UiKit.full(context));
         EditText search=UiKit.input(context,"");search.setHint("بحث لحظي بالاسم العربي/الإنجليزي أو CAS");search.setSingleLine(true);root.addView(search,UiKit.full(context));
