@@ -38,7 +38,7 @@ public class ChemCoreRejectedEvidenceAuditTrailTest {
     }
 
     @Test public void openSetRejectionRetainsTopHypothesisForAudit(){
-        InverseMolecularSolver.Result top=result(76,"Hydrogen",4,4,0,true);
+        InverseMolecularSolver.Result top=result(76,"Hydrogen",4,4,0,true,Collections.emptyList());
         top.posterior=0.8;
         ChemCoreOpenSetGate.Result gate=new ChemCoreOpenSetGate.Result(false,4.2,3.0,1.0,"outside trained feature domain");
         ChemCoreRejectedEvidenceAuditTrail.Result r=ChemCoreRejectedEvidenceAuditTrail.collect(List.of(top),null,gate,Collections.emptyList());
@@ -47,10 +47,17 @@ public class ChemCoreRejectedEvidenceAuditTrailTest {
     }
 
     @Test public void specialistConflictIsPreservedWithoutCallingItNegativeProof(){
-        InverseMolecularSolver.Result hydrogen=result(76,"Hydrogen",4,4,0,true);hydrogen.posterior=0.7;
-        InverseMolecularSolver.Result ethanol=result(104,"Ethanol",4,4,0,true);ethanol.posterior=0.3;
-        // Add primary specialist observations using the same fixture strategy as Stage 29.
-        hydrogen.evidenceObservations.clear();
+        ChemCoreEvidenceObservation h2Anchor=specialistEvidence(76,"Hydrogen","mq8",0.2);
+        ChemCoreEvidenceObservation ethanolAnchor=specialistEvidence(104,"Ethanol","mq3",0.1);
+        InverseMolecularSolver.Result hydrogen=result(76,"Hydrogen",4,4,0,true,List.of(h2Anchor));hydrogen.posterior=0.7;
+        InverseMolecularSolver.Result ethanol=result(104,"Ethanol",4,4,0,true,List.of(ethanolAnchor));ethanol.posterior=0.3;
+        ChemCoreSpecialistConflictEngine.Result specialist=ChemCoreSpecialistConflictEngine.evaluate(List.of(hydrogen,ethanol));
+        assertTrue(specialist.holdNamedIdentity);
+        ChemCoreRejectedEvidenceAuditTrail.Result trail=ChemCoreRejectedEvidenceAuditTrail.collect(
+                List.of(hydrogen,ethanol),specialist,null,Collections.emptyList());
+        ChemCoreRejectedEvidenceAuditTrail.Row row=find(trail,ChemCoreRejectedEvidenceAuditTrail.Reason.SPECIALIST_CONFLICT);
+        assertNotNull(row);assertEquals(ChemCoreRejectedEvidenceAuditTrail.Stage.SPECIALIST_GATE,row.stage);
+        assertTrue(row.note.toLowerCase().contains("specialist"));
     }
 
     @Test public void liveNamedHypothesisThatDeepAnalysisWithholdsIsRetained(){
@@ -66,10 +73,18 @@ public class ChemCoreRejectedEvidenceAuditTrailTest {
         assertEquals(Long.valueOf(76),row.chemicalUid);assertTrue(row.note.contains("not confirmed"));
     }
 
-    private static InverseMolecularSolver.Result result(long uid,String label,int contributors,int refs,int cal,boolean inside){
+    private static ChemCoreEvidenceObservation specialistEvidence(long uid,String label,String sensor,double z){
+        return new ChemCoreEvidenceObservation(ChemCoreEvidenceObservation.Type.MANUFACTURER_CURVE,uid,label,List.of(sensor),
+                "specialist","m","source:"+label,"spec:"+label,
+                ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,true,true,false,
+                100,1,0,0,z,"specialist evidence");
+    }
+
+    private static InverseMolecularSolver.Result result(long uid,String label,int contributors,int refs,int cal,boolean inside,
+                                                         List<ChemCoreEvidenceObservation> evidence){
         return new InverseMolecularSolver.Result(uid,label,true,100,0.8,-0.32,contributors,0,refs,cal,
                 Double.NaN,Double.NaN,inside,ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,
-                new HashMap<>(),Collections.emptyList(),"test");
+                new HashMap<>(),evidence,"test");
     }
     private static boolean has(ChemCoreRejectedEvidenceAuditTrail.Result r,ChemCoreRejectedEvidenceAuditTrail.Reason reason){return find(r,reason)!=null;}
     private static ChemCoreRejectedEvidenceAuditTrail.Row find(ChemCoreRejectedEvidenceAuditTrail.Result r,ChemCoreRejectedEvidenceAuditTrail.Reason reason){
