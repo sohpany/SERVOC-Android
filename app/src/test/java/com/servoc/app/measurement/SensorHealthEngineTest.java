@@ -11,6 +11,21 @@ public class SensorHealthEngineTest {
         SensorHealthEngine.Snapshot s=e.snapshot("mq2");assertEquals(SensorHealthEngine.State.HEALTHY,s.state);assertEquals(6,s.validSamples);assertTrue(s.noiseCv<0.01);
     }
 
+    @Test public void acceptedR0SeedsUnitBaselineForAllInstalledChannels(){
+        SensorHealthEngine e=new SensorHealthEngine();
+        assertEquals(8,SensorHealthEngine.INSTALLED.length);
+        for(String key:SensorHealthEngine.INSTALLED)assertEquals("accepted R0 must seed Rs/R0 clean-air baseline for "+key,1.0,e.baseline(key),0.0);
+    }
+
+    @Test public void seededAcceptedR0BaselinePreventsRedundantBaselineRequiredState()throws Exception{
+        SensorHealthEngine health=new SensorHealthEngine();
+        for(int i=0;i<4;i++)health.accept(allLive(1.0,1800+i),i*250L);
+        LiveGasStateEngine.Snapshot live=new LiveGasStateEngine().evaluate(health.snapshots(),true,false);
+        assertEquals(LiveGasStateEngine.State.NORMAL,live.state);
+        assertNotEquals(LiveGasStateEngine.State.BASELINE_REQUIRED,live.state);
+        assertEquals(8,live.usableChannels);
+    }
+
     @Test public void absentPoweredChannelIsMissing()throws Exception{
         SensorHealthEngine e=new SensorHealthEngine();JSONObject x=live(1,null,0,0,false);
         e.accept(x,0);e.accept(x,1000);e.accept(x,2000);
@@ -60,6 +75,10 @@ public class SensorHealthEngineTest {
     private static JSONObject live(int group,String key,double raw,double ratio,boolean ok)throws Exception{
         JSONObject root=new JSONObject(),relay=new JSONObject(),mq=new JSONObject();relay.put("mask",1<<(group-1));root.put("relay",relay);
         if(key!=null){JSONObject r=new JSONObject();r.put("valid",ok);r.put("ok",ok);r.put("raw",raw);r.put("ratio",ratio);mq.put(key,r);}root.put("mq",mq);return root;
+    }
+    private static JSONObject allLive(double ratio,double rawBase)throws Exception{
+        JSONObject root=new JSONObject(),relay=new JSONObject(),mq=new JSONObject();relay.put("mask",1);root.put("relay",relay);
+        int i=0;for(String key:SensorHealthEngine.INSTALLED){JSONObject r=new JSONObject();r.put("valid",true);r.put("ok",true);r.put("raw",rawBase+i++);r.put("ratio",ratio);mq.put(key,r);}root.put("mq",mq);return root;
     }
     private static JSONObject ready(String key,double raw,double ratio)throws Exception{
         JSONObject root=new JSONObject(),m=new JSONObject(),mq=new JSONObject(),r=new JSONObject();r.put("valid",true);r.put("ok",true);r.put("raw",raw);r.put("ratio",ratio);mq.put(key,r);m.put("state","ready");m.put("group",0);m.put("mq",mq);root.put("measurement",m);root.put("mq",new JSONObject());root.put("relay",new JSONObject().put("mask",0));return root;
