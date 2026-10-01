@@ -20,10 +20,10 @@ cam_rv=read(CAM/"RemoteVideo.cpp")
 main_cloud=read(MAIN/"RemoteCloudConfig.h")
 
 require('constexpr char SSID[]="HazRob"' in main_cfg,"main SSID is not HazRob")
-require('constexpr char FW[]="HazRob 0.10.2"' in main_cfg,"main firmware runtime identity mismatch")
-require('constexpr char HW_PROFILE[]="hazrob-0.10.2-hr069-' in main_cfg,"HR069 hardware profile identity missing")
+require('constexpr char FW[]="HazRob 0.10.3"' in main_cfg,"main firmware runtime identity mismatch")
+require('constexpr char HW_PROFILE[]="hazrob-0.10.3-hr070-' in main_cfg,"HR070 hardware profile identity missing")
 require('192,168,4,1' in main_ino,"main AP IP 192.168.4.1 missing")
-require('constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.2"' in cam_ino,"camera SSID/identity mismatch")
+require('constexpr char SSID[]="HazRob",FW[]="HazRob-CAM 0.10.3"' in cam_ino,"camera SSID/identity mismatch")
 require('IPAddress ip(192,168,4,2),gw(192,168,4,1)' in cam_ino,"camera static IP/gateway mismatch")
 require('WiFi.softAPSSID()==Cfg::SSID' in main_ino,"main AP health check does not verify SSID")
 require('WiFi.softAP(Cfg::SSID)' in main_ino,"main does not explicitly create HazRob SoftAP")
@@ -51,9 +51,9 @@ pins={
 }
 for token,label in pins.items(): require(token in main_cfg,f"{label} hardware contract mismatch")
 
-# HR069 is an engineering/hardware-profile revision, not part of the runtime firmware banners.
-require('HazRob 0.10.2 HR' not in main_cfg,"engineering revision leaked into Main runtime firmware banner")
-require('HazRob-CAM 0.10.2 HR' not in cam_ino,"engineering revision leaked into CAM runtime firmware banner")
+# HR070 is an engineering/hardware-profile revision, not part of the runtime firmware banners.
+require('HazRob 0.10.3 HR' not in main_cfg,"engineering revision leaked into Main runtime firmware banner")
+require('HazRob-CAM 0.10.3 HR' not in cam_ino,"engineering revision leaked into CAM runtime firmware banner")
 
 def cert_from(text,macro):
     m=re.search(r'#define '+re.escape(macro)+r' R"PEM\((-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----\n)\)PEM"',text,re.S)
@@ -69,7 +69,7 @@ with tempfile.NamedTemporaryFile("w",suffix=".pem",delete=False) as f:
 r=subprocess.run(["openssl","x509","-in",cert_path,"-noout","-subject","-fingerprint","-sha256"],capture_output=True,text=True)
 require(r.returncode==0,"camera root CA is not a valid X.509 certificate")
 
-print("PASS: HazRob 0.10.2 / HR069 firmware baseline contract")
+print("PASS: HazRob 0.10.3 / HR070 firmware baseline contract")
 print(r.stdout.strip())
 for directory in (MAIN,CAM):
     for f in sorted(directory.iterdir()):
