@@ -28,6 +28,7 @@ def main() -> int:
     protocol=read("app/src/main/java/com/servoc/app/communication/RobotProtocolV4.java")
     physical_ui=read("app/src/main/java/com/servoc/app/ui/PhysicalMeasurementsUiEnhancer.java")
     settings=read("app/src/main/java/com/servoc/app/ui/SettingsTab.java")
+    mic_cal=read("app/src/main/java/com/servoc/app/calibration/MicrophoneDbCalibration.java")
     echo_badge=read("app/src/main/java/com/servoc/app/ui/EchoDistanceBadge.java")
     r0=read("app/src/main/java/com/servoc/app/calibration/AcceptedR0Normalizer.java")
     lab_quality=read("app/src/main/java/com/servoc/app/chemcore/ChemCoreLabQuality.java")
@@ -106,19 +107,27 @@ def main() -> int:
     require(lab_quality,"ManualR0Calibration.has(hw.key)","ChemCore R0 readiness authority")
     require(protocol,"ManualR0Calibration.apply(hw.key,x)","telemetry R0 normalization")
 
-    require(hw,'\\"db_spl\\":null',"microphone quantitative SPL deferred")
-    require(hw,'\\"calibrated_db_spl\\":false',"microphone not calibrated")
+    # MAX4466: firmware retains raw electrical telemetry; Android applies one-point reference-meter offset.
+    require(hw,'\\"db_spl\\":null',"firmware does not claim unverified SPL")
+    require(hw,'\\"calibrated_db_spl\\":false',"firmware SPL remains unclaimed")
     require(hw,'\\"gain_reference\\":null',"microphone gain unquantified")
     require(hw,"trimmer_endpoint_fixed_unquantified","microphone trimmer state provenance")
     forbid(hw,"AMP_GAIN=25.0f","unverified fixed microphone gain")
-    require(physical_ui,"dB SPL غير معاير","operator microphone calibration state")
+    require(mic_cal,"20.0*Math.log10(ratio)","raw RMS-to-dBFS basis")
+    require(mic_cal,"referenceDb-hazRobRawDb","reference-meter offset equation")
+    require(mic_cal,"raw+offsetDb(p)","saved microphone offset application")
+    require(settings,"تعويض الميكروفون (dB)","operator microphone offset field")
+    require(settings,"قراءة جهاز القياس المعاير − قراءة HazRob الخام","operator microphone offset instructions")
+    require(physical_ui,"dBFS خام","operator raw microphone calibration state")
+    require(physical_ui,"معوض بمرجع خارجي","operator compensated microphone state")
+    forbid(physical_ui,"25×","stale fixed microphone gain display")
 
     require(robot_api,"DIRECT_KEEPALIVE_MS=150L","Direct moving keepalive")
     require(robot_api,"DIRECT_DRIVE_TIMEOUT_MS=250","Direct drive timeout")
     require(main,"0,50,TimeUnit.MILLISECONDS","20 Hz drive refresh")
 
     print("HazRob 0.10.2 / HR069 RC2 runtime contract: PASS")
-    print("drive=tank+joystick+wheel+buttons; wheel=operator-convention+path-relative-reverse; IR=ground-safe/no-ground-warning; estop=hold2s/tap-reset")
+    print("drive=tank+joystick+wheel+buttons; wheel=operator-convention+path-relative-reverse; IR=ground-safe/no-ground-warning; estop=hold2s/tap-reset; mic=reference-offset")
     return 0
 
 if __name__ == "__main__":
