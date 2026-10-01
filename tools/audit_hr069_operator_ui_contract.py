@@ -103,9 +103,12 @@ def main():
     req(intelligence,"gas_safety_gate_not_passed","gas safety evidence gate")
     req(intelligence,"recommendedCharts","smart chart recommendation list")
 
-    # UI-07: theme-independent contrast rules.
-    req(uikit,"LIGHT_BG=0xFFECEFF1","explicit light button background")
-    req(uikit,"LIGHT_TEXT=0xFF1B1F23","explicit light button foreground")
+    # UI-07: explicit HazRob dark-theme contrast rules.
+    req(uikit,"HAZ_BLACK=0xFF0A0D11","HazRob black background")
+    req(uikit,"HAZ_GRAY_DARK=0xFF263238","secondary-action background")
+    req(uikit,"HAZ_WHITE=0xFFF5F7F8","high-contrast foreground")
+    req(uikit,"HAZ_YELLOW=0xFFFFC107","primary HazRob accent")
+    req(uikit,"LIGHT_BG=HAZ_GRAY_DARK,LIGHT_TEXT=HAZ_WHITE","compatibility palette aliases")
     req(uikit,"foregroundFor(int background)","luminance-aware foreground")
     req(uikit,"contrast(TextView t,int background)","shared contrast application")
     req(uikit,"setHintTextColor(0xFF90A4AE)","dark-input hint contrast")
