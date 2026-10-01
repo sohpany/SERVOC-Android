@@ -22,7 +22,6 @@ import com.servoc.app.control.DriveMode;
 import com.servoc.app.control.DriveSpeedLimiter;
 import com.servoc.app.control.DualTankDriveControl;
 import com.servoc.app.control.JoystickView;
-import com.servoc.app.control.SteeringWheelView;
 import com.servoc.app.control.VerticalSpeedControl;
 import com.servoc.app.measurement.LiveGasStateEngine;
 import com.servoc.app.navigation.GasDirectionEstimator;
@@ -42,7 +41,7 @@ public final class ControlTab {
     private final TextView status,drive,cameraBadge,flameBadge,irBadge,trackingBadge,recordInfo,speedBadge,safetyWarning,gasBadge,wifiBadge,distanceBadge;
     private final Button stop,flash,record,cancelTracking,driveModeButton,relayButton;
     private final MjpegView video;private final MjpegRecorder recorder;private final FlameFrameAnalyzer flameAnalyzer;private final HazardOverlayView overlay;private final GasDirectionEstimator gasDirection=new GasDirectionEstimator();
-    private final JoystickView joystick;private final SteeringWheelView wheel;private final DirectionPadView directionPad;private final VerticalSpeedControl speedControl;private final DualTankDriveControl tankLeft,tankRight;
+    private final JoystickView joystick;private final DirectionPadView directionPad;private final VerticalSpeedControl speedControl;private final DualTankDriveControl tankLeft,tankRight;
     private volatile boolean recordingStopping=false,estopLatched=false;private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;private FlameFrameAnalyzer.Result lastFlameResult;private int lastTarget=-1;
     private int mappedLeftRaw=0,mappedRightRaw=0,tankLeftRaw=0,tankRightRaw=0,speedPercent=DriveSpeedLimiter.DEFAULT_PERCENT;private DriveMode driveMode;
 
@@ -50,15 +49,14 @@ public final class ControlTab {
         uiContext=c;appContext=c.getApplicationContext();this.host=host;landscape=c.getResources().getConfiguration().orientation==Configuration.ORIENTATION_LANDSCAPE;
         root=UiKit.vbox(c);root.setPadding(landscape?0:UiKit.dp(c,4),landscape?0:UiKit.dp(c,4),landscape?0:UiKit.dp(c,4),landscape?0:UiKit.dp(c,4));root.setBackgroundColor(Color.BLACK);
         cameraBox=new FrameLayout(c);cameraBox.setBackgroundColor(Color.BLACK);cameraBox.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        video=new MjpegView(c);recorder=new MjpegRecorder(c);flameAnalyzer=new FlameFrameAnalyzer(r->root.post(()->showFlame(r)));video.setFrameListener(flameAnalyzer::onJpegFrame);video.setStatusListener(this::showCameraStatus);cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
+        video=new MjpegView(c);recorder=new MjpegRecorder(c);flameAnalyzer=new FlameFrameAnalyzer(r->root.post(()->showFlame(r)));video.setFrameListener(jpeg->{flameAnalyzer.onJpegFrame(jpeg);recorder.onJpegFrame(jpeg);});video.setStatusListener(this::showCameraStatus);cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
         overlay=new HazardOverlayView(c);cameraBox.addView(overlay,new FrameLayout.LayoutParams(-1,-1));
 
         int controlSize=UiKit.dp(c,landscape?170:180),controlBottom=UiKit.dp(c,landscape?62:10);
-        wheel=new SteeringWheelView(c);FrameLayout.LayoutParams wp=new FrameLayout.LayoutParams(controlSize,controlSize,Gravity.RIGHT|Gravity.BOTTOM);wp.setMargins(0,0,UiKit.dp(c,10),controlBottom);cameraBox.addView(wheel,wp);wheel.setListener((l,r,active)->{if(driveMode==DriveMode.WHEEL)acceptMappedDrive(l,r);});
         joystick=new JoystickView(c);FrameLayout.LayoutParams jp=new FrameLayout.LayoutParams(controlSize,controlSize,Gravity.RIGHT|Gravity.BOTTOM);jp.setMargins(0,0,UiKit.dp(c,10),controlBottom);cameraBox.addView(joystick,jp);joystick.setListener((l,r,active)->{if(driveMode==DriveMode.JOYSTICK)acceptMappedDrive(l,r);});
         directionPad=new DirectionPadView(c);FrameLayout.LayoutParams dpp=new FrameLayout.LayoutParams(UiKit.dp(c,landscape?300:280),UiKit.dp(c,landscape?205:220),Gravity.RIGHT|Gravity.BOTTOM);dpp.setMargins(0,0,UiKit.dp(c,10),controlBottom);cameraBox.addView(directionPad,dpp);directionPad.setListener((l,r,active)->{if(driveMode==DriveMode.BUTTONS)acceptMappedDrive(l,r);});
         tankLeft=new DualTankDriveControl(c);tankRight=new DualTankDriveControl(c);FrameLayout.LayoutParams tlp=new FrameLayout.LayoutParams(UiKit.dp(c,92),controlSize,Gravity.LEFT|Gravity.BOTTOM);tlp.setMargins(UiKit.dp(c,78),0,0,controlBottom);cameraBox.addView(tankLeft,tlp);FrameLayout.LayoutParams trp=new FrameLayout.LayoutParams(UiKit.dp(c,92),controlSize,Gravity.RIGHT|Gravity.BOTTOM);trp.setMargins(0,0,UiKit.dp(c,10),controlBottom);cameraBox.addView(tankRight,trp);tankLeft.setListener(v->{tankLeftRaw=v;if(driveMode==DriveMode.TANK)applyTankDrive();});tankRight.setListener(v->{tankRightRaw=v;if(driveMode==DriveMode.TANK)applyTankDrive();});
-        boolean legacyTank=host.preferences().getBoolean("tank_drive_mode",false);String saved=host.preferences().getString("drive_mode","");driveMode=saved==null||saved.trim().isEmpty()?(legacyTank?DriveMode.TANK:DriveMode.WHEEL):DriveMode.fromKey(saved);host.preferences().edit().putString("drive_mode",driveMode.key).apply();applyDriveModeVisibility();
+        boolean legacyTank=host.preferences().getBoolean("tank_drive_mode",false);String saved=host.preferences().getString("drive_mode","");driveMode=saved==null||saved.trim().isEmpty()?(legacyTank?DriveMode.TANK:DriveMode.JOYSTICK):DriveMode.fromKey(saved);host.preferences().edit().putString("drive_mode",driveMode.key).apply();applyDriveModeVisibility();
 
         speedBadge=badge(c,"السرعة "+DriveSpeedLimiter.DEFAULT_PERCENT+"%");FrameLayout.LayoutParams sbp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.BOTTOM);sbp.setMargins(UiKit.dp(c,6),0,0,controlSize+controlBottom+UiKit.dp(c,4));cameraBox.addView(speedBadge,sbp);
         speedControl=new VerticalSpeedControl(c);speedControl.setPercent(DriveSpeedLimiter.DEFAULT_PERCENT,false);FrameLayout.LayoutParams vsp=new FrameLayout.LayoutParams(UiKit.dp(c,64),controlSize,Gravity.LEFT|Gravity.BOTTOM);vsp.setMargins(UiKit.dp(c,8),0,0,controlBottom);cameraBox.addView(speedControl,vsp);speedControl.setListener(p->{speedPercent=DriveSpeedLimiter.clampPercent(p);speedBadge.setText("السرعة "+speedPercent+"%");if(driveMode==DriveMode.TANK)applyTankDrive();else applyMappedDrive();});
@@ -89,8 +87,8 @@ public final class ControlTab {
     private void acceptMappedDrive(int left,int right){mappedLeftRaw=left;mappedRightRaw=right;applyMappedDrive();}
     private void applyMappedDrive(){if(estopLatched){host.setDriveCommand(0,0);return;}host.setDriveCommand(DriveSpeedLimiter.scale(mappedLeftRaw,speedPercent),DriveSpeedLimiter.scale(mappedRightRaw,speedPercent));}
     private void applyTankDrive(){if(estopLatched){host.setDriveCommand(0,0);return;}host.setDriveCommand(DriveSpeedLimiter.scale(tankLeftRaw,speedPercent),DriveSpeedLimiter.scale(tankRightRaw,speedPercent));}
-    private void applyDriveModeVisibility(){tankLeft.setVisibility(driveMode==DriveMode.TANK?View.VISIBLE:View.GONE);tankRight.setVisibility(driveMode==DriveMode.TANK?View.VISIBLE:View.GONE);wheel.setVisibility(driveMode==DriveMode.WHEEL?View.VISIBLE:View.GONE);joystick.setVisibility(driveMode==DriveMode.JOYSTICK?View.VISIBLE:View.GONE);directionPad.setVisibility(driveMode==DriveMode.BUTTONS?View.VISIBLE:View.GONE);}
-    private void resetDriveInputs(){mappedLeftRaw=mappedRightRaw=tankLeftRaw=tankRightRaw=0;wheel.reset();joystick.reset();directionPad.reset();tankLeft.reset();tankRight.reset();host.setDriveCommand(0,0);}
+    private void applyDriveModeVisibility(){tankLeft.setVisibility(driveMode==DriveMode.TANK?View.VISIBLE:View.GONE);tankRight.setVisibility(driveMode==DriveMode.TANK?View.VISIBLE:View.GONE);joystick.setVisibility(driveMode==DriveMode.JOYSTICK?View.VISIBLE:View.GONE);directionPad.setVisibility(driveMode==DriveMode.BUTTONS?View.VISIBLE:View.GONE);}
+    private void resetDriveInputs(){mappedLeftRaw=mappedRightRaw=tankLeftRaw=tankRightRaw=0;joystick.reset();directionPad.reset();tankLeft.reset();tankRight.reset();host.setDriveCommand(0,0);}
     private void cycleDriveMode(){resetDriveInputs();driveMode=driveMode.next();host.preferences().edit().putString("drive_mode",driveMode.key).putBoolean("tank_drive_mode",driveMode==DriveMode.TANK).apply();applyDriveModeVisibility();renderDriveModeButton();host.showToast("نمط القيادة: "+driveMode.arabicLabel);}
     private void renderDriveModeButton(){driveModeButton.setText("قيادة: "+driveMode.arabicLabel);}
 
