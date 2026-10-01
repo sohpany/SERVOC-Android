@@ -41,8 +41,16 @@ def main() -> int:
     require(cfg,'FW[]="HazRob 0.10.2"',"firmware identity")
     require(cfg,'API=4',"API4 identity")
 
+    # IR is a downward cliff sensor: reflection/ground is SAFE; missing reflection is the warning.
+    # Active voltage polarity is a hardware detail and must not be confused with hazard semantics.
     require(release,"IR_WARNING_ONLY=true","IR warning-only release flag")
     require(release,"IR_OPTIONAL_AUTO_STOP=false","IR auto-stop disabled")
+    require(cfg,"IR_GROUND_ACTIVE=LOW","current physical IR ground-active polarity")
+    require(hw,"bool groundNow=irLevel==Cfg::IR_GROUND_ACTIVE","IR active signal means ground present")
+    require(hw,"irGroundDetected=true;irWarning=false","IR reflection/ground clears cliff warning")
+    require(hw,"irGroundDetected=false;irWarning=true","IR missing reflection asserts cliff warning")
+    require(hw,'\\"ground_detected\\":'+"String(bj(irGroundDetected))","IR ground telemetry")
+    require(hw,'\\"cliff_warning\\":'+"String(bj(irWarning))","IR cliff telemetry")
     require(release,"ULTRASONIC_OPTIONAL_AUTO_STOP=false","ultrasonic auto-stop disabled")
     require(safety,'safetyNv.putBool("autoStop",false)',"persisted auto-stop forced off")
     require(safety,"return false;","runtime auto-stop forced off")
@@ -72,9 +80,12 @@ def main() -> int:
     require(control,"host.setDriveCommand(tankLeftRaw,tankRightRaw)","tank direct independent speed authority")
     require(control,"driveMode==DriveMode.WHEEL","wheel exposed in control UI")
     require(control,"wheel.reset()","wheel release/reset contract")
-    require(wheel,"if(x>0)return new DriveMixer.Command(pct(slowed),pct(full))","wheel right slows left side")
-    require(wheel,"if(x<0)return new DriveMixer.Command(pct(full),pct(slowed))","wheel left slows right side")
-    require(wheel,"MIN_SLOWED_RATIO = 0.40","wheel 40 percent inner floor")
+    require(wheel,"if(y>0){","wheel forward branch")
+    require(wheel,"forward + right: slow LEFT","wheel forward-right convention")
+    require(wheel,"forward + left: slow RIGHT","wheel forward-left convention")
+    require(wheel,"reverse + right: slow RIGHT","wheel reverse-right path-relative convention")
+    require(wheel,"reverse + left: slow LEFT","wheel reverse-left path-relative convention")
+    require(wheel,"MIN_SLOWED_RATIO = 0.40","wheel 40 percent slowed-side floor")
     require(wheel,"PIVOT_MAX = 0.50","wheel 50 percent pivot cap")
     require(wheel_view,"SteeringWheelMixer.mix(x,y)","wheel view uses dedicated requested mixer")
 
@@ -107,7 +118,7 @@ def main() -> int:
     require(main,"0,50,TimeUnit.MILLISECONDS","20 Hz drive refresh")
 
     print("HazRob 0.10.2 / HR069 RC2 runtime contract: PASS")
-    print("drive=tank+joystick+wheel+buttons; wheel=right-slows-left/left-slows-right; pivot=50%; estop=hold2s/tap-reset")
+    print("drive=tank+joystick+wheel+buttons; wheel=operator-convention+path-relative-reverse; IR=ground-safe/no-ground-warning; estop=hold2s/tap-reset")
     return 0
 
 if __name__ == "__main__":
