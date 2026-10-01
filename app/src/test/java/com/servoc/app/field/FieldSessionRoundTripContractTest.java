@@ -37,15 +37,20 @@ public class FieldSessionRoundTripContractTest {
 
  @Test public void reportAndBackupUseSameImmutableSessionIds() throws Exception {
   String archive=read("src/main/java/com/servoc/app/field/FieldSessionArchive.java");
-  String report=read("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
+  String facade=read("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
+  String pdf=read("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
   assertTrue(archive.contains("f.field_session_id=?"));
-  assertTrue(report.contains("public final String fieldSessionId"));
-  assertTrue(report.contains("this.fieldSessionId=fieldSessionId"));
-  assertTrue(report.contains("measurementSessionIds(fs)"));
-  assertTrue(report.contains("ExperimentQueries.bySessionId(db,sid)"));
-  assertTrue(report.contains("new Bundle(fs,site,field"));
-  assertTrue(report.contains("labelValue(c,\"Field Session\",b.fieldSession.id"));
-  assertTrue(report.contains("labelValue(c,\"Site ID\",b.site.id"));
+  assertTrue(facade.contains("public final String fieldSessionId"));
+  assertTrue(facade.contains("this.fieldSessionId=fieldSessionId"));
+  assertTrue(facade.contains("measurementSessionIds(fs)"));
+  assertTrue(facade.contains("ExperimentQueries.bySessionId(db,sid)"));
+  assertTrue(facade.contains("new Bundle(fs,site,field"));
+  assertTrue(facade.contains("SmartFieldSessionPdfWriter.writePdf(out,db,fieldSessionId,chemicals)"));
+  assertTrue(pdf.contains("FieldSessionReportExporter.resolve(db,fieldSessionId)"));
+  assertTrue(pdf.contains("evidence(db,b.measurementSessionIds)"));
+  assertTrue(pdf.contains("{\"Site ID\",b.site.id}"));
+  assertTrue(pdf.contains("{\"Field Session\",b.fieldSession.id}"));
+  assertTrue(pdf.contains("primary==null?\"—\":primary.sessionId"));
  }
 
  @Test public void portableLibraryWritesAndRestoresPerSessionSourceArchives() throws Exception {
