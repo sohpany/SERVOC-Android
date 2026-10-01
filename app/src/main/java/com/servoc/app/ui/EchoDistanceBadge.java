@@ -54,16 +54,31 @@ public final class EchoDistanceBadge extends TextView implements Runnable {
         JSONObject device=d==null?null:d.optJSONObject("device");
         JSONObject proximity=device==null?null:device.optJSONObject("proximity");
         double cm=proximity==null?Double.NaN:proximity.optDouble("distance_cm",proximity.optDouble("cm",Double.NaN));
-        // Raw API4 fallback protects the overlay if an intermediate normalizer omits/renames the field.
-        if((Double.isNaN(cm)||Double.isInfinite(cm)||cm<=0)&&d!=null){
+        long timeouts=0,pulseUs=0;
+
+        // Raw API4 fallback protects the overlay if an intermediate normalizer omits/renames a field.
+        if(d!=null){
             JSONObject raw=d.optJSONObject("_data_api");
             JSONObject rawDevice=raw==null?null:raw.optJSONObject("device");
             JSONObject rawProximity=rawDevice==null?null:rawDevice.optJSONObject("proximity");
-            if(rawProximity!=null)cm=rawProximity.optDouble("cm",rawProximity.optDouble("distance_cm",Double.NaN));
+            if(rawProximity!=null){
+                if(Double.isNaN(cm)||Double.isInfinite(cm)||cm<=0)cm=rawProximity.optDouble("cm",rawProximity.optDouble("distance_cm",Double.NaN));
+                timeouts=Math.max(0,rawProximity.optLong("timeouts",0));
+                pulseUs=Math.max(0,rawProximity.optLong("pulse_us",0));
+            }
         }
+
         if(Double.isNaN(cm)||Double.isInfinite(cm)||cm<=0){
-            setText("ECHO — cm");
-            setTextColor(0xFF90A4AE);
+            if(timeouts>0){
+                setText("ECHO TIMEOUT ×"+timeouts);
+                setTextColor(0xFFFFB74D);
+            }else if(pulseUs>0){
+                setText("ECHO pulse "+pulseUs+" µs");
+                setTextColor(0xFFFFB74D);
+            }else{
+                setText("ECHO — cm");
+                setTextColor(0xFF90A4AE);
+            }
             return;
         }
         setText(String.format(Locale.US,"ECHO %.1f cm",cm));
