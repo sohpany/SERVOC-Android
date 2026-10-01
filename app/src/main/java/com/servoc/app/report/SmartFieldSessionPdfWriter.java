@@ -34,8 +34,8 @@ public final class SmartFieldSessionPdfWriter {
         Evidence(String sid,SessionSeries.Series s,JSONObject d,int records){sessionId=sid;series=s;decision=d;recordCount=records;score=score(s,d,records);}
         boolean seriesOk(){return series!=null&&series.usable();} boolean chemOk(){return decision!=null;}
         int samples(){return series==null?0:series.samples.size();} long durationMs(){return series==null?0:series.durationMs();}
-        String outcome(){return decision==null?"—":decision.optString("outcome","—");} String topCandidate(){return topCandidate(decision);}
-        double posterior(){return topPosterior(decision);} int validMq(){return validMq(decision);}
+        String outcome(){return decision==null?"—":decision.optString("outcome","—");} String topCandidate(){return SmartFieldSessionPdfWriter.topCandidate(decision);}
+        double posterior(){return topPosterior(decision);} int validMq(){return SmartFieldSessionPdfWriter.validMq(decision);}
     }
     private static final class Consensus {final String label;final int count,total;final double meanPosterior;Consensus(String l,int c,int t,double p){label=l;count=c;total=t;meanPosterior=p;}}
 
