@@ -1,6 +1,7 @@
 package com.servoc.app.control;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -13,6 +14,7 @@ import android.view.View;
  * Command policy is intentionally direct and linear: there is no acceleration ramp,
  * reverse delay or steering smoothing in the operator path. The firmware remains the
  * final safety authority. Releasing/cancelling the touch always emits neutral 0/0.
+ * Horizontal steering can be reversed independently from Settings without affecting travel sign.
  */
 public final class JoystickView extends View {
     public interface Listener { void onDrive(int left, int right, boolean active); }
@@ -23,6 +25,7 @@ public final class JoystickView extends View {
     private final Paint ring = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint guide = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint knob = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final SharedPreferences drivePreferences;
     private float x = 0, y = 0;
     private boolean active = false;
     private int pointerId = INVALID_POINTER;
@@ -30,6 +33,7 @@ public final class JoystickView extends View {
 
     public JoystickView(Context context) {
         super(context);
+        drivePreferences = context.getSharedPreferences(DriveDirectionOption.PREF_FILE, Context.MODE_PRIVATE);
         setClickable(true);
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(4);
@@ -119,7 +123,9 @@ public final class JoystickView extends View {
     private void emit() {
         if (listener == null) return;
         DriveMixer.Command command = DriveMixer.mix(x, y);
-        listener.onDrive(command.left, command.right, active);
+        boolean reverse = drivePreferences.getBoolean(DriveDirectionOption.PREF_REVERSE_JOYSTICK, false);
+        DriveMixer.Command mapped = DriveDirectionOption.apply(DriveMode.JOYSTICK, reverse, command.left, command.right);
+        listener.onDrive(mapped.left, mapped.right, active);
     }
 
     @Override public boolean performClick() {
