@@ -20,8 +20,8 @@ import java.util.Locale;
  * The original four-column table allowed Android to shrink every column, which made Arabic labels
  * and engineering units wrap character-by-character on narrow phones. This enhancer applies fixed
  * proportional column weights, keeps the unit column on one line, emphasizes the measured value,
- * and restores the MAX4466 dB SPL value from the raw API4 payload if a staged normalization layer
- * ever omits db_spl.
+ * and only presents dB SPL when the telemetry itself provides a finite value. A trimmer end-stop is
+ * not treated as a known 25x gain and is never converted into a +25 dB reading offset.
  */
 public final class PhysicalMeasurementsUiEnhancer implements Runnable {
     private static final String TAG="hazrob_physical_measurements_enhancer";
@@ -147,21 +147,27 @@ public final class PhysicalMeasurementsUiEnhancer implements Runnable {
         JSONObject sound=d==null?null:d.optJSONObject("sound");
         double db=sound==null?Double.NaN:sound.optDouble("db_spl",Double.NaN);
         double gain=sound==null?Double.NaN:sound.optDouble("gain_reference",Double.NaN);
+        boolean calibrated=sound!=null&&sound.optBoolean("calibrated_db_spl",false);
         if(!Double.isFinite(db)&&d!=null){
             JSONObject raw=d.optJSONObject("_data_api");
             JSONObject rs=raw==null?null:raw.optJSONObject("sound");
             if(rs!=null){
                 db=rs.optDouble("db_spl",Double.NaN);
                 gain=rs.optDouble("gain_reference",Double.NaN);
+                calibrated=rs.optBoolean("calibrated_db_spl",false);
             }
         }
         if(Double.isFinite(db)){
             value.setText(String.format(Locale.US,"%.1f",db));
             value.setTextColor(Color.WHITE);
             value.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-            String g=Double.isFinite(gain)?String.format(Locale.US,"%.0f×",gain):"25×";
-            state.setText("MAX4466 • dB SPL تقديري • Gain "+g);
-            state.setTextColor(0xFF81C784);
+            String suffix=Double.isFinite(gain)?" • Gain "+String.format(Locale.US,"%.0f×",gain):"";
+            state.setText("MAX4466 • "+(calibrated?"dB SPL معاير":"dB SPL تقديري")+suffix);
+            state.setTextColor(calibrated?0xFF81C784:0xFFFFB74D);
+        }else{
+            value.setText("—");
+            state.setText("MAX4466 • RMS/P-P متاح • dB SPL غير معاير");
+            state.setTextColor(0xFFFFB74D);
         }
     }
 }
