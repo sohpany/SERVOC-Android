@@ -5,6 +5,7 @@ import com.servoc.app.chemical.GasEngine;
 import com.servoc.app.chemical.LiteratureCurveRegistry;
 import com.servoc.app.chemical.ResearchCurveRegistry;
 import com.servoc.app.chemical.SensorOperatingEnvelope;
+import com.servoc.app.chemcore.ChemCoreUncertaintyPolicy;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -150,7 +151,7 @@ public final class ResearchIdentificationFingerprintRegistry {
         for(LiteratureCurveRegistry.Curve c:LiteratureCurveRegistry.CURVES){
             if(c.sensor!=sensor||c.chemical!=chemical||!c.inDeclaredRange(ppm))continue;
             double ratio=c.ratioFromPpm(ppm);
-            if(Double.isFinite(ratio)&&ratio>0)return new SourceValue(ratio,0.20);
+            if(Double.isFinite(ratio)&&ratio>0)return new SourceValue(ratio,ChemCoreUncertaintyPolicy.LITERATURE_POWER_SIGMA_LOG10);
         }
         return null;
     }
@@ -161,8 +162,11 @@ public final class ResearchIdentificationFingerprintRegistry {
         if(!envelope.usableAsFingerprintEvidence())return null;
         double ratio=ratios[sensor];
         if(!Double.isFinite(ratio)||ratio<=0)return null;
-        double sigma=envelope.status==SensorOperatingEnvelope.PRIMARY_TARGET?0.22:
-                envelope.status==SensorOperatingEnvelope.MANUFACTURER_GRAPH_RESPONSE?0.27:0.32;
+        double sigma=envelope.status==SensorOperatingEnvelope.PRIMARY_TARGET
+                ?ChemCoreUncertaintyPolicy.MANUFACTURER_PRIMARY_SIGMA_LOG10
+                :envelope.status==SensorOperatingEnvelope.MANUFACTURER_GRAPH_RESPONSE
+                ?ChemCoreUncertaintyPolicy.MANUFACTURER_SECONDARY_SIGMA_LOG10
+                :ChemCoreUncertaintyPolicy.RESEARCH_CURVE_SIGMA_LOG10;
         return new SourceValue(ratio,sigma);
     }
 
@@ -172,7 +176,7 @@ public final class ResearchIdentificationFingerprintRegistry {
             SensorOperatingEnvelope.Check envelope=SensorOperatingEnvelope.check(sensor,chemical,ppm,true);
             if(!envelope.usableAsFingerprintEvidence())continue;
             double ratio=c.ratioFromPpm(ppm);
-            if(Double.isFinite(ratio)&&ratio>0)return new SourceValue(ratio,0.32);
+            if(Double.isFinite(ratio)&&ratio>0)return new SourceValue(ratio,ChemCoreUncertaintyPolicy.RESEARCH_CURVE_SIGMA_LOG10);
         }
         return null;
     }
