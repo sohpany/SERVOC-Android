@@ -15,6 +15,7 @@ def main():
     solver=txt('app/src/main/java/com/servoc/app/chemcore/InverseMolecularSolver.java')
     uncertainty=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreUncertaintyPolicy.java')
     environment=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreEnvironmentDomainPolicy.java')
+    mahal=txt('app/src/main/java/com/servoc/app/chemcore/MahalanobisModel.java')
     qspr=txt('app/src/main/java/com/servoc/app/chemcore/QsprResponseModelAdapter.java')
     qreg=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreQsprRuntimeRegistry.java')
     ref=txt('app/src/main/java/com/servoc/app/chemcore/AcceptedReferenceResponseModel.java')
@@ -83,6 +84,14 @@ def main():
     req(infer,'r.referenceContributors>=2&&r.allContributorsInsideDomain','M3 reference support requires all contributors inside domain')
     req(infer,'else if(openSetAccepted&&!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN','out-of-domain named identity is withheld')
     forbid(environment,'EnvironmentalCompensationModel','domain gate must not silently activate compensation')
+
+    # Missing-feature Mahalanobis must use the observed covariance marginal, not a principal block
+    # of the full precision matrix. Coverage scaling is retained only for threshold compatibility.
+    req(mahal,'MISSING_FEATURE_SEMANTICS="marginal_covariance_subspace_with_dimension_coverage_scaling"','missing-feature Mahalanobis semantics')
+    req(mahal,'double[][] covarianceSubspace = new double[idx.length][idx.length]','observed covariance marginal')
+    req(mahal,'marginalPrecision=invert(covarianceSubspace)','marginal covariance is inverted directly')
+    req(mahal,'marginal*((double)mean.length/idx.length)','coverage scaling retained explicitly')
+    forbid(mahal,'w[i][j] = inverseCovariance[idx[i]][idx[j]]','precision principal-block shortcut is forbidden')
 
     # Curves remain domain bounded and retain source-specific provenance.
     req(ref,'!c.inDeclaredRange(ppm)','literature domain bound')
