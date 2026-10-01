@@ -1,6 +1,7 @@
 package com.servoc.app.control;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -16,9 +17,11 @@ public final class DirectionPadView extends GridLayout {
     private static final int STOP=0x80C62828;
     private static final int TEXT=0xFFF5F7F8;
     public interface Listener{void onDrive(int left,int right,boolean active);}
+    private final SharedPreferences drivePreferences;
     private Listener listener;
     public DirectionPadView(Context c){
         super(c);
+        drivePreferences=c.getSharedPreferences(DriveDirectionOption.PREF_FILE,Context.MODE_PRIVATE);
         // The app shell is RTL, but directional geometry must remain physical/screen LTR:
         // ↖ stays top-left, ↗ top-right, ↙ bottom-left, ↘ bottom-right.
         setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
@@ -47,6 +50,6 @@ public final class DirectionPadView extends GridLayout {
     }
     private Button button(String s){Button b=new Button(getContext());b.setText(s);b.setTextSize(26);b.setGravity(Gravity.CENTER);b.setTextColor(TEXT);b.setBackgroundColor(BASE);b.setAllCaps(false);b.setMinWidth(dp(48));b.setMinHeight(dp(48));b.setPadding(dp(2),0,dp(2),0);return b;}
     private LayoutParams cell(int row,int col){Spec rs=GridLayout.spec(row,1,1f),cs=GridLayout.spec(col,1,1f);LayoutParams p=new LayoutParams(rs,cs);p.width=0;p.height=0;p.setGravity(Gravity.FILL);return p;}
-    private void emit(DiscreteDrive.Intent i,boolean active){if(listener==null)return;DriveMixer.Command c=DiscreteDrive.command(i);listener.onDrive(c.left,c.right,active);}
+    private void emit(DiscreteDrive.Intent i,boolean active){if(listener==null)return;DriveMixer.Command c=DiscreteDrive.command(i);boolean reverse=drivePreferences.getBoolean(DriveDirectionOption.PREF_REVERSE_BUTTONS,false);DriveMixer.Command mapped=DriveDirectionOption.apply(DriveMode.BUTTONS,reverse,c.left,c.right);listener.onDrive(mapped.left,mapped.right,active);}
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
 }
