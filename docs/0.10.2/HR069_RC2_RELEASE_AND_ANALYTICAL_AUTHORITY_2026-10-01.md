@@ -2,171 +2,132 @@
 
 ## Decision status
 
-**ACTIVE / CANONICAL**
+**ACTIVE / CANONICAL — revised after HazRob-Lab freeze**
 
-This record establishes the authoritative HazRob release and analytical baseline as of 2026-10-01.
+This record establishes the authoritative HazRob release and analytical baseline.
 
-## 1. Authoritative application release
+## 1. Authoritative release
 
-The latest and only active application/release line is:
+The latest and only active release line is:
 
-- Release candidate: **RC2**
-- Android version: **0.10.2**
+- RC: **RC2**
+- Android: **0.10.2**
 - Engineering revision: **HR069**
 - versionCode: **26**
 - source repository: `sohpany/SERVOC-Android`
 - source branch: `release/hazrob-0.10.2-rc2`
-- RC2 application baseline SHA before this documentation-only commit: `22820dc365ef634e9b9e5e0d685ffdb53dcbbe35`
+- RC2 application baseline SHA before authority-document commits: `22820dc365ef634e9b9e5e0d685ffdb53dcbbe35`
 - database schema: **9**
-- Main ESP32 API: **HazRob API v4 / firmware 0.10.2**
+- Main ESP32 API: **v4 / firmware 0.10.2**
 
-All future production, analytical, calibration, report, APK and firmware work must be reconciled against this line unless a later release is explicitly approved in a new authority record.
+All production, analytical, calibration, report, APK and firmware work must be reconciled against this line unless a later release is explicitly approved.
 
-## 2. 0.10.3 / HR070 withdrawal
+## 2. HR070 withdrawal
 
-**HazRob 0.10.3 / HR070 is CANCELLED, WITHDRAWN and NON-AUTHORITATIVE.**
+**0.10.3 / HR070 is CANCELLED, WITHDRAWN and NON-AUTHORITATIVE.**
 
-The branch `release/hazrob-0.10.3-hr070` and any organization-side HR070 branch/artifact are retained only as historical/recovery evidence until manually deleted. They must not be used as:
+Its branch/artifacts are historical/recovery material only. HR070 must not be used as a release source, merge authority, ChemCore authority, calibration authority, analytical-library authority or report-methodology authority.
 
-- a release source;
-- a merge base for new HazRob work;
-- an APK/firmware build target;
-- a ChemCore scientific authority;
-- a calibration authority;
-- an analytical-library authority;
-- a report-methodology authority.
+Any useful HR070-only change requires explicit review and reintroduction into the active RC2/HR069 line or a later formally approved successor.
 
-No HR070-only change is accepted into the active product merely because it is newer by version number. Any useful change must be reviewed and explicitly reintroduced into RC2/HR069 or a later formally approved successor.
+## 3. Production analytical authority
 
-## 3. Analytical-system authority model
-
-The analytical system is intentionally divided into distinct authorities.
-
-### 3.1 Production inference authority
-
-The production analytical inference engine is the **ChemCore implementation inside RC2/HR069** under:
+The production analytical inference engine is the **ChemCore implementation inside RC2/HR069**:
 
 `app/src/main/java/com/servoc/app/chemcore/`
 
-This includes the controlled inference, open-set/OOD rejection, evidence fusion, accepted-fingerprint identity path, reference-response fitting, mixture/interference guards, session dynamics, confidence handling and M4 quantitative gating.
+This includes controlled inference, open-set/OOD rejection, evidence fusion, accepted-fingerprint identity, reference-response fitting, mixture/interference guards, session dynamics, confidence handling and M4 quantitative gating.
 
-### 3.2 Canonical current analytical evidence corpus
+## 4. Central analytical library — single write authority
 
-The richest and most current qualified analytical-data corpus present in the active RC2 source is:
+The canonical HazRob analytical evidence corpus is:
 
 `research_data/hr069_analytical_library/`
 
-**This directory is adopted as the canonical current analytical evidence corpus for RC2/HR069.**
+inside:
 
-It is richer than HR070 and currently richer than the synchronized subset in `sohpany/HazRob-Lab` because it contains the latest HR069 transfer/evidence additions as well as the previously synchronized core assets.
+`sohpany/SERVOC-Android : release/hazrob-0.10.2-rc2`
 
-### 3.3 Research and validation environment
+**This is the single active scientific-library write authority.**
 
-`sohpany/HazRob-Lab` remains the independent research, calibration, validation and scientific-development environment. It is not the production runtime and is not allowed to override RC2 automatically.
+All new experimental data, fingerprints, response curves, transfer evidence, reference-gas results, model evidence and scientific-source additions are admitted here with provenance and scientific qualification controls.
 
-New research should be staged and validated in HazRob-Lab where practical, then synchronized into the canonical RC2 analytical corpus only with provenance, schema compatibility and evidence-level controls. Until the current RC2 additions are fully synchronized back to HazRob-Lab, the RC2 corpus remains the current data authority.
+The active corpus currently includes the major evidence layers documented in `HR069_CENTRAL_LIBRARY_AND_GITHUB_DISTRIBUTION_2026-10-01.md`, including 43 MQ research curves, 76 MQDataScience models, 13 numeric fingerprint families, 59 Food Freshness headspace fingerprints, Multimodal/UCI/RoboFusion transfer evidence and the newer Methanol/Ethylene/1-Propanol/Kononov/same-sensor evidence sets.
 
-### 3.4 Organization build/qualification authority
+## 5. HazRob-Lab freeze
 
-`HazRob/build-harness` is a build/qualification harness only. It is **not** the application source tree and **not** the scientific data source of truth. It may qualify an explicitly pinned RC2 source SHA and preserve build/test evidence.
+`sohpany/HazRob-Lab` is **FROZEN effective 2026-10-01**.
 
-## 4. Canonical RC2 analytical corpus — verified content
+It is retained as historical/scientific provenance only.
 
-The adopted HR069 corpus contains the following major evidence layers.
+After the freeze:
 
-### Chemical identity layers
+- no new experiments are written there;
+- no new calibration data are written there;
+- no new fingerprints/curves/models are staged there;
+- no ChemCore publication is sourced there;
+- no user update is distributed from there.
 
-- 144-entry HazRob legacy analytical catalogue.
-- 652-record pinned NIOSH/molecular identity layer.
-- 615 resolved molecular records and 37 unresolved records in the current molecular-resolution status.
-- evidence provenance and explicit unresolved/mapping queues rather than fabricated identities.
+Existing data remain preserved and are not deleted.
 
-### MQ response and model layers
+## 6. Build harness role
 
-- **43** MQ research response curves with provenance and declared validity domains.
-- **76** MQDataScience model definitions in the research model catalogue.
-- 14 Android-native model ports, 12 upstream-verified and 2 explicitly marked approximations; the remaining models stay research/lab models until qualified for runtime use.
+`HazRob/build-harness` is **qualification/build evidence only**.
 
-### Accepted numeric identification fingerprints
+It may check out an explicitly pinned RC2 source SHA, run audits/tests/builds and preserve evidence. It is not:
 
-`identification_fingerprint_priors_v1.json` contains:
+- the application source tree;
+- the central scientific library;
+- the experiment-data destination;
+- the end-user distribution origin.
 
-- **11 pure-analyte numeric fingerprint families**: Carbon Monoxide, Ammonia, Carbon Dioxide, Benzene, Hydrogen, Methane, Propane, n-Hexane, Toluene, Ethanol and Acetone.
-- **2 operational-class numeric fingerprint families**: LPG and Smoke.
-- **13 total numeric fingerprint families**.
-- vector space: `log10(Rs/R0)`.
-- physical HR069 sensor order: `MQ2, MQ3, MQ4, MQ5, MQ7, MQ8, MQ9, MQ135`.
-- concentration template grid: 10/25/50/100/200/300/500/1000/3000/5000/10000 ppm, with each sensor/analyte channel limited to its source-supported domain.
+## 7. End-user library distribution
 
-### Measured/derived external fingerprint layers
+HazRob applications will receive qualified scientific-library updates **directly from GitHub**.
 
-- Food Freshness: **59 measured headspace/session fingerprints** over the HR069-overlap array; retained as headspace/class evidence, not relabelled as pure analytes.
-- Multimodal MQ transfer set: **6400 samples**, four classes (`NoGas`, `Smoke`, `Perfume`, `Mixture`) and six HR069-overlap MQ channels.
-- UCI MQ135 low-concentration transfer set: **18 analyte/concentration records** across six analytes at 0.05/0.10/0.20 ppm, five replicates per analyte/concentration; one HR069-overlap channel, therefore transfer/reference evidence rather than direct multi-channel identity.
-- RoboFusion real operational gas-leak transfer set: **69,120 total rows**, with **42,704 original/non-interpolated rows** retained for canonical prototypes across six HR069-overlap MQ channels; operational `Normal` and `Hazard_1` classes only, with no invented chemical identity.
+The distribution channel must be:
 
-### Same-sensor peer-reviewed identity evidence
+- public and read-only for ordinary users;
+- manifest-driven;
+- hash verified;
+- cryptographically signed/verified before activation;
+- compatible with app/schema/sampling-profile requirements;
+- atomic with rollback;
+- fail-closed on verification failure;
+- free of GitHub credentials/tokens in the APK.
 
-The current same-sensor peer-reviewed evidence registry provides accepted identity support for at least these legacy IDs:
+A private raw GitHub URL must not be used as the user endpoint because ordinary users would require authentication.
 
-- Toluene (95)
-- Methanol (102)
-- Ethanol (103)
-- 1-Propanol (104)
-- Isopropanol (105)
-- 1-Butanol (106)
-- Acetone (110)
-- Ethyl Acetate (115)
+Until the public GitHub publication endpoint is provisioned, RC2 remains intentionally fail-closed rather than falling back to Render or another scientific-library host.
 
-It also tracks exact extended identities including Ethylene glycol, Benzaldehyde and 1-Octanol, plus review queues for ambiguous/isomer mappings.
+## 8. Scientific rules preserved
 
-### Additional transfer evidence retained in the canonical corpus
-
-- **Methanol**: peer-reviewed same-array study with all eight HR069 MQ models represented in the source array; 168 recordings, 11 sensors and 401 samples/sensor/recording reported; accepted as transfer identity evidence, not HR069 M4.
-- **Ethylene**: exact MQ3 known-concentration study at 10/25/40/50 ppm across 0/33/64% RH; accepted transfer evidence pending reproducible numeric source response and HR069 transfer validation.
-- **1-Propanol**: peer-reviewed same-array evidence with seven of eight HR069 MQ channels, 10–100 ppm domain and 10 independent repeats per VOC; accepted identity transfer evidence pending raw numeric vectors.
-- **Kononov MOX numeric transfer batch**: numeric cross-device matrices for n-Heptane, o-Xylene and Ethylbenzene across multiple concentration levels and multi-state MOX measurements; transfer evidence only until source-to-HR069 validation.
-- experiment/source index covering exact/superset HR069 MQ arrays, mixture experiments, CO studies, food/headspace datasets and same-model evidence priorities.
-
-## 5. Runtime scientific rules
-
-Adoption of the richest corpus does **not** relax scientific gates.
-
-1. External/source-backed evidence remains `RESEARCH_EXTERNAL` unless separately qualified.
-2. External evidence does not self-promote to `M4_HAZROB_VALIDATED`.
-3. Accepted fingerprint identity may support `IDENTIFIED / M3_ARRAY_CONSISTENT` only after the open-set/OOD gate and required channel/separation criteria.
+1. External/source-backed evidence remains non-M4 unless separately qualified.
+2. External evidence never self-promotes to `M4_HAZROB_VALIDATED`.
+3. Accepted fingerprint identity may support M3 only after open-set/OOD and required separation/channel gates.
 4. Fingerprint identity does not create reportable occupational/safety PPM.
-5. Source-backed PPM relations may be used for candidate fitting/ranking/provisional reference hypotheses only inside their declared domains.
-6. Reportable quantitative PPM requires HR069 device/reference M4 calibration and all existing quantitative gates.
-7. MQ7/MQ9 manufacturer-curve use remains fail-closed while the installed common heater rail cannot satisfy their required cyclic heater protocol.
-8. Missing sensor channels must remain missing; no source-to-HR069 channel may be fabricated or substituted.
-9. Headspace, food, mixture, smoke and operational hazard classes remain class/mixture evidence and must not be silently converted into pure-chemical identities.
+5. Source-backed PPM relations remain limited to their declared domains and provisional/reference use unless M4 exists.
+6. Reportable quantitative PPM requires HR069 device/reference M4 validation and existing ChemCore gates.
+7. MQ7/MQ9 manufacturer-curve use remains fail-closed while their required heater cycle is not physically valid.
+8. Missing sensor channels remain missing; no source-to-HR069 channel is fabricated.
+9. Mixture/headspace/smoke/operational classes are not silently converted to pure-chemical identities.
 10. Duplicate/mirror datasets do not count as independent evidence.
 
-## 6. Authority order from this checkpoint forward
+## 9. Authority order
 
 When records conflict, use this order:
 
-1. **Release identity:** `release/hazrob-0.10.2-rc2` / 0.10.2 / HR069.
+1. **Release identity:** RC2 / 0.10.2 / HR069.
 2. **Production analytical runtime:** RC2 ChemCore.
-3. **Current canonical analytical evidence corpus:** RC2 `research_data/hr069_analytical_library/`.
-4. **Scientific research/staging environment:** `sohpany/HazRob-Lab`.
+3. **Central analytical library:** RC2 `research_data/hr069_analytical_library/`.
+4. **Qualified user distribution:** public read-only GitHub publication channel.
 5. **Build/qualification evidence:** `HazRob/build-harness`.
-6. Historical branches including 0.10.3/HR070 are non-authoritative.
+6. **Historical provenance:** frozen `sohpany/HazRob-Lab` and withdrawn branches including HR070.
 
-## 7. Change-control rule
+## 10. Change control
 
-No analytical dataset, fingerprint, response curve, model or calibration may replace this baseline silently. A future change must record:
+No dataset, fingerprint, response curve, model or calibration may replace the baseline silently. Every addition must preserve source/provenance, content hash where applicable, analyte/class mapping, sensor/channel mapping, concentration/environment domain, evidence tier, M4 status, runtime eligibility, validation result and revision/date.
 
-- source/provenance;
-- file/content hash where applicable;
-- analyte/class mapping;
-- sensor/channel mapping;
-- concentration and environmental domain;
-- evidence tier;
-- M4 status;
-- runtime eligibility;
-- validation/test result;
-- revision/date.
+The detailed central-library and GitHub-distribution architecture is authoritative in:
 
-This document supersedes any prior statement that treats 0.10.3/HR070 as the latest HazRob release or `HazRob/build-harness` as the scientific source of truth.
+`docs/0.10.2/HR069_CENTRAL_LIBRARY_AND_GITHUB_DISTRIBUTION_2026-10-01.md`
