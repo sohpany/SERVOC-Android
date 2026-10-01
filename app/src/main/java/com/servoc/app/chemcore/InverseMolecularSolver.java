@@ -12,8 +12,16 @@ import java.util.Map;
  * Fits each chemical hypothesis against the complete available MQ array by searching for
  * one concentration that jointly explains the observed log-response. This is more
  * restrictive than independently inverting each sensor curve.
+ *
+ * Candidate fit quality is compared using the weighted mean standardized residual loss rather
+ * than the raw accumulated chi-square. This prevents a hypothesis with fewer usable MQ channels
+ * from receiving an artificial ranking advantage merely because it contributes fewer residual
+ * terms. Evidence breadth/independence remain separate decision and confidence dimensions.
  */
 public final class InverseMolecularSolver {
+    /** Softmax output is a relative model-ranking weight, not a calibrated probability of presence. */
+    public static final String RANKING_SEMANTICS="relative_softmax_model_weight_not_calibrated_probability";
+
     private InverseMolecularSolver() {}
 
     public static final class Candidate {
@@ -38,6 +46,7 @@ public final class InverseMolecularSolver {
         public final double bestPpm;
         public final double standardizedResidualRms;
         public final double logScore;
+        /** Compatibility field: normalized relative ranking weight; never a calibrated identity probability. */
         public double posterior;
         public final int contributors;
         /** M1 molecular/QSPR sensor contributors used in the joint fit. */
@@ -96,7 +105,7 @@ public final class InverseMolecularSolver {
         int contributors=0,molecular=0,reference=0,calibrated=0;boolean allInside=true;
         ChemCoreDecision.EvidenceTier tier=ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY;
         Map<String,Double> residuals=new HashMap<>();
-        boolean valid(){return Double.isFinite(logPpm)&&Double.isFinite(chi2)&&contributors>0;}
+        boolean valid(){return Double.isFinite(logPpm)&&Double.isFinite(chi2)&&weightSum>0&&contributors>0;}
     }
 
     public static List<Result> solve(Map<String,Double> observedRatios,List<Candidate> candidates,
@@ -104,7 +113,7 @@ public final class InverseMolecularSolver {
         List<Result> out=new ArrayList<>();
         if(observedRatios==null||candidates==null)return out;
         for(Candidate c:candidates)out.add(solveOne(observedRatios,c,temperatureC,rh,samplingProfile));
-        normalizePosteriors(out);
+        normalizeRankingWeights(out);
         out.sort(Comparator.comparingDouble((Result r)->r.posterior).reversed());
         return out;
     }
@@ -115,25 +124,31 @@ public final class InverseMolecularSolver {
         for(ChemCoreResponseModel m:c.models){if(m!=null&&m.minPpm()>0&&m.maxPpm()>m.minPpm()){min=Math.min(min,m.minPpm());max=Math.max(max,m.maxPpm());}}
         if(!(min>0)||!(max>min))return unsolved(c,"invalid candidate concentration domain");
         double lo=Math.log10(min),hi=Math.log10(max);int grid=181;Fit best=null;double bestX=Double.NaN,step=(hi-lo)/(grid-1);
-        for(int i=0;i<grid;i++){double x=lo+i*step;Fit f=scoreAt(observedRatios,c,x,temperatureC,rh,samplingProfile);if(f.contributors<c.minimumContributors)continue;if(best==null||f.chi2<best.chi2){best=f;bestX=x;}}
+        for(int i=0;i<grid;i++){
+            double x=lo+i*step;Fit f=scoreAt(observedRatios,c,x,temperatureC,rh,samplingProfile);
+            if(f.contributors<c.minimumContributors)continue;
+            if(best==null||fitLoss(f)<fitLoss(best)){best=f;bestX=x;}
+        }
         if(best==null)return unsolved(c,"insufficient overlapping sensor evidence");
 
         double a=Math.max(lo,bestX-step),b=Math.min(hi,bestX+step);
         for(int iter=0;iter<36&&b-a>1e-6;iter++){
             double m1=a+(b-a)/3.0,m2=b-(b-a)/3.0;
             Fit f1=scoreAt(observedRatios,c,m1,temperatureC,rh,samplingProfile),f2=scoreAt(observedRatios,c,m2,temperatureC,rh,samplingProfile);
-            double q1=f1.contributors>=c.minimumContributors?f1.chi2:Double.POSITIVE_INFINITY;
-            double q2=f2.contributors>=c.minimumContributors?f2.chi2:Double.POSITIVE_INFINITY;
+            double q1=f1.contributors>=c.minimumContributors?fitLoss(f1):Double.POSITIVE_INFINITY;
+            double q2=f2.contributors>=c.minimumContributors?fitLoss(f2):Double.POSITIVE_INFINITY;
             if(q1<=q2)b=m2;else a=m1;
         }
         Fit refined=scoreAt(observedRatios,c,(a+b)/2.0,temperatureC,rh,samplingProfile);
-        if(refined.contributors>=c.minimumContributors&&refined.chi2<=best.chi2)best=refined;
-        double rms=Math.sqrt(best.chi2/Math.max(1e-12,best.weightSum));
+        if(refined.contributors>=c.minimumContributors&&fitLoss(refined)<=fitLoss(best))best=refined;
+        double normalizedLoss=fitLoss(best);
+        double rms=Math.sqrt(normalizedLoss);
         double molecularRms=best.molecular>0&&best.molecularWeightSum>0?Math.sqrt(best.molecularChi2/best.molecularWeightSum):Double.NaN;
         double qsprIndex=best.molecular>=2&&Double.isFinite(molecularRms)?100.0*Math.exp(-0.5*molecularRms*molecularRms):Double.NaN;
         double domainPenalty=best.allInside?0:1.0;
-        double logScore=c.priorLogWeight-0.5*best.chi2-domainPenalty;
+        double logScore=c.priorLogWeight-0.5*normalizedLoss-domainPenalty;
         String note=best.allInside?"joint array fit inside contributing model domains":"joint fit uses at least one contributor outside its environmental domain";
+        note+="; ranking_semantics="+RANKING_SEMANTICS+"; normalized_fit_loss="+String.format(Locale.US,"%.6f",normalizedLoss);
         if(best.molecular>0)note+="; QSPR M1="+best.molecular+" sensor channel(s), direct/reference M2+="+best.reference+" sensor channel(s)";
         double fittedPpm=Math.pow(10,best.logPpm);
         List<ChemCoreEvidenceObservation> evidence=evidenceAt(observedRatios,c,fittedPpm,temperatureC,rh,samplingProfile);
@@ -141,6 +156,11 @@ public final class InverseMolecularSolver {
         note+="; evidence_groups="+groups+", sensor_breadth="+ChemCoreEvidenceObservation.uniqueSensors(evidence);
         return new Result(c.chemicalUid,c.label,true,fittedPpm,rms,logScore,best.contributors,
                 best.molecular,best.reference,best.calibrated,molecularRms,qsprIndex,best.allInside,best.tier,best.residuals,evidence,note);
+    }
+
+    /** Weighted mean squared standardized residual used for cross-candidate fit comparability. */
+    private static double fitLoss(Fit f){
+        return f!=null&&f.valid()?f.chi2/Math.max(1e-12,f.weightSum):Double.POSITIVE_INFINITY;
     }
 
     private static Fit scoreAt(Map<String,Double> observed,Candidate c,double logPpm,double temperatureC,double rh,SamplingProfile samplingProfile){
@@ -182,6 +202,16 @@ public final class InverseMolecularSolver {
     private static double reliability(ChemCoreDecision.EvidenceTier t){if(t==null)return .25;switch(t){case M4_HAZROB_VALIDATED:return 1.0;case M3_ARRAY_CONSISTENT:return .85;case M2_LITERATURE_OR_MANUFACTURER_SUPPORTED:return .60;case M1_MOLECULARLY_INFERRED:return .30;default:return .15;}}
     private static int rank(ChemCoreDecision.EvidenceTier t){return t==null?0:t.ordinal();}
 
-    private static void normalizePosteriors(List<Result> rows){double max=Double.NEGATIVE_INFINITY;for(Result r:rows)if(r.solvable&&Double.isFinite(r.logScore))max=Math.max(max,r.logScore);if(!Double.isFinite(max))return;double sum=0;for(Result r:rows)if(r.solvable&&Double.isFinite(r.logScore)){r.posterior=Math.exp(Math.max(-700,r.logScore-max));sum+=r.posterior;}if(sum>0)for(Result r:rows)r.posterior/=sum;}
+    private static void normalizeRankingWeights(List<Result> rows){
+        double max=Double.NEGATIVE_INFINITY;
+        for(Result r:rows)if(r.solvable&&Double.isFinite(r.logScore))max=Math.max(max,r.logScore);
+        if(!Double.isFinite(max))return;
+        double sum=0;
+        for(Result r:rows)if(r.solvable&&Double.isFinite(r.logScore)){
+            r.posterior=Math.exp(Math.max(-700,r.logScore-max));sum+=r.posterior;
+        }
+        if(sum>0)for(Result r:rows)r.posterior/=sum;
+    }
+
     private static Result unsolved(Candidate c,String why){return new Result(c==null?-1:c.chemicalUid,c==null?"":c.label,false,Double.NaN,Double.NaN,Double.NEGATIVE_INFINITY,0,0,0,0,Double.NaN,Double.NaN,false,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,new HashMap<>(),Collections.emptyList(),why);}
 }
