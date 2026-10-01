@@ -20,11 +20,11 @@ public final class VerticalSpeedControl extends View {
 
     public VerticalSpeedControl(Context context) {
         super(context);
-        track.setColor(0x668FA3AD);track.setStrokeCap(Paint.Cap.ROUND);
-        fill.setColor(0xFF42A5F5);fill.setStrokeCap(Paint.Cap.ROUND);
-        knob.setColor(0xEEFFFFFF);
-        tick.setColor(0x99FFFFFF);
-        text.setColor(0xFFCFD8DC);text.setTextAlign(Paint.Align.CENTER);text.setTextSize(dp(10));
+        track.setColor(0xFF455A64);track.setStrokeCap(Paint.Cap.ROUND);
+        fill.setColor(0xFFFFC107);fill.setStrokeCap(Paint.Cap.ROUND);
+        knob.setColor(0xFFF5F7F8);
+        tick.setColor(0xFFB0BEC5);
+        text.setColor(0xFFF5F7F8);text.setTextAlign(Paint.Align.CENTER);text.setTextSize(dp(10));
         setClickable(true);setFocusable(true);updateDescription();
     }
 
