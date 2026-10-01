@@ -8,13 +8,13 @@ public final class DiscreteDrive {
         if(i==null)i=Intent.STOP;
         switch(i){
             case FORWARD:return new DriveMixer.Command(100,100);
-            case FORWARD_RIGHT:return new DriveMixer.Command(100,60);
-            case FORWARD_LEFT:return new DriveMixer.Command(60,100);
+            case FORWARD_RIGHT:return new DriveMixer.Command(100,40);
+            case FORWARD_LEFT:return new DriveMixer.Command(40,100);
             case REVERSE:return new DriveMixer.Command(-100,-100);
-            case REVERSE_RIGHT:return new DriveMixer.Command(-100,-60);
-            case REVERSE_LEFT:return new DriveMixer.Command(-60,-100);
-            case PIVOT_RIGHT:return new DriveMixer.Command(100,-100);
-            case PIVOT_LEFT:return new DriveMixer.Command(-100,100);
+            case REVERSE_RIGHT:return new DriveMixer.Command(-100,-40);
+            case REVERSE_LEFT:return new DriveMixer.Command(-40,-100);
+            case PIVOT_RIGHT:return new DriveMixer.Command(50,-50);
+            case PIVOT_LEFT:return new DriveMixer.Command(-50,50);
             default:return new DriveMixer.Command(0,0);
         }
     }
