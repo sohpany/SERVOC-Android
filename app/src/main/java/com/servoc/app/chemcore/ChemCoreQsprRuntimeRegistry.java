@@ -39,6 +39,8 @@ public final class ChemCoreQsprRuntimeRegistry {
     private static final double RIDGE_LAMBDA=0.10;
     private static final double MAX_LCO_RMSE_LOG10=0.60;
     private static final double MAX_LCO_ABS_BIAS_LOG10=0.40;
+    private static final double MAX_LCO_WORST_COMPOUND_RMSE_LOG10=0.80;
+    private static final double MAX_LCO_WORST_COMPOUND_ABS_BIAS_LOG10=0.60;
     private static final double MIN_LCO_INSIDE_ENVELOPE_FRACTION=0.50;
     private static final double QSPR_ONLY_PRIOR_LOG_WEIGHT=-1.0;
     private static final double REFERENCE_TEMP_C=25.0;
@@ -182,6 +184,8 @@ public final class ChemCoreQsprRuntimeRegistry {
                 v.predictions>=v.compoundsEvaluated*4&&
                 Double.isFinite(v.rmseLog10)&&v.rmseLog10<=MAX_LCO_RMSE_LOG10&&
                 Double.isFinite(v.biasLog10)&&Math.abs(v.biasLog10)<=MAX_LCO_ABS_BIAS_LOG10&&
+                Double.isFinite(v.worstCompoundRmseLog10)&&v.worstCompoundRmseLog10<=MAX_LCO_WORST_COMPOUND_RMSE_LOG10&&
+                Double.isFinite(v.worstCompoundAbsBiasLog10)&&v.worstCompoundAbsBiasLog10<=MAX_LCO_WORST_COMPOUND_ABS_BIAS_LOG10&&
                 Double.isFinite(v.insideEnvelopeFraction)&&v.insideEnvelopeFraction>=MIN_LCO_INSIDE_ENVELOPE_FRACTION;
     }
 
