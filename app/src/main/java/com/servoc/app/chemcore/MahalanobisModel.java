@@ -6,19 +6,30 @@ import java.util.List;
 
 /**
  * Small dependency-free regularized Mahalanobis model for ChemCore anomaly/OOD gating.
- * Missing dimensions are excluded pairwise at scoring time; fitting requires finite values.
+ * Missing dimensions are excluded at scoring time; fitting requires finite values.
+ *
+ * For a partial feature vector, distance is evaluated using the covariance marginal for the
+ * observed dimensions and that marginal is inverted directly. A principal block of the full
+ * precision matrix is not generally the inverse covariance of the marginal and is therefore not
+ * used. A dimension-coverage scaling is retained only to keep distances approximately comparable
+ * with thresholds calibrated on the full feature dimension; independent partial-vector threshold
+ * validation is still preferred whenever such data are available.
  */
 public final class MahalanobisModel {
+    public static final String MISSING_FEATURE_SEMANTICS="marginal_covariance_subspace_with_dimension_coverage_scaling";
+
     public final double[] mean;
     public final double[][] inverseCovariance;
+    private final double[][] covariance;
     public final double ridge;
     public final int trainingCount;
 
-    private MahalanobisModel(double[] mean, double[][] inverseCovariance, double ridge, int trainingCount) {
-        this.mean = mean;
-        this.inverseCovariance = inverseCovariance;
-        this.ridge = ridge;
-        this.trainingCount = trainingCount;
+    private MahalanobisModel(double[] mean,double[][] covariance,double[][] inverseCovariance,double ridge,int trainingCount) {
+        this.mean=mean;
+        this.covariance=covariance;
+        this.inverseCovariance=inverseCovariance;
+        this.ridge=ridge;
+        this.trainingCount=trainingCount;
     }
 
     public static MahalanobisModel fit(double[][] samples, double ridgeFraction) {
@@ -49,12 +60,15 @@ public final class MahalanobisModel {
         double rf = Double.isFinite(ridgeFraction) && ridgeFraction > 0 ? ridgeFraction : 1e-3;
         double ridge = Math.max(1e-12, avgVar * rf);
         for (int i = 0; i < d; i++) cov[i][i] += ridge;
-        return new MahalanobisModel(mean, invert(cov), ridge, clean.size());
+        double[][] inv=invert(cov);
+        return new MahalanobisModel(mean,deepCopy(cov),inv,ridge,clean.size());
     }
 
     /**
      * Restores a frozen, independently validated model artifact without refitting on the device.
-     * The caller must verify artifact integrity/provenance before using this factory.
+     * The caller must verify artifact integrity/provenance before using this factory. The covariance
+     * is reconstructed from the validated precision matrix only to support mathematically correct
+     * marginal distances when runtime features are missing.
      */
     public static MahalanobisModel fromFrozenParameters(double[] mean,double[][] inverseCovariance,
                                                          double ridge,int trainingCount){
@@ -68,11 +82,12 @@ public final class MahalanobisModel {
                 double v=inverseCovariance[i][j];if(!Double.isFinite(v))throw new IllegalArgumentException("non-finite inverse covariance");inv[i][j]=v;
             }
         }
+        double[][] cov=invert(inv);
         double r=Double.isFinite(ridge)&&ridge>=0?ridge:0;
-        return new MahalanobisModel(mu,inv,r,Math.max(0,trainingCount));
+        return new MahalanobisModel(mu,cov,inv,r,Math.max(0,trainingCount));
     }
 
-    /** Returns squared Mahalanobis distance; finite dimensions are used as a principal subspace. */
+    /** Returns squared Mahalanobis distance in the available marginal feature space. */
     public double distanceSquared(double[] x) {
         if (x == null || x.length != mean.length) return Double.NaN;
         int[] idx = finiteIndices(x);
@@ -82,14 +97,17 @@ public final class MahalanobisModel {
             for (int i = 0; i < d.length; i++) d[i] = x[i] - mean[i];
             return quadratic(d, inverseCovariance);
         }
-        // For missing dimensions, use the corresponding inverse-covariance principal block.
         double[] d = new double[idx.length];
-        double[][] w = new double[idx.length][idx.length];
+        double[][] covarianceSubspace = new double[idx.length][idx.length];
         for (int i = 0; i < idx.length; i++) {
             d[i] = x[idx[i]] - mean[idx[i]];
-            for (int j = 0; j < idx.length; j++) w[i][j] = inverseCovariance[idx[i]][idx[j]];
+            for (int j = 0; j < idx.length; j++) covarianceSubspace[i][j] = covariance[idx[i]][idx[j]];
         }
-        return quadratic(d, w) * ((double) mean.length / idx.length);
+        final double[][] marginalPrecision;
+        try { marginalPrecision=invert(covarianceSubspace); }
+        catch (IllegalArgumentException e) { return Double.NaN; }
+        double marginal=quadratic(d,marginalPrecision);
+        return marginal*((double)mean.length/idx.length);
     }
 
     public double distance(double[] x) {
@@ -139,6 +157,12 @@ public final class MahalanobisModel {
         double sum = 0;
         for (int i = 0; i < d.length; i++) for (int j = 0; j < d.length; j++) sum += d[i] * w[i][j] * d[j];
         return sum < 0 && sum > -1e-9 ? 0 : sum;
+    }
+
+    private static double[][] deepCopy(double[][] x){
+        double[][] out=new double[x.length][];
+        for(int i=0;i<x.length;i++)out[i]=Arrays.copyOf(x[i],x[i].length);
+        return out;
     }
 
     private static double[][] invert(double[][] a) {
