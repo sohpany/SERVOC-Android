@@ -195,7 +195,7 @@ def main() -> int:
     req(hw, "safety_auto_stop", "auto-stop telemetry")
     req(hw, "forward_blocked", "actual block telemetry")
     req(safety_options, 'safetyNv.begin("hazsafe",false)', "dedicated persistent safety namespace")
-    req(safety_options, 'getBool("autoStop",false)', "auto-stop default off")
+    req(safety_options, 'getBool("autoStop",true)', "auto-stop fail-safe default on")
     req(safety_options, 'putBool("autoStop",enabled)', "auto-stop persistent save")
     req(ino, 'web.on("/safety/auto_stop"', "Direct auto-stop endpoint")
     req(ino, "warnings_active", "Direct warnings remain active")
