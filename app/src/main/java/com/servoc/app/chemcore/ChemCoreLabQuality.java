@@ -4,6 +4,7 @@ import android.database.Cursor;
 
 import com.servoc.app.calibration.CalibrationValidationMarker;
 import com.servoc.app.calibration.FieldR0Baseline;
+import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 
@@ -26,8 +27,9 @@ import java.util.Set;
  *  - environmentReady: chamber T/RH/P is actually available for environmental models;
  *  - referenceValidatedChannels: sensors having at least one active HR069 M4 curve.
  *
- * A clean-air R0 baseline is sufficient for Rs/R0 normalization, but never by itself permits
- * quantitative ppm interpretation.
+ * A device R0 baseline is sufficient for Rs/R0 normalization, but never by itself permits
+ * quantitative ppm interpretation. The active R0 policy is manual override when present,
+ * otherwise the accepted field clean-air baseline. No synthetic/default R0 is created.
  */
 public final class ChemCoreLabQuality {
     public static final String SCHEMA="chemcore-lab-quality/1";
@@ -77,11 +79,21 @@ public final class ChemCoreLabQuality {
         for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){
             JSONObject s=mq==null?null:mq.optJSONObject(hw.key);
             if(s!=null&&s.optBoolean("ok",s.optBoolean("valid",false)))valid++;
-            if(FieldR0Baseline.has(hw.key)){r0++;field++;}
-            else if(s!=null&&s.optBoolean("r0_calibrated",s.optBoolean("r0_loaded",false))){r0++;if("field_clean_air_r0".equals(s.optString("r0_source","")))field++;}
+
+            // One authority for the application-side active R0. Persisted manual device calibration
+            // takes precedence; accepted field baseline remains the fallback. Telemetry R0 is used
+            // only when the application has no accepted source for that channel.
+            if(ManualR0Calibration.has(hw.key)){
+                r0++;
+                if(FieldR0Baseline.SOURCE.equals(ManualR0Calibration.getSource(hw.key)))field++;
+            }else if(s!=null&&s.optBoolean("r0_calibrated",s.optBoolean("r0_loaded",false))){
+                r0++;
+                if(FieldR0Baseline.SOURCE.equals(s.optString("r0_source","")))field++;
+            }
+
             if(s!=null&&s.optBoolean("r0_reference_validated",false))telemetryReference++;
-            if(s!=null&&FieldR0Baseline.has(hw.key)){
-                double fw=s.optDouble("r0",Double.NaN),accepted=FieldR0Baseline.value(hw.key);
+            if(s!=null&&ManualR0Calibration.has(hw.key)){
+                double fw=s.optDouble("r0",Double.NaN),accepted=ManualR0Calibration.get(hw.key);
                 if(Double.isFinite(fw)&&fw>0&&Math.abs(fw-accepted)/accepted>0.001)firmwareR0Mismatch++;
             }
         }
@@ -100,7 +112,7 @@ public final class ChemCoreLabQuality {
         if(connected&&!stationary)blockers.add("robot_not_stationary");
         if(connected&&!power)advisories.add("mq_power_off_until_protocol_start");
         if(connected&&power&&valid<MIN_VALID_CHANNELS)advisories.add("valid_mq_channels_below_capture_gate:"+valid+"/8");
-        if(firmwareR0Mismatch>0)advisories.add("esp32_r0_sync_pending:"+firmwareR0Mismatch+"/8;app_normalizes_from_rs_with_"+FieldR0Baseline.SESSION);
+        if(firmwareR0Mismatch>0)advisories.add("esp32_r0_sync_pending:"+firmwareR0Mismatch+"/8;app_normalizes_from_rs_with_active_device_r0");
         if(!envOk)advisories.add("environmental_compensation_unavailable:"+(env==null?"missing":env.optString("status_code","unknown")));
         if(reference==0)advisories.add("hr069_m4_calibration_not_available");
         else if(reference<REQUIRED_R0_CHANNELS)advisories.add("hr069_m4_calibration_partial:"+reference+"/8");
@@ -123,10 +135,10 @@ public final class ChemCoreLabQuality {
             JSONObject o=new JSONObject();o.put("schema",SCHEMA);o.put("connected",connected);o.put("mq_power",mqPower);o.put("ads1_ready",ads1);o.put("ads2_ready",ads2);o.put("stationary",stationary);
             o.put("valid_mq_channels",validMqChannels);o.put("r0_normalized_channels",r0NormalizedChannels);o.put("field_r0_channels",fieldR0Channels);o.put("reference_validated_channels",referenceValidatedChannels);
             o.put("configuration_ready",configurationReady);o.put("capture_ready",captureReady);o.put("fingerprint_normalization_ready",fingerprintNormalizationReady());o.put("any_reference_gas_calibration_available",anyReferenceGasCalibrationAvailable());
-            JSONObject r0=new JSONObject();r0.put("source",FieldR0Baseline.SOURCE);r0.put("campaign",FieldR0Baseline.SESSION);r0.put("samples",FieldR0Baseline.SAMPLE_COUNT);r0.put("session_count",FieldR0Baseline.SESSION_COUNT);r0.put("reference_gas_validated",FieldR0Baseline.REFERENCE_GAS_VALIDATED);r0.put("environment_compensated",FieldR0Baseline.ENVIRONMENT_COMPENSATED);o.put("r0_standard",r0);
+            JSONObject r0=new JSONObject();r0.put("source",FieldR0Baseline.SOURCE);r0.put("campaign",FieldR0Baseline.SESSION);r0.put("samples",FieldR0Baseline.SAMPLE_COUNT);r0.put("session_count",FieldR0Baseline.SESSION_COUNT);r0.put("reference_gas_validated",FieldR0Baseline.REFERENCE_GAS_VALIDATED);r0.put("environment_compensated",FieldR0Baseline.ENVIRONMENT_COMPENSATED);r0.put("active_policy","manual_override_else_field_baseline");r0.put("normalized_channels",r0NormalizedChannels);r0.put("field_baseline_channels",fieldR0Channels);o.put("r0_standard",r0);
             JSONObject e=new JSONObject();e.put("ready",environmentReady);e.put("sensor",environmentSensor);e.put("status",environmentStatus);e.put("address",environmentAddress);e.put("chip_id",environmentChipId);putFinite(e,"temperature_c",temperatureC);putFinite(e,"humidity_rh",humidityRh);putFinite(e,"pressure_hpa",pressureHpa);o.put("environment",e);
             o.put("blockers",array(blockers));o.put("advisories",array(advisories));
-            JSONObject calibration=new JSONObject();calibration.put("field_r0_normalization_ready",fingerprintNormalizationReady());calibration.put("field_r0_channels",fieldR0Channels);calibration.put("hr069_m4_validated_channels",referenceValidatedChannels);calibration.put("global_ppm_permission","candidate_specific_by_design");calibration.put("ppm_rule","candidate requires complete HR069 M4 support for contributing quantitative curves + accepted open-set identity + validated domain");o.put("calibration_gate",calibration);
+            JSONObject calibration=new JSONObject();calibration.put("r0_policy","manual_override_else_field_baseline");calibration.put("r0_normalization_ready",fingerprintNormalizationReady());calibration.put("r0_normalized_channels",r0NormalizedChannels);calibration.put("field_r0_channels",fieldR0Channels);calibration.put("hr069_m4_validated_channels",referenceValidatedChannels);calibration.put("global_ppm_permission","candidate_specific_by_design");calibration.put("ppm_rule","candidate requires complete HR069 M4 support for contributing quantitative curves + accepted open-set identity + validated domain");o.put("calibration_gate",calibration);
             return o;
         }catch(JSONException ex){throw new IllegalStateException("Unable to serialize ChemCore lab quality",ex);}
     }
