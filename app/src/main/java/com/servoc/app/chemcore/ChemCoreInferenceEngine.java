@@ -49,7 +49,7 @@ public final class ChemCoreInferenceEngine {
         List<InverseMolecularSolver.Result> solvable=new ArrayList<>();for(InverseMolecularSolver.Result r:ranked)if(r!=null&&r.solvable)solvable.add(r);
         if(solvable.isEmpty()){
             ChemCoreDecision.Outcome emptyOutcome=context.openSetResult!=null&&!context.openSetResult.accepted?ChemCoreDecision.Outcome.UNKNOWN:ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;
-            String emptyNote=context.openSetResult!=null&&!context.openSetResult.accepted?"open-set rejection: "+context.openSetResult.reason:"no candidate has enough overlapping response evidence";
+            String emptyNote=context.openSetResult!=null&&!context.openSetResult.accepted?"open-set rejection with no solvable candidate: "+context.openSetResult.reason:"no candidate has enough overlapping response evidence";
             double emptyOod=context.openSetResult==null?Double.NaN:context.openSetResult.distance;
             ChemCoreResultEnvelope base=envelope(context,emptyOutcome,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,emptyOod,Double.NaN,Double.NaN,emptyNote,
                     summaries(ranked,observedChannels,candidates,corroborativeRatios,corroborativeQualityWeights,samplingProfile,context));
@@ -66,14 +66,14 @@ public final class ChemCoreInferenceEngine {
 
         double ood=context.openSetResult==null?Double.NaN:context.openSetResult.distance;boolean openSetAccepted=context.openSetResult!=null&&context.openSetResult.accepted;ChemCoreDecision.Outcome outcome;String note;
         if(consistency.verdict==MixtureResidualGuard.Verdict.POSSIBLE_MIXTURE_OR_INTERFERENCE){outcome=ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE;note=consistency.reason;}
-        else if(context.openSetResult!=null&&!context.openSetResult.accepted){outcome=ChemCoreDecision.Outcome.UNKNOWN;note="open-set rejection: "+context.openSetResult.reason;}
         else if(consistency.verdict==MixtureResidualGuard.Verdict.AMBIGUOUS_IDENTITY){outcome=ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;note=consistency.reason;}
-        else if(openSetAccepted&&!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN;note="best-supported candidate uses one or more response models outside a declared concentration/environment domain, or a required environmental measurement is unavailable; named identity and reportable concentration are withheld";}
         else if(specialist.verdict==ChemCoreSpecialistConflictEngine.Verdict.CROSS_SPECIALIST_CONFLICT){outcome=ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE;note=specialist.reason;}
         else if(specialist.holdNamedIdentity){outcome=ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;note=specialist.reason;}
         else if(tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED&&openSetAccepted&&top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.QUANTIFIED;note="all contributing response curves are device/reference calibrated, identity is accepted, and the joint solution remains inside every validated domain";}
         else if(tier.ordinal()>=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT.ordinal()&&openSetAccepted&&top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.IDENTIFIED;note="multisensor identity is array-consistent with at least two direct/reference M2+ channels and inside every declared contributor domain; concentration is withheld until all contributing quantitative curves satisfy M4";}
-        else{outcome=ChemCoreDecision.Outcome.SCREENING;note=openSetAccepted?"model-supported candidate only":"model-supported candidate only; named identity withheld until an explicit open-set/OOD gate accepts the session";}
+        else if(context.openSetResult!=null&&!context.openSetResult.accepted){outcome=ChemCoreDecision.Outcome.SCREENING;note="OOD_LIKE diagnostic: "+context.openSetResult.reason+"; exploratory candidate retained for early-build review, but named identity and reportable ppm are not promoted";}
+        else if(!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.SCREENING;note="OUT_OF_DOMAIN diagnostic: best-supported candidate uses one or more response models outside a declared domain or lacks required environmental context; exploratory candidate retained, but validated ppm is withheld";}
+        else{outcome=ChemCoreDecision.Outcome.SCREENING;note=openSetAccepted?"model-supported candidate only":"model-supported candidate only; open-set state unavailable, so candidate is retained for exploratory review without identity promotion";}
         if(specialist.verdict!=ChemCoreSpecialistConflictEngine.Verdict.NO_SPECIALIST_EVIDENCE)note+="; specialist_gate="+specialist.verdict.name()+"; "+specialist.reason;
         if(top.molecularContributors>0){String idx=Double.isFinite(top.qsprIndicatorPct)?String.format(Locale.US,"%.1f%%",top.qsprIndicatorPct):"—";note+="; PubChem/QSPR fit="+idx;}
         if(!corroborativeRatios.isEmpty())note+="; degraded/auxiliary MQ measurements retained as quality-weighted corroborative evidence";
@@ -81,8 +81,8 @@ public final class ChemCoreInferenceEngine {
         double reportablePpm=outcome==ChemCoreDecision.Outcome.QUANTIFIED?top.bestPpm:Double.NaN;
         ChemCoreResultEnvelope base=envelope(context,outcome,tier,top.chemicalUid,top.label,reportablePpm,Double.NaN,Double.NaN,ood,top.posterior,entropy,note,
                 summaries(solvable,observedChannels,candidates,corroborativeRatios,corroborativeQualityWeights,samplingProfile,context));
-        // A specialist hold is a veto on named identity, not a ranking modifier. Do not allow the
-        // model-derived fingerprint fusion path to bypass an unresolved primary-anchor conflict.
+        // Specialist conflicts remain visible and prevent silent identity promotion while preserving
+        // the ranked candidate for exploratory review during the early-build phase.
         if(specialist.holdNamedIdentity)return base;
         return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios,context.openSetResult);
     }
