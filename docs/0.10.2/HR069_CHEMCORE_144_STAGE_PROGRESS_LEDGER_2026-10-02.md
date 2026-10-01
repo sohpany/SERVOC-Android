@@ -8,13 +8,11 @@ Knowledge governance: `HR069_CHEMCORE_KNOWLEDGE_BASE_GOVERNANCE_2026-10-02.md`
 Catalogue inventory: `HR069_CHEMCORE_144_CATALOG_STAGE1_INVENTORY_2026-10-02.csv`
 
 ## Counting rule
+Every material-level stage accounts for all 144 catalogue entries. Sensor/analyte stages account for all 1,152 pairs (144 x 8). Unknown/absent evidence is never interpreted as negative evidence.
 
-Every material-level stage accounts for all 144 catalogue entries. Allowed row states are `REVIEWED_ACCEPTED`, `REVIEWED_GAP`, `BLOCKED_BY_EVIDENCE`, and `NOT_APPLICABLE_WITH_REASON`. Sensor/analyte stages account for all 1,152 pairs (144 x 8), either explicitly by row or through a declared global rule plus explicit exceptions.
-
-Agreed operational warm-up: `300 s` for the general session warm-up. This does not replace MQ7/MQ9 heater-cycle requirements where their manufacturer evidence is invoked.
+Agreed general session warm-up: `300 s`. MQ7/MQ9 special heater-cycle validity remains a separate evidence gate.
 
 ## Stage ledger
-
 | Stage | Name | Status | Reviewed | Accepted | Gaps | Blocked | N/A | Pair coverage | Evidence/commit |
 |---:|---|---|---:|---:|---:|---:|---:|---:|---|
 | 1 | Freeze and census 144-entry catalogue | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | — | `da68e56e3c83088ec4042735bdce2a74a27707a9` |
@@ -23,13 +21,13 @@ Agreed operational warm-up: `300 s` for the general session warm-up. This does n
 | 4 | Object-type taxonomy | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | — | `c7bcd4d273a09401e3e377e50223db676e5ac403` |
 | 5 | Analytical-route assignment | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | — | `e36145017423e7c663d46b310ae3e5de6ddc2c5c` |
 | 6 | 144 x 8 sensor-role matrix | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | 1152/1152 | `516e971a8f316c6d2840ecc75e3c3a138c3a516b` |
-| 7 | Anchor and specialist map | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | 1152/1152 inherited from Stage 6 | `479a9218550cbb2721feed1ce890e63b148a3dab` |
-| 8 | Heater-protocol dependency map | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | 1152/1152 by global rule + MQ7/MQ9 exceptions | `befa57ad683f9bae16847a71eee79c990216d66e` |
+| 7 | Anchor and specialist map | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | inherited 1152/1152 | `479a9218550cbb2721feed1ce890e63b148a3dab` |
+| 8 | Heater-protocol dependency map | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | global rule + MQ7/MQ9 exceptions | `befa57ad683f9bae16847a71eee79c990216d66e` |
 | 9 | Hardware-suitability / compatibility review | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | — | `b1d5c69eaff419fefa545d56aa2f3b9c10367ea4` |
 | 10 | Hardware-gap register | COMPLETE | 144/144 | 144 | 0 | 0 | 0 | — | `78d78a1cd4d3084d96a1fa970269c9d2ad35ee83` |
-| 11 | Complete curve inventory | IN PROGRESS | 0/144 | 0 | 0 | 0 | 0 | — | registry census starting |
-| 12 | Curve provenance and precedence audit | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
-| 13 | Curve-domain audit | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
+| 11 | Complete curve inventory | COMPLETE | 144/144 | 14 | 130 | 0 | 0 | — | `337213069e25611b28f6ceeb0894546844a51dc6` |
+| 12 | Curve provenance and precedence audit | COMPLETE | 144/144 | 14 | 0 | 0 | 130 | — | `7035148f2ba2d81c2caf70de1271be1d49ec4bc0` |
+| 13 | Curve-domain audit | IN PROGRESS | 0/144 | 0 | 0 | 0 | 0 | — | source-domain extraction next |
 | 14 | R0 convention audit | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
 | 15 | HR069 transfer-status assignment | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
 | 16 | Boundary / out-of-domain policy application | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
@@ -56,40 +54,13 @@ Agreed operational warm-up: `300 s` for the general session warm-up. This does n
 | 37 | Sensor-health, drift and data-quality gate | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
 | 38 | End-to-end reporting, regression and release qualification | NOT STARTED | 0/144 | 0 | 0 | 0 | 0 | — | — |
 
-## Completed-stage summaries
-
-### Stage 1
-144 unique catalogue entries, indices 0..143, no fabricated molecular formula for mixture/aggregate entries.
-
-### Stage 2
-135 molecular/elemental entries received structural families; 9 mixture/aggregate entries received explicit N/A structural state.
-
-### Stage 3
-144/144 operational sensor-response families assigned independently of structural chemistry.
-
-### Stage 4
-135 `PURE_ANALYTE`, 6 `MIXTURE`, 3 `AGGREGATE_METRIC`, 0 current `SOURCE_MATERIAL_HEADSPACE` entries.
-
-### Stage 5
-Routes: 7 `TARGET_MQ`, 94 `BROAD_ARRAY`, 34 `REACTIVE_OR_UNSUPPORTED`, 9 `MIXTURE_OR_HEADSPACE`, 0 current external `DEDICATED_ANCHOR` routes.
-
-### Stage 6
-Role matrix across 1,152 pairs: 5 `PRIMARY_ANCHOR`, 12 `SECONDARY_TARGET`, 14 `CROSS_RESPONSE`, 365 `CORROBORATIVE`, 756 `UNSUPPORTED`. Research-only relations are intentionally not promoted here before curve/source audit.
-
-### Stage 7
-Primary and secondary specialist relations were separated. Absence of an anchor routes the material toward family/array/fingerprint reasoning rather than forcing exact identity.
-
-### Stage 8
-General session warm-up is now documented as 300 s. MQ7/MQ9 manufacturer-derived evidence remains unavailable unless its special heater-cycle condition is valid; the 300 s general warm-up does not automatically satisfy that evidence gate.
-
-### Stage 9
-Hardware suitability across 144: 4 `ADEQUATE_WITH_CONDITIONS`, 106 `PARTIAL`, 19 `COMPATIBILITY_REVIEW`, 15 `UNSUPPORTED`.
-
-### Stage 10
-Gap classes across 144: 4 no primary hardware gap, 1 CO heater/selectivity gap, 2 anchor-selectivity gaps, 94 broad-array selectivity gaps, 19 compatibility/dedicated-sensing gaps, 15 primary-sensing-technology gaps, 9 mixture-component-resolution gaps.
+## Cumulative execution notes
+- Stage 5 routes: 7 `TARGET_MQ`, 94 `BROAD_ARRAY`, 34 `REACTIVE_OR_UNSUPPORTED`, 9 `MIXTURE_OR_HEADSPACE`.
+- Stage 6 pair roles: 5 `PRIMARY_ANCHOR`, 12 `SECONDARY_TARGET`, 14 `CROSS_RESPONSE`, 365 `CORROBORATIVE`, 756 `UNSUPPORTED`.
+- Stage 9 hardware suitability: 4 `ADEQUATE_WITH_CONDITIONS`, 106 `PARTIAL`, 19 `COMPATIBILITY_REVIEW`, 15 `UNSUPPORTED`.
+- Stage 10 gap map: 4 no primary hardware gap; 1 CO heater/selectivity gap; 2 anchor-selectivity gaps; 94 broad-array selectivity gaps; 19 compatibility/dedicated-sensing gaps; 15 primary-sensing-technology gaps; 9 mixture-resolution gaps.
+- Stage 11 curve inventory: GasEngine 39 relations / 13 chemicals; LiteratureCurveRegistry 9 / 8; LinearLiteratureResponseRegistry 1 / 1; ResearchCurveRegistry 43 / 13. Unique catalogue coverage across all registries: 14/144.
+- Stage 12 precedence: peer-reviewed exact-model relation > eligible inherited GasEngine relation > research comparison relation for the same sensor/analyte pair; manufacturer TARGET/GRAPH evidence remains orthogonal role metadata. Duplicate source relations do not count as independent confirmations.
 
 ## Current execution point
-
-Stage 11 — Complete curve inventory.
-
-The next pass will enumerate every manufacturer, literature, linear-literature, research/community and accepted response relation, map it to sensor/analyte pair and source authority, and assign an explicit curve-coverage state to all 144 catalogue entries without promoting any curve to HR069 M4.
+Stage 13 — Curve-domain audit: extract per-relation concentration domain, environmental requirements, heater conditions and declared source limits; mark 130 no-curve entries explicitly N/A rather than inventing domains.
