@@ -11,10 +11,8 @@ import android.view.View;
 /**
  * Circular two-axis driving control.
  *
- * Command policy is intentionally direct and linear: there is no acceleration ramp,
- * reverse delay or steering smoothing in the operator path. The firmware remains the
- * final safety authority. Releasing/cancelling the touch always emits neutral 0/0.
- * Horizontal steering can be reversed independently from Settings without affecting travel sign.
+ * Command policy is direct and linear. Turn and pivot percentages are operator tunable from
+ * Settings. Horizontal steering can also be reversed independently for this presentation.
  */
 public final class JoystickView extends View {
     public interface Listener { void onDrive(int left, int right, boolean active); }
@@ -122,7 +120,9 @@ public final class JoystickView extends View {
 
     private void emit() {
         if (listener == null) return;
-        DriveMixer.Command command = DriveMixer.mix(x, y);
+        int turn = drivePreferences.getInt(DriveTuning.PREF_TURN_PERCENT, DriveTuning.DEFAULT_TURN_PERCENT);
+        int pivot = drivePreferences.getInt(DriveTuning.PREF_PIVOT_PERCENT, DriveTuning.DEFAULT_PIVOT_PERCENT);
+        DriveMixer.Command command = DriveMixer.mix(x, y, turn, pivot);
         boolean reverse = drivePreferences.getBoolean(DriveDirectionOption.PREF_REVERSE_JOYSTICK, false);
         DriveMixer.Command mapped = DriveDirectionOption.apply(DriveMode.JOYSTICK, reverse, command.left, command.right);
         listener.onDrive(mapped.left, mapped.right, active);
