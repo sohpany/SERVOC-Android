@@ -8,6 +8,7 @@ import android.graphics.drawable.Drawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewParent;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -40,19 +41,19 @@ public final class UiKit {
 
     public static LinearLayout vbox(Context c){LinearLayout l=new LinearLayout(c);l.setOrientation(LinearLayout.VERTICAL);rtl(l);return l;}
     public static LinearLayout hbox(Context c){LinearLayout l=new LinearLayout(c);l.setOrientation(LinearLayout.HORIZONTAL);l.setGravity(Gravity.CENTER_VERTICAL);rtl(l);return l;}
-    public static TextView text(Context c,String s){TextView t=new TextView(c);t.setText(s);t.setTextColor(DARK_TEXT);t.setTextSize(14);t.setPadding(dp(c,8),dp(c,7),dp(c,8),dp(c,7));t.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);t.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);return t;}
+    public static TextView text(Context c,String s){TextView t=new TextView(c);t.setText(s);t.setTextColor(DARK_TEXT);t.setTextSize(14);t.setPadding(dp(c,8),dp(c,7),dp(c,8),dp(c,7));t.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);t.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);guardOnAttach(t);return t;}
     public static TextView title(Context c,String s){TextView t=text(c,s);t.setTextSize(18);t.setTypeface(Typeface.DEFAULT_BOLD);t.setTextColor(HAZ_YELLOW);return t;}
     public static TextView small(Context c,String s){TextView t=text(c,s);t.setTextSize(12);t.setTextColor(MUTED_TEXT);return t;}
 
     /** Default secondary action: gray surface with white text. */
-    public static Button button(Context c,String s){Button b=new Button(c);b.setText(s);b.setAllCaps(false);b.setTextSize(13);b.setTextColor(HAZ_WHITE);b.setBackgroundColor(HAZ_GRAY_DARK);b.setMinHeight(dp(c,48));b.setMinWidth(dp(c,48));b.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));b.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);return b;}
+    public static Button button(Context c,String s){Button b=new Button(c);b.setText(s);b.setAllCaps(false);b.setTextSize(13);b.setTextColor(HAZ_WHITE);b.setBackgroundColor(HAZ_GRAY_DARK);b.setMinHeight(dp(c,48));b.setMinWidth(dp(c,48));b.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));b.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);guardOnAttach(b);return b;}
     /** Primary/selected action: HazRob yellow with black text. */
     public static void primary(Button b){if(b==null)return;b.setBackgroundColor(HAZ_YELLOW);b.setTextColor(Color.BLACK);}
     public static void secondary(Button b){if(b==null)return;b.setBackgroundColor(HAZ_GRAY_DARK);b.setTextColor(HAZ_WHITE);}
     public static void selected(Button b,boolean on){if(on)primary(b);else secondary(b);}
     public static void danger(Button b){if(b==null)return;b.setBackgroundColor(STATE_CRITICAL);b.setTextColor(Color.WHITE);}
 
-    public static EditText input(Context c,String s){EditText e=new EditText(c);e.setText(s);e.setTextColor(HAZ_WHITE);e.setHintTextColor(0xFF90A4AE);e.setSingleLine(true);e.setMinHeight(dp(c,48));e.setBackgroundColor(HAZ_SURFACE_ALT);e.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));e.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);return e;}
+    public static EditText input(Context c,String s){EditText e=new EditText(c);e.setText(s);e.setTextColor(HAZ_WHITE);e.setHintTextColor(0xFF90A4AE);e.setSingleLine(true);e.setMinHeight(dp(c,48));e.setBackgroundColor(HAZ_SURFACE_ALT);e.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));e.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);guardOnAttach(e);return e;}
     public static LinearLayout card(Context c){LinearLayout l=vbox(c);l.setPadding(dp(c,8),dp(c,8),dp(c,8),dp(c,8));l.setBackgroundColor(HAZ_SURFACE);return l;}
     public static LinearLayout.LayoutParams full(Context c){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(c,3),0,dp(c,3));return p;}
     public static LinearLayout.LayoutParams weight(float w){return new LinearLayout.LayoutParams(0,-2,w);}
@@ -66,44 +67,40 @@ public final class UiKit {
     public static void contrast(TextView t,int background){t.setBackgroundColor(background);t.setTextColor(foregroundFor(background));}
 
     /**
-     * Runtime contrast guard for every non-driving workspace. It is intentionally not called for
-     * ControlTab because the driving/video overlay has its own transparency and visibility rules.
-     * Plain text inherits the nearest real background; explicit card/button colors are preserved.
-     * Any text below 4.5:1 contrast is replaced with black or white, whichever is more readable.
+     * Runtime contrast guard for every non-driving workspace. It is intentionally not used to
+     * restructure ControlTab; the driving/video overlay keeps its own transparency/layout rules.
+     * Explicit card/button colors are preserved. Text below 4.5:1 is corrected to black or white.
      */
     public static void applyNonDrivingContrast(View root){
         if(root==null)return;
         if(root.getBackground()==null)root.setBackgroundColor(NON_DRIVING_BG);
-        auditContrast(root,NON_DRIVING_BG);
+        auditContrast(root,backgroundColor(root,NON_DRIVING_BG));
+    }
+
+    private static void guardOnAttach(final TextView t){
+        t.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener(){
+            @Override public void onViewAttachedToWindow(View v){t.post(()->ensureReadable(t));}
+            @Override public void onViewDetachedFromWindow(View v){}
+        });
+    }
+
+    private static void ensureReadable(TextView t){
+        if(t==null)return;int bg=effectiveBackground(t);int current=t.getCurrentTextColor();
+        if(contrastRatio(current,bg)<MIN_TEXT_CONTRAST)t.setTextColor(foregroundFor(bg));
+        if(t instanceof EditText){EditText e=(EditText)t;int hint=e.getCurrentHintTextColor();if(contrastRatio(hint,bg)<MIN_TEXT_CONTRAST)e.setHintTextColor(foregroundFor(bg));}
+    }
+
+    private static int effectiveBackground(View v){
+        View cur=v;while(cur!=null){Drawable d=cur.getBackground();if(d instanceof ColorDrawable){int c=((ColorDrawable)d).getColor();if(Color.alpha(c)>=230)return c;}ViewParent p=cur.getParent();cur=p instanceof View?(View)p:null;}return NON_DRIVING_BG;
     }
 
     private static void auditContrast(View v,int inheritedBackground){
-        if(v==null)return;
-        int background=backgroundColor(v,inheritedBackground);
-        if(v instanceof TextView){
-            TextView t=(TextView)v;
-            int current=t.getCurrentTextColor();
-            if(contrastRatio(current,background)<MIN_TEXT_CONTRAST)t.setTextColor(foregroundFor(background));
-            if(t instanceof EditText){
-                EditText e=(EditText)t;
-                int hint=e.getCurrentHintTextColor();
-                if(contrastRatio(hint,background)<MIN_TEXT_CONTRAST)e.setHintTextColor(foregroundFor(background));
-            }
-        }
-        if(v instanceof ViewGroup){
-            ViewGroup g=(ViewGroup)v;
-            for(int i=0;i<g.getChildCount();i++)auditContrast(g.getChildAt(i),background);
-        }
+        if(v==null)return;int background=backgroundColor(v,inheritedBackground);
+        if(v instanceof TextView){TextView t=(TextView)v;int current=t.getCurrentTextColor();if(contrastRatio(current,background)<MIN_TEXT_CONTRAST)t.setTextColor(foregroundFor(background));if(t instanceof EditText){EditText e=(EditText)t;int hint=e.getCurrentHintTextColor();if(contrastRatio(hint,background)<MIN_TEXT_CONTRAST)e.setHintTextColor(foregroundFor(background));}}
+        if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++)auditContrast(g.getChildAt(i),background);}
     }
 
-    private static int backgroundColor(View v,int fallback){
-        Drawable d=v.getBackground();
-        if(d instanceof ColorDrawable){
-            int c=((ColorDrawable)d).getColor();
-            if(Color.alpha(c)>=230)return c;
-        }
-        return fallback;
-    }
+    private static int backgroundColor(View v,int fallback){Drawable d=v.getBackground();if(d instanceof ColorDrawable){int c=((ColorDrawable)d).getColor();if(Color.alpha(c)>=230)return c;}return fallback;}
 
     public static void riskColor(TextView t,int risk){
         switch(risk){
