@@ -14,9 +14,9 @@ public final class DualTankDriveControl extends View {
 
     public DualTankDriveControl(Context c){
         super(c);setClickable(true);setFocusable(true);
-        track.setColor(0x8837434A);track.setStrokeCap(Paint.Cap.ROUND);
-        fill.setColor(0xCC42A5F5);fill.setStrokeCap(Paint.Cap.ROUND);
-        knob.setColor(0xEEFFFFFF);text.setColor(0xFFECEFF1);text.setTextAlign(Paint.Align.CENTER);text.setTextSize(dp(12));
+        track.setColor(0xAA455A64);track.setStrokeCap(Paint.Cap.ROUND);
+        fill.setColor(0xFFFFC107);fill.setStrokeCap(Paint.Cap.ROUND);
+        knob.setColor(0xFFF5F7F8);text.setColor(0xFFF5F7F8);text.setTextAlign(Paint.Align.CENTER);text.setTextSize(dp(12));
         updateDescription();
     }
     public void setListener(Listener l){listener=l;}
