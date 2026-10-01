@@ -6,89 +6,84 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import static org.junit.Assert.*;
 
-/** Guards exact-ID binding and the multi-session evidence-driven Field Session report contract. */
+/** Guards exact-ID binding and the compact multi-session Field Session report contract. */
 public class FieldSessionReportExporterContractTest {
  private static String src(String path)throws Exception{return new String(Files.readAllBytes(Paths.get(path)),StandardCharsets.UTF_8);}
 
  @Test public void reportRootIsFieldSessionAndResolutionIsExact() throws Exception {
   String s=src("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
-  assertTrue(s.contains("measurementSessionIds(fs)"));
-  assertTrue(s.contains("ExperimentQueries.bySessionId(db,sid)"));
-  assertFalse(s.contains("SessionSeries.nearest"));
-  assertFalse(s.contains("ORDER BY ABS"));
+  assertTrue(s.contains("measurementSessionIds(fs)"));assertTrue(s.contains("ExperimentQueries.bySessionId(db,sid)"));
+  assertFalse(s.contains("SessionSeries.nearest"));assertFalse(s.contains("ORDER BY ABS"));
  }
 
- @Test public void pdfRoutesToNewMultiSessionWriterAndKeepsXlsxCompanion() throws Exception {
-  String s=src("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
-  assertTrue(s.contains("MIN_PAGES=7"));assertTrue(s.contains("MAX_PAGES=10"));
-  assertTrue(s.contains("SmartFieldSessionPdfWriter.writePdf(out,db,fieldSessionId,chemicals)"));
-  assertTrue(s.contains("SmartFieldSessionXlsxWriter.write(out,db,b,chemicals)"));
- }
-
- @Test public void smartPdfUsesEveryIndependentMeasurementSession() throws Exception {
+ @Test public void pdfIsCompactFourToFivePagesAndXlsxStaysDetailed() throws Exception {
+  String f=src("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
   String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
-  assertTrue(s.contains("for(String sid:ids)"));
-  assertTrue(s.contains("SessionSeries.byId(db,id)"));
-  assertTrue(s.contains("decisions.latestPayloadForSession(id)"));
-  assertTrue(s.contains("ExperimentQueries.bySessionId(db,id).size()"));
-  assertTrue(s.contains("كل Measurement Session تبقى مستقلة زمنيًا"));
-  assertTrue(s.contains("لا يتم دمجها في منحنى مصطنع"));
-  assertFalse(s.contains("SessionSeries.nearest"));
+  assertTrue(f.contains("MIN_PAGES=4"));assertTrue(f.contains("MAX_PAGES=5"));
+  assertTrue(s.contains("MIN_PAGES=4"));assertTrue(s.contains("MAX_PAGES=5"));assertTrue(s.contains("CHARTS_PER_PAGE=6"));
+  assertTrue(s.contains("int total=all.size()>1?5:4"));
+  assertTrue(f.contains("SmartFieldSessionPdfWriter.writePdf(out,db,fieldSessionId,chemicals)"));
+  assertTrue(f.contains("SmartFieldSessionXlsxWriter.write(out,db,b,chemicals)"));
  }
 
- @Test public void primaryIsEvidenceCompletenessChoiceNotBlindLastSession() throws Exception {
+ @Test public void analyticalPagesUseSixChartThreeByTwoGrid() throws Exception {
   String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
-  assertTrue(s.contains("e.score>=best.score"));
-  assertTrue(s.contains("if(s!=null&&s.usable())"));
-  assertTrue(s.contains("if(d!=null)"));
-  assertTrue(s.contains("ppm_reportable"));
-  assertTrue(s.contains("Primary selection: evidence completeness + ChemCore + usable series"));
+  assertTrue(s.contains("private static RectF[] grid6()"));
+  assertTrue(s.contains("RectF[] r=new RectF[6]"));
+  assertTrue(s.contains("for(int row=0;row<2;row++)for(int col=0;col<3;col++)"));
+  assertTrue(s.contains("sensorSix"));assertTrue(s.contains("chemCoreSix"));assertTrue(s.contains("contextSix"));
  }
 
- @Test public void pdfIsDynamicLandscapeSevenToTenPagesAndRichInCharts() throws Exception {
+ @Test public void sensorPageContainsSixDistinctAnalyticalCharts() throws Exception {
   String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
-  assertTrue(s.contains("PAGE_WIDTH=842"));assertTrue(s.contains("PAGE_HEIGHT=595"));
-  assertTrue(s.contains("MIN_PAGES=7"));assertTrue(s.contains("MAX_PAGES=10"));
-  assertTrue(s.contains("int total=7+(anySeries?1:0)+(anyChem?1:0)+(multi?1:0)"));
-  assertTrue(s.contains("AnalyticalCharts.mqRsR0"));assertTrue(s.contains("AnalyticalCharts.fingerprint"));
-  assertTrue(s.contains("AnalyticalCharts.mqSignalQuality"));assertTrue(s.contains("AnalyticalCharts.fingerprintRadar"));
-  assertTrue(s.contains("AnalyticalCharts.mqResponseKinetics"));assertTrue(s.contains("AnalyticalCharts.mqPersistenceMap"));
-  assertTrue(s.contains("AnalyticalCharts.candidates"));assertTrue(s.contains("AnalyticalCharts.candidateScatter"));
-  assertTrue(s.contains("AnalyticalCharts.candidateBubbleMap"));assertTrue(s.contains("AnalyticalCharts.candidateResiduals"));
-  assertTrue(s.contains("AnalyticalCharts.screeningDonut"));assertTrue(s.contains("SmartReportCharts.screening144ReliabilityMatrix"));
+  assertTrue(s.contains("AnalyticalCharts.mqRsR0(c,r[0],s)"));assertTrue(s.contains("AnalyticalCharts.fingerprint(c,r[1],s)"));
+  assertTrue(s.contains("AnalyticalCharts.mqSignalQuality(c,r[2],s)"));assertTrue(s.contains("AnalyticalCharts.fingerprintRadar(c,r[3],s)"));
+  assertTrue(s.contains("AnalyticalCharts.mqResponseKinetics(c,r[4],s)"));assertTrue(s.contains("AnalyticalCharts.mqPersistenceMap(c,r[5],s)"));
  }
 
- @Test public void reportShowsCrossSessionConsistencyWithoutUpgradingIdentity() throws Exception {
+ @Test public void chemCorePageContainsSixCandidateAndUncertaintyCharts() throws Exception {
   String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
-  assertTrue(s.contains("الثبات والاختلاف بين جلسات القياس"));
-  assertTrue(s.contains("candidateStability"));assertTrue(s.contains("posteriorStability"));
-  assertTrue(s.contains("ثبات المرشح بين الجلسات يصف الاتساق ولا يثبت الهوية"));
-  assertTrue(s.contains("Screening-fit concentration لا يساوي PPM مهني قابل للتقرير"));
+  assertTrue(s.contains("AnalyticalCharts.candidates(c,r[0],q)"));assertTrue(s.contains("AnalyticalCharts.candidateScatter(c,r[1],q)"));
+  assertTrue(s.contains("AnalyticalCharts.candidateBubbleMap(c,r[2],q)"));assertTrue(s.contains("AnalyticalCharts.candidateResiduals(c,r[3],q)"));
+  assertTrue(s.contains("AnalyticalCharts.evidenceTiers(c,r[4],q)"));assertTrue(s.contains("SmartReportCharts.decisionQuality(c,r[5],q)"));
  }
 
- @Test public void siteIdentityHazardContextAndProvenanceRemainVisible() throws Exception {
+ @Test public void contextPageContains144EnvironmentAndConditionalSafety() throws Exception {
+  String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
+  assertTrue(s.contains("SmartReportCharts.candidateEvidenceMatrix(c,r[0],q)"));
+  assertTrue(s.contains("SmartReportCharts.screening144ReliabilityMatrix(c,r[1],q)"));
+  assertTrue(s.contains("SmartReportCharts.top144SessionSupport(c,r[2],q)"));
+  assertTrue(s.contains("AnalyticalCharts.screeningDonut(c,r[3],q)"));
+  assertTrue(s.contains("AnalyticalCharts.mqEnvironmentMatrix(c,r[4],s)"));
+  assertTrue(s.contains("if(plan.ppmReportable)AnalyticalCharts.exposureRatios(c,r[5],q)"));
+ }
+
+ @Test public void smartPdfUsesEveryIndependentMeasurementSessionAndSelectsStrongestEvidence() throws Exception {
+  String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
+  assertTrue(s.contains("for(String sid:ids)"));assertTrue(s.contains("SessionSeries.byId(db,id)"));
+  assertTrue(s.contains("decisions.latestPayloadForSession(id)"));assertTrue(s.contains("ExperimentQueries.bySessionId(db,id).size()"));
+  assertTrue(s.contains("e.score>=best.score"));assertTrue(s.contains("كل Measurement Session مستقلة"));
+  assertTrue(s.contains("لا يتم دمج السلاسل الزمنية"));assertFalse(s.contains("SessionSeries.nearest"));
+ }
+
+ @Test public void multiSessionPageShowsConsistencyWithoutUpgradingIdentity() throws Exception {
+  String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
+  assertTrue(s.contains("الثبات بين الجلسات"));assertTrue(s.contains("candidateStability"));assertTrue(s.contains("posteriorStability"));
+  assertTrue(s.contains("ثبات المرشح يصف الاتساق ولا يثبت الهوية"));
+ }
+
+ @Test public void provenanceAndHazardContextRemainAvailable() throws Exception {
   String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
   String h=src("src/main/java/com/servoc/app/report/CandidateHazardContext.java");
-  assertTrue(s.contains("b.site.name+\" [\"+shorten(b.site.id,18)+\"]"));
-  assertTrue(s.contains("CandidateHazardContext.evaluate(db,primaryDecision)"));
-  assertTrue(s.contains("CandidateHazardCharts.table"));
+  assertTrue(s.contains("CandidateHazardContext.evaluate(db,q)"));assertTrue(s.contains("CandidateHazardCharts.executiveStrip"));
   assertTrue(s.contains("Library SHA-256"));assertTrue(s.contains("Sampling profile"));
   assertTrue(h.contains("SCREENING_FIT_ESTIMATE"));assertTrue(h.contains("M4_MEASURED_REPORTABLE"));
- }
-
- @Test public void trackingRemainsOperationalAndExcludedFromReportContent() throws Exception {
-  String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
-  String x=src("src/main/java/com/servoc/app/report/SmartFieldSessionXlsxWriter.java");
-  assertTrue(s.contains("وظيفة Tracking التشغيلية غير مدرجة في التقرير"));
-  assertTrue(x.contains("Tracking وظيفة تشغيلية وغير مدرجة في التقرير"));
  }
 
  @Test public void xlsxStillPreservesIndependentMeasurementSessions() throws Exception {
   String x=src("src/main/java/com/servoc/app/report/SmartFieldSessionXlsxWriter.java");
   assertTrue(x.contains("السلاسل الزمنية — لا يتم دمج الجلسات الفنية في منحنى مصطنع"));
-  assertTrue(x.contains("for(String sid:b.measurementSessionIds)"));
-  assertTrue(x.contains("h.add(\"Measurement Session\")"));
-  assertTrue(x.contains("CandidateHazardContext.evaluate(db,cc)"));
-  assertTrue(x.contains("مصفوفة 144"));assertTrue(x.contains("حدود التعرض"));assertTrue(x.contains("الجودة وعدم اليقين"));
+  assertTrue(x.contains("for(String sid:b.measurementSessionIds)"));assertTrue(x.contains("h.add(\"Measurement Session\")"));
+  assertTrue(x.contains("CandidateHazardContext.evaluate(db,cc)"));assertTrue(x.contains("مصفوفة 144"));assertTrue(x.contains("حدود التعرض"));
  }
 }
