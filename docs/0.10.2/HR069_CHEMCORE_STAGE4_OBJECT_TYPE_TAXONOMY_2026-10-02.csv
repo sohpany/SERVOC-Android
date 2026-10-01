@@ -1,0 +1,145 @@
+catalog_index,name_en,formula,analytical_object_type,stage_4_state,stage_4_note
+0,Phosgene,COCl2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+1,Hydrogen Cyanide,HCN,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+2,Arsine,AsH3,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+3,Phosphine,PH3,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+4,Hydrogen Sulfide,H2S,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+5,Diborane,B2H6,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+6,Stibine,SbH3,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+7,Hydrogen Selenide,H2Se,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+8,Germane,GeH4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+9,Silane,SiH4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+10,Chlorine Dioxide,ClO2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+11,Fluorine,F2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+12,Chlorine,Cl2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+13,Sulfur Dioxide,SO2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+14,Nitrogen Dioxide,NO2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+15,Ozone,O3,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+16,Hydrogen Fluoride,HF,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+17,Hydrogen Chloride,HCl,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+18,Hydrogen Bromide,HBr,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+19,Bromine,Br2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+20,Carbon Monoxide,CO,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+21,Ammonia,NH3,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+22,Oxygen,O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+23,Carbon Dioxide,CO2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+24,Nitric Oxide,NO,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+25,Ethylene Oxide,C2H4O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+26,Methyl Isocyanate,CH3NCO,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+27,Formaldehyde,CH2O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+28,Acrolein,C3H4O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+29,Hydrazine,N2H4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+30,Propylene Oxide,C3H6O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+31,Epichlorohydrin,C3H5ClO,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+32,Acrylonitrile,C3H3N,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+33,Vinyl Chloride,C2H3Cl,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+34,Benzene,C6H6,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+35,"1,3-Butadiene",C4H6,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+36,Carbon Disulfide,CS2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+37,Carbonyl Sulfide,COS,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+38,Methanethiol,CH3SH,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+39,Ethanethiol,C2H5SH,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+40,Dimethyl Sulfide,C2H6S,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+41,Dimethyl Disulfide,C2H6S2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+42,Sulfur Tetrafluoride,SF4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+43,Boron Trifluoride,BF3,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+44,Tungsten Hexafluoride,WF6,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+45,Silicon Tetrafluoride,SiF4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+46,Titanium Tetrachloride,TiCl4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+47,Sulfuryl Fluoride,SO2F2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+48,Methyl Bromide,CH3Br,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+49,Nitrous Oxide,N2O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+50,Styrene,C8H8,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+51,Phenol,C6H6O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+52,Aniline,C6H7N,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+53,Pyridine,C5H5N,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+54,Acetaldehyde,C2H4O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+55,Crotonaldehyde,C4H6O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+56,Propionaldehyde,C3H6O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+57,Butyraldehyde,C4H8O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+58,Furfural,C5H4O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+59,Acetic Acid,CH3COOH,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+60,Formic Acid,HCOOH,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+61,Hydrogen Peroxide,H2O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+62,Chloromethane,CH3Cl,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+63,Dichloromethane,CH2Cl2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+64,Chloroform,CHCl3,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+65,Carbon Tetrachloride,CCl4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+66,"1,2-Dichloroethane",C2H4Cl2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+67,Trichloroethylene,C2HCl3,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+68,Tetrachloroethylene,C2Cl4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+69,"1,2-Dichloropropane",C3H6Cl2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+70,Chloroethane,C2H5Cl,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+71,Vinyl Acetate,C4H6O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+72,Ethyl Acrylate,C5H8O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+73,Methyl Acrylate,C4H6O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+74,Methyl Methacrylate,C5H8O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+75,Hydrogen,H2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+76,Methane,CH4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+77,Ethane,C2H6,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+78,Propane,C3H8,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+79,n-Butane,C4H10,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+80,Isobutane,C4H10,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+81,n-Pentane,C5H12,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+82,Isopentane,C5H12,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+83,Neopentane,C5H12,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+84,n-Hexane,C6H14,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+85,n-Heptane,C7H16,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+86,n-Octane,C8H18,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+87,n-Nonane,C9H20,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+88,n-Decane,C10H22,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+89,Ethylene,C2H4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+90,Propylene,C3H6,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+91,Acetylene,C2H2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+92,Cyclopropane,C3H6,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+93,Cyclohexane,C6H12,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+94,Cyclopentane,C5H10,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+95,Toluene,C7H8,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+96,Ethylbenzene,C8H10,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+97,o-Xylene,C8H10,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+98,m-Xylene,C8H10,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+99,p-Xylene,C8H10,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+100,Cumene,C9H12,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+101,Mesitylene,C9H12,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+102,Methanol,CH3OH,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+103,Ethanol,C2H5OH,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+104,1-Propanol,C3H8O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+105,Isopropanol,C3H8O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+106,1-Butanol,C4H10O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+107,2-Butanol,C4H10O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+108,Isobutanol,C4H10O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+109,tert-Butanol,C4H10O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+110,Acetone,C3H6O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+111,2-Butanone / MEK,C4H8O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+112,MIBK,C6H12O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+113,Cyclohexanone,C6H10O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+114,Methyl Acetate,C3H6O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+115,Ethyl Acetate,C4H8O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+116,Propyl Acetate,C5H10O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+117,Isopropyl Acetate,C5H10O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+118,n-Butyl Acetate,C6H12O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+119,Diethyl Ether,C4H10O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+120,MTBE,C5H12O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+121,Tetrahydrofuran,C4H8O,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+122,"1,4-Dioxane",C4H8O2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+123,Difluoromethane / R32,CH2F2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+124,Chlorodifluoromethane / R22,CHClF2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+125,R134a,C2H2F4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+126,R125,C2HF5,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+127,R143a,C2H3F3,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+128,R152a,C2H4F2,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+129,Radon,Rn,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+130,R1234yf,C3H2F4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+131,R1234ze(E),C3H2F4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+132,Carbon Tetrafluoride,CF4,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+133,Hexafluoroethane,C2F6,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+134,Sulfur Hexafluoride,SF6,PURE_ANALYTE,REVIEWED_ACCEPTED,Catalogue entry represents a single chemical species or elemental species.
+135,LPG,,MIXTURE,REVIEWED_ACCEPTED,Catalogue entry represents a composition-dependent mixture; no single pure-molecule identity is asserted.
+136,CNG,,MIXTURE,REVIEWED_ACCEPTED,Catalogue entry represents a composition-dependent mixture; no single pure-molecule identity is asserted.
+137,Natural Gas,,MIXTURE,REVIEWED_ACCEPTED,Catalogue entry represents a composition-dependent mixture; no single pure-molecule identity is asserted.
+138,Town Gas,,MIXTURE,REVIEWED_ACCEPTED,Catalogue entry represents a composition-dependent mixture; no single pure-molecule identity is asserted.
+139,Smoke,,MIXTURE,REVIEWED_ACCEPTED,Catalogue entry represents a composition-dependent mixture; no single pure-molecule identity is asserted.
+140,TVOC,,AGGREGATE_METRIC,REVIEWED_ACCEPTED,Catalogue entry is an operational aggregate/index rather than a single pure chemical.
+141,NOx,,AGGREGATE_METRIC,REVIEWED_ACCEPTED,Catalogue entry is an operational aggregate/index rather than a single pure chemical.
+142,LEL,,AGGREGATE_METRIC,REVIEWED_ACCEPTED,Catalogue entry is an operational aggregate/index rather than a single pure chemical.
+143,R410A,,MIXTURE,REVIEWED_ACCEPTED,Catalogue entry represents a composition-dependent mixture; no single pure-molecule identity is asserted.
