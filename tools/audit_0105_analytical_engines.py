@@ -13,6 +13,7 @@ def main():
     evidence=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreEvidenceObservation.java')
     contract=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreResponseModel.java')
     solver=txt('app/src/main/java/com/servoc/app/chemcore/InverseMolecularSolver.java')
+    uncertainty=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreUncertaintyPolicy.java')
     qspr=txt('app/src/main/java/com/servoc/app/chemcore/QsprResponseModelAdapter.java')
     qreg=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreQsprRuntimeRegistry.java')
     ref=txt('app/src/main/java/com/servoc/app/chemcore/AcceptedReferenceResponseModel.java')
@@ -39,6 +40,32 @@ def main():
     req(qspr,'reportableQuantitative(){return false;}','QSPR cannot be reportable ppm')
     req(qreg,'leaveCompoundOut','QSPR leave-compound-out validation')
     req(qreg,'QSPR-only compounds are available for estimated identification','QSPR-only candidate path')
+
+    # Reference uncertainty is explicit, centralized and remains a research proxy. R-squared is
+    # never allowed to manufacture a sigma or a calibrated prediction interval.
+    for n in [
+        'VERSION="chemcore-uncertainty-policy/1"',
+        'SEMANTICS="research_log10_response_sigma_proxy_not_calibrated_prediction_interval"',
+        'LITERATURE_POWER_SIGMA_LOG10=0.20',
+        'LITERATURE_LINEAR_SIGMA_LOG10=0.25',
+        'MANUFACTURER_PRIMARY_SIGMA_LOG10=0.22',
+        'MANUFACTURER_SECONDARY_SIGMA_LOG10=0.27',
+        'RESEARCH_CURVE_SIGMA_LOG10=0.32',
+        'SOLVER_FALLBACK_SIGMA_LOG10=0.20',
+        'MIN_SIGMA_LOG10=0.02',
+        'OUT_OF_DOMAIN_SIGMA_MULTIPLIER=1.80',
+        'acceptsR2AsSigmaEvidence(){return false;}'
+    ]: req(uncertainty,n,'uncertainty proxy policy')
+    req(solver,'ChemCoreUncertaintyPolicy.solverSigma(p.sigmaLog10,p.insideDomain)','solver uses centralized uncertainty policy')
+    req(ref,'ChemCoreUncertaintyPolicy.LITERATURE_POWER_SIGMA_LOG10','literature power uncertainty policy')
+    req(ref,'ChemCoreUncertaintyPolicy.LITERATURE_LINEAR_SIGMA_LOG10','literature linear uncertainty policy')
+    req(ref,'ChemCoreUncertaintyPolicy.MANUFACTURER_PRIMARY_SIGMA_LOG10','manufacturer primary uncertainty policy')
+    req(ref,'ChemCoreUncertaintyPolicy.MANUFACTURER_SECONDARY_SIGMA_LOG10','manufacturer secondary uncertainty policy')
+    req(ref,'ChemCoreUncertaintyPolicy.RESEARCH_CURVE_SIGMA_LOG10','research curve uncertainty policy')
+    req(ref,'ChemCoreUncertaintyPolicy.SEMANTICS','reference model records uncertainty semantics')
+    forbid(ref,'estimate(ratio,0.20,','ad-hoc literature sigma is forbidden')
+    forbid(ref,'estimate(ratio,0.25,','ad-hoc linear-literature sigma is forbidden')
+    forbid(ref,'estimate(ratio,0.32,','ad-hoc research sigma is forbidden')
 
     # Curves remain domain bounded and retain source-specific provenance.
     req(ref,'!c.inDeclaredRange(ppm)','literature domain bound')
