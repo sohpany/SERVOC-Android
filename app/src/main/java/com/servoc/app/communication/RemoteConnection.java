@@ -89,7 +89,8 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
         JSONObject t=latestTelemetry;if(t==null)return null;JSONObject s=t.optJSONObject("snapshot");if(s!=null)return s;
         JSONObject sourceDiag=t.optJSONObject("diag"),data=t.optJSONObject("data");
         if(sourceDiag!=null||data!=null){
-            JSONObject diag=sourceDiag==null?new JSONObject():new JSONObject(sourceDiag.toString());
+            JSONObject diag;
+            try{diag=sourceDiag==null?new JSONObject():new JSONObject(sourceDiag.toString());}catch(Exception ignored){diag=new JSONObject();}
             JSONObject safety=t.optJSONObject("safety");if(safety!=null&&safety.has("estop_latched"))try{diag.put("estop_latched",safety.optBoolean("estop_latched",false));}catch(Exception ignored){}
             return RobotProtocolV4.normalize(diag,data,left,right);
         }
