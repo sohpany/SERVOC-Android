@@ -30,11 +30,12 @@ public final class PowerLawResponseModel implements ChemCoreResponseModel {
 
     @Override public Estimate predict(double ppm,double temperatureC,double rh,SamplingProfile samplingProfile){
         if(!(ppm>0)||ppm<minPpm||ppm>maxPpm)return new Estimate(false,Double.NaN,sigmaLog10,false,"ppm outside model range");
-        boolean env=true;
-        if(Double.isFinite(minTempC)&&Double.isFinite(maxTempC)&&Double.isFinite(temperatureC))env&=temperatureC>=minTempC&&temperatureC<=maxTempC;
-        if(Double.isFinite(minRh)&&Double.isFinite(maxRh)&&Double.isFinite(rh))env&=rh>=minRh&&rh<=maxRh;
+        ChemCoreEnvironmentDomainPolicy.Result env=ChemCoreEnvironmentDomainPolicy.evaluate(
+                minTempC,maxTempC,minRh,maxRh,temperatureC,rh);
         double y=Math.log10(a)+b*Math.log10(ppm);
-        return new Estimate(true,y,sigmaLog10,env,env?note:"environment outside documented model domain",
+        String envNote="environment="+ChemCoreEnvironmentDomainPolicy.SEMANTICS+"@"+ChemCoreEnvironmentDomainPolicy.VERSION+"; "+env.note;
+        String combined=note.isEmpty()?envNote:note+"; "+envNote;
+        return new Estimate(true,y,sigmaLog10,env.insideDomain,combined,
                 evidenceType(),evidenceFamilyId(),modelId(),sourceId(),independenceGroup());
     }
 }
