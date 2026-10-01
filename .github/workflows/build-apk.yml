@@ -9,6 +9,7 @@ on:
   push:
     branches:
       - 'release/hazrob-0.10.2'
+      - 'release/hazrob-0.10.2-rc2'
     paths:
       - 'app/**'
       - 'firmware/**'
