@@ -91,7 +91,7 @@ public final class AcceptedR0Normalizer {
             if(source==null||source.isEmpty())source="accepted_device_r0";
             return session==null||session.isEmpty()?source:source+":"+session;
         }
-        double v=availableRatio(sensorKey,sensor);return Double.isFinite(v)&&v>0?"telemetry_ratio_corroborative":"no_chemical_ratio_available";
+        double v=availableRatio(sensorKey,sensor);return Double.isFinite(v)&&v>0?"telemetry_or_rs_ratio_corroborative":"no_chemical_ratio_available";
     }
 
     private static double physicalRatio(String sensorKey,JSONObject sensor){
