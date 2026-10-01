@@ -2,6 +2,8 @@ package com.servoc.app.chemcore;
 
 /** Empirical open-set gate for a trained chemical/family feature domain. */
 public final class ChemCoreOpenSetGate {
+    public static final String VERSION="chemcore-open-set/1";
+
     public static final class Result {
         public final boolean accepted;
         public final double distance;
