@@ -207,7 +207,8 @@ public final class MeasurementsTab {
 
     private final class AnalysisPane {
         final ScrollView view;final LinearLayout box;
-        final TextView readiness,topCandidate,confidence,evidence,quantitative,quality,candidatePreview,technical;
+        final TextView readiness,topCandidate,confidence,evidence,quantitative,quality,candidatePreview;
+        TextView technical;
         final Button technicalToggle;
         final ChemCoreDecisionRepository decisions;
         boolean technicalVisible=false;
@@ -245,7 +246,8 @@ public final class MeasurementsTab {
 
     private final class AnalysisResultsPane {
         final ScrollView view;final LinearLayout box,candidateList,screeningList;
-        final TextView decisionCard,screeningCard,safetyCard,tracking,selected,technical;
+        final TextView decisionCard,screeningCard,safetyCard,tracking,selected;
+        TextView technical;
         final Button startTracking,screeningToggle,technicalToggle;
         final ChemCoreDecisionRepository decisions;
         int selectedCandidateId=-1;String selectedCandidateName="";boolean showAll144=false,showTechnical=false;
