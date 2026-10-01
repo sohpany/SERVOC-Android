@@ -128,11 +128,29 @@ public final class RobotProtocolV4 {
     private static JSONObject ir(JSONObject diag,JSONObject i,boolean safetyAutoStop){
         JSONObject x=new JSONObject();try{
             if(i==null)i=new JSONObject();
-            boolean warning=i.has("warning")?i.optBoolean("warning",false):diag.optBoolean("ir",false);
-            boolean cliff=i.has("cliff_warning")?i.optBoolean("cliff_warning",warning):warning;
-            x.put("installed",true);x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",i.optBoolean("ground_detected",!cliff));
-            x.put("raw_level",i.has("raw_level")?i.optInt("raw_level",-1):i.optInt("level",-1));x.put("level",i.has("level")?i.optInt("level",-1):i.optInt("raw_level",-1));
-            x.put("ground_active_level",i.has("ground_active_level")?i.optInt("ground_active_level",-1):JSONObject.NULL);x.put("gpio",i.has("gpio")?i.optInt("gpio",35):35);
+            int raw=i.has("raw_level")?i.optInt("raw_level",-1):i.optInt("level",-1);
+            int firmwareActive=i.has("ground_active_level")?i.optInt("ground_active_level",-1):-1;
+            boolean firmwareWarning=i.has("warning")?i.optBoolean("warning",false):diag.optBoolean("ir",false);
+            boolean firmwareCliff=i.has("cliff_warning")?i.optBoolean("cliff_warning",firmwareWarning):firmwareWarning;
+            boolean ground=i.optBoolean("ground_detected",!firmwareCliff);
+            boolean corrected=false;
+
+            // HR069 field observation: the installed downward IR module reports HIGH when a nearby
+            // floor reflects the beam. Existing LOW-active firmware therefore asserted a permanent
+            // cliff while the robot was standing on the floor. Prefer raw telemetry when present so
+            // this APK fixes that deployed firmware without requiring an immediate reflash.
+            if(raw==0||raw==1){
+                ground=raw==1;
+                corrected=firmwareActive==0;
+            }
+            boolean cliff=!ground;
+            boolean warning=cliff;
+
+            x.put("installed",true);x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",ground);
+            x.put("raw_level",raw);x.put("level",raw);
+            x.put("ground_active_level",1);x.put("firmware_ground_active_level",firmwareActive<0?JSONObject.NULL:firmwareActive);
+            x.put("polarity_corrected",corrected);x.put("polarity_source",raw==0||raw==1?"hr069_field_raw_high_ground":"firmware_semantics");
+            x.put("gpio",i.has("gpio")?i.optInt("gpio",35):35);
             x.put("reference_height_cm",finiteAny(i,"reference_height_cm","reference_cm"));x.put("assert_samples",Math.max(0,i.optInt("assert_samples",0)));x.put("clear_samples",Math.max(0,i.optInt("clear_samples",0)));
             x.put("auto_stop_enabled",safetyAutoStop);x.put("drive_interlock",safetyAutoStop&&cliff);
         }catch(Exception ignored){}return x;
