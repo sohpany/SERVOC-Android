@@ -1,14 +1,11 @@
 plugins { id 'com.android.application' }
 
 import java.security.MessageDigest
-import java.util.zip.ZipFile
 
 final String HAZROB_FLAMMABILITY_SHA256 = '457b9a1d88b8c54d8863772ca3741f8d2afd152ebd0a9fc007ccb106f4d50434'
-final String HAZROB_ACCEPTED_APK_URL = 'https://hazrob-0101-build.onrender.com/HazRob-0.10.1-TEST.apk'
-final String HAZROB_ACCEPTED_APK_ASSET = 'assets/generated/flammability/niosh_npg_flammability.json'
 def generatedHazrobAssets = file("$buildDir/generated/hazrobAssets")
 def generatedFlammability = file("$generatedHazrobAssets/generated/flammability/niosh_npg_flammability.json")
-def sourceFlammability = file('src/main/assets/generated/flammability/niosh_npg_flammability.json')
+def sourceFlammability = rootProject.file('.hazrob-controlled/niosh_npg_flammability.json')
 
 def sha256File = { File f ->
     MessageDigest md = MessageDigest.getInstance('SHA-256')
@@ -25,43 +22,23 @@ tasks.register('applyHazRobBranding', Exec) {
 }
 
 tasks.register('prepareHazRobFlammabilitySeed') {
+    inputs.file(sourceFlammability)
     outputs.file(generatedFlammability)
     doLast {
-        generatedFlammability.parentFile.mkdirs()
-        if (sourceFlammability.exists()) {
-            generatedFlammability.bytes = sourceFlammability.bytes
-        } else {
-            // Never regenerate the controlled seed from live NIOSH pages during a release build.
-            // Recover the exact content-addressed asset from the last accepted 0.10.1 APK and fail closed
-            // unless its bytes still match HAZROB_FLAMMABILITY_SHA256.
-            File acceptedApk = file("$buildDir/accepted/HazRob-0.10.1-accepted.apk")
-            acceptedApk.parentFile.mkdirs()
-            Exception last = null
-            for (int attempt=1; attempt<=3; attempt++) {
-                try {
-                    URLConnection c = new URL(HAZROB_ACCEPTED_APK_URL).openConnection()
-                    c.setConnectTimeout(20_000); c.setReadTimeout(90_000)
-                    c.setRequestProperty('User-Agent','HazRob-0.10.1-content-addressed-build')
-                    c.inputStream.withCloseable { input -> acceptedApk.withOutputStream { output -> output << input } }
-                    ZipFile z = new ZipFile(acceptedApk)
-                    try {
-                        def entry = z.getEntry(HAZROB_ACCEPTED_APK_ASSET)
-                        if (entry == null) throw new GradleException("Accepted APK is missing controlled asset: $HAZROB_ACCEPTED_APK_ASSET")
-                        z.getInputStream(entry).withCloseable { input -> generatedFlammability.withOutputStream { output -> output << input } }
-                    } finally { z.close() }
-                    last = null; break
-                } catch (Exception e) {
-                    last=e
-                    if (attempt<3) sleep(1000L*attempt)
-                } finally {
-                    if (acceptedApk.exists()) acceptedApk.delete()
-                }
-            }
-            if (last != null) throw new GradleException('Unable to recover controlled HazRob flammability snapshot from accepted APK',last)
+        if (!sourceFlammability.exists()) {
+            throw new GradleException('Missing controlled HazRob flammability seed: .hazrob-controlled/niosh_npg_flammability.json')
         }
-        String actual=sha256File(generatedFlammability)
-        if (!HAZROB_FLAMMABILITY_SHA256.equalsIgnoreCase(actual)) throw new GradleException("HazRob flammability seed SHA-256 mismatch: $actual")
-        println "HazRob flammability seed verified: $actual"
+        String sourceSha=sha256File(sourceFlammability)
+        if (!HAZROB_FLAMMABILITY_SHA256.equalsIgnoreCase(sourceSha)) {
+            throw new GradleException("HazRob controlled flammability seed SHA-256 mismatch: $sourceSha")
+        }
+        generatedFlammability.parentFile.mkdirs()
+        generatedFlammability.bytes = sourceFlammability.bytes
+        String generatedSha=sha256File(generatedFlammability)
+        if (!HAZROB_FLAMMABILITY_SHA256.equalsIgnoreCase(generatedSha)) {
+            throw new GradleException("HazRob generated flammability seed SHA-256 mismatch: $generatedSha")
+        }
+        println "HazRob flammability seed verified: $generatedSha"
     }
 }
 
