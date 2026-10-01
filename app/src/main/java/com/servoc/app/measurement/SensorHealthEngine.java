@@ -1,5 +1,6 @@
 package com.servoc.app.measurement;
 
+import com.servoc.app.calibration.AcceptedR0Normalizer;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import org.json.JSONObject;
 import java.util.Arrays;
@@ -36,7 +37,18 @@ public final class SensorHealthEngine {
 
     private final Map<String,Channel> channels=new LinkedHashMap<>();
 
-    public SensorHealthEngine(){for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ)channels.put(hw.key,new Channel(hw.key,hw.relay));}
+    public SensorHealthEngine(){
+        for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){
+            Channel c=new Channel(hw.key,hw.relay);
+            // The accepted device R0 is the clean-air resistance reference, therefore the
+            // corresponding normalized clean-air baseline is Rs/R0 = 1.0. Seed that reference
+            // immediately so a fresh install does not require a second redundant baseline.
+            // An explicitly captured developer clean-air baseline may still override it later.
+            double acceptedR0=AcceptedR0Normalizer.acceptedR0(hw.key);
+            if(Double.isFinite(acceptedR0)&&acceptedR0>0)c.baseline=1.0;
+            channels.put(hw.key,c);
+        }
+    }
 
     /** Accept one normalized API snapshot. Live health follows actual relay power, not measurement-screen lifecycle. */
     public synchronized void accept(JSONObject snapshot,long elapsedMs){
