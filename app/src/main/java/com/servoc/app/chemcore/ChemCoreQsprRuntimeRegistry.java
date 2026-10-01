@@ -17,19 +17,21 @@ import java.util.Set;
 /**
  * Runtime PubChem/QSPR bridge for HazRob 0.10.2 / HR069.
  *
- * Simple operating rule:
- *  - if a direct/fingerprint/reference model exists, it wins on that sensor;
- *  - if no direct model exists for a material, PubChem/QSPR is allowed to be the primary
- *    identification path using whatever independently validated MQ-QSPR sensor models exist;
- *  - QSPR-only identity remains explicitly marked as estimated and never creates reportable ppm;
- *  - mixtures/materials/isomer groups/occupational categories curated as non-molecular are excluded.
+ * Scientific operating rule:
+ *  - direct/fingerprint/reference evidence wins on the same sensor;
+ *  - QSPR may support a molecularly eligible target only on sensor models that passed
+ *    leave-compound-out validation AND whose training-compound descriptor domain contains the
+ *    target molecule;
+ *  - QSPR-only identity remains M1/estimated and never creates reportable ppm;
+ *  - mixtures/materials/isomer groups/occupational categories curated as non-molecular are
+ *    excluded;
+ *  - concentration/environment limits are still enforced by the response-model domain.
  *
- * QSPR models are trained only from accepted source-backed M2 response relations and must pass
- * leave-compound-out validation before they are enabled. This keeps the scientific validation
- * inside the engine while the operator sees a simple direct-vs-QSPR result.
+ * QSPR training rows are deterministic points sampled from accepted source-backed M2 response
+ * relations. They are model-transfer observations, not independent laboratory sessions.
  */
 public final class ChemCoreQsprRuntimeRegistry {
-    public static final String VERSION="pubchem-qspr-mox-runtime/2-simple";
+    public static final String VERSION="pubchem-qspr-mox-runtime/3-ad";
     private static final int TRAINING_POINTS_PER_COMPOUND=8;
     private static final int MIN_TRAINING_COMPOUNDS=5;
     /** At least one independently validated sensor-QSPR model is enough to keep the compound readable. */
@@ -37,6 +39,7 @@ public final class ChemCoreQsprRuntimeRegistry {
     private static final double RIDGE_LAMBDA=0.10;
     private static final double MAX_LCO_RMSE_LOG10=0.60;
     private static final double MAX_LCO_ABS_BIAS_LOG10=0.40;
+    private static final double MIN_LCO_INSIDE_ENVELOPE_FRACTION=0.50;
     private static final double QSPR_ONLY_PRIOR_LOG_WEIGHT=-1.0;
     private static final double REFERENCE_TEMP_C=25.0;
     private static final double REFERENCE_RH=50.0;
@@ -61,6 +64,14 @@ public final class ChemCoreQsprRuntimeRegistry {
         }
     }
 
+    private static final class SensorModel {
+        final QsprMoxModel model;
+        final MolecularDescriptorApplicabilityDomain descriptorDomain;
+        SensorModel(QsprMoxModel model,MolecularDescriptorApplicabilityDomain descriptorDomain){
+            this.model=model;this.descriptorDomain=descriptorDomain;
+        }
+    }
+
     private static volatile List<InverseMolecularSolver.Candidate> cached=Collections.emptyList();
     private static volatile Status lastStatus=new Status(0,0,0,"","not built");
 
@@ -75,11 +86,12 @@ public final class ChemCoreQsprRuntimeRegistry {
         Map<Long,Target> liveTargets=liveTargets(db,curation,molecular);
         String[] descriptors=MolecularDescriptorContract.defaultQsprDescriptors();
 
-        List<QsprMoxModel> sensorModels=new ArrayList<>();
+        List<SensorModel> sensorModels=new ArrayList<>();
         List<String> enabledSensorNames=new ArrayList<>();
         for(int sensor=0;sensor<SENSOR_KEYS.length;sensor++){
             List<QsprValidationProtocol.LabeledObservation> labeled=new ArrayList<>();
             Set<Long> distinctCompounds=new LinkedHashSet<>();
+            Map<Long,Map<String,Double>> distinctDescriptorVectors=new LinkedHashMap<>();
             for(int chem=0;chem<ChemicalCatalog.COUNT;chem++){
                 Long uid=legacyUid.get(chem);if(uid==null)continue;
                 Map<String,Double> vector=descriptorVector(molecular,uid,descriptors);if(vector==null)continue;
@@ -95,18 +107,25 @@ public final class ChemCoreQsprRuntimeRegistry {
                     ChemCoreResponseModel.Estimate p=direct.predict(ppm,REFERENCE_TEMP_C,REFERENCE_RH,null);
                     if(p==null||!p.available||!Double.isFinite(p.meanLog10Ratio))continue;
                     QsprMoxModel.Observation o=new QsprMoxModel.Observation(vector,ppm,REFERENCE_TEMP_C,REFERENCE_RH,p.meanLog10Ratio,1.0);
-                    labeled.add(new QsprValidationProtocol.LabeledObservation(uid,"source-backed-M2",o));
+                    labeled.add(new QsprValidationProtocol.LabeledObservation(uid,"source-model-M2",o));
                 }
-                if(labeled.size()>before)distinctCompounds.add(uid);
+                if(labeled.size()>before){
+                    distinctCompounds.add(uid);
+                    distinctDescriptorVectors.put(uid,vector);
+                }
             }
             if(distinctCompounds.size()<MIN_TRAINING_COMPOUNDS)continue;
-            List<QsprMoxModel.Observation> observations=new ArrayList<>();for(QsprValidationProtocol.LabeledObservation x:labeled)observations.add(x.observation);
+            List<QsprMoxModel.Observation> observations=new ArrayList<>();
+            for(QsprValidationProtocol.LabeledObservation x:labeled)observations.add(x.observation);
             try{
                 String version=VERSION+"/"+SENSOR_KEYS[sensor];
                 QsprMoxModel model=QsprMoxModel.fit(SENSOR_KEYS[sensor],version,descriptors,observations,RIDGE_LAMBDA);
                 QsprValidationProtocol.Result validation=QsprValidationProtocol.leaveCompoundOut(SENSOR_KEYS[sensor],version,descriptors,labeled,RIDGE_LAMBDA);
                 if(!passesValidation(validation))continue;
-                sensorModels.add(model);enabledSensorNames.add(SENSOR_KEYS[sensor]);
+                MolecularDescriptorApplicabilityDomain ad=MolecularDescriptorApplicabilityDomain.fit(
+                        descriptors,new ArrayList<>(distinctDescriptorVectors.values()));
+                sensorModels.add(new SensorModel(model,ad));
+                enabledSensorNames.add(SENSOR_KEYS[sensor]);
             }catch(IllegalArgumentException ignored){}
         }
 
@@ -114,14 +133,20 @@ public final class ChemCoreQsprRuntimeRegistry {
         if(sensorModels.size()>=MIN_QSPR_CONTRIBUTORS){
             for(Target target:liveTargets.values()){
                 List<ChemCoreResponseModel> models=new ArrayList<>();
-                for(QsprMoxModel m:sensorModels)models.add(new QsprResponseModelAdapter(m,target.descriptors));
+                for(SensorModel s:sensorModels){
+                    MolecularDescriptorApplicabilityDomain.Result ad=s.descriptorDomain.evaluate(target.descriptors);
+                    if(!ad.insideDomain)continue;
+                    models.add(new QsprResponseModelAdapter(s.model,target.descriptors));
+                }
                 if(models.size()>=MIN_QSPR_CONTRIBUTORS)
                     next.add(new InverseMolecularSolver.Candidate(target.uid,target.name,models,QSPR_ONLY_PRIOR_LOG_WEIGHT,MIN_QSPR_CONTRIBUTORS));
             }
         }
         cached=Collections.unmodifiableList(next);
         lastStatus=new Status(liveTargets.size(),sensorModels.size(),next.size(),String.join(",",enabledSensorNames),
-                sensorModels.size()>=MIN_QSPR_CONTRIBUTORS?"QSPR-only compounds are available for estimated identification":"no independently validated sensor-QSPR model is available");
+                sensorModels.size()>=MIN_QSPR_CONTRIBUTORS
+                        ?"QSPR M1 candidates are restricted by sensor-specific descriptor applicability domains"
+                        :"no sensor-QSPR model passed compound-level validation/applicability requirements");
         return lastStatus;
     }
 
@@ -130,8 +155,8 @@ public final class ChemCoreQsprRuntimeRegistry {
 
     /**
      * Adds QSPR support to a direct/stable candidate set. For the same chemical+sensor, the
-     * higher-tier direct model wins. QSPR-only candidates remain readable with the validated
-     * QSPR channels that are available.
+     * higher-tier direct model wins. QSPR-only candidates remain readable only on validated,
+     * descriptor-domain-compatible QSPR channels.
      */
     public static List<InverseMolecularSolver.Candidate> supplement(List<InverseMolecularSolver.Candidate> base){
         List<InverseMolecularSolver.Candidate> molecular=cached;
@@ -152,8 +177,12 @@ public final class ChemCoreQsprRuntimeRegistry {
     }
 
     private static boolean passesValidation(QsprValidationProtocol.Result v){
-        return v!=null&&v.compoundsEvaluated>=3&&v.predictions>=12&&Double.isFinite(v.rmseLog10)&&
-                v.rmseLog10<=MAX_LCO_RMSE_LOG10&&Double.isFinite(v.biasLog10)&&Math.abs(v.biasLog10)<=MAX_LCO_ABS_BIAS_LOG10;
+        return v!=null&&v.compoundsAttempted>=MIN_TRAINING_COMPOUNDS&&
+                v.compoundsEvaluated==v.compoundsAttempted&&
+                v.predictions>=v.compoundsEvaluated*4&&
+                Double.isFinite(v.rmseLog10)&&v.rmseLog10<=MAX_LCO_RMSE_LOG10&&
+                Double.isFinite(v.biasLog10)&&Math.abs(v.biasLog10)<=MAX_LCO_ABS_BIAS_LOG10&&
+                Double.isFinite(v.insideEnvelopeFraction)&&v.insideEnvelopeFraction>=MIN_LCO_INSIDE_ENVELOPE_FRACTION;
     }
 
     private static void putPreferred(Map<String,ChemCoreResponseModel> models,ChemCoreResponseModel incoming){
