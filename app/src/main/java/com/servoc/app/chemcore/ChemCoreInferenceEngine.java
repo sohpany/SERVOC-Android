@@ -67,9 +67,9 @@ public final class ChemCoreInferenceEngine {
         if(consistency.verdict==MixtureResidualGuard.Verdict.POSSIBLE_MIXTURE_OR_INTERFERENCE){outcome=ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE;note=consistency.reason;}
         else if(context.openSetResult!=null&&!context.openSetResult.accepted){outcome=ChemCoreDecision.Outcome.UNKNOWN;note="open-set rejection: "+context.openSetResult.reason;}
         else if(consistency.verdict==MixtureResidualGuard.Verdict.AMBIGUOUS_IDENTITY){outcome=ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;note=consistency.reason;}
-        else if(allContributorsDeviceCalibrated&&openSetAccepted&&!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN;note="device-calibrated response exists but the fitted concentration is outside one or more validated contributor domains";}
+        else if(openSetAccepted&&!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN;note="best-supported candidate uses one or more response models outside a declared concentration/environment domain, or a required environmental measurement is unavailable; named identity and reportable concentration are withheld";}
         else if(tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED&&openSetAccepted&&top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.QUANTIFIED;note="all contributing response curves are device/reference calibrated, identity is accepted, and the joint solution remains inside every validated domain";}
-        else if(tier.ordinal()>=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT.ordinal()&&openSetAccepted){outcome=ChemCoreDecision.Outcome.IDENTIFIED;note="multisensor identity is array-consistent with at least two direct/reference M2+ channels and inside the trained identity domain; concentration is withheld until all contributing quantitative curves satisfy M4";}
+        else if(tier.ordinal()>=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT.ordinal()&&openSetAccepted&&top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.IDENTIFIED;note="multisensor identity is array-consistent with at least two direct/reference M2+ channels and inside every declared contributor domain; concentration is withheld until all contributing quantitative curves satisfy M4";}
         else{outcome=ChemCoreDecision.Outcome.SCREENING;note=openSetAccepted?"model-supported candidate only":"model-supported candidate only; named identity withheld until an explicit open-set/OOD gate accepts the session";}
         if(top.molecularContributors>0){String idx=Double.isFinite(top.qsprIndicatorPct)?String.format(Locale.US,"%.1f%%",top.qsprIndicatorPct):"—";note+="; PubChem/QSPR fit="+idx;}
         if(!corroborativeRatios.isEmpty())note+="; degraded/auxiliary MQ measurements retained as quality-weighted corroborative evidence";
@@ -81,7 +81,7 @@ public final class ChemCoreInferenceEngine {
     }
 
     @Deprecated public static int reliabilityRating(ChemCoreDecision.EvidenceTier tier){if(tier==null)return 1;switch(tier){case M4_HAZROB_VALIDATED:return 5;case M3_ARRAY_CONSISTENT:return 4;case M2_LITERATURE_OR_MANUFACTURER_SUPPORTED:return 3;case M1_MOLECULARLY_INFERRED:return 2;default:return 1;}}
-    static boolean hasReferenceBackedMultisensorSupport(InverseMolecularSolver.Result r){return r!=null&&r.contributors>=2&&r.referenceContributors>=2;}
+    static boolean hasReferenceBackedMultisensorSupport(InverseMolecularSolver.Result r){return r!=null&&r.contributors>=2&&r.referenceContributors>=2&&r.allContributorsInsideDomain;}
     public static ChemCoreResultEnvelope analyzeLegacyManufacturerPriors(Map<String,Double> observedRatios,SamplingProfile samplingProfile,Context context){return analyze(observedRatios,ChemCoreLegacyCandidateRegistry.manufacturerSupportedCandidates(),samplingProfile,context);}
     public static ChemCoreResultEnvelope analyzeLegacyManufacturerPriors(Map<String,Double> observedRatios,Map<String,Double> corroborativeRatios,Map<String,Double> corroborativeQualityWeights,SamplingProfile samplingProfile,Context context){return analyze(observedRatios,corroborativeRatios,corroborativeQualityWeights,ChemCoreLegacyCandidateRegistry.manufacturerSupportedCandidates(),samplingProfile,context);}
     private static int countObserved(Map<String,Double> ratios){int n=0;if(ratios!=null)for(Double v:ratios.values())if(v!=null&&Double.isFinite(v)&&v>0)n++;return n;}
@@ -108,7 +108,7 @@ public final class ChemCoreInferenceEngine {
             if(model==null)continue;String key=model.sensorKey();Double obs=lookup(ratios,key),qw=lookup(quality,key);if(obs==null||qw==null||!Double.isFinite(obs)||obs<=0||!Double.isFinite(qw)||qw<=0)continue;
             if(hasPrimarySensorEvidence(out,key)&&qw>=0.999)continue;
             ChemCoreResponseModel.Estimate p=model.predict(r.bestPpm,context.temperatureC,context.rh,profile);if(p==null||!p.available||!Double.isFinite(p.meanLog10Ratio))continue;
-            double sigma=Double.isFinite(p.sigmaLog10)&&p.sigmaLog10>0?Math.max(0.02,p.sigmaLog10):0.20;if(!p.insideDomain)sigma*=1.8;
+            double sigma=ChemCoreUncertaintyPolicy.solverSigma(p.sigmaLog10,p.insideDomain);
             double residual=Math.log10(obs)-p.meanLog10Ratio,z=residual/sigma;
             out.add(ChemCoreEvidenceObservation.corroborativeFromResponseModel(r.chemicalUid,r.label,model,p,r.bestPpm,obs,residual,z,qw,"session measurement quality weight="+String.format(Locale.US,"%.3f",qw)));
         }
