@@ -1,0 +1,145 @@
+catalog_index,name_en,formula,primary_structural_family,secondary_structural_tags,stage_2_state,stage_2_note
+0,Phosgene,COCl2,ACYL_HALIDE,carbonyl_halide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+1,Hydrogen Cyanide,HCN,NITRILE,inorganic_nitrile,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+2,Arsine,AsH3,INORGANIC_HYDRIDE,pnictogen_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+3,Phosphine,PH3,INORGANIC_HYDRIDE,pnictogen_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+4,Hydrogen Sulfide,H2S,HYDROGEN_CHALCOGENIDE,sulfur_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+5,Diborane,B2H6,INORGANIC_HYDRIDE,boron_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+6,Stibine,SbH3,INORGANIC_HYDRIDE,pnictogen_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+7,Hydrogen Selenide,H2Se,HYDROGEN_CHALCOGENIDE,selenium_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+8,Germane,GeH4,INORGANIC_HYDRIDE,group14_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+9,Silane,SiH4,INORGANIC_HYDRIDE,group14_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+10,Chlorine Dioxide,ClO2,INORGANIC_OXIDE,chlorine_oxide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+11,Fluorine,F2,ELEMENTAL_GAS,halogen,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+12,Chlorine,Cl2,ELEMENTAL_GAS,halogen,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+13,Sulfur Dioxide,SO2,INORGANIC_OXIDE,sulfur_oxide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+14,Nitrogen Dioxide,NO2,INORGANIC_OXIDE,nitrogen_oxide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+15,Ozone,O3,ELEMENTAL_GAS,oxygen_allotrope,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+16,Hydrogen Fluoride,HF,HYDROGEN_HALIDE,hydrogen_halide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+17,Hydrogen Chloride,HCl,HYDROGEN_HALIDE,hydrogen_halide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+18,Hydrogen Bromide,HBr,HYDROGEN_HALIDE,hydrogen_halide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+19,Bromine,Br2,ELEMENTAL_GAS,halogen,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+20,Carbon Monoxide,CO,INORGANIC_OXIDE,carbon_oxide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+21,Ammonia,NH3,INORGANIC_HYDRIDE,nitrogen_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+22,Oxygen,O2,ELEMENTAL_GAS,oxygen,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+23,Carbon Dioxide,CO2,INORGANIC_OXIDE,carbon_oxide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+24,Nitric Oxide,NO,INORGANIC_OXIDE,nitrogen_oxide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+25,Ethylene Oxide,C2H4O,EPOXIDE,cyclic_ether,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+26,Methyl Isocyanate,CH3NCO,ISOCYANATE,organic_isocyanate,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+27,Formaldehyde,CH2O,ALDEHYDE,saturated_aldehyde,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+28,Acrolein,C3H4O,ALDEHYDE,unsaturated_aldehyde,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+29,Hydrazine,N2H4,INORGANIC_HYDRIDE,nitrogen_hydride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+30,Propylene Oxide,C3H6O,EPOXIDE,cyclic_ether,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+31,Epichlorohydrin,C3H5ClO,EPOXIDE,halogenated;cyclic_ether,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+32,Acrylonitrile,C3H3N,NITRILE,unsaturated_nitrile,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+33,Vinyl Chloride,C2H3Cl,HALOALKENE,chloroalkene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+34,Benzene,C6H6,AROMATIC_HYDROCARBON,monocyclic_aromatic,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+35,"1,3-Butadiene",C4H6,DIENE_HYDROCARBON,conjugated_diene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+36,Carbon Disulfide,CS2,CARBON_SULFUR_COMPOUND,thiocarbonyl_like,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+37,Carbonyl Sulfide,COS,CARBON_SULFUR_COMPOUND,carbonyl_sulfide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+38,Methanethiol,CH3SH,THIOL,organosulfur,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+39,Ethanethiol,C2H5SH,THIOL,organosulfur,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+40,Dimethyl Sulfide,C2H6S,THIOETHER,organosulfur,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+41,Dimethyl Disulfide,C2H6S2,DISULFIDE,organosulfur,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+42,Sulfur Tetrafluoride,SF4,INORGANIC_HALIDE,sulfur_fluoride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+43,Boron Trifluoride,BF3,INORGANIC_HALIDE,boron_fluoride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+44,Tungsten Hexafluoride,WF6,INORGANIC_HALIDE,metal_fluoride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+45,Silicon Tetrafluoride,SiF4,INORGANIC_HALIDE,silicon_fluoride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+46,Titanium Tetrachloride,TiCl4,INORGANIC_HALIDE,metal_chloride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+47,Sulfuryl Fluoride,SO2F2,INORGANIC_OXYHALIDE,sulfur_oxyfluoride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+48,Methyl Bromide,CH3Br,HALOALKANE,bromoalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+49,Nitrous Oxide,N2O,INORGANIC_OXIDE,nitrogen_oxide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+50,Styrene,C8H8,AROMATIC_HYDROCARBON,vinyl_aromatic,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+51,Phenol,C6H6O,PHENOL,aromatic_hydroxyl,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+52,Aniline,C6H7N,AROMATIC_AMINE,primary_aromatic_amine,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+53,Pyridine,C5H5N,N_HETEROAROMATIC,aza_aromatic,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+54,Acetaldehyde,C2H4O,ALDEHYDE,saturated_aldehyde,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+55,Crotonaldehyde,C4H6O,ALDEHYDE,unsaturated_aldehyde,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+56,Propionaldehyde,C3H6O,ALDEHYDE,saturated_aldehyde,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+57,Butyraldehyde,C4H8O,ALDEHYDE,saturated_aldehyde,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+58,Furfural,C5H4O2,ALDEHYDE,heteroaromatic_aldehyde,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+59,Acetic Acid,CH3COOH,CARBOXYLIC_ACID,monocarboxylic_acid,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+60,Formic Acid,HCOOH,CARBOXYLIC_ACID,monocarboxylic_acid,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+61,Hydrogen Peroxide,H2O2,PEROXIDE,inorganic_peroxide,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+62,Chloromethane,CH3Cl,HALOALKANE,chloroalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+63,Dichloromethane,CH2Cl2,HALOALKANE,chloroalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+64,Chloroform,CHCl3,HALOALKANE,chloroalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+65,Carbon Tetrachloride,CCl4,HALOALKANE,chloroalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+66,"1,2-Dichloroethane",C2H4Cl2,HALOALKANE,chloroalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+67,Trichloroethylene,C2HCl3,HALOALKENE,chloroalkene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+68,Tetrachloroethylene,C2Cl4,HALOALKENE,chloroalkene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+69,"1,2-Dichloropropane",C3H6Cl2,HALOALKANE,chloroalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+70,Chloroethane,C2H5Cl,HALOALKANE,chloroalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+71,Vinyl Acetate,C4H6O2,ESTER,unsaturated_ester,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+72,Ethyl Acrylate,C5H8O2,ESTER,unsaturated_ester,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+73,Methyl Acrylate,C4H6O2,ESTER,unsaturated_ester,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+74,Methyl Methacrylate,C5H8O2,ESTER,unsaturated_ester,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+75,Hydrogen,H2,ELEMENTAL_GAS,hydrogen,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+76,Methane,CH4,ALKANE,straight_or_single_carbon,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+77,Ethane,C2H6,ALKANE,normal_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+78,Propane,C3H8,ALKANE,normal_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+79,n-Butane,C4H10,ALKANE,normal_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+80,Isobutane,C4H10,ALKANE,branched_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+81,n-Pentane,C5H12,ALKANE,normal_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+82,Isopentane,C5H12,ALKANE,branched_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+83,Neopentane,C5H12,ALKANE,branched_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+84,n-Hexane,C6H14,ALKANE,normal_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+85,n-Heptane,C7H16,ALKANE,normal_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+86,n-Octane,C8H18,ALKANE,normal_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+87,n-Nonane,C9H20,ALKANE,normal_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+88,n-Decane,C10H22,ALKANE,normal_alkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+89,Ethylene,C2H4,ALKENE,monoalkene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+90,Propylene,C3H6,ALKENE,monoalkene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+91,Acetylene,C2H2,ALKYNE,terminal_alkyne,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+92,Cyclopropane,C3H6,CYCLOALKANE,small_ring,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+93,Cyclohexane,C6H12,CYCLOALKANE,cycloalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+94,Cyclopentane,C5H10,CYCLOALKANE,cycloalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+95,Toluene,C7H8,AROMATIC_HYDROCARBON,alkylbenzene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+96,Ethylbenzene,C8H10,AROMATIC_HYDROCARBON,alkylbenzene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+97,o-Xylene,C8H10,AROMATIC_HYDROCARBON,dialkylbenzene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+98,m-Xylene,C8H10,AROMATIC_HYDROCARBON,dialkylbenzene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+99,p-Xylene,C8H10,AROMATIC_HYDROCARBON,dialkylbenzene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+100,Cumene,C9H12,AROMATIC_HYDROCARBON,alkylbenzene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+101,Mesitylene,C9H12,AROMATIC_HYDROCARBON,trialkylbenzene,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+102,Methanol,CH3OH,ALCOHOL,primary_alcohol,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+103,Ethanol,C2H5OH,ALCOHOL,primary_alcohol,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+104,1-Propanol,C3H8O,ALCOHOL,primary_alcohol,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+105,Isopropanol,C3H8O,ALCOHOL,secondary_alcohol,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+106,1-Butanol,C4H10O,ALCOHOL,primary_alcohol,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+107,2-Butanol,C4H10O,ALCOHOL,secondary_alcohol,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+108,Isobutanol,C4H10O,ALCOHOL,primary_branched_alcohol,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+109,tert-Butanol,C4H10O,ALCOHOL,tertiary_alcohol,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+110,Acetone,C3H6O,KETONE,aliphatic_ketone,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+111,2-Butanone / MEK,C4H8O,KETONE,aliphatic_ketone,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+112,MIBK,C6H12O,KETONE,aliphatic_ketone,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+113,Cyclohexanone,C6H10O,KETONE,cyclic_ketone,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+114,Methyl Acetate,C3H6O2,ESTER,saturated_ester,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+115,Ethyl Acetate,C4H8O2,ESTER,saturated_ester,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+116,Propyl Acetate,C5H10O2,ESTER,saturated_ester,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+117,Isopropyl Acetate,C5H10O2,ESTER,saturated_ester,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+118,n-Butyl Acetate,C6H12O2,ESTER,saturated_ester,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+119,Diethyl Ether,C4H10O,ETHER,acyclic_ether,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+120,MTBE,C5H12O,ETHER,acyclic_ether,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+121,Tetrahydrofuran,C4H8O,CYCLIC_ETHER,single_oxygen_ring,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+122,"1,4-Dioxane",C4H8O2,CYCLIC_ETHER,diether_ring,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+123,Difluoromethane / R32,CH2F2,HALOGENATED_REFRIGERANT,hydrofluorocarbon,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+124,Chlorodifluoromethane / R22,CHClF2,HALOGENATED_REFRIGERANT,hydrochlorofluorocarbon,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+125,R134a,C2H2F4,HALOGENATED_REFRIGERANT,hydrofluorocarbon,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+126,R125,C2HF5,HALOGENATED_REFRIGERANT,hydrofluorocarbon,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+127,R143a,C2H3F3,HALOGENATED_REFRIGERANT,hydrofluorocarbon,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+128,R152a,C2H4F2,HALOGENATED_REFRIGERANT,hydrofluorocarbon,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+129,Radon,Rn,NOBLE_GAS,radioactive_noble_gas,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+130,R1234yf,C3H2F4,HALOGENATED_REFRIGERANT,hydrofluoroolefin,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+131,R1234ze(E),C3H2F4,HALOGENATED_REFRIGERANT,hydrofluoroolefin,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+132,Carbon Tetrafluoride,CF4,PERFLUOROCARBON,perfluoroalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+133,Hexafluoroethane,C2F6,PERFLUOROCARBON,perfluoroalkane,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+134,Sulfur Hexafluoride,SF6,INORGANIC_HALIDE,sulfur_fluoride,REVIEWED_ACCEPTED,Primary structural family assigned from canonical chemical identity; secondary tags are non-exclusive.
+135,LPG,,MIXTURE,fuel_gas_mixture,NOT_APPLICABLE_WITH_REASON,Operational mixture/aggregate class; no single molecular structural family is asserted.
+136,CNG,,MIXTURE,fuel_gas_mixture,NOT_APPLICABLE_WITH_REASON,Operational mixture/aggregate class; no single molecular structural family is asserted.
+137,Natural Gas,,MIXTURE,fuel_gas_mixture,NOT_APPLICABLE_WITH_REASON,Operational mixture/aggregate class; no single molecular structural family is asserted.
+138,Town Gas,,MIXTURE,fuel_gas_mixture,NOT_APPLICABLE_WITH_REASON,Operational mixture/aggregate class; no single molecular structural family is asserted.
+139,Smoke,,AEROSOL_MIXTURE,combustion_aerosol_mixture,NOT_APPLICABLE_WITH_REASON,Operational mixture/aggregate class; no single molecular structural family is asserted.
+140,TVOC,,AGGREGATE_METRIC,volatile_organic_compounds_index,NOT_APPLICABLE_WITH_REASON,Operational mixture/aggregate class; no single molecular structural family is asserted.
+141,NOx,,AGGREGATE_METRIC,nitrogen_oxides_family_metric,NOT_APPLICABLE_WITH_REASON,Operational mixture/aggregate class; no single molecular structural family is asserted.
+142,LEL,,AGGREGATE_METRIC,flammability_metric,NOT_APPLICABLE_WITH_REASON,Operational mixture/aggregate class; no single molecular structural family is asserted.
+143,R410A,,MIXTURE,refrigerant_mixture,NOT_APPLICABLE_WITH_REASON,Operational mixture/aggregate class; no single molecular structural family is asserted.
