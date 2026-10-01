@@ -18,9 +18,15 @@ def forbid(src: str, needle: str, label: str) -> None:
 def main() -> int:
     release=read("app/src/main/java/com/servoc/app/ReleaseAudit.java")
     drive_mode=read("app/src/main/java/com/servoc/app/control/DriveMode.java")
+    drive_mixer=read("app/src/main/java/com/servoc/app/control/DriveMixer.java")
+    drive_tuning=read("app/src/main/java/com/servoc/app/control/DriveTuning.java")
+    direction=read("app/src/main/java/com/servoc/app/control/DriveDirectionOption.java")
     tank=read("app/src/main/java/com/servoc/app/control/DualTankDriveControl.java")
     wheel=read("app/src/main/java/com/servoc/app/control/SteeringWheelMixer.java")
     wheel_view=read("app/src/main/java/com/servoc/app/control/SteeringWheelView.java")
+    joy_view=read("app/src/main/java/com/servoc/app/control/JoystickView.java")
+    dpad=read("app/src/main/java/com/servoc/app/control/DirectionPadView.java")
+    discrete=read("app/src/main/java/com/servoc/app/control/DiscreteDrive.java")
     estop_policy=read("app/src/main/java/com/servoc/app/control/EmergencyStopPressPolicy.java")
     control=read("app/src/main/java/com/servoc/app/ui/ControlTab.java")
     main=read("app/src/main/java/com/servoc/app/MainActivity.java")
@@ -43,7 +49,6 @@ def main() -> int:
     require(cfg,'API=4',"API4 identity")
 
     # IR is a downward cliff sensor: reflection/ground is SAFE; missing reflection is the warning.
-    # Active voltage polarity is a hardware detail and must not be confused with hazard semantics.
     require(release,"IR_WARNING_ONLY=true","IR warning-only release flag")
     require(release,"IR_OPTIONAL_AUTO_STOP=false","IR auto-stop disabled")
     require(cfg,"IR_GROUND_ACTIVE=LOW","current physical IR ground-active polarity")
@@ -72,7 +77,7 @@ def main() -> int:
     require(echo_badge,"ECHO TIMEOUT ×","operator ultrasonic timeout visibility")
     require(echo_badge,'"ECHO %.1f cm"',"operator ultrasonic distance visibility")
 
-    # Four operator drive presentations.
+    # Four operator drive presentations with independent direction reversal except tank.
     require(drive_mode,'TANK("tank","مزدوج")',"tank mode")
     require(drive_mode,'JOYSTICK("joystick","Joystick")',"joystick mode")
     require(drive_mode,'WHEEL("wheel","العجلة")',"wheel mode")
@@ -81,14 +86,29 @@ def main() -> int:
     require(control,"host.setDriveCommand(tankLeftRaw,tankRightRaw)","tank direct independent speed authority")
     require(control,"driveMode==DriveMode.WHEEL","wheel exposed in control UI")
     require(control,"wheel.reset()","wheel release/reset contract")
-    require(wheel,"if(y>0){","wheel forward branch")
-    require(wheel,"forward + right: slow LEFT","wheel forward-right convention")
-    require(wheel,"forward + left: slow RIGHT","wheel forward-left convention")
-    require(wheel,"reverse + right: slow RIGHT","wheel reverse-right path-relative convention")
-    require(wheel,"reverse + left: slow LEFT","wheel reverse-left path-relative convention")
-    require(wheel,"MIN_SLOWED_RATIO = 0.40","wheel 40 percent slowed-side floor")
-    require(wheel,"PIVOT_MAX = 0.50","wheel 50 percent pivot cap")
-    require(wheel_view,"SteeringWheelMixer.mix(x,y)","wheel view uses dedicated requested mixer")
+    require(direction,"PREF_REVERSE_JOYSTICK","joystick reversal preference")
+    require(direction,"PREF_REVERSE_WHEEL","wheel reversal preference")
+    require(direction,"PREF_REVERSE_BUTTONS","button reversal preference")
+    require(direction,"mode == DriveMode.JOYSTICK || mode == DriveMode.WHEEL || mode == DriveMode.BUTTONS","tank cannot be reversed")
+    require(settings,'"العجلة: عكس التوجيه يمين/يسار"',"wheel reversal setting")
+    require(settings,'"Joystick: عكس التوجيه يمين/يسار"',"joystick reversal setting")
+    require(settings,'"الأزرار: عكس التوجيه يمين/يسار"',"button reversal setting")
+
+    # Turn and pivot speed are operator tunable; defaults remain 40% / 60%.
+    require(drive_tuning,"DEFAULT_TURN_PERCENT = 40","default moving-turn inner-side speed")
+    require(drive_tuning,"DEFAULT_PIVOT_PERCENT = 60","default in-place pivot speed")
+    require(settings,'"سرعة الالتفاف (%)"',"manual turn-speed field")
+    require(settings,'"سرعة الدوران في المكان (%)"',"manual pivot-speed field")
+    require(settings,'"حفظ سرعات القيادة"',"drive-tuning save button")
+    require(settings,"putInt(DriveTuning.PREF_TURN_PERCENT,turn)","turn speed persistence")
+    require(settings,"putInt(DriveTuning.PREF_PIVOT_PERCENT,pivot)","pivot speed persistence")
+    require(drive_mixer,"mix(double x,double y,int turnPercent,int pivotPercent)","runtime tunable differential mixer")
+    require(joy_view,"DriveMixer.mix(x, y, turn, pivot)","joystick consumes runtime tuning")
+    require(wheel,"DriveMixer.mix(x,y,turnPercent,pivotPercent)","wheel mixer passes runtime tuning")
+    require(wheel_view,"SteeringWheelMixer.mix(x,y,turn,pivot)","wheel view consumes runtime tuning")
+    require(dpad,"DiscreteDrive.command(i,turn,pivot)","buttons consume runtime tuning")
+    require(discrete,"PIVOT_RIGHT:return new DriveMixer.Command(pivot,-pivot)","tunable right pivot")
+    require(discrete,"FORWARD_RIGHT:return new DriveMixer.Command(100,turn)","tunable moving right turn")
 
     # E-STOP: 2 s hold to latch, ordinary tap to reset once latched.
     require(estop_policy,"ARM_HOLD_MS = 2000L","E-STOP two-second hold")
@@ -127,7 +147,7 @@ def main() -> int:
     require(main,"0,50,TimeUnit.MILLISECONDS","20 Hz drive refresh")
 
     print("HazRob 0.10.2 / HR069 RC2 runtime contract: PASS")
-    print("drive=tank+joystick+wheel+buttons; wheel=operator-convention+path-relative-reverse; IR=ground-safe/no-ground-warning; estop=hold2s/tap-reset; mic=reference-offset")
+    print("drive=tank-direct + joystick/wheel/buttons with independent reversal; turn/pivot=user-tunable 40/60 defaults; IR=ground-safe/no-ground-warning; estop=hold2s/tap-reset; mic=reference-offset")
     return 0
 
 if __name__ == "__main__":
