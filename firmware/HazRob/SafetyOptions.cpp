@@ -4,25 +4,27 @@
 namespace{
 Preferences safetyNv;
 bool loaded=false;
-bool autoStop=true;
 
 void ensureLoaded(){
   if(loaded)return;
-  // Separate namespace avoids interfering with the main settings Preferences handle.
-  // Safe boot default: warnings remain visible and forward motion is blocked by
-  // confirmed cliff/no-ground or critical front-obstacle conditions. A developer
-  // may explicitly disable auto-stop for controlled maintenance/testing and that
-  // choice is persisted, but an unconfigured robot boots fail-safe.
+  // Automatic IR/ultrasonic motion stopping is intentionally disabled for HR069 RC2.
+  // Hazard warnings remain active, while E-STOP and the stale-command watchdog remain independent.
+  // Force the persisted state OFF as well so an older saved autoStop=true value cannot re-enable it
+  // after flashing this firmware.
   safetyNv.begin("hazsafe",false);
-  autoStop=safetyNv.getBool("autoStop",true);
+  safetyNv.putBool("autoStop",false);
   loaded=true;
 }
 }
 
-bool safetyAutoStopEnabled(){ensureLoaded();return autoStop;}
+bool safetyAutoStopEnabled(){
+  ensureLoaded();
+  return false;
+}
 
 void safetyAutoStopSet(bool enabled,bool persist){
+  (void)enabled;
   ensureLoaded();
-  autoStop=enabled;
-  if(persist)safetyNv.putBool("autoStop",enabled);
+  // Compatibility endpoint retained for the Android API, but automatic stopping stays disabled.
+  if(persist)safetyNv.putBool("autoStop",false);
 }
