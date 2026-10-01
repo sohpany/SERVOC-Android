@@ -38,9 +38,11 @@ public final class PiecewiseLogResponseModel implements ChemCoreResponseModel {
         int hi=Arrays.binarySearch(ppm,concentration);double y;
         if(hi>=0)y=Math.log10(ratio[hi]);
         else{hi=-hi-1;int lo=Math.max(0,hi-1);hi=Math.min(ppm.length-1,hi);if(lo==hi)y=Math.log10(ratio[lo]);else{double x=Math.log10(concentration),x0=Math.log10(ppm[lo]),x1=Math.log10(ppm[hi]);double y0=Math.log10(ratio[lo]),y1=Math.log10(ratio[hi]);double f=(x-x0)/(x1-x0);y=y0+f*(y1-y0);}}
-        boolean env=true;if(Double.isFinite(minTempC)&&Double.isFinite(maxTempC)&&Double.isFinite(temperatureC))env&=temperatureC>=minTempC&&temperatureC<=maxTempC;
-        if(Double.isFinite(minRh)&&Double.isFinite(maxRh)&&Double.isFinite(rh))env&=rh>=minRh&&rh<=maxRh;
-        return new Estimate(true,y,sigmaLog10,env,env?note:"environment outside documented model domain",
+        ChemCoreEnvironmentDomainPolicy.Result env=ChemCoreEnvironmentDomainPolicy.evaluate(
+                minTempC,maxTempC,minRh,maxRh,temperatureC,rh);
+        String envNote="environment="+ChemCoreEnvironmentDomainPolicy.SEMANTICS+"@"+ChemCoreEnvironmentDomainPolicy.VERSION+"; "+env.note;
+        String combined=note.isEmpty()?envNote:note+"; "+envNote;
+        return new Estimate(true,y,sigmaLog10,env.insideDomain,combined,
                 evidenceType(),evidenceFamilyId(),modelId(),sourceId(),independenceGroup());
     }
 }
