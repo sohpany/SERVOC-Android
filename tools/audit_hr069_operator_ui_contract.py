@@ -17,7 +17,6 @@ def main():
     mode=read("app/src/main/java/com/servoc/app/control/DriveMode.java")
     mixer=read("app/src/main/java/com/servoc/app/control/DriveMixer.java")
     tank=read("app/src/main/java/com/servoc/app/control/DualTankDriveControl.java")
-    wheel=read("app/src/main/java/com/servoc/app/control/SteeringWheelView.java")
     joy=read("app/src/main/java/com/servoc/app/control/JoystickView.java")
     discrete=read("app/src/main/java/com/servoc/app/control/DiscreteDrive.java")
     measurements=read("app/src/main/java/com/servoc/app/ui/MeasurementsTab.java")
@@ -42,21 +41,22 @@ def main():
     req(control,"host.robotApi().mqPower(target)","floating relay control")
     req(control,"WifiSignalReader.read(appContext)","Wi-Fi RSSI read")
 
-    # UI-02: four independent drive modes.
-    for marker in ['TANK("tank"','WHEEL("wheel"','JOYSTICK("joystick"','BUTTONS("buttons"']:
-        req(mode,marker,"four-mode drive selector")
+    # UI-02: three independent drive modes: dual-tank, joystick and buttons.
+    for marker in ['TANK("tank"','JOYSTICK("joystick"','BUTTONS("buttons"']:
+        req(mode,marker,"three-mode drive selector")
     req(control,"driveMode.next()","drive-mode cycling")
     req(control,"driveMode==DriveMode.TANK","tank mode retained")
-    req(control,"driveMode==DriveMode.WHEEL","wheel mode retained")
-    req(control,"driveMode==DriveMode.JOYSTICK","joystick added independently")
+    req(control,"driveMode==DriveMode.JOYSTICK","joystick retained")
     req(control,"driveMode==DriveMode.BUTTONS","button mode retained")
     req(tank,"onCommand(int value)","independent signed tank side")
-    req(wheel,"DriveMixer.mix(x,y)","wheel canonical mixer")
+    req(control,"tankLeft.setListener(v->{tankLeftRaw=v;if(driveMode==DriveMode.TANK)applyTankDrive();})","left tank side binding")
+    req(control,"tankRight.setListener(v->{tankRightRaw=v;if(driveMode==DriveMode.TANK)applyTankDrive();})","right tank side binding")
+    req(control,"host.setDriveCommand(DriveSpeedLimiter.scale(tankLeftRaw,speedPercent),DriveSpeedLimiter.scale(tankRightRaw,speedPercent))","tank left/right command ordering")
     req(joy,"DriveMixer.mix(x, y)","joystick canonical mixer")
     req(discrete,"PIVOT_RIGHT:return new DriveMixer.Command(100,-100)","right in-place pivot")
     req(discrete,"PIVOT_LEFT:return new DriveMixer.Command(-100,100)","left in-place pivot")
-    req(discrete,"FORWARD_RIGHT:return new DriveMixer.Command(100,50)","progressive forward-right")
-    req(discrete,"FORWARD_LEFT:return new DriveMixer.Command(50,100)","progressive forward-left")
+    req(discrete,"FORWARD_RIGHT:return new DriveMixer.Command(100,60)","progressive forward-right")
+    req(discrete,"FORWARD_LEFT:return new DriveMixer.Command(60,100)","progressive forward-left")
     req(mixer,"double left=y+steer;","left differential output")
     req(mixer,"double right=y-steer;","right differential output")
 
@@ -111,7 +111,7 @@ def main():
     req(uikit,"setHintTextColor(0xFF90A4AE)","dark-input hint contrast")
 
     print("HazRob 0.10.2 / HR069 operator UI contract: PASS")
-    print("UI-01..UI-07: full-screen drive, four modes, overlays, measurement/analysis dashboards, smart reports, explicit contrast")
+    print("UI-01..UI-07: full-screen drive, three modes, overlays, measurement/analysis dashboards, smart reports, explicit contrast")
     return 0
 
 if __name__=="__main__":
