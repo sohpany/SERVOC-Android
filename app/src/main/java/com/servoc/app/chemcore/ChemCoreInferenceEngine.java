@@ -58,6 +58,7 @@ public final class ChemCoreInferenceEngine {
 
         InverseMolecularSolver.Result top=solvable.get(0);double[] p=new double[solvable.size()];for(int i=0;i<p.length;i++)p[i]=solvable.get(i).posterior;double entropy=ChemCoreOpenSetGate.normalizedEntropy(p);
         MixtureResidualGuard.Result consistency=MixtureResidualGuard.evaluate(solvable,2.5,.80,.25);
+        ChemCoreSpecialistConflictEngine.Result specialist=ChemCoreSpecialistConflictEngine.evaluate(solvable);
         boolean allContributorsDeviceCalibrated=top.contributors>0&&top.calibratedContributors==top.contributors;
         ChemCoreDecision.EvidenceTier tier=top.highestEvidenceTier;
         if(allContributorsDeviceCalibrated&&context.calibrationHealthValid)tier=ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED;
@@ -68,15 +69,21 @@ public final class ChemCoreInferenceEngine {
         else if(context.openSetResult!=null&&!context.openSetResult.accepted){outcome=ChemCoreDecision.Outcome.UNKNOWN;note="open-set rejection: "+context.openSetResult.reason;}
         else if(consistency.verdict==MixtureResidualGuard.Verdict.AMBIGUOUS_IDENTITY){outcome=ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;note=consistency.reason;}
         else if(openSetAccepted&&!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN;note="best-supported candidate uses one or more response models outside a declared concentration/environment domain, or a required environmental measurement is unavailable; named identity and reportable concentration are withheld";}
+        else if(specialist.verdict==ChemCoreSpecialistConflictEngine.Verdict.CROSS_SPECIALIST_CONFLICT){outcome=ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE;note=specialist.reason;}
+        else if(specialist.holdNamedIdentity){outcome=ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;note=specialist.reason;}
         else if(tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED&&openSetAccepted&&top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.QUANTIFIED;note="all contributing response curves are device/reference calibrated, identity is accepted, and the joint solution remains inside every validated domain";}
         else if(tier.ordinal()>=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT.ordinal()&&openSetAccepted&&top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.IDENTIFIED;note="multisensor identity is array-consistent with at least two direct/reference M2+ channels and inside every declared contributor domain; concentration is withheld until all contributing quantitative curves satisfy M4";}
         else{outcome=ChemCoreDecision.Outcome.SCREENING;note=openSetAccepted?"model-supported candidate only":"model-supported candidate only; named identity withheld until an explicit open-set/OOD gate accepts the session";}
+        if(specialist.verdict!=ChemCoreSpecialistConflictEngine.Verdict.NO_SPECIALIST_EVIDENCE)note+="; specialist_gate="+specialist.verdict.name()+"; "+specialist.reason;
         if(top.molecularContributors>0){String idx=Double.isFinite(top.qsprIndicatorPct)?String.format(Locale.US,"%.1f%%",top.qsprIndicatorPct):"—";note+="; PubChem/QSPR fit="+idx;}
         if(!corroborativeRatios.isEmpty())note+="; degraded/auxiliary MQ measurements retained as quality-weighted corroborative evidence";
 
         double reportablePpm=outcome==ChemCoreDecision.Outcome.QUANTIFIED?top.bestPpm:Double.NaN;
         ChemCoreResultEnvelope base=envelope(context,outcome,tier,top.chemicalUid,top.label,reportablePpm,Double.NaN,Double.NaN,ood,top.posterior,entropy,note,
                 summaries(solvable,observedChannels,candidates,corroborativeRatios,corroborativeQualityWeights,samplingProfile,context));
+        // A specialist hold is a veto on named identity, not a ranking modifier. Do not allow the
+        // model-derived fingerprint fusion path to bypass an unresolved primary-anchor conflict.
+        if(specialist.holdNamedIdentity)return base;
         return AcceptedFingerprintIdentityEngine.fuse(base,observedRatios,context.openSetResult);
     }
 
