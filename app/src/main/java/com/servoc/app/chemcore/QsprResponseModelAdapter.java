@@ -27,7 +27,15 @@ public final class QsprResponseModelAdapter implements ChemCoreResponseModel {
 
     @Override public Estimate predict(double ppm,double temperatureC,double rh,SamplingProfile samplingProfile){
         QsprMoxModel.Prediction p=model.predict(descriptors,ppm,temperatureC,rh);
-        return new Estimate(p.available,p.meanLog10Ratio,p.uncertaintyProxyLog10,p.insideTrainingEnvelope,p.note,
+        /*
+         * Fail closed at runtime. QsprMoxModel may still return an out-of-domain numerical
+         * prediction for validation diagnostics, but the production response-model adapter must
+         * not feed that extrapolation into candidate ranking. This is especially important while
+         * the source-backed synthetic QSPR bench is trained at a single reference T/RH condition.
+         */
+        boolean usable=p.available&&p.insideTrainingEnvelope;
+        String note=usable?p.note:"QSPR rejected outside validated training envelope; "+p.note;
+        return new Estimate(usable,p.meanLog10Ratio,p.uncertaintyProxyLog10,usable,note,
                 evidenceType(),evidenceFamilyId(),modelId(),sourceId(),independenceGroup());
     }
 }
