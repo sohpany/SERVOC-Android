@@ -14,6 +14,7 @@ import android.widget.TextView;
 import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.calibration.MicrophoneDbCalibration;
 import com.servoc.app.control.DriveDirectionOption;
+import com.servoc.app.control.DriveTuning;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
@@ -26,7 +27,7 @@ import java.util.Locale;
 public final class SettingsTab {
     private static final int DRIVE_FIRMWARE_LIMIT=100;
     private final HazRobHost host;private final ScrollView scroll;
-    private final EditText robot,camera,warm,measure,micOffset;
+    private final EditText robot,camera,warm,measure,micOffset,turnSpeed,pivotSpeed;
     private final CheckBox safetyAutoStop;
     private final TextView compatibility,cameraState,libraryInfo,analysisUpdateInfo,micCalibrationInfo;
     private final ChemCoreLibraryManager libraryManager;
@@ -43,6 +44,11 @@ public final class SettingsTab {
         LinearLayout cfg=UiKit.card(c);cfg.addView(UiKit.title(c,"الضبط"),UiKit.full(c));
         warm=field(c,cfg,"التسخين s",String.valueOf(host.preferences().getInt("warm",60)));measure=field(c,cfg,"القياس s",String.valueOf(host.preferences().getInt("measure",30)));
         cfg.addView(UiKit.small(c,"سرعة حركة المركبة تضبط من عمود السرعة في شاشة القيادة: 0–100%، والقيمة الافتراضية عند بدء التطبيق 100%."),UiKit.full(c));
+        turnSpeed=field(c,cfg,"سرعة الالتفاف (%)",String.valueOf(host.preferences().getInt(DriveTuning.PREF_TURN_PERCENT,DriveTuning.DEFAULT_TURN_PERCENT)));
+        pivotSpeed=field(c,cfg,"سرعة الدوران في المكان (%)",String.valueOf(host.preferences().getInt(DriveTuning.PREF_PIVOT_PERCENT,DriveTuning.DEFAULT_PIVOT_PERCENT)));
+        turnSpeed.setInputType(InputType.TYPE_CLASS_NUMBER);pivotSpeed.setInputType(InputType.TYPE_CLASS_NUMBER);
+        TextView tuningHelp=UiKit.small(c,"الالتفاف = سرعة الجهة الداخلية عند أقصى انحراف أثناء الحركة. الدوران = سرعة Pivot في المكان. النطاق 0–100%. الافتراضي 40% / 60%. تطبق القيم على العجلة وJoystick والأزرار فقط.");tuningHelp.setTextColor(0xFF90CAF9);cfg.addView(tuningHelp,UiKit.full(c));
+        Button saveDriveTuning=UiKit.button(c,"حفظ سرعات القيادة");saveDriveTuning.setOnClickListener(v->saveDriveTuning());cfg.addView(saveDriveTuning,UiKit.full(c));
         cfg.addView(UiKit.small(c,"منظومة الحركة: L298N • LEFT=B: EN17/IN19/32 • RIGHT=A: EN16/IN18/27 • تزال جمبرا ENA/ENB عند تحكم PWM من ESP32."),UiKit.full(c));
         TextView reverseHelp=UiKit.small(c,"عكس التوجيه مستقل لكل طريقة: يبدل يمين/يسار فقط ولا يغيّر الأمام/الخلف. المساطر المزدوجة مستثناة وتبقى كل مسطرة مرتبطة بجهتها مباشرة.");reverseHelp.setTextColor(0xFF90CAF9);cfg.addView(reverseHelp,UiKit.full(c));
         cfg.addView(directionReverseCheck(c,"العجلة: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_WHEEL),UiKit.full(c));
@@ -87,6 +93,14 @@ public final class SettingsTab {
         String envChip=env==null?"—":env.optString("chip_id","—");
         String envAck=env==null?"76:— 77:—":"76:"+(env.optBoolean("ack_0x76",false)?"ACK":"—")+" 77:"+(env.optBoolean("ack_0x77",false)?"ACK":"—");
         compatibility.setText("Firmware "+d.optString("firmware",d.optString("fw","—"))+"   •   API "+d.optInt("api_version",d.optInt("api",0))+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"\nDrive "+driver+" • L "+HazRobHardwareProfile.DRIVE_L_IN1+"/"+HazRobHardwareProfile.DRIVE_L_IN2+" • R "+HazRobHardwareProfile.DRIVE_R_IN1+"/"+HazRobHardwareProfile.DRIVE_R_IN2+" • Auto-stop OFF\nADS bus SDA21/SCL22 • ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+" • ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—")+"\nENV bus SDA13/SCL14 • "+(envOk?"OK":envStatus)+" • "+envType+" "+envAddr+" chip "+envChip+" • "+envAck+"\nLDR GPIO34 "+(ldr!=null&&ldr.optBoolean("installed",false)?"OK":"—")+"   •   ALERT GPIO"+(alert==null?26:alert.optInt("gpio",26))+" "+(alert!=null?"OK":"—"));compatibility.setTextColor(envOk?0xFF81C784:0xFFFFB74D);
+    }
+
+    private void saveDriveTuning(){
+        int turn=parse(turnSpeed,-1),pivot=parse(pivotSpeed,-1);
+        if(turn<0||turn>100||pivot<0||pivot>100){host.showToast("سرعتا الالتفاف والدوران يجب أن تكونا بين 0 و100%");return;}
+        host.setDriveCommand(0,0);
+        host.preferences().edit().putInt(DriveTuning.PREF_TURN_PERCENT,turn).putInt(DriveTuning.PREF_PIVOT_PERCENT,pivot).apply();
+        turnSpeed.setText(String.valueOf(turn));pivotSpeed.setText(String.valueOf(pivot));host.refreshAllTabs();host.showToast("تم حفظ سرعات القيادة • التفاف "+turn+"% • دوران "+pivot+"%");
     }
 
     private void refreshMicrophoneCalibration(){
