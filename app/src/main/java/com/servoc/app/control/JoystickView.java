@@ -33,12 +33,12 @@ public final class JoystickView extends View {
         setClickable(true);
         ring.setStyle(Paint.Style.STROKE);
         ring.setStrokeWidth(4);
-        ring.setColor(0xAAFFFFFF);
+        ring.setColor(0xDDFFC107);
         guide.setStyle(Paint.Style.STROKE);
         guide.setStrokeWidth(2);
-        guide.setColor(0x44FFFFFF);
+        guide.setColor(0x66F5F7F8);
         knob.setStyle(Paint.Style.FILL);
-        knob.setColor(0xDDFFFFFF);
+        knob.setColor(0xFFF5F7F8);
         setBackgroundColor(Color.TRANSPARENT);
     }
 
@@ -96,8 +96,6 @@ public final class JoystickView extends View {
             ny /= magnitude;
             magnitude = 1.0;
         }
-        // No software dead-zone, acceleration ramp, reverse delay or steering smoothing:
-        // every measurable finger displacement maps linearly to a drive command.
         if (magnitude <= 1.0e-6) {
             nx = 0f;
             ny = 0f;
