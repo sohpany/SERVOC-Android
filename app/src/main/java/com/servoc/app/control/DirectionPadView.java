@@ -18,7 +18,11 @@ public final class DirectionPadView extends GridLayout {
     public interface Listener{void onDrive(int left,int right,boolean active);}
     private Listener listener;
     public DirectionPadView(Context c){
-        super(c);setColumnCount(3);setRowCount(3);setAlignmentMode(GridLayout.ALIGN_BOUNDS);setUseDefaultMargins(true);
+        super(c);
+        // The app shell is RTL, but directional geometry must remain physical/screen LTR:
+        // ↖ stays top-left, ↗ top-right, ↙ bottom-left, ↘ bottom-right.
+        setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
+        setColumnCount(3);setRowCount(3);setAlignmentMode(GridLayout.ALIGN_BOUNDS);setUseDefaultMargins(true);
         add(DiscreteDrive.Intent.FORWARD_LEFT,"↖",0,0);
         add(DiscreteDrive.Intent.FORWARD,"↑",0,1);
         add(DiscreteDrive.Intent.FORWARD_RIGHT,"↗",0,2);
