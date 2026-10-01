@@ -67,8 +67,9 @@ public final class ReportsTab {
         chartView=new ImageView(c);chartView.setAdjustViewBounds(true);chartView.setMinimumHeight(UiKit.dp(c,260));chartView.setBackgroundColor(Color.WHITE);root.addView(chartView,UiKit.full(c));
         chartSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){public void onItemSelected(AdapterView<?> p,View v,int pos,long id){renderSelectedChart(pos);}public void onNothingSelected(AdapterView<?> p){}});
 
+        technical=card(c,"—");technical.setTextIsSelectable(true);technical.setVisibility(View.GONE);
         technicalToggle=UiKit.button(c,"إظهار الأدلة التقنية");technicalToggle.setOnClickListener(v->{technicalVisible=!technicalVisible;technical.setVisibility(technicalVisible?View.VISIBLE:View.GONE);technicalToggle.setText(technicalVisible?"إخفاء الأدلة التقنية":"إظهار الأدلة التقنية");});root.addView(technicalToggle,UiKit.full(c));
-        technical=card(c,"—");technical.setTextIsSelectable(true);technical.setVisibility(View.GONE);root.addView(technical,UiKit.full(c));
+        root.addView(technical,UiKit.full(c));
 
         TextView history=UiKit.small(c,"القياسات المحفوظة");history.setTextColor(MUTED);root.addView(history,UiKit.full(c));list=UiKit.vbox(c);root.addView(list,UiKit.full(c));setEnabled(false);
     }
