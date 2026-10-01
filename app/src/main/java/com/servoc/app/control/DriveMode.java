@@ -4,7 +4,7 @@ package com.servoc.app.control;
 public enum DriveMode {
     TANK("tank","مزدوج"),
     JOYSTICK("joystick","Joystick"),
-    WHEEL("wheel","عجلة"),
+    WHEEL("wheel","العجلة"),
     BUTTONS("buttons","أزرار");
 
     public final String key;
