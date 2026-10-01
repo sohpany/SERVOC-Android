@@ -12,7 +12,7 @@ import java.util.Map;
  * Policy:
  *  - every chemically interpretable observation is retained;
  *  - full-quality independent evidence supplies the main confidence score;
- *  - immediate duplicates and upstream-lineage derivatives are de-duplicated separately;
+ *  - immediate duplicates are de-duplicated before upstream-lineage derivatives;
  *  - QSPR/model-derived fingerprints that share the accepted reference-response library do not
  *    become additional independent proofs when direct source evidence is already present;
  *  - correlated derivatives may provide a small capped corroboration bonus;
@@ -62,18 +62,25 @@ public final class ChemCoreEvidenceFusion {
             if(isPositiveSupport(e)){usable.add(e);if(isFullStrengthSupport(e))full.add(e);}
         }
 
-        // Preserve the immediate evidence keys as a second de-duplication layer. This prevents a
-        // degraded copy of a strong observation from reappearing merely because its lineage class
-        // is labelled CORROBORATIVE_COPY.
+        // First de-duplication layer: one strongest observation per immediate evidence group.
+        // Blank groups are treated as distinct rows because unknown provenance must not silently
+        // collapse unrelated evidence.
+        Map<String,ChemCoreEvidenceObservation> immediateRepresentative=new LinkedHashMap<>();
         Map<String,Boolean> fullImmediateGroups=new LinkedHashMap<>();
+        int anonymous=0;
         for(ChemCoreEvidenceObservation e:full){
-            if(e.independenceGroup!=null&&!e.independenceGroup.trim().isEmpty())fullImmediateGroups.put(e.independenceGroup,Boolean.TRUE);
+            String group=e.independenceGroup==null?"":e.independenceGroup.trim();
+            String key=group.isEmpty()?"ANON:"+(anonymous++):"IG:"+group;
+            if(!group.isEmpty())fullImmediateGroups.put(group,Boolean.TRUE);
+            ChemCoreEvidenceObservation current=immediateRepresentative.get(key);
+            if(current==null||preferred(e,current))immediateRepresentative.put(key,e);
         }
 
-        // Stage 28: full-strength evidence is de-duplicated by scientific lineage, not merely by
-        // immediate independenceGroup. Distinct direct sources remain distinct lineages.
+        // Second de-duplication layer: upstream scientific lineage. This is what prevents a QSPR
+        // transfer model and a model-derived fingerprint from appearing as independent evidence
+        // when both inherit the same accepted reference-response library.
         Map<String,ChemCoreEvidenceObservation> lineageRepresentative=new LinkedHashMap<>();
-        for(ChemCoreEvidenceObservation e:full){
+        for(ChemCoreEvidenceObservation e:immediateRepresentative.values()){
             String key=ChemCoreEvidenceLineagePolicy.confidenceLineageKey(e);
             ChemCoreEvidenceObservation current=lineageRepresentative.get(key);
             if(current==null||preferred(e,current))lineageRepresentative.put(key,e);
@@ -105,8 +112,6 @@ public final class ChemCoreEvidenceFusion {
                     if(hasDirectReference)correlatedDerived.put(entry.getKey(),e);else q++;
                     break;
                 default:
-                    // Preserve safe compatibility for future typed evidence while refusing to
-                    // manufacture independence from an unknown lineage.
                     if(isM4(e))m4++;
                     else if(isQspr(e))correlatedDerived.put(entry.getKey(),e);
                     else if(isReference(e))r++;
@@ -115,9 +120,7 @@ public final class ChemCoreEvidenceFusion {
         }
 
         // Weak/degraded evidence contributes only when neither its immediate evidence group nor
-        // its scientific lineage is already represented by full-strength evidence. Derived M1/M3
-        // evidence sharing the reference library is routed into the correlated bucket whenever a
-        // direct reference exists.
+        // its scientific lineage is already represented by full-strength evidence.
         Map<String,ChemCoreEvidenceObservation> weakRepresentative=new LinkedHashMap<>();
         for(ChemCoreEvidenceObservation e:usable){
             if(isFullStrengthSupport(e))continue;
@@ -152,12 +155,10 @@ public final class ChemCoreEvidenceFusion {
                 weakGroups+correlatedGroups,correlatedGroups);
     }
 
-    /** Any non-M0 observation with some interpretable quality remains in positive-support fusion. */
     static boolean isPositiveSupport(ChemCoreEvidenceObservation e){
         return e!=null&&e.tier!=null&&e.tier!=ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY&&supportWeight(e)>0;
     }
 
-    /** Full-strength proof keeps domain/fit requirements and requires PRIMARY quality. */
     static boolean isFullStrengthSupport(ChemCoreEvidenceObservation e){
         if(e==null||!e.insideDomain||!"PRIMARY".equals(e.supportRole)||e.measurementQualityWeight<0.75)return false;
         return !Double.isFinite(e.standardizedResidual)||Math.abs(e.standardizedResidual)<=FULL_SUPPORT_STANDARDIZED_RESIDUAL;
