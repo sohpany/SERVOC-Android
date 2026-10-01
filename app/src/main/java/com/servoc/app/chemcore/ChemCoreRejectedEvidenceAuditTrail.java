@@ -111,7 +111,7 @@ public final class ChemCoreRejectedEvidenceAuditTrail {
         if(openSet!=null&&!openSet.accepted){
             InverseMolecularSolver.Result top=firstSolvable(ranked);
             out.add(new Row(top==null?null:top.chemicalUid,top==null?"":top.label,"",Stage.OPEN_SET,
-                    Reason.OPEN_SET_OOD,"",ChemCoreOpenSetGate.VERSION,openSet.distance,openSet.reason));
+                    Reason.OPEN_SET_OOD,"","ChemCoreOpenSetGate",openSet.distance,openSet.reason));
         }
         return new Result(deduplicate(out));
     }
