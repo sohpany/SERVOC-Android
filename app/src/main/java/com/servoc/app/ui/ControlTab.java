@@ -49,7 +49,7 @@ public final class ControlTab {
         uiContext=c;appContext=c.getApplicationContext();this.host=host;landscape=c.getResources().getConfiguration().orientation==Configuration.ORIENTATION_LANDSCAPE;
         root=UiKit.vbox(c);root.setPadding(landscape?0:UiKit.dp(c,4),landscape?0:UiKit.dp(c,4),landscape?0:UiKit.dp(c,4),landscape?0:UiKit.dp(c,4));root.setBackgroundColor(Color.BLACK);
         cameraBox=new FrameLayout(c);cameraBox.setBackgroundColor(Color.BLACK);cameraBox.setLayoutDirection(View.LAYOUT_DIRECTION_LTR);
-        video=new MjpegView(c);recorder=new MjpegRecorder(c);flameAnalyzer=new FlameFrameAnalyzer(r->root.post(()->showFlame(r)));video.setFrameListener(jpeg->{flameAnalyzer.onJpegFrame(jpeg);recorder.onJpegFrame(jpeg);});video.setStatusListener(this::showCameraStatus);cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
+        video=new MjpegView(c);recorder=new MjpegRecorder(c);flameAnalyzer=new FlameFrameAnalyzer(r->root.post(()->showFlame(r)));video.setFrameListener((jpeg,elapsedMs)->{flameAnalyzer.onJpegFrame(jpeg,elapsedMs);recorder.onJpegFrame(jpeg,elapsedMs);});video.setStatusListener(this::showCameraStatus);cameraBox.addView(video,new FrameLayout.LayoutParams(-1,-1));
         overlay=new HazardOverlayView(c);cameraBox.addView(overlay,new FrameLayout.LayoutParams(-1,-1));
 
         int controlSize=UiKit.dp(c,landscape?170:180),controlBottom=UiKit.dp(c,landscape?62:10);
