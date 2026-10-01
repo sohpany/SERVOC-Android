@@ -1,20 +1,21 @@
 package com.servoc.app.control;
 
 /**
- * User-facing differential/skid-steer mixer for the on-screen wheel/joystick.
+ * Operator-requested two-axis differential-drive mixer used by the HazRob joystick.
  *
- * The vertical axis is throttle. The horizontal axis is curvature only while the robot is
- * translating. A right steering command therefore keeps the LEFT side at the requested travel
- * speed and progressively slows the RIGHT side; a left command does the mirror image. Even at
- * full steering lock the inside side remains at 40% of the outside side, producing a predictable
- * driving arc instead of an abrupt one-wheel stop or reversal.
+ * The vertical axis is travel demand. While translating, horizontal displacement is curvature:
+ * - forward + right progressively slows LEFT;
+ * - forward + left progressively slows RIGHT;
+ * - reverse preserves the requested path-relative steering feel used by the wheel control:
+ *   reverse + right slows RIGHT, reverse + left slows LEFT.
  *
- * With no meaningful translation demand, horizontal input becomes a true in-place pivot capped
- * at 50% motor command. The same travel-relative rule is retained in reverse.
+ * The slowed side remains at 40% at full steering lock so translating turns do not abruptly
+ * stop/reverse one side. With no meaningful translation, horizontal input is a true in-place
+ * pivot capped at 65% motor command. Release/cancel is handled by the owning control view.
  */
 public final class DriveMixer {
     public static final double MIN_INNER_RATIO = 0.40;
-    public static final double PIVOT_MAX = 0.50;
+    public static final double PIVOT_MAX = 0.65;
     private static final double TRANSLATION_DEADZONE = 0.08;
 
     public static final class Command {
@@ -31,19 +32,22 @@ public final class DriveMixer {
     public static Command mix(double x,double y){
         x=clampUnit(x);y=clampUnit(y);
 
-        // Horizontal-only control is an intentional pivot, limited to 50% for controllability.
         if(Math.abs(y)<=TRANSLATION_DEADZONE){
             double pivot=x*PIVOT_MAX;
             return new Command(pct(pivot),pct(-pivot));
         }
 
-        // Car-like curvature steering. Steering never reverses the inside side while translating.
-        double steer=Math.abs(x);
-        double insideRatio=1.0-(1.0-MIN_INNER_RATIO)*steer;
-        double outside=y;
-        double inside=y*insideRatio;
-        if(x>0)return new Command(pct(outside),pct(inside));       // right turn
-        if(x<0)return new Command(pct(inside),pct(outside));       // left turn
+        double ratio=1.0-(1.0-MIN_INNER_RATIO)*Math.abs(x);
+        double full=y;
+        double slowed=y*ratio;
+
+        if(y>0){
+            if(x>0)return new Command(pct(slowed),pct(full)); // forward + right: slow LEFT
+            if(x<0)return new Command(pct(full),pct(slowed)); // forward + left: slow RIGHT
+        }else{
+            if(x>0)return new Command(pct(full),pct(slowed)); // reverse + right: slow RIGHT
+            if(x<0)return new Command(pct(slowed),pct(full)); // reverse + left: slow LEFT
+        }
         return new Command(pct(y),pct(y));
     }
 }
