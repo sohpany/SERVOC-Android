@@ -21,35 +21,43 @@ public final class HR069OperatorDriveTest {
     @Test public void joystickVehiclePathAndPivotContract(){
         mix(0,1,100,100);
         mix(0,-1,-100,-100);
-        mix(1,0,100,-100);
-        mix(-1,0,-100,100);
-        mix(0.25,0.75,100,50);
-        mix(-0.25,0.75,50,100);
-        mix(0.25,-0.75,-100,-50);
-        mix(-0.25,-0.75,-50,-100);
+        mix(1,0,50,-50);
+        mix(-1,0,-50,50);
+        mix(0.5,0.8,80,56);
+        mix(-0.5,0.8,56,80);
+        mix(1.0,0.8,80,32);
+        mix(-1.0,0.8,32,80);
+        mix(1.0,-0.8,-80,-32);
+        mix(-1.0,-0.8,-32,-80);
     }
 
     @Test public void eightButtonContractMatchesCurrentDriveMatrix(){
         discrete(DiscreteDrive.Intent.FORWARD,100,100);
-        discrete(DiscreteDrive.Intent.FORWARD_RIGHT,100,60);
-        discrete(DiscreteDrive.Intent.FORWARD_LEFT,60,100);
+        discrete(DiscreteDrive.Intent.FORWARD_RIGHT,100,40);
+        discrete(DiscreteDrive.Intent.FORWARD_LEFT,40,100);
         discrete(DiscreteDrive.Intent.REVERSE,-100,-100);
-        discrete(DiscreteDrive.Intent.REVERSE_RIGHT,-100,-60);
-        discrete(DiscreteDrive.Intent.REVERSE_LEFT,-60,-100);
-        discrete(DiscreteDrive.Intent.PIVOT_RIGHT,100,-100);
-        discrete(DiscreteDrive.Intent.PIVOT_LEFT,-100,100);
+        discrete(DiscreteDrive.Intent.REVERSE_RIGHT,-100,-40);
+        discrete(DiscreteDrive.Intent.REVERSE_LEFT,-40,-100);
+        discrete(DiscreteDrive.Intent.PIVOT_RIGHT,50,-50);
+        discrete(DiscreteDrive.Intent.PIVOT_LEFT,-50,50);
         discrete(DiscreteDrive.Intent.STOP,0,0);
     }
 
-    @Test public void dualTankControlsPreserveIndependentLeftRightAuthority(){
+    @Test public void dualTankControlsPreserveDirectIndependentSpeedAuthority(){
         assertEquals(100,DriveSpeedLimiter.scale(100,100));
         assertEquals(-100,DriveSpeedLimiter.scale(-100,100));
-        assertEquals(60,DriveSpeedLimiter.scale(100,60));
-        assertEquals(-60,DriveSpeedLimiter.scale(-100,60));
-        int pivotRightLeft=DriveSpeedLimiter.scale(100,100);
-        int pivotRightRight=DriveSpeedLimiter.scale(-100,100);
-        assertEquals(100,pivotRightLeft);
-        assertEquals(-100,pivotRightRight);
-        assertTrue(pivotRightLeft*pivotRightRight<0);
+        assertEquals(37,DriveSpeedLimiter.scale(37,100));
+        assertEquals(-64,DriveSpeedLimiter.scale(-64,100));
+        int left=73,right=-28;
+        assertEquals(73,left);
+        assertEquals(-28,right);
+        assertTrue(left*right<0);
+    }
+
+    @Test public void estopGestureContractIsTwoSecondHoldThenTapReset(){
+        assertFalse(EmergencyStopPressPolicy.shouldLatch(false,1999));
+        assertTrue(EmergencyStopPressPolicy.shouldLatch(false,2000));
+        assertTrue(EmergencyStopPressPolicy.shouldResetOnTap(true));
+        assertFalse(EmergencyStopPressPolicy.shouldResetOnTap(false));
     }
 }
