@@ -61,7 +61,7 @@ def main():
     req(mixer,"double right=y-steer;","right differential output")
 
     # UI-03: canonical Echo/IR semantics used by current operator UI.
-    req(hardware,'\\"cm\\":'+"num(ultraCm,1)","raw Echo centimetre telemetry")
+    req(hardware,'\\"cm\\":"+num(ultraCm,1)',"raw Echo centimetre telemetry")
     req(protocol,'proximity.put("distance_cm",finiteAny(p,"cm","distance_cm"))',"canonical Echo cm normalization")
     req(hardware,'\\"ground_detected\\"',"IR ground telemetry")
     req(hardware,'\\"cliff_warning\\"',"IR cliff telemetry")
