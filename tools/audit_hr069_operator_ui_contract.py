@@ -16,9 +16,11 @@ def main():
     control=read("app/src/main/java/com/servoc/app/ui/ControlTab.java")
     mode=read("app/src/main/java/com/servoc/app/control/DriveMode.java")
     mixer=read("app/src/main/java/com/servoc/app/control/DriveMixer.java")
+    wheel_mixer=read("app/src/main/java/com/servoc/app/control/SteeringWheelMixer.java")
     tank=read("app/src/main/java/com/servoc/app/control/DualTankDriveControl.java")
     joy=read("app/src/main/java/com/servoc/app/control/JoystickView.java")
     discrete=read("app/src/main/java/com/servoc/app/control/DiscreteDrive.java")
+    dpad=read("app/src/main/java/com/servoc/app/control/DirectionPadView.java")
     measurements=read("app/src/main/java/com/servoc/app/ui/MeasurementsTab.java")
     reports=read("app/src/main/java/com/servoc/app/ui/ReportsTab.java")
     intelligence=read("app/src/main/java/com/servoc/app/report/ReportIntelligence.java")
@@ -36,12 +38,14 @@ def main():
         req(control,marker,label)
     req(control,'distanceBadge.setText(String.format(Locale.US,"أمام %.1f cm",cm))',"Echo centimetre display")
     req(control,'cliff?"⚠ لا توجد أرضية":ground?"أرض ●":"أرض ؟"',"IR no-ground warning semantics")
+    req(control,'safetyWarning.setText("⚠ خطر سقوط")',"compact cliff warning")
+    req(control,"safetyWarning.setTextSize(13)","compact warning text size")
     req(control,'mqOn?"MQ ON":"MQ OFF"',"relay state rendering")
     req(control,"boolean target=!on;","relay toggle target")
     req(control,"host.robotApi().mqPower(target)","floating relay control")
     req(control,"WifiSignalReader.read(appContext)","Wi-Fi RSSI read")
 
-    # UI-02: current independent drive modes. Tank sides map directly to L/R; speed rail is hidden in tank mode.
+    # UI-02: current independent drive modes. Tank sides map directly to L/R and latch commanded speed.
     for marker in ['TANK("tank"','JOYSTICK("joystick"','WHEEL("wheel"','BUTTONS("buttons"']:
         req(mode,marker,"current drive selector")
     req(control,"driveMode.next()","drive-mode cycling")
@@ -50,26 +54,33 @@ def main():
     req(control,"driveMode==DriveMode.WHEEL","wheel mode retained")
     req(control,"driveMode==DriveMode.BUTTONS","button mode retained")
     req(tank,"onCommand(int value)","independent signed tank side")
+    req(tank,"selected value remains active after finger-up","latching tank semantics")
+    req(tank,"if(a==MotionEvent.ACTION_UP){update(e.getY())","tank release preserves commanded speed")
     req(control,"tankLeft.setListener(v->{tankLeftRaw=v;if(driveMode==DriveMode.TANK)applyTankDrive();})","left tank side binding")
     req(control,"tankRight.setListener(v->{tankRightRaw=v;if(driveMode==DriveMode.TANK)applyTankDrive();})","right tank side binding")
     req(control,"host.setDriveCommand(tankLeftRaw,tankRightRaw)","tank direct left/right command ordering")
     req(control,"driveMode!=DriveMode.TANK&&driveMode!=DriveMode.WHEEL","tank/wheel speed rail isolation")
     req(joy,"DriveMixer.mix(x, y)","joystick canonical mixer")
-    req(discrete,"PIVOT_RIGHT:return new DriveMixer.Command(50,-50)","right in-place pivot")
-    req(discrete,"PIVOT_LEFT:return new DriveMixer.Command(-50,50)","left in-place pivot")
-    req(discrete,"FORWARD_RIGHT:return new DriveMixer.Command(100,40)","progressive forward-right")
-    req(discrete,"FORWARD_LEFT:return new DriveMixer.Command(40,100)","progressive forward-left")
-    req(mixer,"MIN_INNER_RATIO = 0.40","minimum inside-wheel ratio")
-    req(mixer,"PIVOT_MAX = 0.50","pivot command cap")
-    req(mixer,"if(x>0)return new Command(pct(outside),pct(inside))","right curvature semantics")
-    req(mixer,"if(x<0)return new Command(pct(inside),pct(outside))","left curvature semantics")
+    req(wheel_mixer,"return DriveMixer.mix(x,y)","wheel and joystick share mixer")
+    req(discrete,"PIVOT_RIGHT:return new DriveMixer.Command(65,-65)","right in-place pivot")
+    req(discrete,"PIVOT_LEFT:return new DriveMixer.Command(-65,65)","left in-place pivot")
+    req(discrete,"FORWARD_RIGHT:return new DriveMixer.Command(100,40)","button forward-right")
+    req(discrete,"FORWARD_LEFT:return new DriveMixer.Command(40,100)","button forward-left")
+    req(dpad,"setLayoutDirection(View.LAYOUT_DIRECTION_LTR)","direction-pad physical geometry under RTL shell")
+    req(mixer,"MIN_INNER_RATIO = 0.40","minimum slowed-side ratio")
+    req(mixer,"PIVOT_MAX = 0.65","65 percent pivot cap")
+    req(mixer,"if(x>0)return new Command(pct(slowed),pct(full))","requested forward-right slows left")
+    req(mixer,"if(x<0)return new Command(pct(full),pct(slowed))","requested forward-left slows right")
+    req(mixer,"if(x>0)return new Command(pct(full),pct(slowed))","reverse-right path-relative steering")
 
     # UI-03: canonical Echo/IR semantics used by current operator UI.
     req(hardware,'\\"cm\\":"+num(ultraCm,1)',"raw Echo centimetre telemetry")
     req(protocol,'proximity.put("distance_cm",finiteAny(p,"cm","distance_cm"))',"canonical Echo cm normalization")
     req(hardware,'\\"ground_detected\\"',"IR ground telemetry")
     req(hardware,'\\"cliff_warning\\"',"IR cliff telemetry")
-    req(protocol,'x.put("installed",true);x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",i.optBoolean("ground_detected",!cliff))',"canonical IR semantics")
+    req(protocol,"ground=raw==1","field-confirmed HIGH means ground")
+    req(protocol,"boolean cliff=!ground","no ground means cliff")
+    req(protocol,'x.put("polarity_corrected",corrected)',"IR deployed-firmware polarity correction diagnostics")
 
     # UI-04: operational measurement workspace.
     req(measurements,'String[] names={"الفيزيائية","القياس الحي","التحليل","النتائج"}',"current measurement workspace tabs")
@@ -121,7 +132,7 @@ def main():
     req(uikit,"setHintTextColor(0xFF90A4AE)","dark-input hint contrast")
 
     print("HazRob 0.10.2 / HR069 operator UI contract: PASS")
-    print("UI-01..UI-07: drive contract, overlays, measurement/analysis dashboards, smart reports, explicit 4.5:1 contrast guard")
+    print("UI-01..UI-07: unified wheel/joystick steering, 65% pivots, latching tank, IR field polarity correction, compact warnings")
     return 0
 
 if __name__=="__main__":
