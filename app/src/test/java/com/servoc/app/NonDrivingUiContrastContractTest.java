@@ -37,14 +37,21 @@ public final class NonDrivingUiContrastContractTest {
 
     @Test public void developerSubWorkspacesAreAlsoDarkAndReadable() throws Exception {
         String[] files={
-                "DeveloperExperimentsTab.java","AnalyticalLabTab.java",
-                "DeveloperConnectionDiagnosticsTab.java","CentralLibraryDashboardTab.java"
+                "DeveloperExperimentsTab.java","AnalyticalLabTab.java","ChemCoreAnalysisTab.java",
+                "DeveloperConnectionDiagnosticsTab.java","CentralLibraryDashboardTab.java","ChemCoreLibraryTab.java"
         };
         for(String name:files){
             String s=src("src/main/java/com/servoc/app/ui/"+name);
             assertTrue(name+" must declare the HR069 dark workspace surface",s.contains("0xFF0E1116"));
             assertTrue(name+" must use shared readable UI primitives",s.contains("UiKit."));
         }
+    }
+
+    @Test public void developerChemicalChooserHasExplicitDarkSurface() throws Exception {
+        String s=src("src/main/java/com/servoc/app/ui/ChemicalExperimentMatrixDialog.java");
+        assertTrue(s.contains("root.setBackgroundColor(UiKit.NON_DRIVING_BG)"));
+        assertTrue(s.contains("UiKit.input"));
+        assertTrue(s.contains("UiKit.small"));
     }
 
     @Test public void reportsAndMeasurementsUseExplicitDarkCardsForDynamicText() throws Exception {
@@ -56,6 +63,13 @@ public final class NonDrivingUiContrastContractTest {
         assertTrue(measurements.contains("CARD=0xFF171D24"));
         assertTrue(measurements.contains("TEXT=0xFFECEFF1"));
         assertTrue(measurements.contains("MUTED=0xFFB0BEC5"));
+    }
+
+    @Test public void safetyPanelUsesDarkSharedCardAndReadableText() throws Exception {
+        String s=src("src/main/java/com/servoc/app/ui/GasSafetyFindingsPanel.java");
+        assertTrue(s.contains("root=UiKit.card(c)"));
+        assertTrue(s.contains("list=UiKit.text"));
+        assertTrue(s.contains("list.setBackgroundColor(0xFF11171D)"));
     }
 
     @Test public void drivingWorkspaceIsNotRepaintedByNonDrivingAudit() throws Exception {
