@@ -39,11 +39,13 @@ public class FieldSessionRoundTripContractTest {
   String archive=read("src/main/java/com/servoc/app/field/FieldSessionArchive.java");
   String report=read("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
   assertTrue(archive.contains("f.field_session_id=?"));
+  assertTrue(report.contains("public final String fieldSessionId"));
+  assertTrue(report.contains("this.fieldSessionId=fieldSessionId"));
   assertTrue(report.contains("measurementSessionIds(fs)"));
   assertTrue(report.contains("ExperimentQueries.bySessionId(db,sid)"));
-  // These assertions inspect Java source text, so embedded JSON quotes are escaped in source.
-  assertTrue(report.contains("\\\"field_session_id\\\": \\\""));
-  assertTrue(report.contains("\\\"session_id\\\":\\\""));
+  assertTrue(report.contains("new Bundle(fs,site,field"));
+  assertTrue(report.contains("labelValue(c,\"Field Session\",b.fieldSession.id"));
+  assertTrue(report.contains("labelValue(c,\"Site ID\",b.site.id"));
  }
 
  @Test public void portableLibraryWritesAndRestoresPerSessionSourceArchives() throws Exception {
