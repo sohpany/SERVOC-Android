@@ -168,9 +168,9 @@ public final class InverseMolecularSolver {
         for(ChemCoreResponseModel m:c.models){
             if(m==null)continue;Double obs=lookup(observed,m.sensorKey());if(obs==null||!(obs>0)||!Double.isFinite(obs))continue;
             ChemCoreResponseModel.Estimate p=m.predict(ppm,temperatureC,rh,samplingProfile);if(p==null||!p.available||!Double.isFinite(p.meanLog10Ratio))continue;
-            double sigma=Double.isFinite(p.sigmaLog10)&&p.sigmaLog10>0?Math.max(0.02,p.sigmaLog10):0.20;
+            double sigma=ChemCoreUncertaintyPolicy.solverSigma(p.sigmaLog10,p.insideDomain);
             ChemCoreDecision.EvidenceTier evidence=m.evidenceTier();
-            double reliability=reliability(evidence);if(!p.insideDomain){reliability*=0.35;sigma*=1.8;f.allInside=false;}
+            double reliability=reliability(evidence);if(!p.insideDomain){reliability*=0.35;f.allInside=false;}
             double residual=Math.log10(obs)-p.meanLog10Ratio;double z=residual/sigma;
             if(f.contributors==0)f.chi2=0;
             double contribution=reliability*z*z;
@@ -191,7 +191,7 @@ public final class InverseMolecularSolver {
         for(ChemCoreResponseModel m:c.models){
             if(m==null)continue;Double obs=lookup(observed,m.sensorKey());if(obs==null||!(obs>0)||!Double.isFinite(obs))continue;
             ChemCoreResponseModel.Estimate p=m.predict(ppm,temperatureC,rh,samplingProfile);if(p==null||!p.available||!Double.isFinite(p.meanLog10Ratio))continue;
-            double sigma=Double.isFinite(p.sigmaLog10)&&p.sigmaLog10>0?Math.max(0.02,p.sigmaLog10):0.20;if(!p.insideDomain)sigma*=1.8;
+            double sigma=ChemCoreUncertaintyPolicy.solverSigma(p.sigmaLog10,p.insideDomain);
             double residual=Math.log10(obs)-p.meanLog10Ratio;double z=residual/sigma;
             out.add(ChemCoreEvidenceObservation.fromResponseModel(c.chemicalUid,c.label,m,p,ppm,obs,residual,z));
         }
