@@ -30,10 +30,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Current 0.10.2 HR069 source contracts
+      - name: Current 0.10.2 HR069 RC2 source contracts
         run: |
           set -euo pipefail
-          python3 tools/audit_0102_release_contract.py
+          python3 tools/audit_0102_rc2_runtime_contract.py
           python3 tools/audit_hr069_operator_ui_contract.py
           python3 tools/audit_hr069_chemical_coverage.py --check
           python3 tools/audit_0103_measurement_foundation.py
@@ -87,5 +87,6 @@ jobs:
       - name: Compile current ESP32-CAM HR069 for validation only
         run: arduino-cli compile --fqbn esp32:esp32:esp32cam --warnings all firmware/HazRob-CAM
 
-# Current-HR069 validation only. Historical revision-specific UI gates are deliberately not invoked.
-# No assembleRelease, signing, packaging, publication, upload-artifact, firmware ZIP or deploy step.
+# Current-HR069 validation only. Historical revision-specific source contracts remain in the
+# repository for provenance but are not release gates for the current RC2 architecture.
+# No release publication or deploy step is performed here.
