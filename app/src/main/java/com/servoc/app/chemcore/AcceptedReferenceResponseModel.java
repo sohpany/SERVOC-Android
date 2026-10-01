@@ -14,7 +14,8 @@ import com.servoc.app.chemical.SensorOperatingEnvelope;
  *
  * Available source-backed PPM libraries are usable for bounded candidate fitting/ranking and
  * provisional reference concentration estimates. They remain M2/reference evidence and never
- * become M4 merely by being enabled here.
+ * become M4 merely by being enabled here. The sigma values supplied to ChemCore are centralized
+ * research uncertainty proxies, not calibrated prediction intervals.
  */
 public final class AcceptedReferenceResponseModel implements ChemCoreResponseModel {
     public static final String VERSION="accepted-reference-ppm/2";
@@ -49,7 +50,7 @@ public final class AcceptedReferenceResponseModel implements ChemCoreResponseMod
         for(LiteratureCurveRegistry.Curve c:LiteratureCurveRegistry.CURVES){
             if(c.sensor!=sensor||c.chemical!=chemical||!c.inDeclaredRange(ppm))continue;
             double ratio=c.ratioFromPpm(ppm);
-            if(valid(ratio))return estimate(ratio,0.20,ChemCoreEvidenceObservation.Type.LITERATURE_CURVE,
+            if(valid(ratio))return estimate(ratio,ChemCoreUncertaintyPolicy.LITERATURE_POWER_SIGMA_LOG10,ChemCoreEvidenceObservation.Type.LITERATURE_CURVE,
                     c.sourceId,"peer-reviewed "+c.sourceId+" • "+ACCEPTANCE_STATE+" • provisional reference PPM; not M4");
         }
 
@@ -58,7 +59,7 @@ public final class AcceptedReferenceResponseModel implements ChemCoreResponseMod
             double ratio=c.ratioFromPpm(ppm);
             if(valid(ratio)){
                 String env="reference "+c.refTempC+" C/"+c.refRhPercent+"%RH/"+c.refO2Percent+"%O2; RL="+c.loadResistanceKohm+" kOhm";
-                return estimate(ratio,0.25,ChemCoreEvidenceObservation.Type.LITERATURE_CURVE,c.sourceId,
+                return estimate(ratio,ChemCoreUncertaintyPolicy.LITERATURE_LINEAR_SIGMA_LOG10,ChemCoreEvidenceObservation.Type.LITERATURE_CURVE,c.sourceId,
                         "peer-reviewed "+c.sourceId+" • "+env+" • BME280 T/RH/P retained for transfer context • "+ACCEPTANCE_STATE+" • provisional reference PPM; not M4");
             }
         }
@@ -72,7 +73,9 @@ public final class AcceptedReferenceResponseModel implements ChemCoreResponseMod
                     double[] ratios=GasEngine.simulateRatios(chemical,ppm);
                     double ratio=sensor<ratios.length?ratios[sensor]:Double.NaN;
                     if(valid(ratio)){
-                        double sigma=env.status==SensorOperatingEnvelope.PRIMARY_TARGET?0.22:0.27;
+                        double sigma=env.status==SensorOperatingEnvelope.PRIMARY_TARGET
+                                ?ChemCoreUncertaintyPolicy.MANUFACTURER_PRIMARY_SIGMA_LOG10
+                                :ChemCoreUncertaintyPolicy.MANUFACTURER_SECONDARY_SIGMA_LOG10;
                         String source=manufacturer.source==null||manufacturer.source.trim().isEmpty()?"manufacturer-evidence-matrix":manufacturer.source;
                         return estimate(ratio,sigma,ChemCoreEvidenceObservation.Type.MANUFACTURER_CURVE,source,
                                 "GasEngine + manufacturer operating envelope • "+env.note+" • "+ACCEPTANCE_STATE+" • provisional reference PPM; not M4");
@@ -84,7 +87,7 @@ public final class AcceptedReferenceResponseModel implements ChemCoreResponseMod
         for(ResearchCurveRegistry.Curve c:ResearchCurveRegistry.CURVES){
             if(c.sensor!=sensor||c.chemical!=chemical||!c.inDeclaredRange(ppm))continue;
             double ratio=c.ratioFromPpm(ppm);
-            if(valid(ratio))return estimate(ratio,0.32,ChemCoreEvidenceObservation.Type.RESEARCH_CURVE,
+            if(valid(ratio))return estimate(ratio,ChemCoreUncertaintyPolicy.RESEARCH_CURVE_SIGMA_LOG10,ChemCoreEvidenceObservation.Type.RESEARCH_CURVE,
                     ResearchCurveRegistry.SOURCE,ResearchCurveRegistry.SOURCE+" • "+ACCEPTANCE_STATE+" • provisional reference PPM; not M4");
         }
         return unavailable("no accepted reference relation covers this concentration");
@@ -116,9 +119,10 @@ public final class AcceptedReferenceResponseModel implements ChemCoreResponseMod
 
     private Estimate estimate(double ratio,double sigma,ChemCoreEvidenceObservation.Type type,String source,String note){
         String src=source==null?"":source.trim();String family=type.name();String independence=family+":"+src;
-        return new Estimate(true,Math.log10(ratio),sigma,true,note,type,family,modelId(),src,independence);
+        String uncertainty="uncertainty="+ChemCoreUncertaintyPolicy.SEMANTICS+"@"+ChemCoreUncertaintyPolicy.VERSION;
+        return new Estimate(true,Math.log10(ratio),sigma,true,note+" • "+uncertainty,type,family,modelId(),src,independence);
     }
-    private Estimate unavailable(String note){return new Estimate(false,Double.NaN,0.32,false,note);}
+    private Estimate unavailable(String note){return new Estimate(false,Double.NaN,ChemCoreUncertaintyPolicy.UNAVAILABLE_REFERENCE_SIGMA_LOG10,false,note);}
     private static boolean valid(double x){return Double.isFinite(x)&&x>0;}
     private static String key(int sensor){String[] k={"mq2","mq3","mq4","mq5","mq7","mq8","mq9","mq135"};return sensor>=0&&sensor<k.length?k[sensor]:"mq?";}
 }
