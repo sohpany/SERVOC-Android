@@ -138,7 +138,8 @@ def main() -> int:
     # P2 Direct/Remote parity: both paths must converge on the same normalized Android snapshot.
     req(robot_api, "return RobotProtocolV4.normalize(diagnosticsRaw(),dataRaw(),commandedLeft,commandedRight)", "Direct normalized snapshot")
     req(remote_mqtt, 'void publishTelemetry(){String j="{\\\"diag\\\":"+diagJson()+",\\\"data\\\":"+dataJson()', "Remote publishes raw diag+data pair")
-    req(remote_connection, 'if(diag!=null||data!=null)return RobotProtocolV4.normalize(diag,data,left,right)', "Remote normalized snapshot")
+    req(remote_connection, 'JSONObject diag=sourceDiag==null?new JSONObject():new JSONObject(sourceDiag.toString())', "Remote preserves and isolates diagnostics before normalization")
+    req(remote_connection, 'return RobotProtocolV4.normalize(diag,data,left,right)', "Remote normalized snapshot")
     req(remote_connection, 'command("measure_start"', "Remote measurement-start parity")
     req(remote_connection, 'command("measure_cancel"', "Remote measurement-cancel parity")
     req(remote_connection, 'command("relay"', "Remote MQ power parity")
