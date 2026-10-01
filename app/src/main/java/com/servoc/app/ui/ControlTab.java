@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.SystemClock;
 import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewParent;
 import android.widget.Button;
@@ -21,6 +22,7 @@ import com.servoc.app.control.DirectionPadView;
 import com.servoc.app.control.DriveMode;
 import com.servoc.app.control.DriveSpeedLimiter;
 import com.servoc.app.control.DualTankDriveControl;
+import com.servoc.app.control.EmergencyStopPressPolicy;
 import com.servoc.app.control.JoystickView;
 import com.servoc.app.control.VerticalSpeedControl;
 import com.servoc.app.measurement.LiveGasStateEngine;
@@ -44,6 +46,7 @@ public final class ControlTab {
     private final JoystickView joystick;private final DirectionPadView directionPad;private final VerticalSpeedControl speedControl;private final DualTankDriveControl tankLeft,tankRight;
     private volatile boolean recordingStopping=false,estopLatched=false;private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;private FlameFrameAnalyzer.Result lastFlameResult;private int lastTarget=-1;
     private int mappedLeftRaw=0,mappedRightRaw=0,tankLeftRaw=0,tankRightRaw=0,speedPercent=DriveSpeedLimiter.DEFAULT_PERCENT;private DriveMode driveMode;
+    private Runnable estopHoldAction;private boolean estopPressActive=false,estopHoldTriggered=false;
 
     public ControlTab(Context c,HazRobHost host){
         uiContext=c;appContext=c.getApplicationContext();this.host=host;landscape=c.getResources().getConfiguration().orientation==Configuration.ORIENTATION_LANDSCAPE;
@@ -59,7 +62,7 @@ public final class ControlTab {
         boolean legacyTank=host.preferences().getBoolean("tank_drive_mode",false);String saved=host.preferences().getString("drive_mode","");driveMode=saved==null||saved.trim().isEmpty()?(legacyTank?DriveMode.TANK:DriveMode.JOYSTICK):DriveMode.fromKey(saved);host.preferences().edit().putString("drive_mode",driveMode.key).apply();applyDriveModeVisibility();
 
         speedBadge=badge(c,"السرعة "+DriveSpeedLimiter.DEFAULT_PERCENT+"%");FrameLayout.LayoutParams sbp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.BOTTOM);sbp.setMargins(UiKit.dp(c,6),0,0,controlSize+controlBottom+UiKit.dp(c,4));cameraBox.addView(speedBadge,sbp);
-        speedControl=new VerticalSpeedControl(c);speedControl.setPercent(DriveSpeedLimiter.DEFAULT_PERCENT,false);FrameLayout.LayoutParams vsp=new FrameLayout.LayoutParams(UiKit.dp(c,64),controlSize,Gravity.LEFT|Gravity.BOTTOM);vsp.setMargins(UiKit.dp(c,8),0,0,controlBottom);cameraBox.addView(speedControl,vsp);speedControl.setListener(p->{speedPercent=DriveSpeedLimiter.clampPercent(p);speedBadge.setText("السرعة "+speedPercent+"%");if(driveMode==DriveMode.TANK)applyTankDrive();else applyMappedDrive();});
+        speedControl=new VerticalSpeedControl(c);speedControl.setPercent(DriveSpeedLimiter.DEFAULT_PERCENT,false);FrameLayout.LayoutParams vsp=new FrameLayout.LayoutParams(UiKit.dp(c,64),controlSize,Gravity.LEFT|Gravity.BOTTOM);vsp.setMargins(UiKit.dp(c,8),0,0,controlBottom);cameraBox.addView(speedControl,vsp);speedControl.setListener(p->{speedPercent=DriveSpeedLimiter.clampPercent(p);speedBadge.setText("السرعة "+speedPercent+"%");if(driveMode!=DriveMode.TANK)applyMappedDrive();});applySpeedControlVisibility();
 
         status=badge(c,"ROBOT —");FrameLayout.LayoutParams sp=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.TOP);sp.setMargins(0,UiKit.dp(c,6),UiKit.dp(c,6),0);cameraBox.addView(status,sp);
         irBadge=badge(c,"أرض —");FrameLayout.LayoutParams ip=new FrameLayout.LayoutParams(-2,-2,Gravity.RIGHT|Gravity.TOP);ip.setMargins(0,UiKit.dp(c,40),UiKit.dp(c,6),0);cameraBox.addView(irBadge,ip);
@@ -73,7 +76,7 @@ public final class ControlTab {
         trackingBadge=badge(c,"تتبع —");FrameLayout.LayoutParams tp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.TOP);tp.setMargins(UiKit.dp(c,6),UiKit.dp(c,74),0,0);cameraBox.addView(trackingBadge,tp);
         flameBadge=badge(c,"🔥 —");FrameLayout.LayoutParams fp=new FrameLayout.LayoutParams(-2,-2,Gravity.LEFT|Gravity.TOP);fp.setMargins(UiKit.dp(c,6),UiKit.dp(c,108),0,0);cameraBox.addView(flameBadge,fp);
 
-        LinearLayout actions=UiKit.hbox(c);actions.setBackgroundColor(0xB30E1116);stop=UiKit.button(c,"إيقاف طارئ");stop.setTextColor(Color.WHITE);stop.setBackgroundColor(0xFFC62828);stop.setOnClickListener(v->{latchEstopUi();host.emergencyStop();});stop.setOnLongClickListener(v->{requestEstopReset();return true;});actions.addView(stop,UiKit.weight(1.25f));flash=UiKit.button(c,"فلاش OFF");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1));record=UiKit.button(c,"تسجيل");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1));cancelTracking=UiKit.button(c,"إلغاء التتبع");cancelTracking.setOnClickListener(v->{host.setTrackingTarget(-1,"");gasDirection.reset();overlay.clearGas();host.refreshAllTabs();});actions.addView(cancelTracking,UiKit.weight(1.05f));driveModeButton=UiKit.button(c,"");driveModeButton.setOnClickListener(v->cycleDriveMode());actions.addView(driveModeButton,UiKit.weight(1));renderDriveModeButton();
+        LinearLayout actions=UiKit.hbox(c);actions.setBackgroundColor(0xB30E1116);stop=UiKit.button(c,"E-STOP");stop.setTextColor(Color.WHITE);estopHoldAction=()->{if(!estopLatched&&estopPressActive){estopHoldTriggered=true;latchEstopUi();host.emergencyStop();host.showToast("تم تفعيل E-STOP");}};stop.setOnTouchListener((v,e)->handleEstopTouch(e));stop.setOnClickListener(v->{if(EmergencyStopPressPolicy.shouldResetOnTap(estopLatched))requestEstopReset();});actions.addView(stop,UiKit.weight(1.25f));flash=UiKit.button(c,"فلاش OFF");flash.setOnClickListener(v->cycleFlash());actions.addView(flash,UiKit.weight(1));record=UiKit.button(c,"تسجيل");record.setOnClickListener(v->toggleRecording());actions.addView(record,UiKit.weight(1));cancelTracking=UiKit.button(c,"إلغاء التتبع");cancelTracking.setOnClickListener(v->{host.setTrackingTarget(-1,"");gasDirection.reset();overlay.clearGas();host.refreshAllTabs();});actions.addView(cancelTracking,UiKit.weight(1.05f));driveModeButton=UiKit.button(c,"");driveModeButton.setOnClickListener(v->cycleDriveMode());actions.addView(driveModeButton,UiKit.weight(1));renderDriveModeButton();
         drive=badge(c,"L 0   R 0   —");recordInfo=badge(c,"VIDEO —");
 
         root.addView(cameraBox,new LinearLayout.LayoutParams(-1,0,1f));
@@ -86,16 +89,24 @@ public final class ControlTab {
 
     private void acceptMappedDrive(int left,int right){mappedLeftRaw=left;mappedRightRaw=right;applyMappedDrive();}
     private void applyMappedDrive(){if(estopLatched){host.setDriveCommand(0,0);return;}host.setDriveCommand(DriveSpeedLimiter.scale(mappedLeftRaw,speedPercent),DriveSpeedLimiter.scale(mappedRightRaw,speedPercent));}
-    private void applyTankDrive(){if(estopLatched){host.setDriveCommand(0,0);return;}host.setDriveCommand(DriveSpeedLimiter.scale(tankLeftRaw,speedPercent),DriveSpeedLimiter.scale(tankRightRaw,speedPercent));}
+    private void applyTankDrive(){if(estopLatched){host.setDriveCommand(0,0);return;}host.setDriveCommand(tankLeftRaw,tankRightRaw);}
     private void applyDriveModeVisibility(){tankLeft.setVisibility(driveMode==DriveMode.TANK?View.VISIBLE:View.GONE);tankRight.setVisibility(driveMode==DriveMode.TANK?View.VISIBLE:View.GONE);joystick.setVisibility(driveMode==DriveMode.JOYSTICK?View.VISIBLE:View.GONE);directionPad.setVisibility(driveMode==DriveMode.BUTTONS?View.VISIBLE:View.GONE);}
+    private void applySpeedControlVisibility(){boolean visible=driveMode!=DriveMode.TANK;speedControl.setVisibility(visible?View.VISIBLE:View.GONE);speedBadge.setVisibility(visible?View.VISIBLE:View.GONE);}
     private void resetDriveInputs(){mappedLeftRaw=mappedRightRaw=tankLeftRaw=tankRightRaw=0;joystick.reset();directionPad.reset();tankLeft.reset();tankRight.reset();host.setDriveCommand(0,0);}
-    private void cycleDriveMode(){resetDriveInputs();driveMode=driveMode.next();host.preferences().edit().putString("drive_mode",driveMode.key).putBoolean("tank_drive_mode",driveMode==DriveMode.TANK).apply();applyDriveModeVisibility();renderDriveModeButton();host.showToast("نمط القيادة: "+driveMode.arabicLabel);}
+    private void cycleDriveMode(){resetDriveInputs();driveMode=driveMode.next();host.preferences().edit().putString("drive_mode",driveMode.key).putBoolean("tank_drive_mode",driveMode==DriveMode.TANK).apply();applyDriveModeVisibility();applySpeedControlVisibility();renderDriveModeButton();host.showToast("نمط القيادة: "+driveMode.arabicLabel);}
     private void renderDriveModeButton(){driveModeButton.setText("قيادة: "+driveMode.arabicLabel);}
 
-    private void latchEstopUi(){estopLatched=true;resetDriveInputs();renderEstopButton();}
-    private void requestEstopReset(){resetDriveInputs();renderEstopButton();host.io().execute(()->{try{host.robotApi().emergencyReset();root.post(()->{estopLatched=false;renderEstopButton();host.refreshAllTabs();host.showToast("تمت إعادة ضبط E-STOP");});}catch(Exception e){root.post(()->{estopLatched=true;renderEstopButton();host.showToast("تعذر إعادة ضبط E-STOP");});}});}
+    private boolean handleEstopTouch(MotionEvent e){
+        if(estopLatched)return false;
+        int action=e.getActionMasked();
+        if(action==MotionEvent.ACTION_DOWN){estopPressActive=true;estopHoldTriggered=false;stop.removeCallbacks(estopHoldAction);stop.postDelayed(estopHoldAction,EmergencyStopPressPolicy.ARM_HOLD_MS);return true;}
+        if(action==MotionEvent.ACTION_UP||action==MotionEvent.ACTION_CANCEL){stop.removeCallbacks(estopHoldAction);estopPressActive=false;if(action==MotionEvent.ACTION_UP&&!estopHoldTriggered)host.showToast("استمر بالضغط على E-STOP لمدة ثانيتين");return true;}
+        return true;
+    }
+    private void latchEstopUi(){estopLatched=true;estopPressActive=false;resetDriveInputs();renderEstopButton();}
+    private void requestEstopReset(){resetDriveInputs();stop.setEnabled(false);host.io().execute(()->{try{host.robotApi().emergencyReset();root.post(()->{estopLatched=false;stop.setEnabled(true);renderEstopButton();host.refreshAllTabs();host.showToast("تم إلغاء E-STOP");});}catch(Exception e){root.post(()->{estopLatched=true;stop.setEnabled(true);renderEstopButton();host.showToast("تعذر إلغاء E-STOP");});}});}
     private void syncEstopFromDiagnostics(JSONObject d){if(d!=null){boolean latched=false,known=false;if(d.has("estop_latched")){known=true;latched=d.optBoolean("estop_latched",false);}JSONObject safety=d.optJSONObject("safety");if(safety!=null&&safety.has("estop_latched")){known=true;latched=latched||safety.optBoolean("estop_latched",false);}if(known&&latched){estopLatched=true;resetDriveInputs();}}renderEstopButton();}
-    private void renderEstopButton(){if(estopLatched){stop.setText("E-STOP ●\nضغط مطول لإعادة الضبط");stop.setBackgroundColor(0xFF7F0000);}else{stop.setText("إيقاف طارئ");stop.setBackgroundColor(0xFFC62828);}}
+    private void renderEstopButton(){if(estopLatched){stop.setText("E-STOP ●\nلمسة لإلغاء");stop.setBackgroundColor(0xFFC62828);}else{stop.setText("E-STOP\nضغط 2ث");stop.setBackgroundColor(0xFF2E7D32);}}
 
     private boolean remoteMode(){return "remote".equalsIgnoreCase(host.preferences().getString("connection_mode","direct"));}
     private String effectiveFlashMode(){return remoteMode()?host.preferences().getString("flash_mode","off"):host.flashMode();}
@@ -110,7 +121,7 @@ public final class ControlTab {
     public View view(){return root;}public void resetJoystick(){resetDriveInputs();}
     public void startCamera(){if(remoteMode()){String url=host.preferences().getString("remote_video_url","").trim();String token=new RemoteVideoCredentialStore(host.preferences()).load();if(url.isEmpty()){showCameraStatus("retrying","Remote video not configured");return;}video.startWss(url,token);return;}String h=host.cameraHost();if(h==null||h.trim().isEmpty()){showCameraStatus("retrying","");return;}h=h.trim();video.start(new String[]{"http://"+h+":81/stream","http://"+h+"/stream"});}
     public void stopCamera(){video.stop();flameAnalyzer.reset();overlay.clearFlame();overlay.clearGas();lastFlameState=FlameEvidenceTracker.State.CLEAR;lastFlameResult=null;if(recorder.isRecording()&&!recordingStopping)requestStopRecording(false);}
-    public void releaseCamera(){video.stop();flameAnalyzer.release();overlay.clearFlame();overlay.clearGas();gasDirection.reset();if(recorder.isRecording()||recorder.isClosing())recorder.stopNow();recorder.release();video.release();}
+    public void releaseCamera(){video.stop();stop.removeCallbacks(estopHoldAction);estopPressActive=false;flameAnalyzer.release();overlay.clearFlame();overlay.clearGas();gasDirection.reset();if(recorder.isRecording()||recorder.isClosing())recorder.stopNow();recorder.release();video.release();}
 
     public void refresh(){
         flash.setText("فلاش "+("on".equals(effectiveFlashMode())?"ON":"OFF"));if(recorder.isRecording())recordInfo.setText("REC ●   "+recorder.frameCount()+" frames   drop "+recorder.droppedFrames());renderDriveModeButton();
