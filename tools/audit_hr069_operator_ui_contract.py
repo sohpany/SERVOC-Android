@@ -41,17 +41,19 @@ def main():
     req(control,"host.robotApi().mqPower(target)","floating relay control")
     req(control,"WifiSignalReader.read(appContext)","Wi-Fi RSSI read")
 
-    # UI-02: three independent drive modes: dual-tank, joystick and buttons.
-    for marker in ['TANK("tank"','JOYSTICK("joystick"','BUTTONS("buttons"']:
-        req(mode,marker,"three-mode drive selector")
+    # UI-02: current independent drive modes. Tank sides map directly to L/R; speed rail is hidden in tank mode.
+    for marker in ['TANK("tank"','JOYSTICK("joystick"','WHEEL("wheel"','BUTTONS("buttons"']:
+        req(mode,marker,"current drive selector")
     req(control,"driveMode.next()","drive-mode cycling")
     req(control,"driveMode==DriveMode.TANK","tank mode retained")
     req(control,"driveMode==DriveMode.JOYSTICK","joystick retained")
+    req(control,"driveMode==DriveMode.WHEEL","wheel mode retained")
     req(control,"driveMode==DriveMode.BUTTONS","button mode retained")
     req(tank,"onCommand(int value)","independent signed tank side")
     req(control,"tankLeft.setListener(v->{tankLeftRaw=v;if(driveMode==DriveMode.TANK)applyTankDrive();})","left tank side binding")
     req(control,"tankRight.setListener(v->{tankRightRaw=v;if(driveMode==DriveMode.TANK)applyTankDrive();})","right tank side binding")
-    req(control,"host.setDriveCommand(DriveSpeedLimiter.scale(tankLeftRaw,speedPercent),DriveSpeedLimiter.scale(tankRightRaw,speedPercent))","tank left/right command ordering")
+    req(control,"host.setDriveCommand(tankLeftRaw,tankRightRaw)","tank direct left/right command ordering")
+    req(control,"driveMode!=DriveMode.TANK&&driveMode!=DriveMode.WHEEL","tank/wheel speed rail isolation")
     req(joy,"DriveMixer.mix(x, y)","joystick canonical mixer")
     req(discrete,"PIVOT_RIGHT:return new DriveMixer.Command(100,-100)","right in-place pivot")
     req(discrete,"PIVOT_LEFT:return new DriveMixer.Command(-100,100)","left in-place pivot")
@@ -103,18 +105,21 @@ def main():
     req(intelligence,"gas_safety_gate_not_passed","gas safety evidence gate")
     req(intelligence,"recommendedCharts","smart chart recommendation list")
 
-    # UI-07: explicit HazRob dark-theme contrast rules.
+    # UI-07: explicit HazRob dark-theme contrast rules and runtime readability fail-safe.
     req(uikit,"HAZ_BLACK=0xFF0A0D11","HazRob black background")
     req(uikit,"HAZ_GRAY_DARK=0xFF263238","secondary-action background")
     req(uikit,"HAZ_WHITE=0xFFF5F7F8","high-contrast foreground")
     req(uikit,"HAZ_YELLOW=0xFFFFC107","primary HazRob accent")
     req(uikit,"LIGHT_BG=HAZ_GRAY_DARK,LIGHT_TEXT=HAZ_WHITE","compatibility palette aliases")
+    req(uikit,"MIN_TEXT_CONTRAST=4.5","minimum readable contrast")
     req(uikit,"foregroundFor(int background)","luminance-aware foreground")
     req(uikit,"contrast(TextView t,int background)","shared contrast application")
+    req(uikit,"effectiveBackground(View v)","actual-parent background lookup")
+    req(uikit,"contrastRatio(current,bg)<MIN_TEXT_CONTRAST","runtime low-contrast correction")
     req(uikit,"setHintTextColor(0xFF90A4AE)","dark-input hint contrast")
 
     print("HazRob 0.10.2 / HR069 operator UI contract: PASS")
-    print("UI-01..UI-07: full-screen drive, three modes, overlays, measurement/analysis dashboards, smart reports, explicit contrast")
+    print("UI-01..UI-07: drive contract, overlays, measurement/analysis dashboards, smart reports, explicit 4.5:1 contrast guard")
     return 0
 
 if __name__=="__main__":
