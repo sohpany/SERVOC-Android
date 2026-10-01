@@ -109,7 +109,7 @@ def main() -> int:
     req(robot_protocol_v4, 'x.put("gain_reference"', "MAX4466 gain reference survives API4 normalization")
     req(robot_protocol_v4, 'x.put("calibrated_db_spl",false)', "MAX4466 estimated-not-calibrated declaration")
     req(measurements_tab, 's.optDouble("db_spl"', "physical measurements consumes dB SPL")
-    req(measurements_tab, "Gain 25×", "physical measurements identifies 25x microphone gain")
+    req(physical_ui, ':"25×"', "physical measurements identifies 25x microphone gain")
     req(hw, "AMP_GAIN=25.0f", "firmware MAX4466 gain reference")
     req(hw, '\\"db_spl\\":', "firmware publishes dB SPL")
     req(hw, '\\"gain_reference\\":25', "firmware publishes gain reference 25")
