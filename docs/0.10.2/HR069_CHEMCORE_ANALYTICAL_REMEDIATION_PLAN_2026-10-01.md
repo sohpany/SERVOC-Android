@@ -14,9 +14,9 @@ No remediation step may promote external/reference evidence to M4, manufacture m
 
 | Phase | Objective | Primary risk addressed | Status | Commit / evidence |
 |---|---|---|---|---|
-| 0 | Freeze baseline and create resumable remediation ledger | Loss of analytical provenance / interrupted work | COMPLETE | baseline `7342941d...`; this document |
-| 1 | Correct inverse-solver ranking comparability and ranking semantics | Candidate-count bias; `posterior` misinterpretation | IN PROGRESS | pending |
-| 2 | Calibrate/declare model uncertainty (`sigma`) by evidence source and domain | Heuristic uncertainty can dominate ranking | NOT STARTED | pending |
+| 0 | Freeze baseline and create resumable remediation ledger | Loss of analytical provenance / interrupted work | COMPLETE | baseline `7342941d...`; ledger `d1e25eca...` |
+| 1 | Correct inverse-solver ranking comparability and ranking semantics | Candidate-count bias; `posterior` misinterpretation | IMPLEMENTED / CI PENDING | solver `106b62ec...`; regression test `a9473c46...`; Actions runs `36920346181`, `36920346150` pending |
+| 2 | Calibrate/declare model uncertainty (`sigma`) by evidence source and domain | Heuristic uncertainty can dominate ranking | AUDIT STARTED | literature/reference audit started; no runtime change yet |
 | 3 | Integrate environmental T/RH handling without invented coefficients | MOS response bias across environment | NOT STARTED | pending |
 | 4 | Strengthen fingerprint distance model and concentration-template handling | Correlated MQ channels / diagonal-distance overconfidence | NOT STARTED | pending |
 | 5 | Integrate transient/session features into identity evidence under a versioned schema | Static Rs/R0 discards discriminatory kinetics | NOT STARTED | pending |
@@ -29,18 +29,19 @@ No remediation step may promote external/reference evidence to M4, manufacture m
 
 ### Observed issue
 
-`InverseMolecularSolver` currently minimizes weighted chi-square over one common concentration, which is scientifically preferable to independently inverting each MQ curve. However candidate ranking uses raw accumulated `chi2` in `logScore`. Candidates supported by different numbers of sensors are therefore compared on different-dimensional residual sums. A candidate with fewer contributing channels can receive a systematic ranking advantage even when per-channel standardized fit quality is no better.
+`InverseMolecularSolver` previously minimized weighted chi-square over one common concentration and then used raw accumulated `chi2` in `logScore`. Candidates supported by different numbers of sensors were therefore compared on different-dimensional residual sums. A candidate with fewer contributing channels could receive a systematic ranking advantage even when per-channel standardized fit quality was no better.
 
 The field named `posterior` is produced by a softmax of relative model scores. It is an internal relative ranking weight, not a calibrated probability of chemical presence.
 
-### Phase-1 design decision
+### Implemented design
 
-1. Preserve the joint one-concentration fit in `log10(Rs/R0)` space.
-2. Optimize and rank on a contributor-normalized weighted residual loss (`chi2 / weightSum`) rather than raw residual sum when candidates differ in evidence breadth.
-3. Keep evidence breadth and independence as separate quantities handled by the existing evidence/confidence gates rather than silently rewarding or penalizing channel count inside fit quality.
-4. Preserve the serialized/API field `posterior` for compatibility, but explicitly define it in code and documentation as `relative model ranking weight`, not calibrated probability.
-5. Add a regression test in which two hypotheses have equivalent per-channel standardized fit but different contributor counts; the broader model must no longer be penalized solely because it has more valid channels.
-6. Do not change M3/M4 gates in this phase.
+1. Preserved the joint one-concentration fit in `log10(Rs/R0)` space.
+2. Added a contributor-normalized weighted fit loss: `chi2 / weightSum`.
+3. The grid search, local refinement and final `logScore` now use the same normalized fit loss rather than raw accumulated chi-square.
+4. Evidence breadth and independence remain separate quantities handled by the existing evidence/confidence gates rather than being silently mixed into fit quality.
+5. Preserved the compatibility field `posterior`, but added explicit runtime semantics: `relative_softmax_model_weight_not_calibrated_probability`.
+6. Added a regression case in which two hypotheses have equivalent per-channel standardized fit but different contributor counts. Their fit score/ranking weight must be equal rather than penalizing the broader hypothesis merely for having more valid channels.
+7. M3/M4 gates and reportable-ppm rules were not changed.
 
 ### Phase-1 acceptance criteria
 
@@ -50,9 +51,23 @@ The field named `posterior` is produced by a softmax of relative model scores. I
 - Ranking weights remain finite, normalized to 1 across solvable candidates, and are documented as non-probabilistic.
 - No change enables reportable ppm without M4.
 
+### Phase-1 validation state
+
+- Static/source review: COMPLETE.
+- Solver implementation commit: `106b62ecd76d282bed2d8aa984c167a35d7a6721`.
+- Regression-test commit: `a9473c46c8f5040c7eac46149025668be0f0285e`.
+- GitHub Actions automatically triggered because `app/**` changed.
+- `Validate HazRob 0.10.2 HR069 Development` run `36920346181`: pending at last check.
+- `Build HazRob RC2 Test APK` run `36920346150`: pending at last check.
+- Phase 1 MUST NOT be marked COMPLETE until the unit/regression workflow is green. If either run fails, inspect the failing job/log and repair before Phase 2 runtime changes.
+
 ## Phase 2 — uncertainty model
 
 Audit each `sigmaLog10` source (peer-reviewed, linear literature, manufacturer graph, research, QSPR, M4). Replace generic constants only when replicated data support an analyte/sensor/domain-specific estimate. Until then retain explicit source-class uncertainty and label it as a research uncertainty proxy. Do not infer precision from R² alone.
+
+### Phase-2 audit note so far
+
+`LiteratureCurveRegistry` contains several very high R² values, but R² alone does not provide residual variance in `log10(Rs/R0)` and therefore must not be converted into `sigmaLog10`. `LinearLiteratureResponseRegistry` likewise preserves reference environmental conditions but does not contain replicate residual variance. Consequently, no automatic tightening of sigma is scientifically justified from those registries alone. The next Phase-2 step is to centralize the current proxy values and attach explicit provenance/semantics without changing their numeric behavior; analyte/sensor-specific sigma may replace them later only when replicate evidence is available.
 
 ## Phase 3 — temperature / humidity
 
@@ -103,4 +118,8 @@ If work is interrupted:
 
 - 2026-10-01: baseline confirmed at `7342941d1680d6bfdbb404c78c3b93332e8c38ef`.
 - 2026-10-01: analytical review identified ranking comparability, ranking semantics, uncertainty calibration, environmental compensation, correlated fingerprints, temporal-feature utilization and OOD missing-data treatment as the main remediation sequence.
-- 2026-10-01: Phase 1 started; code/tests pending.
+- 2026-10-01: remediation ledger created in commit `d1e25ecae51d97dc2070bcb140270465991a6ee0`.
+- 2026-10-01: Phase 1 solver implementation committed as `106b62ecd76d282bed2d8aa984c167a35d7a6721`.
+- 2026-10-01: Phase 1 regression coverage committed as `a9473c46c8f5040c7eac46149025668be0f0285e`.
+- 2026-10-01: Phase 1 CI triggered automatically; validation/build runs were still pending at the latest inspection, so Phase 1 remains open.
+- 2026-10-01: Phase 2 audit started. High R² literature relations were explicitly rejected as a basis for manufacturing smaller sigma values because residual/replicate variance is not available from R² alone.
