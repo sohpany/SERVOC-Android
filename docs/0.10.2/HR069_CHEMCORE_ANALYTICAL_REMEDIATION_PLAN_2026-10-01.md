@@ -18,12 +18,12 @@ No remediation step may promote external/reference evidence to M4, manufacture m
 | 1 | Correct inverse-solver ranking comparability and ranking semantics | IMPLEMENTED; cumulative CI pending | solver `106b62ec...`; test `a9473c46...`; contract repair `9ca6986a...` |
 | 2 | Centralize and declare response uncertainty without inventing precision | IMPLEMENTED; cumulative CI pending | policy `feea6c1c...`; reference models `4373f48e...`; solver `0e7f089c...`; test `cd047c82...`; audit `6e95cb87...`; fingerprint registry `9f6b0f53...` |
 | 3 | Fail-closed T/RH domain handling without generic compensation | IMPLEMENTED; cumulative CI pending | domain policy `73aae2c8...`; power-law `42c11e73...`; piecewise `2c59e248...`; inference gate `a11164d2...`; tests `eafe72ba...`, `d69d3859...`; audit `9eef96bb...` |
-| 4 | Strengthen fingerprint distance/covariance handling | EVIDENCE-GATED | audit shows current 13 source-backed numeric families are model-derived templates (`sampleCount=0`), so covariance must not be invented |
+| 4 | Strengthen fingerprint distance/covariance handling | EVIDENCE-GATED | current 13 source-backed numeric families are model-derived templates (`sampleCount=0`); covariance must not be invented |
 | 5 | Use 17×8 temporal features for identity evidence | EVIDENCE-GATED | feature extraction exists; activation requires a versioned independently validated temporal identity artifact |
-| 6 | Correct open-set Mahalanobis missing-feature mathematics | IMPLEMENTED; audit/CI pending | model `f6d49073...`; regression `ff18083b...` |
-| 7 | Revalidate mixture/interference thresholds | BLOCKED BY EXPERIMENT | existing conservative semantics retained; threshold changes require controlled pure/mixture campaigns |
+| 6 | Correct open-set Mahalanobis missing-feature mathematics | IMPLEMENTED; cumulative CI pending | model `f6d49073...`; regression `ff18083b...`; audit `13dd9470...` |
+| 7 | Clarify mixture/interference policy and revalidate numeric thresholds | SEMANTICS IMPLEMENTED; NUMERIC RECALIBRATION BLOCKED BY EXPERIMENT | policy `02d10517...`; test `ff6a5998...`; numeric values unchanged |
 | 8 | Reassess PubChem/QSPR role and validation | POLICY VERIFIED; further promotion blocked | QSPR remains M1, leave-compound-out validated, non-reportable, one correlated evidence lineage |
-| 9 | End-to-end qualification | IN PROGRESS | cumulative GitHub Actions pending on latest head |
+| 9 | End-to-end qualification | IN PROGRESS | RC2 cumulative run `36922796623` pending; global internal workflow separately blocked by non-ChemCore Remote release-contract failure |
 
 ## Phase 1 — inverse solver ranking and semantics
 
@@ -45,7 +45,7 @@ Commits:
 - `a9473c46c8f5040c7eac46149025668be0f0285e`
 - stale source-contract expectation repaired scientifically in `9ca6986a7fc86100b64fc5f6221714d7e8add134`.
 
-Validation note: Android unit tests in RC2 test run `36920346150` reached `Run Android unit tests: success`. The cumulative latest-head validation remains Phase-9 work because later phases changed additional analytical code.
+Validation note: Android unit tests in RC2 test run `36920346150` reached `Run Android unit tests: success`. The cumulative latest-runtime validation remains Phase-9 work because later phases changed additional analytical code.
 
 ## Phase 2 — uncertainty policy
 
@@ -151,23 +151,37 @@ Semantics are explicitly recorded as:
 
 `marginal_covariance_subspace_with_dimension_coverage_scaling`
 
-Regression with an analytically known 2×2 correlated covariance proves the result differs from the old incorrect precision-block calculation.
+Regression with an analytically known 2×2 correlated covariance proves the result differs from the old incorrect precision-block calculation. The analytical source-contract audit now also forbids restoring the precision principal-block shortcut.
 
 Commits:
-- `f6d49073ac2f1ce1d228768e0e94473c5ccb2fa6`
-- `ff18083b4f9dc840349898c1bbcbbd53b83689ba`
+- model `f6d49073ac2f1ce1d228768e0e94473c5ccb2fa6`
+- regression `ff18083b4f9dc840349898c1bbcbbd53b83689ba`
+- source-contract audit `13dd9470876d1c76f169988db286d937b9d0e4e9`
 
 Remaining limitation: the D/d coverage scaling is an interoperability approximation. The preferred final state is threshold calibration on independent known/unknown validation vectors for the actual missingness patterns expected in production.
 
-## Phase 7 — mixtures
+## Phase 7 — mixtures / interference
 
-Current semantics are retained:
+### Preserved analytical meaning
 
-`POSSIBLE_MIXTURE_OR_INTERFERENCE` = best pure-compound hypothesis leaves an excessive standardized residual or the candidate separation is inadequate.
+`POSSIBLE_MIXTURE_OR_INTERFERENCE` means the best pure-compound hypothesis leaves an excessive standardized multisensor residual. It does not mean ChemCore has decomposed the mixture or identified its components.
 
-It does NOT mean ChemCore has decomposed the mixture or identified its components. Existing thresholds must not be changed from software intuition alone. Recalibration requires controlled HR069 pure-gas and mixture experiments across concentration ratios and environment.
+After Phase 1, the candidate value historically called `posterior` is explicitly a relative softmax ranking weight. Therefore the mixture guard now records:
 
-Status: BLOCKED BY EXPERIMENT for numeric threshold changes.
+`research_policy_thresholds_not_calibrated_presence_probabilities`
+
+The existing numeric policy is frozen, not re-fitted:
+- max standardized residual RMS = 2.50
+- minimum top relative ranking weight = 0.80
+- minimum ranking-weight margin = 0.25
+
+No numeric value was changed. The result API keeps `topPosterior` / `secondPosterior` only for compatibility and exposes ranking-weight accessors/semantics. Tests assert that a mixture warning is not component identification and that ranking weights are not presence probabilities.
+
+Commits:
+- policy semantics `02d105179bcb69227537e44dad1aa76129ca1126`
+- regression/policy test `ff6a5998e9a841a86da61b69da37c7d84f468fe5`
+
+Numeric recalibration remains BLOCKED BY EXPERIMENT and requires controlled HR069 pure-gas and mixture campaigns across concentration ratios and environment.
 
 ## Phase 8 — PubChem/QSPR
 
@@ -186,22 +200,30 @@ Because the current QSPR is trained primarily from source-backed M2 response rel
 ## Phase 9 — cumulative qualification
 
 Required before this remediation set is called release-qualified:
-1. latest-head source-contract audits green;
+1. latest-runtime source contract green;
 2. all Android unit/regression tests green;
-3. firmware compile validation green;
-4. RC2 APK build green;
-5. confirm no M4/reportable-ppm gate was weakened;
-6. record final workflow run IDs and head SHA in this ledger.
+3. RC2 debug APK build green;
+4. confirm no M4/reportable-ppm gate was weakened;
+5. record final workflow run ID and tested runtime head in this ledger.
+
+Current dedicated RC2 qualification run:
+- runtime/test head: `ff6a5998e9a841a86da61b69da37c7d84f468fe5`
+- `Build HazRob RC2 Test APK` run `36922796623`: pending at latest check.
+
+Separate global workflow blocker:
+- `Build HazRob APK — Internal Validation` run `36922357941` failed before Android/analytical tests in `audit_0102_release_contract.py` because a Remote diagnostics normalization literal was missing: `JSONObject diag=sourceDiag==null?new JSONObject():new JSONObject(sourceDiag.toString())`.
+- This is outside ChemCore and occurred before `audit_0105_analytical_engines.py` or Gradle were reached. It is recorded as a non-analytical global release-contract blocker and is not being modified within this ChemCore remediation task.
 
 ## Resumption protocol
 
 If work is interrupted:
 1. read this file first;
 2. inspect the latest commit on `release/hazrob-0.10.2-rc2`;
-3. compare the current head with the commit list above;
-4. resume first with Phase 9 CI failures, if any;
-5. do not implement Phase 4 covariance, Phase 5 temporal identity activation, Phase 7 threshold changes, environmental compensation, or QSPR evidence promotion without the required experimental evidence;
-6. after every accepted change update this ledger with exact commit SHA and CI evidence.
+3. treat `ff6a5998...` as the current cumulative ChemCore runtime/test head unless a later `app/**` commit is documented here;
+4. resume first by checking RC2 qualification run `36922796623`;
+5. if that run fails, inspect the exact failing unit/build step and repair only the relevant ChemCore regression;
+6. do not implement Phase 4 covariance, Phase 5 temporal identity activation, Phase 7 numeric threshold changes, environmental compensation, or QSPR evidence promotion without the required experimental evidence;
+7. after every accepted change update this ledger with exact commit SHA and CI evidence.
 
 ## Execution log
 
@@ -214,5 +236,6 @@ If work is interrupted:
 - Phase-2 uncertainty audit rejected R² as a substitute for residual/replicate variance.
 - `feea6c1c...` through `9f6b0f53...` centralized uncertainty semantics without tightening numerical sigma.
 - `73aae2c8...` through `9eef96bb...` implemented fail-closed declared environmental-domain handling and M3 domain gating without activating generic compensation.
-- `f6d49073...` / `ff18083b...` corrected missing-feature Mahalanobis marginal mathematics and added a closed-form regression.
-- Cumulative latest-head CI remains pending; Phase 9 is the next mandatory software gate.
+- `f6d49073...` / `ff18083b...` corrected missing-feature Mahalanobis marginal mathematics and added a closed-form regression; `13dd9470...` added the source-contract guard.
+- global internal-validation run `36922357941` was blocked by an unrelated Remote release-contract check before ChemCore testing; no Remote code was changed in this task.
+- `02d10517...` / `ff6a5998...` clarified mixture/ranking semantics without changing numeric thresholds and triggered dedicated RC2 cumulative qualification run `36922796623`.
