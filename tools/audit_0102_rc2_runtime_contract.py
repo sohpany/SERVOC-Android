@@ -92,7 +92,7 @@ def main() -> int:
 
     # Active R0 authority is app manual override, otherwise accepted field clean-air baseline.
     require(r0, "ManualR0Calibration.get(sensorKey)", "active R0 authority")
-    require(lab_quality, "ManualR0Calibration.has(key)", "ChemCore R0 readiness authority")
+    require(lab_quality, "ManualR0Calibration.has(hw.key)", "ChemCore R0 readiness authority")
     require(protocol, "ManualR0Calibration.apply(hw.key,x)", "telemetry R0 normalization")
 
     # MAX4466 calibration remains intentionally deferred: no fabricated firmware SPL/gain.
