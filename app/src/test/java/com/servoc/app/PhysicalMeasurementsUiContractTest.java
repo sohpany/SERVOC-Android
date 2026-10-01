@@ -10,7 +10,7 @@ import java.nio.file.Paths;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-/** Source-level guard for physical-measurements readability and the current uncalibrated MAX4466 policy. */
+/** Source-level guard for physical-measurements readability and the HR069 MAX4466 offset policy. */
 public class PhysicalMeasurementsUiContractTest {
     private static String source(String relative) throws Exception {
         Path p=Paths.get(relative);
@@ -33,19 +33,26 @@ public class PhysicalMeasurementsUiContractTest {
         assertTrue(enhancer.contains("tv.setMaxLines(3)"));
     }
 
-    @Test public void max4466KeepsRawAmplitudeButWithholdsQuantitativeDbUntilCalibration() throws Exception {
-        String protocol=source("app/src/main/java/com/servoc/app/communication/RobotProtocolV4.java");
+    @Test public void max4466UsesOnePointReferenceMeterOffsetWithoutFixedGainAssumption() throws Exception {
+        String calibration=source("app/src/main/java/com/servoc/app/calibration/MicrophoneDbCalibration.java");
+        String settings=source("app/src/main/java/com/servoc/app/ui/SettingsTab.java");
         String enhancer=source("app/src/main/java/com/servoc/app/ui/PhysicalMeasurementsUiEnhancer.java");
-        String measurements=source("app/src/main/java/com/servoc/app/ui/MeasurementsTab.java");
+        String protocol=source("app/src/main/java/com/servoc/app/communication/RobotProtocolV4.java");
         String firmware=source("firmware/HazRob/Hardware.cpp");
 
-        assertTrue(protocol.contains("x.put(\"db_spl\",db)"));
-        assertTrue(protocol.contains("x.put(\"gain_reference\""));
-        assertTrue(protocol.contains("x.put(\"calibrated_db_spl\",false)"));
-        assertTrue(enhancer.contains("optDouble(\"db_spl\""));
-        assertTrue(enhancer.contains("dB SPL غير معاير"));
-        assertTrue(measurements.contains("s.optDouble(\"db_spl\""));
+        assertTrue(calibration.contains("PREF_OFFSET_DB=\"microphone_db_offset_db\""));
+        assertTrue(calibration.contains("20.0*Math.log10(ratio)"));
+        assertTrue(calibration.contains("referenceDb-hazRobRawDb"));
+        assertTrue(calibration.contains("raw+offsetDb(p)"));
+        assertTrue(settings.contains("تعويض الميكروفون (dB)"));
+        assertTrue(settings.contains("قراءة جهاز القياس المعاير − قراءة HazRob الخام"));
+        assertTrue(settings.contains("saveMicrophoneOffset()"));
+        assertTrue(enhancer.contains("MicrophoneDbCalibration.rawDbFs(sound)"));
+        assertTrue(enhancer.contains("MicrophoneDbCalibration.compensate(rawDb,offset)"));
+        assertTrue(enhancer.contains("معوض بمرجع خارجي"));
+        assertTrue(enhancer.contains("dBFS خام"));
 
+        assertTrue(protocol.contains("x.put(\"db_spl\",db)"));
         assertTrue(firmware.contains("\\\"rms_v\\\":"));
         assertTrue(firmware.contains("\\\"p2p_v\\\":"));
         assertTrue(firmware.contains("\\\"db_spl\\\":null"));
@@ -53,5 +60,6 @@ public class PhysicalMeasurementsUiContractTest {
         assertTrue(firmware.contains("\\\"gain_reference\\\":null"));
         assertTrue(firmware.contains("trimmer_endpoint_fixed_unquantified"));
         assertFalse(firmware.contains("AMP_GAIN=25.0f"));
+        assertFalse(enhancer.contains("25×"));
     }
 }
