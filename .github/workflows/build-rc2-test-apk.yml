@@ -1,3 +1,4 @@
+# RC2 artifact refresh: build the current branch head.
 name: Build HazRob RC2 Test APK
 
 on:
