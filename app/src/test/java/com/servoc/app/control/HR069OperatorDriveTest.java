@@ -26,14 +26,20 @@ public final class HR069OperatorDriveTest {
         mix(0.5,0.8,80,56);mix(-0.5,0.8,56,80);mix(1.0,0.8,80,32);mix(-1.0,0.8,32,80);
     }
 
-    @Test public void wheelUsesRequestedOppositeSideSlowdownConvention(){
+    @Test public void wheelUsesRequestedForwardAndReverseConvention(){
         wheel(0,1,100,100);
         wheel(0.5,0.8,56,80);
         wheel(1.0,0.8,32,80);
         wheel(-0.5,0.8,80,56);
         wheel(-1.0,0.8,80,32);
-        wheel(1.0,-0.8,-32,-80);
-        wheel(-1.0,-0.8,-80,-32);
+
+        // Reverse remains intuitive relative to the path direction:
+        // finger right slows RIGHT, finger left slows LEFT.
+        wheel(0.5,-0.8,-80,-56);
+        wheel(1.0,-0.8,-80,-32);
+        wheel(-0.5,-0.8,-56,-80);
+        wheel(-1.0,-0.8,-32,-80);
+
         wheel(1,0,50,-50);
         wheel(-1,0,-50,50);
     }
