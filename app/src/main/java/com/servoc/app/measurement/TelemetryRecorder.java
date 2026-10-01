@@ -3,6 +3,7 @@ package com.servoc.app.measurement;
 import android.content.ContentValues;
 import android.os.SystemClock;
 import com.servoc.app.chemcore.ChemCoreSchema;
+import com.servoc.app.chemcore.CompletedSessionChemCoreAnalyzer;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.field.FieldSessionRepository;
@@ -101,6 +102,19 @@ public final class TelemetryRecorder {
             v.put("analytics",meta.toString());
         }catch(Exception ignored){}
         db.getWritableDatabase().update("measurement_sessions",v,"session_id=?",new String[]{completed});
+
+        // Ordinary completed measurements must produce a persisted ChemCore screening ranking.
+        // Candidate ranking is allowed here; named identity and reportable ppm remain gated elsewhere.
+        if(!wasChemCore&&"ready".equalsIgnoreCase(state)){
+            try{
+                long duration=Math.max(0,endedMonotonic-startedElapsed);
+                CompletedSessionChemCoreAnalyzer.Outcome analysis=CompletedSessionChemCoreAnalyzer.analyzeAndPersist(db,completed,snapshot,duration);
+                db.putMeta("last_chemcore_screening_session_id",completed);
+                db.putMeta("last_chemcore_screening_candidate_count",Integer.toString(analysis.candidateCount));
+                db.putMeta("last_chemcore_screening_observed_channels",Integer.toString(analysis.observedChannels));
+            }catch(Exception ignored){}
+        }
+
         lastCompletedSessionId=completed;db.putMeta("last_measurement_session_id",completed);db.putMeta("last_measurement_session_terminal_state",state);
         MeasurementSessionRegistry.completed(completed);if(wasChemCore)MeasurementSessionRegistry.clearChemCoreCapture();sessionId=null;startedElapsed=startedUtcMs=lastSampleElapsed=sampleSeq=0;chemCoreCaptureSession=false;
     }
