@@ -14,6 +14,7 @@ def main():
     contract=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreResponseModel.java')
     solver=txt('app/src/main/java/com/servoc/app/chemcore/InverseMolecularSolver.java')
     uncertainty=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreUncertaintyPolicy.java')
+    environment=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreEnvironmentDomainPolicy.java')
     qspr=txt('app/src/main/java/com/servoc/app/chemcore/QsprResponseModelAdapter.java')
     qreg=txt('app/src/main/java/com/servoc/app/chemcore/ChemCoreQsprRuntimeRegistry.java')
     ref=txt('app/src/main/java/com/servoc/app/chemcore/AcceptedReferenceResponseModel.java')
@@ -57,6 +58,7 @@ def main():
         'acceptsR2AsSigmaEvidence(){return false;}'
     ]: req(uncertainty,n,'uncertainty proxy policy')
     req(solver,'ChemCoreUncertaintyPolicy.solverSigma(p.sigmaLog10,p.insideDomain)','solver uses centralized uncertainty policy')
+    req(infer,'ChemCoreUncertaintyPolicy.solverSigma(p.sigmaLog10,p.insideDomain)','corroborative inference uses centralized uncertainty policy')
     req(ref,'ChemCoreUncertaintyPolicy.LITERATURE_POWER_SIGMA_LOG10','literature power uncertainty policy')
     req(ref,'ChemCoreUncertaintyPolicy.LITERATURE_LINEAR_SIGMA_LOG10','literature linear uncertainty policy')
     req(ref,'ChemCoreUncertaintyPolicy.MANUFACTURER_PRIMARY_SIGMA_LOG10','manufacturer primary uncertainty policy')
@@ -66,6 +68,21 @@ def main():
     forbid(ref,'estimate(ratio,0.20,','ad-hoc literature sigma is forbidden')
     forbid(ref,'estimate(ratio,0.25,','ad-hoc linear-literature sigma is forbidden')
     forbid(ref,'estimate(ratio,0.32,','ad-hoc research sigma is forbidden')
+
+    # Environmental domain is fail-closed only where a response model actually declares a finite
+    # T/RH domain. No generic compensation coefficient or invented tolerance is permitted.
+    for n in [
+        'VERSION="chemcore-environment-domain/1"',
+        'SEMANTICS="declared_environment_domain_gate_no_generic_compensation"',
+        'missingRequiredMeasurement',
+        'tRequired&&!Double.isFinite(temperatureC)',
+        'rhRequired&&!Double.isFinite(rh)'
+    ]: req(environment,n,'environment domain policy')
+    req(power,'ChemCoreEnvironmentDomainPolicy.evaluate(','power-law environment gate')
+    req(piece,'ChemCoreEnvironmentDomainPolicy.evaluate(','piecewise environment gate')
+    req(infer,'r.referenceContributors>=2&&r.allContributorsInsideDomain','M3 reference support requires all contributors inside domain')
+    req(infer,'else if(openSetAccepted&&!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN','out-of-domain named identity is withheld')
+    forbid(environment,'EnvironmentalCompensationModel','domain gate must not silently activate compensation')
 
     # Curves remain domain bounded and retain source-specific provenance.
     req(ref,'!c.inDeclaredRange(ppm)','literature domain bound')
