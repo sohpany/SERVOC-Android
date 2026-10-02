@@ -46,6 +46,7 @@ public final class ChemCoreInferenceEngine {
         int observedChannels=countObserved(observedRatios);
         if(observedChannels==0)return envelope(context,ChemCoreDecision.Outcome.INVALID_MEASUREMENT,ChemCoreDecision.EvidenceTier.M0_CATALOG_ONLY,null,"",Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,Double.NaN,"no valid MQ ratios",Collections.emptyList());
         List<InverseMolecularSolver.Result> ranked=InverseMolecularSolver.solve(observedRatios,candidates,context.temperatureC,context.rh,samplingProfile);
+        ChemCoreBreadthRankingPolicy.apply(ranked);
         List<InverseMolecularSolver.Result> solvable=new ArrayList<>();for(InverseMolecularSolver.Result r:ranked)if(r!=null&&r.solvable)solvable.add(r);
         if(solvable.isEmpty()){
             ChemCoreDecision.Outcome emptyOutcome=context.openSetResult!=null&&!context.openSetResult.accepted?ChemCoreDecision.Outcome.UNKNOWN:ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;
@@ -77,6 +78,7 @@ public final class ChemCoreInferenceEngine {
         if(specialist.verdict!=ChemCoreSpecialistConflictEngine.Verdict.NO_SPECIALIST_EVIDENCE)note+="; specialist_gate="+specialist.verdict.name()+"; "+specialist.reason;
         if(top.molecularContributors>0){String idx=Double.isFinite(top.qsprIndicatorPct)?String.format(Locale.US,"%.1f%%",top.qsprIndicatorPct):"—";note+="; PubChem/QSPR fit="+idx;}
         if(!corroborativeRatios.isEmpty())note+="; degraded/auxiliary MQ measurements retained as quality-weighted corroborative evidence";
+        note+="; ranking_policy="+ChemCoreBreadthRankingPolicy.VERSION;
 
         double reportablePpm=outcome==ChemCoreDecision.Outcome.QUANTIFIED?top.bestPpm:Double.NaN;
         ChemCoreResultEnvelope base=envelope(context,outcome,tier,top.chemicalUid,top.label,reportablePpm,Double.NaN,Double.NaN,ood,top.posterior,entropy,note,
