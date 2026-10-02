@@ -70,18 +70,23 @@ jobs:
           SIM_REPORT="$(find . -name chemcore-reference-simulation.json -type f -print -quit)"
           REPLAY_REPORT="$(find . -name chemcore-experiment4-replay.json -type f -print -quit)"
           MQ3_REPORT="$(find . -name mq3-digital-twin-pilot.json -type f -print -quit)"
+          MQ3_QSPR_REPORT="$(find . -name mq3-qspr-fingerprint-pilot.json -type f -print -quit)"
           test -n "$SIM_REPORT"
           test -n "$REPLAY_REPORT"
           test -n "$MQ3_REPORT"
+          test -n "$MQ3_QSPR_REPORT"
           cp "$SIM_REPORT" ChemCore-reference-simulation.json
           cp "$REPLAY_REPORT" ChemCore-experiment4-replay.json
           cp "$MQ3_REPORT" MQ3-digital-twin-pilot.json
+          cp "$MQ3_QSPR_REPORT" MQ3-qspr-fingerprint-pilot.json
           echo "===== CHEMCORE REFERENCE SIMULATION ====="
           cat ChemCore-reference-simulation.json
           echo "===== CHEMCORE EXPERIMENT 4 REPLAY ====="
           cat ChemCore-experiment4-replay.json
           echo "===== MQ3 DIGITAL TWIN PILOT ====="
           cat MQ3-digital-twin-pilot.json
+          echo "===== MQ3 QSPR FINGERPRINT PILOT ====="
+          cat MQ3-qspr-fingerprint-pilot.json
 
       - name: Upload ChemCore reference simulation
         uses: actions/upload-artifact@v4
@@ -104,6 +109,14 @@ jobs:
         with:
           name: MQ3-digital-twin-pilot
           path: MQ3-digital-twin-pilot.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload MQ3 QSPR fingerprint pilot
+        uses: actions/upload-artifact@v4
+        with:
+          name: MQ3-qspr-fingerprint-pilot
+          path: MQ3-qspr-fingerprint-pilot.json
           if-no-files-found: error
           retention-days: 14
 
@@ -135,3 +148,4 @@ jobs:
           rm -f ChemCore-reference-simulation.json
           rm -f ChemCore-experiment4-replay.json
           rm -f MQ3-digital-twin-pilot.json
+          rm -f MQ3-qspr-fingerprint-pilot.json
