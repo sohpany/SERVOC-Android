@@ -12,7 +12,9 @@ Record the strongest analytical-development state currently supported by the ins
 - `UNSUPPORTED`: 15
 - Total: 144
 
-The four provisional-identity-capable entries are the current primary-anchor routes: Ammonia, Hydrogen, Methane and Ethanol.
+The four `PROVISIONAL_IDENTITY_CAPABLE` entries are Ammonia, Hydrogen, Methane and Ethanol because their current hardware suitability is `ADEQUATE_WITH_CONDITIONS`.
+
+There are **five** Stage-7 primary specialist routes overall: CO/MQ7, NH3/MQ135, H2/MQ8, CH4/MQ4 and Ethanol/MQ3. Carbon Monoxide deliberately remains at `CANDIDATE` in this map despite MQ7 being a primary specialist channel, because the present MQ7 heater/selectivity evidence is not yet hardware-complete. Thus **specialist role and identity ceiling are separate dimensions**.
 
 ## Important semantics
 This is a knowledge-map status, not a final scientific certification and not a runtime veto. Controlled experiments can promote or demote any entry.
