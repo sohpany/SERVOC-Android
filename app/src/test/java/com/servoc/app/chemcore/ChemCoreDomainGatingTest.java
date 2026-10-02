@@ -24,16 +24,17 @@ public class ChemCoreDomainGatingTest {
         return new ChemCoreOpenSetGate.Result(true,0.2,1.0,1.0,"synthetic accepted domain");
     }
 
-    @Test public void missingRequiredEnvironmentWithholdsNamedIdentity(){
+    @Test public void missingRequiredEnvironmentKeepsCandidateVisibleButWithholdsIdentityAndPpm(){
         ChemCoreInferenceEngine.Context ctx=new ChemCoreInferenceEngine.Context(
                 "domain-missing","prototype","test",Double.NaN,50,acceptedGate(),true);
         ChemCoreResultEnvelope r=ChemCoreInferenceEngine.analyze(observed(40),List.of(candidate()),
                 SamplingProfile.hazRobPrototypeV1(),ctx);
-        assertEquals(ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN,r.outcome);
+        assertEquals(ChemCoreDecision.Outcome.SCREENING,r.outcome);
         assertEquals(ChemCoreDecision.EvidenceTier.M2_LITERATURE_OR_MANUFACTURER_SUPPORTED,r.evidenceTier);
+        assertNotNull(r.chemicalUid);
         assertTrue(Double.isNaN(r.ppm));
         assertFalse(ChemCoreDecision.permitsNamedIdentity(r.outcome));
-        assertTrue(r.note.contains("required environmental measurement"));
+        assertTrue(r.note.contains("OUT_OF_DOMAIN diagnostic"));
     }
 
     @Test public void measuredEnvironmentInsideDomainAllowsM3IdentityButNotPpm(){
