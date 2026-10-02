@@ -51,7 +51,7 @@ public final class ChemCoreReferenceSimulationTest {
             }
             if(residual!=null&&Double.isFinite(residual)){residualSum+=residual;residualN++;}
         }
-        JSONObject json(){
+        JSONObject json() throws Exception {
             JSONObject x=new JSONObject();
             x.put("samples",samples);
             x.put("top1_correct",top1);x.put("top3_correct",top3);x.put("unknown_or_no_top",unknown);
@@ -71,7 +71,7 @@ public final class ChemCoreReferenceSimulationTest {
         final String label;final Agg all=new Agg(),multi=new Agg(),single=new Agg();
         int cross2,partialCross,selfSource;
         MaterialAgg(String label){this.label=label;}
-        JSONObject json(){
+        JSONObject json() throws Exception {
             JSONObject x=new JSONObject();x.put("chemical",label);x.put("all",all.json());x.put("multi_sensor",multi.json());x.put("single_sensor",single.json());
             x.put("cross_source_2plus_samples",cross2);x.put("partial_cross_source_samples",partialCross);x.put("self_source_samples",selfSource);return x;
         }
@@ -174,7 +174,7 @@ public final class ChemCoreReferenceSimulationTest {
     }
 
     private static JSONObject sampleJson(String truth,double ppm,double noise,int rep,int observedChannels,String sourceClass,int crossChannels,
-                                         ChemCoreResultEnvelope result,int trueRank,ChemCoreResultEnvelope.CandidateSummary trueSummary){
+                                         ChemCoreResultEnvelope result,int trueRank,ChemCoreResultEnvelope.CandidateSummary trueSummary) throws Exception {
         JSONObject x=new JSONObject();x.put("truth",truth);x.put("true_ppm",ppm);x.put("noise_sigma_log10",noise);x.put("replicate",rep);
         x.put("observed_channels",observedChannels);x.put("source_class",sourceClass);x.put("cross_source_channels",crossChannels);
         x.put("outcome",result.outcome.name());x.put("predicted_top",result.chemicalLabel);x.put("top_relative_weight",finiteOrNull(result.topPosterior));x.put("true_rank",trueRank>0?trueRank:JSONObject.NULL);
