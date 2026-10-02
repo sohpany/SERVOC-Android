@@ -6,6 +6,7 @@ Master plan: `HR069_CHEMCORE_UNIFIED_ANALYTICAL_FRAMEWORK_38_STAGE_PLAN_2026-10-
 Analytical methodology: `HR069_CHEMCORE_UNIFIED_ANALYTICAL_METHODOLOGY_V1_2026-10-02.md`
 Knowledge governance: `HR069_CHEMCORE_KNOWLEDGE_BASE_GOVERNANCE_2026-10-02.md`
 Catalogue inventory: `HR069_CHEMCORE_144_CATALOG_STAGE1_INVENTORY_2026-10-02.csv`
+Early-build flexibility: `HR069_CHEMCORE_EARLY_BUILD_FLEXIBILITY_ADDENDUM_2026-10-02.md`
 
 ## Counting rule
 Every material-level stage accounts for all 144 catalogue entries. Sensor/analyte stages account for all 1,152 pairs (144 x 8). Unknown/absent evidence is never interpreted as negative evidence.
@@ -52,12 +53,12 @@ Current development policy: `EARLY_BUILD_EXPLORATORY`. Diagnostic OOD, domain, d
 | 33 | Mixture / interference model | COMPLETE | pure-hypothesis adequacy diagnostics; no unvalidated component decomposition | `HR069_CHEMCORE_STAGE33_MIXTURE_INTERFERENCE_POLICY_2026-10-02.md` |
 | 34 | Source-material / headspace semantics | COMPLETE | 144/144; 135 pure, 6 mixture, 3 aggregate; pure-ppm semantics blocked only where semantically invalid | `HR069_CHEMCORE_STAGE34_SOURCE_MATERIAL_HEADSPACE_SEMANTICS_2026-10-02.md` |
 | 35 | Identity ceiling / validation-state map | COMPLETE | 144/144; 4 provisional-identity-capable, 106 candidate, 19 affinity, 15 unsupported; map is not runtime gate | `HR069_CHEMCORE_STAGE35_IDENTITY_CEILING_MAP_2026-10-02.md` |
-| 36 | M3/M4 experimental campaign matrix | COMPLETE | 144/144; 4 anchor, 97 broad-array pure, 9 mixture/aggregate, 19 compatibility, 15 hardware-gap campaigns | `HR069_CHEMCORE_STAGE36_EXPERIMENTAL_CAMPAIGN_MAP_2026-10-02.md` |
+| 36 | M3/M4 experimental campaign matrix | COMPLETE | 144/144; 5 target-anchor, 96 broad-array pure, 9 mixture/aggregate, 19 compatibility, 15 hardware-gap campaigns | `HR069_CHEMCORE_STAGE36_EXPERIMENTAL_CAMPAIGN_MAP_2026-10-02.md` |
 | 37 | Sensor health, drift and quality policy | COMPLETE | early-build hard invalidation only when no usable MQ data remain; other issues normally diagnostic/weighted | `HR069_CHEMCORE_STAGE37_SENSOR_HEALTH_DRIFT_QUALITY_POLICY_2026-10-02.md` |
-| 38 | End-to-end reporting, regression and release trace | IMPLEMENTED / CI PENDING | analytical trace + representative regression implemented; latest RC2 run pending | `HR069_CHEMCORE_STAGE38_END_TO_END_REPORTING_REGRESSION_2026-10-02.md` |
+| 38 | End-to-end reporting, regression and release trace | COMPLETE | analytical trace + representative regression; RC2 qualification passed | `HR069_CHEMCORE_STAGE38_END_TO_END_REPORTING_REGRESSION_2026-10-02.md` |
 
 ## Key current facts
-- Primary anchors currently mapped: CO/MQ7, NH3/MQ135, H2/MQ8, CH4/MQ4, Ethanol/MQ3. Hardware suitability nevertheless remains evidence- and heater-dependent.
+- Primary anchors currently mapped: CO/MQ7, NH3/MQ135, H2/MQ8, CH4/MQ4, Ethanol/MQ3. Carbon Monoxide remains at `CANDIDATE` identity ceiling despite its primary specialist route because MQ7 heater/selectivity evidence remains incomplete; specialist role and identity ceiling are separate dimensions.
 - 300 s is the agreed general operational warm-up. It does not manufacture selectivity or replace MQ7/MQ9 source-specific heater requirements.
 - The current build deliberately preserves exploratory candidates under OOD/out-of-domain warnings. `QUANTIFIED` / reportable ppm still requires M4.
 - Mixture/source/aggregate entries remain visible as operational classes but do not inherit one-pure-molecule ppm semantics.
@@ -65,9 +66,10 @@ Current development policy: `EARLY_BUILD_EXPLORATORY`. Diagnostic OOD, domain, d
 - Experiments are expected to revise the knowledge base; the current matrix is an auditable starting model, not a frozen scientific truth.
 
 ## Current software qualification
-- RC2 run `36941704881` passed runtime contract, Android unit tests, debug APK build, APK verification and artifact upload at head `29b8474f049ac27c29dac737ea9cff60ad6aed62` (through Stage 30 and the Stage 28/29 fixes).
-- Latest Stage-38 test run `36943624931` is pending at head `f91e7e82ba8f85a0f772a1fdbfcde2539a4d7ff9`.
+- RC2 run `36944401941` passed runtime contract, Android unit tests, debug APK build, APK verification and artifact upload at analytical head `c3e2f5b9d6a4bb6499b525d2d36c50554cfea7af`.
+- Artifact: `HazRob-0.10.2-HR069-RC2-test`, ID `11201113185`, SHA-256 `c3c3f08d431355f52c2958b64a06a5ceab0242aca42d025422b92bc6f27e18d9`.
+- Later commits only update analytical documentation and do not change the qualified analytical code path.
 - Internal-validation workflow still contains a separate legacy Remote-diagnostics contract failure; this analytical workstream does not modify the network layer.
 
 ## Current execution point
-Stage 38 implementation is complete. Await RC2 test qualification of the latest analytical code. Stage 24 remains the only scientific-data bookkeeping item still open: record exact PubChem/core-descriptor coverage after the initialized device database imports the molecular seed.
+**37 of 38 stages are formally complete.** Stage 24 is the only open stage: record exact PubChem/core-descriptor coverage after the initialized device database imports the molecular seed. The Stage-24 audit implementation already iterates all 144 catalogue entries and reports missing legacy record / non-molecular / no CAS / no structure / incomplete CORE / QSPR-ready states; only the initialized-device counts remain to be captured.
