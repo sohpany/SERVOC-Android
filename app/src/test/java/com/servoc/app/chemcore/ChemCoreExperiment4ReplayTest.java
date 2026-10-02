@@ -87,7 +87,7 @@ public final class ChemCoreExperiment4ReplayTest {
 
         File build=new File("build");if(!build.isDirectory()&&!build.mkdirs())throw new IllegalStateException("cannot create build directory");
         File report=new File(build,"chemcore-experiment4-replay.json");
-        Files.writeString(report.toPath(),root.toString(2),StandardCharsets.UTF_8);
+        Files.write(report.toPath(),root.toString(2).getBytes(StandardCharsets.UTF_8));
         System.out.println("CHEMCORE_EXPERIMENT4_REPLAY_REPORT="+report.getAbsolutePath());
         System.out.println("CHEMCORE_EXPERIMENT4_REPLAY_SUMMARY="+new JSONObject()
                 .put("outcome",result.outcome.name()).put("top",result.chemicalLabel)
