@@ -61,8 +61,25 @@ jobs:
           base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
           chmod 600 signing/hazrob-prototype.jks
 
-      - name: Run Android unit tests
+      - name: Run Android unit tests and ChemCore reference challenge
         run: gradle --no-daemon :app:testDebugUnitTest
+
+      - name: Stage ChemCore reference simulation report
+        run: |
+          set -euo pipefail
+          REPORT="$(find . -name chemcore-reference-simulation.json -type f -print -quit)"
+          test -n "$REPORT"
+          cp "$REPORT" ChemCore-reference-simulation.json
+          echo "===== CHEMCORE REFERENCE SIMULATION ====="
+          cat ChemCore-reference-simulation.json
+
+      - name: Upload ChemCore reference simulation
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChemCore-reference-simulation
+          path: ChemCore-reference-simulation.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Build installable debug APK
         run: gradle --no-daemon :app:assembleDebug
@@ -89,3 +106,4 @@ jobs:
         run: |
           rm -f signing/hazrob-prototype.jks
           rm -f HazRob-0.10.2-HR069-RC2-test.apk
+          rm -f ChemCore-reference-simulation.json
