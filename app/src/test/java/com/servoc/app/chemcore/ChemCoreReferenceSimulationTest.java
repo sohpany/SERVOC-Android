@@ -55,8 +55,8 @@ public final class ChemCoreReferenceSimulationTest {
             JSONObject x=new JSONObject();
             x.put("samples",samples);
             x.put("top1_correct",top1);x.put("top3_correct",top3);x.put("unknown_or_no_top",unknown);
-            x.put("top1_accuracy_pct",pct(top1,samples));x.put("top3_accuracy_pct",pct(top3,samples));
-            x.put("true_candidate_solved_pct",pct(trueSolved,samples));
+            x.put("top1_accuracy_pct",finiteOrNull(pct(top1,samples)));x.put("top3_accuracy_pct",finiteOrNull(pct(top3,samples)));
+            x.put("true_candidate_solved_pct",finiteOrNull(pct(trueSolved,samples)));
             x.put("mean_true_rank",rankN>0?rankSum/rankN:JSONObject.NULL);
             x.put("mean_abs_log10_ppm_error",concentrationN>0?absLogSum/concentrationN:JSONObject.NULL);
             x.put("geometric_mean_fold_error",concentrationN>0?Math.pow(10.0,absLogSum/concentrationN):JSONObject.NULL);
