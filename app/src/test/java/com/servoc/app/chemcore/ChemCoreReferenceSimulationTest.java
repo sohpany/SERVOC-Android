@@ -165,7 +165,7 @@ public final class ChemCoreReferenceSimulationTest {
 
         File build=new File("build");if(!build.isDirectory()&&!build.mkdirs())throw new IllegalStateException("cannot create build directory");
         File report=new File(build,"chemcore-reference-simulation.json");
-        Files.writeString(report.toPath(),root.toString(2),StandardCharsets.UTF_8);
+        Files.write(report.toPath(),root.toString(2).getBytes(StandardCharsets.UTF_8));
         System.out.println("CHEMCORE_REFERENCE_SIMULATION_REPORT="+report.getAbsolutePath());
         System.out.println("CHEMCORE_REFERENCE_SIMULATION_SUMMARY="+root.getJSONObject("overall_multi_sensor").toString());
 
