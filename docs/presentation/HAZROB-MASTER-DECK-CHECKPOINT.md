@@ -1,18 +1,20 @@
 # HazRob Master Deck — Checkpoint
 
-Status: COMPLETE
+Status: **COMPLETE — reconciled final master**
 Tracking issue: #9
 Branch: `docs/hazrob-master-deck`
 Baseline: `release/hazrob-0.10.2-rc2` @ `5250ea769615ec82c5dc944576ea3042736b3db2`
 Presenters: شهاب الصهباني، مجدي ذيبان
 
 ## Final build
-- 76 slides/pages.
+- **76 slides/pages**.
 - Arabic RTL, 16:9, no visible slide numbering.
 - Yellow / gray / black palette; white as supporting negative space.
 - Selective hexagonal-cell visual language for chemical/evidence/invention concepts.
 - Main architecture, process, state, evidence and invention graphics are native editable/recolorable PowerPoint shapes and connectors.
-- Final PPTX and PDF visually audited.
+- Final object inventory: 1,465 shapes = 838 AutoShapes + 327 text boxes + 209 lines/connectors + 13 editable charts + 2 editable tables + 76 HazRob logo pictures.
+- Out-of-bounds shapes: 0.
+- Final PPTX and PDF visually audited through seven contact sheets after the last correction pass.
 
 ## Phase status
 - P0 Governance/baseline — COMPLETE
@@ -50,11 +52,12 @@ Presenters: شهاب الصهباني، مجدي ذيبان
 - `HazRob_Master_Technical_Patent_Deck_RC2_AR.pdf`
 
 ## Final SHA-256
-- PPTX: `05e124b39578018d6bc3f2b7cf46a84a08603e03f6896d5d57daed0709acfd29`
-- PDF: `283ef8437633563c5b77b3d242b5b3b3ed967815ce3397f250dcaccc91f50754`
+- PPTX: `9131b0070887c5173af09fcb12cf188813bd14f3ac8c641b12bbadae36ef616c`
+- PDF: `f46214c0593c3e4961de85520c2b06056979c894ab64336a957392d5f59756be`
+- Build script: `10f0393bda50c0dc2353568d085e9bb18356300c19cb6f1addb306ca9616bd30`
 
 ## Preserved caveats
-- `< USD 200` is a prototype target/estimate pending final BOM-scope verification.
+- `< USD 200` is a prototype target/current estimate pending final BOM-scope verification.
 - Open-Set/OOD independent threshold validation remains pending/deferred.
 - M3 is not M4; broad reportable PPM remains M4-gated.
 - Mixture logic is a guard, not full component decomposition.
@@ -64,7 +67,7 @@ Presenters: شهاب الصهباني، مجدي ذيبان
 - Candidate invention-family language is engineering framing, not a legal patentability conclusion.
 
 ## Resume point
-This master-deck task is complete. Any future work should start from the final master and choose one of:
+This master-deck task is complete and reconciled. Any future work should start from the final master and choose one of:
 1. public-conference derivative;
 2. shorter funder/investor derivative;
 3. patent-counsel technical annex / claim-support package;
