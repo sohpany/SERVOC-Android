@@ -16,6 +16,10 @@ import java.util.Map;
  * New reference or HR069 experimental fingerprint libraries can be supplied as ordinary
  * ChemicalFingerprint lists plus a SourceProfile. No confidence, PPM or M4 promotion occurs here;
  * those decisions remain in P6/P10 and the device-validation gates.
+ *
+ * Fingerprints carry a legacy catalogue id. Evidence rows must carry ChemCore chemical_uid, so
+ * all conversions pass through ChemCoreLegacyCandidateRegistry instead of repeating a local
+ * legacy_id+1 assumption.
  */
 public final class ChemCoreFingerprintEvidenceEngine {
     private ChemCoreFingerprintEvidenceEngine(){}
@@ -69,13 +73,24 @@ public final class ChemCoreFingerprintEvidenceEngine {
             double scoreMargin=top.score-runner.score,distanceMargin=runner.distance-top.distance;
             if(scoreMargin<minScoreMargin&&distanceMargin<minDistanceMargin)return new Decision(false,top,runner,null,"fingerprint runner-up separation is insufficient");
         }
-        return new Decision(true,top,runner,toEvidence(top,ratios,source),"accepted fingerprint evidence");
+        long uid=ChemCoreLegacyCandidateRegistry.uidForLegacyChemical(top.fingerprint.chemicalId);
+        if(uid<=0)return new Decision(false,top,runner,null,"ambiguous chemical_uid mapping for fingerprint identity");
+        return new Decision(true,top,runner,toEvidence(top,ratios,source,uid),"accepted fingerprint evidence");
     }
 
     public static ChemCoreEvidenceObservation toEvidence(FingerprintClassifier.Match match,Map<String,Double> ratios,SourceProfile source){
         if(match==null||match.fingerprint==null)throw new IllegalArgumentException("fingerprint match required");
+        long uid=ChemCoreLegacyCandidateRegistry.uidForLegacyChemical(match.fingerprint.chemicalId);
+        if(uid<=0)throw new IllegalArgumentException("ambiguous chemical_uid mapping for fingerprint identity");
+        return toEvidence(match,ratios,source,uid);
+    }
+
+    /** Explicit-UID overload for callers that already resolved the canonical ChemCore identity. */
+    public static ChemCoreEvidenceObservation toEvidence(FingerprintClassifier.Match match,Map<String,Double> ratios,SourceProfile source,long chemicalUid){
+        if(match==null||match.fingerprint==null)throw new IllegalArgumentException("fingerprint match required");
         if(source==null)throw new IllegalArgumentException("fingerprint source profile required");
-        int chemical=match.fingerprint.chemicalId;long uid=chemical+1L;
+        if(chemicalUid<=0)throw new IllegalArgumentException("positive canonical chemical_uid required");
+        int chemical=match.fingerprint.chemicalId;long uid=chemicalUid;
         String label=chemical>=0&&chemical<ChemicalCatalog.COUNT?ChemicalCatalog.NAMES[chemical]:match.fingerprint.label;
         List<String> sensors=new ArrayList<>();int width=Math.min(RobotTelemetry.MQ_KEYS.length,match.fingerprint.meanLogRatio.length);
         for(int i=0;i<width;i++){
@@ -87,7 +102,8 @@ public final class ChemCoreFingerprintEvidenceEngine {
         String group=source.independencePrefix+":chem-"+chemical;
         return new ChemCoreEvidenceObservation(source.type,uid,label,sensors,source.familyId,modelId,source.sourceId,group,source.tier,
                 true,false,false,Double.NaN,Double.NaN,Double.NaN,Double.NaN,match.distance,
-                "identity-only fingerprint evidence; score="+fmt(match.score)+"; contributors="+match.contributors);
+                "identity-only fingerprint evidence; score="+fmt(match.score)+"; contributors="+match.contributors+
+                        "; uid_policy="+ChemCoreLegacyCandidateRegistry.UID_POLICY_VERSION);
     }
 
     private static double[] ratioVector(Map<String,Double> ratios,boolean enforceHeaterProtocol){
