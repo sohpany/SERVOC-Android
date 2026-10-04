@@ -85,7 +85,10 @@ def main():
     req(power,'ChemCoreEnvironmentDomainPolicy.evaluate(','power-law environment gate')
     req(piece,'ChemCoreEnvironmentDomainPolicy.evaluate(','piecewise environment gate')
     req(infer,'r.referenceContributors>=2&&r.allContributorsInsideDomain','M3 reference support requires all contributors inside domain')
-    req(infer,'else if(openSetAccepted&&!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.OUT_OF_VALIDATED_DOMAIN','out-of-domain named identity is withheld')
+    req(infer,'tier==ChemCoreDecision.EvidenceTier.M4_HAZROB_VALIDATED&&openSetAccepted&&top.allContributorsInsideDomain','M4 quantification requires accepted in-domain solution')
+    req(infer,'tier.ordinal()>=ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT.ordinal()&&openSetAccepted&&top.allContributorsInsideDomain','M3 identity requires accepted in-domain solution')
+    req(infer,'else if(!top.allContributorsInsideDomain){outcome=ChemCoreDecision.Outcome.SCREENING;note="OUT_OF_DOMAIN diagnostic:','out-of-domain candidate remains screening only')
+    req(infer,'exploratory candidate retained, but validated ppm is withheld','out-of-domain ppm remains withheld')
     forbid(environment,'EnvironmentalCompensationModel','domain gate must not silently activate compensation')
 
     # Missing-feature Mahalanobis must use the observed covariance marginal, not a principal block
