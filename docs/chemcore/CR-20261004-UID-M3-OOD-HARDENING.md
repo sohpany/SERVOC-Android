@@ -4,7 +4,7 @@
 
 This change set hardens three analytical-system concerns identified during the 0.10.2 / HR069 system review:
 
-1. **Chemical identity namespace consistency** between the zero-based legacy catalogue (`legacy_id`), ChemCore result `chemical_uid`, and database-backed QSPR candidates.
+1. **Chemical identity namespace consistency** between the zero-based legacy catalogue (`legacy_id`), ChemCore result `chemical_uid`, database-backed QSPR candidates, and fingerprint evidence rows.
 2. **M3 fingerprint identity promotion** so source-backed multi-channel fingerprints continue to promote only through the existing conservative identity gates and never create M4/PPM authority.
 3. **Open-set / OOD provenance** so reports and audit traces can distinguish an empirical training-quantile threshold from an independently validated threshold or an explicit runtime policy.
 
@@ -16,12 +16,14 @@ Base revision: `release/hazrob-0.10.2-rc2` at `43a01d86c260353a77f1a45f808f22cf4
 
 ### Before
 
-Two identity paths used different assumptions:
+Several identity paths used different assumptions:
 
-- `ChemCoreLegacyCandidateRegistry` and `AcceptedFingerprintIdentityEngine` converted a zero-based legacy catalogue index to a UID with `legacy_id + 1`.
+- `ChemCoreLegacyCandidateRegistry` converted a zero-based legacy catalogue index to a UID with `legacy_id + 1`.
+- `AcceptedFingerprintIdentityEngine` separately performed the same arithmetic conversion.
+- `ChemCoreFingerprintEvidenceEngine` also embedded `chemicalId + 1` into typed fingerprint evidence.
 - `ChemCoreQsprRuntimeRegistry` builds candidates from the live `chemicals.uid` database value.
 
-Fresh HazRob databases currently seed the original 144 rows in the same numeric order, so the values normally coincide. However, they are **different namespaces** and the database schema does not define `uid = legacy_id + 1` as a permanent invariant. A future migration/import/reseed could therefore produce two candidate objects for the same chemical with different UIDs.
+Fresh HazRob databases currently seed the original 144 rows in the same numeric order, so the values normally coincide. However, they are **different namespaces** and the database schema does not define `uid = legacy_id + 1` as a permanent invariant. A future migration/import/reseed could therefore produce two candidate/evidence objects for the same chemical with different UIDs. A second-order failure was also possible: the promoted result could use a canonical UID while its fingerprint evidence still carried the synthetic offset UID, causing lineage-aware evidence fusion to ignore the fingerprint row.
 
 ### Change
 
@@ -31,7 +33,10 @@ Fresh HazRob databases currently seed the original 144 rows in the same numeric 
 - The historical `legacy_id + 1` mapping is retained only when no database-backed QSPR candidate for that compound exists.
 - If two different QSPR UIDs resolve to the same normalized catalogue label, resolution returns `-1` and the direct/reference candidate fails closed instead of creating a duplicate identity.
 - `AcceptedFingerprintIdentityEngine` no longer performs its own `chemicalId + 1` conversion. It calls the shared UID bridge.
+- `ChemCoreFingerprintEvidenceEngine` now uses the same UID bridge for generic/reference/experimental fingerprint evidence and fails closed on ambiguous identity mapping.
+- An explicit-UID overload is available when the caller has already resolved the canonical ChemCore identity.
 - Fingerprint candidate merging suppresses a stale same-label/different-UID candidate so a single result cannot report the same chemical twice under two IDs.
+- Fingerprint evidence notes record the UID policy used, preserving auditability.
 
 Policy identifier: `chemcore-legacy-uid-bridge/2`.
 
@@ -95,6 +100,7 @@ The following fail-closed properties remain in force:
 - a one-channel fingerprint cannot become a named M3 identity;
 - M3 does not create reportable PPM;
 - ambiguous UID resolution fails closed;
+- fingerprint typed evidence and the promoted result share the same canonical UID policy;
 - QSPR remains M1 transfer support and cannot independently create M3/M4;
 - M4 remains a separate HR069 device/reference-gas validation gate.
 
@@ -110,6 +116,15 @@ Covers:
 2. compatibility offset is retained only when no database-backed candidate exists;
 3. two conflicting database UIDs for one normalized label fail closed;
 4. invalid legacy catalogue IDs fail closed.
+
+### `ChemCoreFingerprintUidConsistencyTest`
+
+Regression test confirming that:
+
+1. accepted source-backed fingerprint evidence has a canonical ChemCore UID;
+2. the evidence UID equals the UID of the promoted M3 result;
+3. the shared UID bridge is the authority used by the promotion path;
+4. the M3 result still has no finite/reportable PPM.
 
 ### `ChemCoreOpenSetGateTest`
 
@@ -135,20 +150,35 @@ Extended to verify:
 
 ---
 
-## 6. Acceptance criteria
+## 6. Continuous integration added for this change
+
+`.github/workflows/chemcore-hardening-pr.yml` runs automatically for pull requests targeting `release/hazrob-0.10.2-rc2` when application/tooling files change. It performs:
+
+1. JDK 17 and Android API/build-tools setup;
+2. ChemCore source audits `audit_0104`, `audit_0105`, and `audit_0106`;
+3. the full Android JVM unit/contract test task `:app:testDebugUnitTest`;
+4. a real Android debug compilation with `:app:assembleDebug`.
+
+Concurrency cancels obsolete runs when the PR receives a newer commit, ensuring the final head SHA is the one validated.
+
+---
+
+## 7. Acceptance criteria
 
 This change is acceptable only if CI confirms:
 
+- ChemCore source audits pass;
 - JVM unit tests compile and pass;
-- Android application compilation succeeds;
+- Android debug application compilation succeeds;
 - existing ChemCore result/report contract tests remain green;
 - no test shows a fingerprint M3 result with finite/reportable PPM;
 - UID bridge tests pass for non-default database UID values;
+- evidence/result UID consistency regression test passes;
 - OOD provenance tests pass without changing the numeric gate thresholds.
 
 ---
 
-## 7. Recommended next steps
+## 8. Recommended next steps
 
 1. Replace the residual `legacy_id + 1` fallback with an explicit database-backed UID resolver at every production ChemCore entry point.
 2. Add a database integrity audit reporting any legacy row whose `uid` differs from the historical offset, without rewriting IDs automatically.
