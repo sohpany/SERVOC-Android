@@ -32,24 +32,38 @@ public final class SmartReportAcceptanceContractTest {
         assertTrue(s.contains("int total=all.size()>1?5:4"));
     }
 
-    @Test public void sensorPageCarriesSixDistinctAnalyticalViews()throws Exception{
+    @Test public void sensorPageCarriesSixDistinctAnalyticalViewsIncludingCrossChannelCorrelation()throws Exception{
         String s=read("SmartFieldSessionPdfWriter.java");
         assertTrue(s.contains("AnalyticalCharts.mqRsR0(c,r[0],s)"));
         assertTrue(s.contains("AnalyticalCharts.fingerprint(c,r[1],s)"));
-        assertTrue(s.contains("AnalyticalCharts.mqSignalQuality(c,r[2],s)"));
+        assertTrue(s.contains("SmartReportAdvancedCharts.mqCorrelationMatrix(c,r[2],s)"));
         assertTrue(s.contains("AnalyticalCharts.fingerprintRadar(c,r[3],s)"));
         assertTrue(s.contains("AnalyticalCharts.mqResponseKinetics(c,r[4],s)"));
         assertTrue(s.contains("AnalyticalCharts.mqPersistenceMap(c,r[5],s)"));
     }
 
-    @Test public void chemCorePageCarriesSixDistinctInferenceViewsIncludingDynamicMolecularQspr()throws Exception{
+    @Test public void chemCorePageCarriesSixDistinctInferenceViewsIncludingCommonCAndDynamicMolecularQspr()throws Exception{
         String s=read("SmartFieldSessionPdfWriter.java");
         assertTrue(s.contains("AnalyticalCharts.candidates(c,r[0],q)"));
         assertTrue(s.contains("AnalyticalCharts.candidateScatter(c,r[1],q)"));
-        assertTrue(s.contains("AnalyticalCharts.candidateBubbleMap(c,r[2],q)"));
+        assertTrue(s.contains("SmartReportAdvancedCharts.curveConsistency(c,r[2],q)"));
         assertTrue(s.contains("AnalyticalCharts.candidateResiduals(c,r[3],q)"));
         assertTrue(s.contains("if(MolecularReportCharts.hasQsprEvidence(q))MolecularReportCharts.qsprEvidence(c,r[4],q);else AnalyticalCharts.evidenceTiers(c,r[4],q)"));
         assertTrue(s.contains("SmartReportCharts.decisionQuality(c,r[5],q)"));
+    }
+
+    @Test public void advancedChartsUseRecordedSeriesAndPersistedChemCoreEvidenceOnly()throws Exception{
+        String s=read("SmartReportAdvancedCharts.java");
+        assertTrue(s.contains("Pearson correlation of recorded log10(Rs/R0) trajectories"));
+        assertTrue(s.contains("SessionSeries.sensor(row,a)"));
+        assertTrue(s.contains("evidence_observations"));
+        assertTrue(s.contains("observed_ratio"));
+        assertTrue(s.contains("predicted_log10_ratio"));
+        assertTrue(s.contains("standardized_residual"));
+        assertTrue(s.contains("Stage-17 common-concentration consistency diagnostic"));
+        assertTrue(s.contains("No solver, QSPR model or response curve is rerun here"));
+        assertTrue(s.contains("لا يثبت الهوية"));
+        assertTrue(s.contains("ليست PPM تقريرية إلا بعد بوابة M4"));
     }
 
     @Test public void molecularChartUsesOnlyPersistedQsprEvidenceAndNeverPromotesPpm()throws Exception{
