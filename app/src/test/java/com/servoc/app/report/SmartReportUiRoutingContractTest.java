@@ -14,12 +14,13 @@ public final class SmartReportUiRoutingContractTest {
         return new String(Files.readAllBytes(Paths.get(path)),StandardCharsets.UTF_8);
     }
 
-    @Test public void reportsTabRoutesMappedMeasurementsToFieldSessionSmartReport()throws Exception{
+    @Test public void reportsTabRoutesOnlyFieldMappedMeasurementsToSmartReport()throws Exception{
         String s=read("src/main/java/com/servoc/app/ui/ReportsTab.java");
         assertTrue(s.contains("import com.servoc.app.field.FieldSessionRepository;"));
         assertTrue(s.contains("fieldSessions.fieldSessionIdForMeasurement(sid)"));
         assertTrue(s.contains("if(!fieldSessionId.isEmpty()){host.requestFieldSessionExport(f,fieldSessionId);return;}"));
-        assertTrue("legacy export must remain only as a fallback for non-field measurements",s.contains("host.requestExport(f,selectedId);"));
+        assertFalse("SmartReport UI must never fall back to the legacy ReportExporter path",s.contains("host.requestExport(f,selectedId);"));
+        assertTrue(s.contains("SmartReport يتطلب ربط القياس بجلسة ميدانية"));
         assertTrue(s.contains("تصدير PDF الذكي للجلسة"));
         assertTrue(s.contains("Excel ذكي للجلسة"));
     }
