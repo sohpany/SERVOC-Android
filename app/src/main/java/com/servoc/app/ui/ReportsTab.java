@@ -92,7 +92,7 @@ public final class ReportsTab {
     private void showSelected(){
         ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){setEnabled(false);return;}setEnabled(true);
         JSONObject d=json(r.payload),m=d.optJSONObject("measurement"),e=d.optJSONObject("env"),relay=d.optJSONObject("relay"),a=json(r.analytics);String sid=r.sessionId==null?"":r.sessionId.trim();JSONObject cc=sid.isEmpty()?null:decisions.latestPayloadForSession(sid);SessionSeries.Series ss=SessionSeries.forExperiment(host.database(),r);
-        String fieldSessionId=sid.isEmpty()?"":fieldSessions.fieldSessionIdForMeasurement(sid);boolean fieldReport=!fieldSessionId.isEmpty();pdf.setText(fieldReport?"تصدير PDF الذكي للجلسة":"تصدير PDF للقياس");xlsx.setText(fieldReport?"Excel ذكي للجلسة":"Excel للقياس");
+        String fieldSessionId=sid.isEmpty()?"":fieldSessions.fieldSessionIdForMeasurement(sid);boolean fieldReport=!fieldSessionId.isEmpty();pdf.setText(fieldReport?"تصدير PDF الذكي للجلسة":"PDF ذكي • اربط القياس بجلسة");xlsx.setText(fieldReport?"Excel ذكي للجلسة":"Excel ذكي • اربط القياس بجلسة");
         boolean seriesOk=ss!=null&&ss.usable(),mqOn=relay!=null&&relay.optBoolean("on",relay.optInt("mask",0)!=0);String state=m==null?"—":m.optString("state","—");
         sessionCard.setText("الجلسة #"+r.id+"\n"+(sid.isEmpty()?"بدون Session ID":sid)+"\n"+state+(seriesOk?" • "+ss.samples.size()+" عينة":" • لا سلسلة زمنية"));sessionCard.setTextColor(seriesOk?GOOD:WARN);
 
@@ -133,7 +133,7 @@ public final class ReportsTab {
         ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){host.showToast("السجل غير موجود");return;}
         String sid=r.sessionId==null?"":r.sessionId.trim();String fieldSessionId=sid.isEmpty()?"":fieldSessions.fieldSessionIdForMeasurement(sid);
         if(!fieldSessionId.isEmpty()){host.requestFieldSessionExport(f,fieldSessionId);return;}
-        host.requestExport(f,selectedId);
+        host.showToast("SmartReport يتطلب ربط القياس بجلسة ميدانية من تبويب المواقع والجلسات.");
     }
     private static JSONObject json(String s){try{return s==null?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
     private static String safe(String s){return s==null?"":s;}
