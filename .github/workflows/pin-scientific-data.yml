@@ -1,115 +1,20 @@
-name: Pin HazRob Scientific Data
+name: RETIRED - Legacy scientific-data writer - DO NOT WRITE
 
 on:
-  push:
-    branches:
-      - dev/hazrob-0.10.1
-    paths:
-      - '.github/workflows/pin-scientific-data.yml'
-      - 'tools/build_niosh_seed.py'
-      - 'tools/build_niosh_idlh_seed.py'
-      - 'tools/build_osha_z1_seed.py'
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: hazrob-scientific-data-${{ github.ref }}
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  pin-data:
-    if: github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+  retired-workflow:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout 0.10.1 integration branch
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Generate official scientific datasets without touching ChemCore
+      - name: Fail closed - controlled scientific-data change required
+        shell: bash
         run: |
-          set -euo pipefail
-          CHEM=app/src/main/assets/generated/chemcore/molecular_descriptors.json
-          test -f "$CHEM"
-          BEFORE=$(sha256sum "$CHEM" | awk '{print $1}')
-          rm -rf app/src/main/assets/generated/niosh app/src/main/assets/generated/exposure
-          python tools/build_niosh_seed.py app/src/main/assets/generated/niosh
-          python tools/build_niosh_idlh_seed.py app/src/main/assets/generated/exposure
-          python tools/build_osha_z1_seed.py app/src/main/assets/generated/exposure/osha_z1
-          AFTER=$(sha256sum "$CHEM" | awk '{print $1}')
-          test "$BEFORE" = "$AFTER" || { echo 'ChemCore asset changed during exposure-data generation'; exit 1; }
-
-      - name: Validate generated payloads, counts, provenance and manifests
-        run: |
-          python - <<'PY'
-          import hashlib,json
-          from pathlib import Path
-          specs = [
-              (Path('app/src/main/assets/generated/niosh/niosh_chemicals.json'), Path('app/src/main/assets/generated/niosh/manifest.json'), 652, None, 'NIOSH'),
-              (Path('app/src/main/assets/generated/exposure/niosh_idlh.json'), Path('app/src/main/assets/generated/exposure/manifest.json'), 402, None, 'NIOSH'),
-              (Path('app/src/main/assets/generated/exposure/osha_z1/osha_z1.json'), Path('app/src/main/assets/generated/exposure/osha_z1/manifest.json'), 638, 432, 'OSHA'),
-          ]
-          for payload_path, manifest_path, expected_records, expected_substances, authority in specs:
-              payload=json.loads(payload_path.read_text(encoding='utf-8'))
-              manifest=json.loads(manifest_path.read_text(encoding='utf-8'))
-              assert payload.get('record_count')==expected_records, (payload_path,payload.get('record_count'))
-              assert manifest.get('record_count')==expected_records, (manifest_path,manifest.get('record_count'))
-              if expected_substances is not None:
-                  assert manifest.get('substance_rows')==expected_substances, (manifest_path,manifest.get('substance_rows'))
-              assert manifest.get('authoritative') is True, (manifest_path,manifest.get('authoritative'))
-              actual=hashlib.sha256(payload_path.read_bytes()).hexdigest()
-              assert manifest.get('sha256')==actual, (payload_path,manifest.get('sha256'),actual)
-              provenance=payload.get('provenance')
-              if provenance is not None:
-                  assert provenance.get('authoritative') is True, (payload_path,provenance)
-                  assert authority.lower() in str(provenance.get('authority','')).lower(), (payload_path,provenance)
-              else:
-                  assert authority.lower() in str(manifest.get('authority','')).lower(), (manifest_path,manifest.get('authority'))
-              print(payload_path,expected_records,authority,actual)
-          PY
-
-      - name: Commit pinned datasets safely
-        run: |
-          set -euo pipefail
-          TARGET=dev/hazrob-0.10.1
-          git config user.name 'hazrob-science-bot'
-          git config user.email 'hazrob-science-bot@users.noreply.github.com'
-          git add app/src/main/assets/generated/niosh app/src/main/assets/generated/exposure
-          if git diff --cached --quiet; then
-            echo 'Pinned scientific datasets already match generated sources.'
-            exit 0
-          fi
-          git commit -m 'data(science): pin authoritative HazRob 0.10.1 exposure datasets'
-          for attempt in 1 2 3; do
-            git fetch origin "$TARGET"
-            if git rebase "origin/$TARGET"; then
-              if git push origin "HEAD:$TARGET"; then exit 0; fi
-            else
-              git rebase --abort || true
-              echo 'Scientific-data rebase conflict; refusing to overwrite integration branch.'
-              exit 1
-            fi
-            echo "Push raced with another commit; retrying ($attempt/3)."
-            sleep $((attempt*2))
-          done
-          echo 'Unable to pin scientific datasets after three safe retries.'
+          echo "::error::This legacy scientific-data writer is retired under CR-20261004-009."
+          echo "No generated scientific dataset may be committed without a registered and approved HazRob Change Record."
+          echo "Current authority: HazRob/build-harness/CURRENT_RELEASE_AUTHORITY.md"
+          echo "Policy: HazRob/build-harness/docs/HAZROB_MANDATORY_CHANGE_CONTROL_AND_RELEASE_POLICY_2026-10-04.md"
           exit 1
-
-      - name: Upload scientific-data audit artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: hazrob-scientific-data-0.10.1
-          if-no-files-found: error
-          retention-days: 90
-          path: |
-            app/src/main/assets/generated/niosh/
-            app/src/main/assets/generated/exposure/
