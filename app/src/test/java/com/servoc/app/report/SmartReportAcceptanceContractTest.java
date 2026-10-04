@@ -91,6 +91,14 @@ public final class SmartReportAcceptanceContractTest {
         assertTrue(s.contains("\"عقد التحليل\""));
         assertTrue(s.contains("\"المنهجية والمصدر\""));
         assertTrue("Excel must expose the molecular/QSPR capability through the shared contract",read("SmartReportAnalyticalContract.java").contains("MOLECULAR_QSPR"));
+        assertTrue(s.contains("Evidence types"));
+        assertTrue(s.contains("QSPR obs"));
+        assertTrue(s.contains("QSPR in-domain"));
+        assertTrue(s.contains("QSPR mean support"));
+        assertTrue(s.contains("QSPR lineage"));
+        assertTrue(s.contains("evidence_observations"));
+        assertTrue(s.contains("PUBCHEM_QSPR"));
+        assertTrue(s.contains("QSPR دعم جزيئي M1"));
     }
 
     @Test public void smartXlsxPackageProducesAValidInspectableWorkbookContainer()throws Exception{
