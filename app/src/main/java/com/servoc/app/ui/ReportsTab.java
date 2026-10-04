@@ -19,6 +19,7 @@ import com.servoc.app.chemcore.ChemCoreAnalysisPresenter;
 import com.servoc.app.chemcore.ChemCoreDecisionRepository;
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.data.SessionSeries;
+import com.servoc.app.field.FieldSessionRepository;
 import com.servoc.app.report.AnalyticalCharts;
 
 import org.json.JSONArray;
@@ -46,11 +47,12 @@ public final class ReportsTab {
     private final Spinner chartSelector;
     private final ImageView chartView;
     private final ChemCoreDecisionRepository decisions;
+    private final FieldSessionRepository fieldSessions;
     private long selectedId=-1;
     private boolean technicalVisible=false;
 
     public ReportsTab(Context c,HazRobHost host){
-        this.host=host;decisions=new ChemCoreDecisionRepository(host.database());
+        this.host=host;decisions=new ChemCoreDecisionRepository(host.database());fieldSessions=new FieldSessionRepository(host.database());
         scroll=new ScrollView(c);scroll.setFillViewport(true);root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,12));root.setBackgroundColor(BG);scroll.addView(root);
         root.addView(UiKit.title(c,"التقارير الذكية • HR069"),UiKit.full(c));
 
@@ -90,6 +92,7 @@ public final class ReportsTab {
     private void showSelected(){
         ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){setEnabled(false);return;}setEnabled(true);
         JSONObject d=json(r.payload),m=d.optJSONObject("measurement"),e=d.optJSONObject("env"),relay=d.optJSONObject("relay"),a=json(r.analytics);String sid=r.sessionId==null?"":r.sessionId.trim();JSONObject cc=sid.isEmpty()?null:decisions.latestPayloadForSession(sid);SessionSeries.Series ss=SessionSeries.forExperiment(host.database(),r);
+        String fieldSessionId=sid.isEmpty()?"":fieldSessions.fieldSessionIdForMeasurement(sid);boolean fieldReport=!fieldSessionId.isEmpty();pdf.setText(fieldReport?"تصدير PDF الذكي للجلسة":"تصدير PDF للقياس");xlsx.setText(fieldReport?"Excel ذكي للجلسة":"Excel للقياس");
         boolean seriesOk=ss!=null&&ss.usable(),mqOn=relay!=null&&relay.optBoolean("on",relay.optInt("mask",0)!=0);String state=m==null?"—":m.optString("state","—");
         sessionCard.setText("الجلسة #"+r.id+"\n"+(sid.isEmpty()?"بدون Session ID":sid)+"\n"+state+(seriesOk?" • "+ss.samples.size()+" عينة":" • لا سلسلة زمنية"));sessionCard.setTextColor(seriesOk?GOOD:WARN);
 
@@ -102,7 +105,7 @@ public final class ReportsTab {
             candidateCard.setText(candidateSummary(cc));
         }
 
-        StringBuilder t=new StringBuilder("المرجع والتتبّع\n");t.append("Experiment #").append(r.id).append(" • UTC ").append(safe(r.ts)).append("\nProtocol: ").append(safe(r.protocol)).append("\nSession: ").append(sid.isEmpty()?"—":sid).append("\nMQ Power: ").append(mqOn?"ON":"OFF");if(relay!=null&&mqOn)t.append(" • ").append(relay.optLong("power_ms",0)).append(" ms");if(e!=null&&e.optBoolean("ok",false))t.append("\nENV: ").append(fmt(e.optDouble("temperature",Double.NaN))).append(" °C • ").append(fmt(e.optDouble("humidity",Double.NaN))).append(" %RH • ").append(fmt(e.optDouble("pressure",Double.NaN))).append(" hPa");t.append("\nStored analytical rows: ").append(a.optJSONArray("results")==null?0:a.optJSONArray("results").length());if(cc!=null){t.append("\n\n").append(ChemCoreAnalysisPresenter.summary(cc));t.append("\n\n").append(ChemCoreAnalysisPresenter.equationsAndResiduals(cc,6));}technical.setText(t.toString());renderSelectedChart(chartSelector.getSelectedItemPosition());
+        StringBuilder t=new StringBuilder("المرجع والتتبّع\n");t.append("Experiment #").append(r.id).append(" • UTC ").append(safe(r.ts)).append("\nProtocol: ").append(safe(r.protocol)).append("\nSession: ").append(sid.isEmpty()?"—":sid).append("\nField Session: ").append(fieldReport?fieldSessionId:"—").append("\nMQ Power: ").append(mqOn?"ON":"OFF");if(relay!=null&&mqOn)t.append(" • ").append(relay.optLong("power_ms",0)).append(" ms");if(e!=null&&e.optBoolean("ok",false))t.append("\nENV: ").append(fmt(e.optDouble("temperature",Double.NaN))).append(" °C • ").append(fmt(e.optDouble("humidity",Double.NaN))).append(" %RH • ").append(fmt(e.optDouble("pressure",Double.NaN))).append(" hPa");t.append("\nStored analytical rows: ").append(a.optJSONArray("results")==null?0:a.optJSONArray("results").length());if(cc!=null){t.append("\n\n").append(ChemCoreAnalysisPresenter.summary(cc));t.append("\n\n").append(ChemCoreAnalysisPresenter.equationsAndResiduals(cc,6));}technical.setText(t.toString());renderSelectedChart(chartSelector.getSelectedItemPosition());
     }
 
     private void renderSelectedChart(int pos){
@@ -125,7 +128,13 @@ public final class ReportsTab {
     private static JSONObject first(JSONObject a,JSONObject b){return a!=null?a:b;}
     private static String candidateSummary(JSONObject p){JSONArray a=p==null?null:p.optJSONArray("candidates");if(a==null||a.length()==0)return "المرشحون • لا توجد فرضيات قابلة للحل";StringBuilder s=new StringBuilder("المرشحون الأعلى • ").append(a.length());int n=Math.min(6,a.length());for(int i=0;i<n;i++){JSONObject q=a.optJSONObject(i);if(q==null)continue;s.append("\n#").append(q.optInt("rank",i+1)).append(" ").append(q.optString("label","—")).append(" • ").append(pct(q.optDouble("posterior",Double.NaN))).append(" • residual ").append(fmt(q.optDouble("residual_rms",Double.NaN))).append(" • ").append(q.optString("evidence_tier","—"));}if(a.length()>n)s.append("\n+").append(a.length()-n).append(" مرشح إضافي في نتائج التحليل");return s.toString();}
     private void setEnabled(boolean v){pdf.setEnabled(v);xlsx.setEnabled(v);chartSelector.setEnabled(v);}
-    private void export(String f){if(selectedId<0){host.showToast("اختر قياسًا أولًا");return;}host.requestExport(f,selectedId);}
+    private void export(String f){
+        if(selectedId<0){host.showToast("اختر قياسًا أولًا");return;}
+        ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){host.showToast("السجل غير موجود");return;}
+        String sid=r.sessionId==null?"":r.sessionId.trim();String fieldSessionId=sid.isEmpty()?"":fieldSessions.fieldSessionIdForMeasurement(sid);
+        if(!fieldSessionId.isEmpty()){host.requestFieldSessionExport(f,fieldSessionId);return;}
+        host.requestExport(f,selectedId);
+    }
     private static JSONObject json(String s){try{return s==null?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
     private static String safe(String s){return s==null?"":s;}
     private static String fmt(double v){return Double.isFinite(v)?String.format(Locale.US,"%.2f",v):"—";}
