@@ -135,6 +135,14 @@ public final class FieldSessionRepository {
         return out;
     }
 
+    /** Exact reverse lookup used by SmartReport UI routing; empty means the measurement is not in a user Field Session. */
+    public String fieldSessionIdForMeasurement(String measurementSessionId){
+        String ms=measurementSessionId==null?"":measurementSessionId.trim();if(ms.isEmpty())return "";
+        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT field_session_id FROM field_session_measurements WHERE measurement_session_id=? ORDER BY linked_ts DESC,field_session_id DESC LIMIT 1",new String[]{ms})){
+            return c.moveToFirst()?nz(c.getString(0)):"";
+        }
+    }
+
     /**
      * Deletes CLOSED user field metadata/mappings only. It deliberately does not delete
      * measurement_sessions or any developer/scientific-library table. ACTIVE sessions must be
