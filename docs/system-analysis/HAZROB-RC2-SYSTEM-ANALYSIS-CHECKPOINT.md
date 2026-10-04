@@ -4,9 +4,9 @@
 - GitHub issue: #8 — `HazRob RC2 — Full System Architecture & Systems Analysis Report`
 - Working documentation branch: `docs/hazrob-rc2-system-analysis`
 - Governing RC2 analysis baseline frozen at task start: `release/hazrob-0.10.2-rc2` @ `5250ea769615ec82c5dc944576ea3042736b3db2`
-- Separate controlled executable/release authority must be reported from `HazRob/build-harness/CURRENT_RELEASE_AUTHORITY.md`; branch HEAD movement alone is not release authority.
+- Controlled executable/release authority is reported separately from `HazRob/build-harness/CURRENT_RELEASE_AUTHORITY.md`; branch HEAD movement alone is not release authority.
 
-## Source inventory discovered
+## Source inventory analyzed
 ### Personal GitHub installation (`sohpany`)
 1. `sohpany/SERVOC-Android` — primary Android, firmware, ChemCore, scientific corpus, reports, update logic, tests and tools; latest RC2 analysis source.
 2. `sohpany/HazRob` — minimal project-description repository; not an RC2 runtime authority.
@@ -15,30 +15,28 @@
 ### Organization GitHub installation (`HazRob`)
 4. `HazRob/build-harness` — governance/build/test/qualification/release-evidence repository. It is not the production runtime repository and not the canonical scientific library.
 
-## Mandatory organization-scope rule
-The analysis MUST include the complete accessible contents of the `HazRob` GitHub organization installation as a first-class source tier, not merely the personal repositories. Every accessible organization repository, branch/material relevant to RC2, harness script, workflow, configuration, build artifact definition, reference file and cross-repository relationship must be inventoried and mapped. Organization content must be clearly distinguished from personal-repository runtime code, laboratory/reference material and historical content.
-
 ## Verified authority boundaries
 - Latest RC2 engineering state analyzed: `sohpany/SERVOC-Android@5250ea769615ec82c5dc944576ea3042736b3db2`.
 - Controlled executable/release approval is a separate governance concept determined by organization release-authority records.
+- Controlled engineering-approved executable source recorded during analysis: `43a01d86c260353a77f1a45f808f22cf46997e06`.
 - Canonical active analytical corpus: `sohpany/SERVOC-Android/research_data/hr069_analytical_library/`.
 - `HazRob-Lab` is frozen historical provenance only.
 - `HazRob/build-harness` provides governance/build/test/qualification/release evidence only; workflows cannot autonomously promote release/scientific authority.
 - Mandatory lifecycle: `REGISTER -> IMPLEMENT CONTROLLED -> TEST -> TRIAL/VALIDATE -> REVIEW -> APPROVE -> PROMOTE/RELEASE -> IMMUTABLE MANIFEST`.
 
-## Major findings already verified
-1. **Safety-policy divergence:** current RC2 firmware keeps IR/cliff and ultrasonic warning telemetry active but forces automatic IR/ultrasonic motion stopping OFF. E-STOP and stale-command watchdog remain independent. Android drive controls also do not implement an independent directional hazard block. Treat current behavior as warning-only unless/until a controlled safety CR restores and validates directional firmware interlocking.
-2. **MQ7/MQ9 quantitative limitation:** the hardware profile states the required cyclic-heater driver is not installed; manufacturer heater-cycle validity therefore fails closed for MQ7/MQ9.
-3. **R0 semantics are correctly separated from M4:** field clean-air R0 is normalization provenance, not reference-gas quantitative calibration.
-4. **Remote-security technical debt:** prototype bootstrap credentials are embedded in prototype clients/firmware. Remote transport itself uses encrypted channels and role separation, but device/bootstrap identity must be replaced before production-grade security claims. Sensitive credential values are intentionally excluded from this analysis record.
-5. **Release-signing technical debt:** Android build configuration uses prototype signing material and prototype key management for debug/release. This is not production key management.
-6. **Android cleartext scope:** global cleartext traffic is enabled although cleartext is primarily required for the Direct local AP. Recommend network-security configuration scoped to local robot/camera hosts.
-7. **Authority-document drift:** some status/architecture documents contain older branch/baseline language than `CURRENT_RELEASE_AUTHORITY.md`. Recommend one machine-readable release-authority manifest and generate human status documents from it.
-8. **Build provenance debt:** build configuration retains a content-addressed fallback that can recover a controlled flammability seed from a legacy APK if the source asset is absent. Eliminate this external legacy build dependency after controlled vendoring/provenance reconciliation.
-9. **Strong storage lineage:** SAF user library separates user-owned field archives from developer/calibration/reference tables; session archives use immutable IDs and strict link restoration.
-10. **Strong ChemCore semantic gates:** M3 remains identity-only, M4 is required for reportable quantitative ppm, OOD fail-closed behavior is explicit, evidence fusion de-duplicates correlated lineages, and SmartReport enforces the ChemCore reporting contract.
+## Major findings captured in the report
+1. Safety-policy divergence: IR/cliff and ultrasonic telemetry warnings remain active while automatic IR/ultrasonic motion stopping is disabled in current RC2 firmware; E-STOP and stale-command watchdog remain independent.
+2. MQ7/MQ9 quantitative limitation: required cyclic-heater driver is not installed, so manufacturer heater-cycle quantitative validity fails closed.
+3. R0 normalization is explicitly separated from M4/reference-gas calibration.
+4. Remote-security technical debt: prototype bootstrap identity/credential material must be replaced before production-grade security claims. Secret values are intentionally excluded from the report.
+5. Release-signing technical debt: prototype signing/key management is not a production signing architecture.
+6. Android cleartext scope is broader than required for Direct AP operation.
+7. Authority-document drift exists between some older status documents and the current release-authority record.
+8. Build provenance retains a controlled fallback dependency on a legacy APK for one seed if the local source asset is absent.
+9. SAF field-session storage has strong immutable-ID lineage but can be strengthened with archive integrity manifests/hashes.
+10. ChemCore maintains strong semantic gates: M3 identity-only, M4 required for reportable quantitative ppm, OOD fail-closed, evidence-lineage de-duplication, and SmartReport contract enforcement.
 
-## Phases and status
+## Phases and final status
 - [x] P1a — Freeze RC2 baseline
 - [x] P1b — Create tracking issue and working documentation branch
 - [x] P1c — Discover connected personal and organization repositories
@@ -48,11 +46,21 @@ The analysis MUST include the complete accessible contents of the `HazRob` GitHu
 - [x] P4 — ChemCore/analytical/data/reference architecture analysis
 - [x] P5 — Firmware/hardware/protocol/connectivity architecture analysis
 - [x] P6 — Storage/databases/reports/update/security/CI-harness analysis
-- [ ] P7 — Cross-system dependencies, flows, failure modes and risk review (in progress)
-- [ ] P8 — Recommendations, target architecture and remediation roadmap
-- [ ] P9 — DOCX/PDF authoring, diagrams and visual QA
+- [x] P7 — Cross-system dependencies, flows, failure modes and risk review
+- [x] P8 — Recommendations, target architecture and remediation roadmap
+- [x] P9 — DOCX/PDF authoring, 15 diagrams, rendering and visual QA
 
-## Planned report diagrams
+## Final deliverables
+- Word: `HazRob_RC2_Full_System_Analysis_0.10.2_HR069.docx`
+  - SHA-256: `16e7bce999d3770db5b175a785f43d8797719dadb79518975a2fe776be17c4f0`
+- PDF: `HazRob_RC2_Full_System_Analysis_0.10.2_HR069.pdf`
+  - SHA-256: `daef9efe72c22fb2c148f0a93ae616a20e56678f6357cdfb8f83934d078d2295`
+  - Final page count: 77
+- Architecture/process diagrams: 15
+- File/component inventory records: 487
+- Visual QA: all 77 rendered pages reviewed; section header/footer linkage defect was corrected and the document re-rendered before release.
+
+## Report diagram set
 1. Repository/authority topology.
 2. Full deployment/component architecture.
 3. Direct-mode command/telemetry/video flow.
@@ -69,14 +77,13 @@ The analysis MUST include the complete accessible contents of the `HazRob` GitHu
 14. Scientific-data authority/ingestion flow.
 15. Change-control/CI/release-authority lifecycle.
 
-## Resume rule
-If interrupted, first read issue #8 and this file. Resume from the first unchecked item. Do not use a newer implementation as the governing analysis baseline unless the user explicitly asks to rebase the report.
+## Resume / maintenance rule
+The analysis task is complete. For any future revision, read issue #8 and this checkpoint first. Keep `5250ea769615ec82c5dc944576ea3042736b3db2` as the historical analysis baseline unless the user explicitly requests rebasing the report to a later controlled RC2/RC3 state. Any future report revision must preserve the distinction between engineering branch state and controlled release authority.
 
-## Analytical rules
+## Analytical rules retained
 - Separate verified code facts from inferred architecture and recommendations.
-- Record file path and repository for every major component.
-- Record repository owner, branch/ref, path, role, dependencies and consumers for every major file/group.
-- Tag historical/reference-only branches and data so they are not confused with RC2 runtime behavior.
-- Keep the deferred Open-Set/OOD experimental-validation task separate, referencing it only as existing technical debt/open validation work.
-- Never reproduce credentials/secrets in the report; describe security findings without exposing secret values.
-- Do not modify runtime behavior during this documentation task.
+- Record repository/path/role/consumer relationships for major components.
+- Distinguish runtime, harness/governance, scientific/reference, and historical material.
+- Keep the deferred Open-Set/OOD experimental-validation task separate.
+- Never reproduce credentials/secrets in the report.
+- Runtime behavior was not modified as part of this documentation task.
