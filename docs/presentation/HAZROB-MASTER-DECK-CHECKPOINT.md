@@ -98,8 +98,6 @@ Evidence:
 - Branch `docs/hazrob-master-deck` created from RC2 SHA `5250ea769615ec82c5dc944576ea3042736b3db2`.
 - This checkpoint file created.
 
-Next action: P1 scientific source inventory.
-
 ---
 
 ## P1 — Scientific source inventory and APA bibliography
@@ -115,21 +113,31 @@ Primary sources:
 - ChemCore implementation and tests;
 - firmware and Android runtime source;
 - `HazRob/build-harness` evidence/governance files;
-- original peer-reviewed papers/datasets referenced by `mq_experiment_source_index_v1.json` and related manifests.
+- original peer-reviewed papers/datasets referenced by `mq_experiment_source_index_v1.json` and related manifests;
+- public presenter research records and Yemen-specific occupational/environmental studies where directly relevant.
 
 Tasks:
 - create source register with DOI/URL/title/authors/year/type;
-- classify source as internal implementation, peer-reviewed research, manufacturer, standards/authority, market/product, or project governance;
+- classify source as internal implementation, peer-reviewed research, manufacturer, standards/authority, market/product, project governance, presenter publication, or Yemen-context evidence;
 - verify key DOI/title pairs against original publishers where practical;
 - identify which scientific claims each source may legitimately support;
+- verify public research identifiers before displaying them;
 - assemble APA 7 working bibliography.
+
+Current P1 evidence already recorded:
+- `docs/presentation/P1_AUTHOR_AND_YEMEN_CONTEXT_SOURCES.md` created.
+- Presenter public research identity verified under name variants `شهاب محمد الصهباني / Shehab Mohamad Al-Sohpany / Shehab Al-Sohpany`.
+- ORCID `0000-0002-6144-4209` located in public published/archived research material.
+- Public ARID-hosted CV located; exact ARID identifier still requires direct-profile verification before display.
+- Relevant presenter publications identified for Yemen OSH, medical waste/hazardous exposure, and chemical-safety context.
+- Yemen-specific candidate environmental/occupational measurement studies identified for PM2.5/PM10, multi-pollutant air analysis, radon, industrial pollution, benzene exposure, and laboratory chemical exposure.
 
 Exit criteria:
 - every planned scientific claim category has one or more traceable sources;
 - uncertain references are tagged and excluded from strong claims;
 - APA register ready for slide citations.
 
-Status: NOT STARTED
+**Status: IN PROGRESS**
 
 ---
 
@@ -363,8 +371,8 @@ After each phase, replace this section with the latest state:
 - Last completed phase: P0
 - Overall status: ACTIVE
 - Last stable baseline: RC2 `5250ea769615ec82c5dc944576ea3042736b3db2`
-- Last completed artifact: this checkpoint
-- Known blockers: none
-- Exact next action: inventory and verify scientific/research sources and begin APA bibliography register.
+- Last completed artifact: `docs/presentation/P1_AUTHOR_AND_YEMEN_CONTEXT_SOURCES.md`
+- Known blockers: ARID/other researcher identifiers not yet independently verified from primary profile pages; APA metadata verification still in progress.
+- Exact next action: continue P1 by verifying primary publisher/DOI metadata for presenter papers, Yemen environmental studies, and project-linked ChemCore/MQ sources; then assemble the APA 7 bibliography register.
 
 If work resumes in a new conversation, read this file and Issue #9 first, then continue from `Exact next action` without repeating completed phases unless the baseline has changed.
