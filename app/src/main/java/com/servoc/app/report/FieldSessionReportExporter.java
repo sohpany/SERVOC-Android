@@ -44,7 +44,18 @@ public final class FieldSessionReportExporter {
         for(FieldSessionRepository.Site s:repo.sites()){for(FieldSessionRepository.FieldSession q:repo.sessionsForSite(s.id))if(fs.equals(q.id)){site=s;field=q;break;}if(field!=null)break;}
         if(field==null||site==null)throw new IllegalArgumentException("field session not found");
         List<String> sessions=repo.measurementSessionIds(fs);List<ExperimentQueries.Record> records=new ArrayList<>();for(String sid:sessions)records.addAll(ExperimentQueries.bySessionId(db,sid));
-        ChemCoreDecisionRepository decisions=new ChemCoreDecisionRepository(db);String primary="";JSONObject decision=null;
+        ChemCoreDecisionRepository decisions=new ChemCoreDecisionRepository(db);
+
+        // Validate every measurement-session decision up front. The smart PDF may choose the strongest
+        // analytical session rather than the latest one, so no session that can be rendered may bypass
+        // the same ChemCore -> SmartReport compatibility and scientific-semantic guard used by XLSX.
+        for(String sid:sessions){
+            if(sid==null||sid.trim().isEmpty())continue;
+            String id=sid.trim();
+            SmartReportAnalyticalContract.bind(SessionSeries.byId(db,id),decisions.latestPayloadForSession(id));
+        }
+
+        String primary="";JSONObject decision=null;
         for(int i=sessions.size()-1;i>=0;i--){String sid=sessions.get(i);JSONObject p=decisions.latestPayloadForSession(sid);if(p!=null){primary=sid;decision=p;break;}}
         if(primary.isEmpty()&&!sessions.isEmpty())primary=sessions.get(sessions.size()-1);
         SessionSeries.Series series=primary.isEmpty()?null:SessionSeries.byId(db,primary);
