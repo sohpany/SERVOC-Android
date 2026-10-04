@@ -66,6 +66,18 @@ public final class SmartReportAcceptanceContractTest {
         assertTrue(s.contains("ليست PPM تقريرية إلا بعد بوابة M4"));
     }
 
+    @Test public void smartReportV2ContractExposesAdvancedCapabilitiesAndReadsNestedQsprEvidence()throws Exception{
+        String s=read("SmartReportAnalyticalContract.java");
+        assertTrue(s.contains("VERSION=\"HR069-SMARTREPORT-2\""));
+        assertTrue(s.contains("SCHEMA_REVISION=2"));
+        assertTrue(s.contains("CROSS_CHANNEL_CORRELATION"));
+        assertTrue(s.contains("COMMON_C_CURVE_CONSISTENCY"));
+        assertTrue(s.contains("evidence_observations"));
+        assertTrue(s.contains("PUBCHEM_QSPR"));
+        assertTrue(s.contains("hasCommonCCurveEvidence"));
+        assertTrue(s.contains("hasMolecularQsprEvidence"));
+    }
+
     @Test public void molecularChartUsesOnlyPersistedQsprEvidenceAndNeverPromotesPpm()throws Exception{
         String s=read("MolecularReportCharts.java");
         assertTrue(s.contains("evidence_observations"));
@@ -104,7 +116,10 @@ public final class SmartReportAcceptanceContractTest {
         assertTrue(s.contains("\"السلسلة الزمنية\""));
         assertTrue(s.contains("\"عقد التحليل\""));
         assertTrue(s.contains("\"المنهجية والمصدر\""));
-        assertTrue("Excel must expose the molecular/QSPR capability through the shared contract",read("SmartReportAnalyticalContract.java").contains("MOLECULAR_QSPR"));
+        String contract=read("SmartReportAnalyticalContract.java");
+        assertTrue(contract.contains("MOLECULAR_QSPR"));
+        assertTrue(contract.contains("CROSS_CHANNEL_CORRELATION"));
+        assertTrue(contract.contains("COMMON_C_CURVE_CONSISTENCY"));
         assertTrue(s.contains("Evidence types"));
         assertTrue(s.contains("QSPR obs"));
         assertTrue(s.contains("QSPR in-domain"));
@@ -113,6 +128,12 @@ public final class SmartReportAcceptanceContractTest {
         assertTrue(s.contains("evidence_observations"));
         assertTrue(s.contains("PUBCHEM_QSPR"));
         assertTrue(s.contains("QSPR دعم جزيئي M1"));
+        assertTrue(s.contains("تفاصيل Stage17 common-C / منحنيات الاستجابة المحفوظة"));
+        assertTrue(s.contains("Observed Rs/R0"));
+        assertTrue(s.contains("Predicted log10 Rs/R0"));
+        assertTrue(s.contains("Standardized residual"));
+        assertTrue(s.contains("C* fitted ppm"));
+        assertTrue(s.contains("لا يعاد تشغيل solver أثناء التصدير"));
     }
 
     @Test public void smartXlsxPackageProducesAValidInspectableWorkbookContainer()throws Exception{
