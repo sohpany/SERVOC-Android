@@ -58,11 +58,17 @@ public class FieldSessionReportExporterContractTest {
   assertTrue(s.contains("if(plan.ppmReportable)AnalyticalCharts.exposureRatios(c,r[5],q)"));
  }
 
- @Test public void smartPdfUsesEveryIndependentMeasurementSessionAndSelectsStrongestEvidence() throws Exception {
+ @Test public void smartPdfUsesEveryIndependentMeasurementSessionButConsumesOneFacadeSelectedPrimary() throws Exception {
+  String f=src("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
   String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
   assertTrue(s.contains("for(String sid:ids)"));assertTrue(s.contains("SessionSeries.byId(db,id)"));
   assertTrue(s.contains("decisions.latestPayloadForSession(id)"));assertTrue(s.contains("ExperimentQueries.bySessionId(db,id).size()"));
-  assertTrue(s.contains("e.score>=best.score"));assertTrue(s.contains("كل Measurement Session مستقلة"));
+  assertTrue(f.contains("SmartReportPrimarySelector.score(candidateSeries,candidateDecision,candidateRecords)"));
+  assertTrue(s.contains("SmartReportAnalyticalContract contract=b.analyticalContract"));
+  assertTrue(s.contains("b.primaryMeasurementSessionId"));
+  assertFalse("PDF must not re-rank the primary session",s.contains("e.score>=best.score"));
+  assertFalse("PDF must not carry a duplicate private scoring policy",s.contains("private static int score("));
+  assertTrue(s.contains("كل Measurement Session مستقلة"));
   assertTrue(s.contains("لا يتم دمج السلاسل الزمنية"));assertFalse(s.contains("SessionSeries.nearest"));
  }
 
