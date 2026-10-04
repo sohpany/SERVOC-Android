@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -17,11 +18,17 @@ import java.util.Map;
  * It can promote a separated multi-channel match to IDENTIFIED/M3 only after an explicit accepted
  * open-set/OOD gate. It never creates M4 evidence or reportable ppm. P6/P7 re-run
  * independence-aware confidence fusion after adding the fingerprint.
+ *
+ * UID hardening: a fingerprint stores the zero-based legacy catalogue id, not chemical_uid.
+ * Promotion therefore resolves the UID through ChemCoreLegacyCandidateRegistry, which shares the
+ * database-backed QSPR UID when available. The previous local chemicalId+1 assumption has been
+ * removed from this component so fingerprint fusion and QSPR/reference candidates cannot silently
+ * describe the same compound under two different identifiers.
  */
 public final class AcceptedFingerprintIdentityEngine {
     private AcceptedFingerprintIdentityEngine() {}
 
-    public static final String VERSION="accepted-id-fp-v1";
+    public static final String VERSION="accepted-id-fp-v2-uid-safe";
     public static final String ACCEPTANCE_STATE="ACCEPTED_FOR_IDENTIFICATION";
     public static final int MIN_CONTRIBUTORS=2;
     public static final double MAX_DISTANCE=1.50;
@@ -67,11 +74,13 @@ public final class AcceptedFingerprintIdentityEngine {
         if(openSetResult==null||!openSetResult.accepted)return base;
         if(!promotable(base.outcome))return base;
         Decision d=evaluate(ratios);if(!d.accepted||d.top==null)return base;
-        int chemical=d.top.fingerprint.chemicalId;long uid=chemical+1L;
+        int chemical=d.top.fingerprint.chemicalId;
+        long uid=ChemCoreLegacyCandidateRegistry.uidForLegacyChemical(chemical);
+        if(uid<=0)return base; // ambiguous canonical identity mapping: fail closed
         String label=chemical>=0&&chemical<ChemicalCatalog.COUNT?ChemicalCatalog.NAMES[chemical]:d.top.fingerprint.label;
         List<ChemCoreResultEnvelope.CandidateSummary> merged=mergeCandidates(base.candidates,d.top,d.evidence,uid,label);double rankingWeight=identityRankingWeight(d.top);
         String source=d.evidence==null?"":d.evidence.sourceId;
-        String note=append(base.note,"accepted fingerprint identity reference after open-set acceptance: "+label+"; "+d.top.contributors+" HR069 channels; distance="+fmt(d.top.distance)+"; score="+fmt(d.top.score)+"; source="+source+"; state="+ACCEPTANCE_STATE+"; non-M4 identity only; reportable ppm remains withheld");
+        String note=append(base.note,"accepted fingerprint identity reference after open-set acceptance: "+label+"; "+d.top.contributors+" HR069 channels; distance="+fmt(d.top.distance)+"; score="+fmt(d.top.score)+"; source="+source+"; state="+ACCEPTANCE_STATE+"; uid_policy="+ChemCoreLegacyCandidateRegistry.UID_POLICY_VERSION+"; non-M4 identity only; reportable ppm remains withheld");
         String model=appendModel(base.modelVersion,VERSION);
         return new ChemCoreResultEnvelope(base.sessionId,ChemCoreDecision.Outcome.IDENTIFIED,ChemCoreDecision.EvidenceTier.M3_ARRAY_CONSISTENT,uid,label,Double.NaN,Double.NaN,Double.NaN,base.oodScore,rankingWeight,base.normalizedEntropy,base.samplingProfileId,base.featureSchema,model,note,merged,base.libraryVersion,base.librarySha256,base.librarySourceCommit);
     }
@@ -86,8 +95,15 @@ public final class AcceptedFingerprintIdentityEngine {
 
     private static boolean promotable(ChemCoreDecision.Outcome o){return o==ChemCoreDecision.Outcome.SCREENING||o==ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE;}
     private static List<ChemCoreResultEnvelope.CandidateSummary> mergeCandidates(List<ChemCoreResultEnvelope.CandidateSummary> base,FingerprintClassifier.Match match,ChemCoreEvidenceObservation fingerprintEvidence,long uid,String label){
-        Map<Long,ChemCoreResultEnvelope.CandidateSummary> byUid=new LinkedHashMap<>();if(base!=null)for(ChemCoreResultEnvelope.CandidateSummary c:base)if(c!=null)byUid.put(c.chemicalUid,c);
-        ChemCoreResultEnvelope.CandidateSummary old=byUid.remove(uid);
+        Map<Long,ChemCoreResultEnvelope.CandidateSummary> byUid=new LinkedHashMap<>();
+        ChemCoreResultEnvelope.CandidateSummary old=null;
+        if(base!=null)for(ChemCoreResultEnvelope.CandidateSummary c:base)if(c!=null){
+            if(c.chemicalUid==uid){old=c;continue;}
+            // A stale pre-hardening candidate may carry the same label under legacy_id+1.
+            // Do not emit two identities for one chemical; only the canonical UID survives.
+            if(sameLabel(c.label,label))continue;
+            byUid.put(c.chemicalUid,c);
+        }
         double posterior=Math.max(old==null||!Double.isFinite(old.posterior)?0.0:old.posterior,identityRankingWeight(match));double bestPpm=old==null?Double.NaN:old.bestPpm;double residual=Double.isFinite(match.distance)?match.distance:(old==null?Double.NaN:old.residualRms);
         int contributors=Math.max(match.contributors,old==null?0:old.contributors);double coverage=100.0*Math.min(1.0,contributors/8.0);double agreement=Double.isFinite(match.distance)?100.0*Math.exp(-0.5*match.distance*match.distance):Double.NaN;
         double evidenceQuality=Math.max(old==null||!Double.isFinite(old.evidenceQualityPct)?0:old.evidenceQualityPct,Math.min(85.0,55.0+7.5*Math.min(4,match.contributors)));int calibrated=old==null?0:old.calibratedContributors;boolean inside=old==null||old.allContributorsInsideDomain;Map<String,Double> residuals=old==null?Collections.emptyMap():old.residualLog10BySensor;
@@ -100,7 +116,9 @@ public final class AcceptedFingerprintIdentityEngine {
     private static double identityRankingWeight(FingerprintClassifier.Match m){double distance=Double.isFinite(m.distance)?m.distance:MAX_DISTANCE;double quality=Math.exp(-0.5*distance*distance);double channel=Math.min(1.0,m.contributors/4.0);return Math.min(0.99,Math.max(0.51,0.55+0.30*quality+0.14*channel));}
     private static double[] ratioVector(Map<String,Double> ratios){double[] out=new double[RobotTelemetry.MQ_KEYS.length];for(int i=0;i<out.length;i++){Double v=ratios==null?null:ratios.get(RobotTelemetry.MQ_KEYS[i]);out[i]=v!=null&&Double.isFinite(v)&&v>0?v:Double.NaN;}return out;}
     private static boolean[] heaterValidity(){boolean[] out=new boolean[RobotTelemetry.MQ_KEYS.length];for(int i=0;i<out.length;i++)out[i]=HazRobHardwareProfile.manufacturerHeaterProtocolValid(RobotTelemetry.MQ_KEYS[i]);return out;}
+    private static boolean sameLabel(String a,String b){return normalize(a).equals(normalize(b));}
+    private static String normalize(String s){return s==null?"":s.trim().toLowerCase(Locale.US);}
     private static String append(String base,String addition){return base==null||base.trim().isEmpty()?addition:base+"; "+addition;}
     private static String appendModel(String base,String addition){return base==null||base.trim().isEmpty()?addition:base+"+"+addition;}
-    private static String fmt(double v){return Double.isFinite(v)?String.format(java.util.Locale.US,"%.3f",v):"NA";}
+    private static String fmt(double v){return Double.isFinite(v)?String.format(Locale.US,"%.3f",v):"NA";}
 }
