@@ -1,5 +1,6 @@
-# RC2 artifact refresh: build the current branch head.
-name: Build HazRob RC2 Test APK
+# CR-20261004-003
+# Automated RC2 artifacts are WORKING/UNAPPROVED diagnostics only.
+name: Build HazRob RC2 WORKING Diagnostic APK
 
 on:
   workflow_dispatch:
@@ -18,16 +19,35 @@ permissions:
   contents: read
 
 concurrency:
-  group: hazrob-rc2-test-apk-${{ github.ref }}
+  group: hazrob-rc2-working-diagnostic-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-test-apk:
+  build-working-diagnostic-apk:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - name: Checkout RC2 source
         uses: actions/checkout@v4
+
+      - name: Record non-authoritative build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p working-artifact
+          {
+            echo "authority_status=WORKING_UNAPPROVED_NON_AUTHORITATIVE"
+            echo "product=HazRob-0.10.2"
+            echo "engineering_revision=HR069"
+            echo "source_repository=${GITHUB_REPOSITORY}"
+            echo "source_branch=${GITHUB_REF_NAME}"
+            echo "source_sha=${GITHUB_SHA}"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "workflow_run_number=${GITHUB_RUN_NUMBER}"
+            echo "change_record=CR-20261004-003"
+            echo "promotion_rule=This artifact cannot supersede CURRENT_RELEASE_AUTHORITY.md without a separate completed approval/promotion record."
+          } > working-artifact/ARTIFACT-MANIFEST.txt
+          cat working-artifact/ARTIFACT-MANIFEST.txt
 
       - name: Validate current RC2 runtime contract
         run: python3 tools/audit_0102_rc2_runtime_contract.py
@@ -55,7 +75,7 @@ jobs:
         with:
           gradle-version: '9.5.0'
 
-      - name: Restore prototype signing key for device-test build
+      - name: Restore prototype signing key for diagnostic device build
         run: |
           set -euo pipefail
           base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
@@ -79,64 +99,73 @@ jobs:
           cp "$REPLAY_REPORT" ChemCore-experiment4-replay.json
           cp "$MQ3_REPORT" MQ3-digital-twin-pilot.json
           cp "$MQ3_QSPR_REPORT" MQ3-qspr-fingerprint-pilot.json
-          echo "===== CHEMCORE REFERENCE SIMULATION ====="
-          cat ChemCore-reference-simulation.json
-          echo "===== CHEMCORE EXPERIMENT 4 REPLAY ====="
-          cat ChemCore-experiment4-replay.json
-          echo "===== MQ3 DIGITAL TWIN PILOT ====="
-          cat MQ3-digital-twin-pilot.json
-          echo "===== MQ3 QSPR FINGERPRINT PILOT ====="
-          cat MQ3-qspr-fingerprint-pilot.json
 
-      - name: Upload ChemCore reference simulation
+      - name: Upload ChemCore reference simulation diagnostic
         uses: actions/upload-artifact@v4
         with:
-          name: ChemCore-reference-simulation
+          name: ChemCore-reference-simulation-WORKING-${{ github.run_number }}-${{ github.sha }}
           path: ChemCore-reference-simulation.json
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload ChemCore Experiment 4 replay
+      - name: Upload ChemCore Experiment 4 replay diagnostic
         uses: actions/upload-artifact@v4
         with:
-          name: ChemCore-experiment4-replay
+          name: ChemCore-experiment4-replay-WORKING-${{ github.run_number }}-${{ github.sha }}
           path: ChemCore-experiment4-replay.json
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload MQ3 digital twin pilot
+      - name: Upload MQ3 digital twin pilot diagnostic
         uses: actions/upload-artifact@v4
         with:
-          name: MQ3-digital-twin-pilot
+          name: MQ3-digital-twin-pilot-WORKING-${{ github.run_number }}-${{ github.sha }}
           path: MQ3-digital-twin-pilot.json
           if-no-files-found: error
           retention-days: 14
 
-      - name: Upload MQ3 QSPR fingerprint pilot
+      - name: Upload MQ3 QSPR fingerprint pilot diagnostic
         uses: actions/upload-artifact@v4
         with:
-          name: MQ3-qspr-fingerprint-pilot
+          name: MQ3-qspr-fingerprint-pilot-WORKING-${{ github.run_number }}-${{ github.sha }}
           path: MQ3-qspr-fingerprint-pilot.json
           if-no-files-found: error
           retention-days: 14
 
-      - name: Build installable debug APK
+      - name: Build installable diagnostic debug APK
         run: gradle --no-daemon :app:assembleDebug
 
-      - name: Verify and stage APK
+      - name: Verify, fingerprint and stage diagnostic APK
+        shell: bash
         run: |
           set -euo pipefail
           APK=app/build/outputs/apk/debug/app-debug.apk
           test -f "$APK"
           /usr/local/lib/android/sdk/build-tools/36.0.0/apksigner verify --verbose "$APK"
-          cp "$APK" HazRob-0.10.2-HR069-RC2-test.apk
-          sha256sum HazRob-0.10.2-HR069-RC2-test.apk
+          OUT="HazRob-0.10.2-HR069-RC2-WORKING-${GITHUB_RUN_NUMBER}-${GITHUB_SHA}.apk"
+          cp "$APK" "working-artifact/$OUT"
+          APK_SHA256=$(sha256sum "working-artifact/$OUT" | awk '{print $1}')
+          BADGING=$(/usr/local/lib/android/sdk/build-tools/36.0.0/aapt dump badging "$APK" | head -1)
+          CERT_SHA256=$(/usr/local/lib/android/sdk/build-tools/36.0.0/apksigner verify --print-certs "$APK" | awk -F': ' '/SHA-256 digest/ {print $2; exit}' | tr -d ': ' | tr 'A-F' 'a-f')
+          {
+            echo "apk_filename=$OUT"
+            echo "apk_sha256=$APK_SHA256"
+            echo "apk_badging=$BADGING"
+            echo "signing_cert_sha256=$CERT_SHA256"
+            echo "runtime_contract=PASS"
+            echo "android_unit_tests=PASS"
+            echo "apk_build=PASS"
+            echo "apk_signer_verification=PASS"
+          } >> working-artifact/ARTIFACT-MANIFEST.txt
+          sha256sum "working-artifact/$OUT" > working-artifact/SHA256SUMS.txt
+          cat working-artifact/ARTIFACT-MANIFEST.txt
+          cat working-artifact/SHA256SUMS.txt
 
-      - name: Upload test APK
+      - name: Upload WORKING UNAPPROVED diagnostic APK package
         uses: actions/upload-artifact@v4
         with:
-          name: HazRob-0.10.2-HR069-RC2-test
-          path: HazRob-0.10.2-HR069-RC2-test.apk
+          name: HazRob-0.10.2-HR069-RC2-WORKING-UNAPPROVED-${{ github.run_number }}-${{ github.sha }}
+          path: working-artifact/
           if-no-files-found: error
           retention-days: 14
 
@@ -144,7 +173,6 @@ jobs:
         if: always()
         run: |
           rm -f signing/hazrob-prototype.jks
-          rm -f HazRob-0.10.2-HR069-RC2-test.apk
           rm -f ChemCore-reference-simulation.json
           rm -f ChemCore-experiment4-replay.json
           rm -f MQ3-digital-twin-pilot.json
