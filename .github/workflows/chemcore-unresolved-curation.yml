@@ -1,96 +1,20 @@
-name: Build ChemCore Unresolved Curation
+name: RETIRED - Legacy ChemCore unresolved-curation writer - DO NOT WRITE
 
 on:
-  push:
-    branches:
-      - dev/hazrob-0.10.1
-    paths:
-      - tools/build_chemcore_unresolved_curation.py
-      - app/src/main/assets/generated/chemcore/molecular_descriptors.json
-      - .github/workflows/chemcore-unresolved-curation.yml
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: chemcore-unresolved-curation-${{ github.ref }}
-  cancel-in-progress: false
+  contents: read
 
 jobs:
-  build-curation:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+  retired-workflow:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout 0.10.1 integration branch
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Build complete unresolved-identity curation
-        run: python3 tools/build_chemcore_unresolved_curation.py
-
-      - name: Validate fail-closed molecular eligibility
+      - name: Fail closed - controlled scientific-data change required
+        shell: bash
         run: |
-          python3 - <<'PY'
-          import hashlib, json
-          from pathlib import Path
-          seed_path=Path('app/src/main/assets/generated/chemcore/molecular_descriptors.json')
-          out_path=Path('app/src/main/assets/generated/chemcore/unresolved_curation.json')
-          seed=json.loads(seed_path.read_text(encoding='utf-8'))
-          out=json.loads(out_path.read_text(encoding='utf-8'))
-          unresolved=[r for r in seed['records'] if r.get('status')=='UNRESOLVED']
-          assert seed.get('record_count')==652
-          assert seed.get('resolved_count')==615
-          assert len(unresolved)==37, len(unresolved)
-          assert out['schema']=='chemcore-unresolved-curation-v1'
-          assert out['record_count']==37
-          assert len(out['records'])==37
-          assert out['source_seed_sha256']==hashlib.sha256(seed_path.read_bytes()).hexdigest()
-          assert all(r.get('molecular_qspr_eligible') is False for r in out['records'])
-          allowed={'PURE_COMPOUND','MIXTURE','MATERIAL','ISOMER_GROUP','OCCUPATIONAL_CATEGORY'}
-          assert {r['entity_type'] for r in out['records']} <= allowed
-          assert {(r['cas'],r['name_en']) for r in out['records']} == {(r['cas'],r['name_en']) for r in unresolved}
-          print('Curated unresolved identities:', out['entity_type_counts'])
-          PY
-
-      - name: Commit pinned curation safely
-        run: |
-          set -euo pipefail
-          TARGET=dev/hazrob-0.10.1
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/src/main/assets/generated/chemcore/unresolved_curation.json
-          if git diff --cached --quiet; then
-            echo "Unresolved curation already pinned; no changes."
-            exit 0
-          fi
-          git commit -m "data(chemcore): pin unresolved identity curation"
-          for attempt in 1 2 3; do
-            git fetch origin "$TARGET"
-            if git rebase "origin/$TARGET"; then
-              if git push origin "HEAD:$TARGET"; then exit 0; fi
-            else
-              git rebase --abort || true
-              echo "Curation rebase conflict; refusing to overwrite branch."
-              exit 1
-            fi
-            echo "Push raced with another commit; retrying ($attempt/3)."
-            sleep $((attempt * 2))
-          done
-          echo "Unable to pin curation after three safe retries."
+          echo "::error::This legacy unresolved-curation writer is retired under CR-20261004-009."
+          echo "No generated scientific dataset may be committed without a registered and approved HazRob Change Record."
+          echo "Current authority: HazRob/build-harness/CURRENT_RELEASE_AUTHORITY.md"
+          echo "Policy: HazRob/build-harness/docs/HAZROB_MANDATORY_CHANGE_CONTROL_AND_RELEASE_POLICY_2026-10-04.md"
           exit 1
-
-      - name: Upload curation audit artifact
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: chemcore-unresolved-curation-0.10.1
-          path: app/src/main/assets/generated/chemcore/unresolved_curation.json
-          if-no-files-found: error
-          retention-days: 90
