@@ -1,144 +1,21 @@
-name: Publish ChemCore Experimental Library — 0.10.2 HR069
+name: RETIRED - HR069 ChemCore library publisher - DO NOT PUBLISH
 
 on:
   workflow_dispatch:
-    inputs:
-      library_version:
-        description: 'Semantic ChemCore library version'
-        required: true
-  push:
-    branches: ['release/hazrob-0.10.2']
-    paths: ['chemcore/stable/VERSION']
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  publish-stable-0102:
-    if: github.ref == 'refs/heads/release/hazrob-0.10.2'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
+  retired-workflow:
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Resolve publication version
-        env:
-          INPUT_LIBRARY_VERSION: ${{ inputs.library_version }}
+      - name: Fail closed - controlled publication required
+        shell: bash
         run: |
-          set -euo pipefail
-          if [ "$GITHUB_EVENT_NAME" = push ]; then V=$(tr -d '[:space:]' < chemcore/stable/VERSION); else V="$INPUT_LIBRARY_VERSION"; fi
-          python3 - "$V" <<'PY'
-          import re,sys
-          v=sys.argv[1]
-          assert re.fullmatch(r'(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?',v), 'invalid semantic version'
-          PY
-          echo "LIB_VERSION=$V" >> "$GITHUB_ENV"
-
-      - name: Build HR069 response priors
-        run: |
-          set -euo pipefail
-          python3 tools/build_hr069_research_priors.py --out "$RUNNER_TEMP/hr069-response-priors.json"
-          python3 - <<'PY'
-          import json,os
-          p=json.load(open(os.environ['RUNNER_TEMP']+'/hr069-response-priors.json',encoding='utf-8'))
-          assert p['source_curve_count']==43
-          assert p['preferred_literature_overlay_count']==6
-          assert p['record_count']==49
-          assert p['policy']['external_m4'] is False
-          assert all(not r.get('device_validated',False) for r in p['records'])
-          PY
-
-      - name: Validate analytical registries
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import json
-          m=json.load(open('research_data/hr069_analytical_library/mq_models_76.json',encoding='utf-8'))
-          e=json.load(open('research_data/external_mq_fingerprints/manifest.json',encoding='utf-8'))
-          assert m['model_count']==76 and len(m['models'])==76
-          assert m['android_native_count']==14 and m['upstream_verified_count']==12 and m['approximation_count']==2
-          assert e['release']=='0.10.2' and e['hardware_revision']=='HR069'
-          assert e['authoritative_quantification_allowed'] is False
-          PY
-
-      - name: Build canonical Stable snapshot
-        run: |
-          set -euo pipefail
-          OUT="$RUNNER_TEMP/chemcore-stable-snapshot.json"
-          python3 tools/build_chemcore_stable_snapshot.py \
-            --source-commit "$GITHUB_SHA" \
-            --response-priors "$RUNNER_TEMP/hr069-response-priors.json" \
-            --model-artifacts research_data/hr069_analytical_library/mq_models_76.json \
-            --reference-artifacts research_data/external_mq_fingerprints/manifest.json \
-            --out "$OUT"
-          echo "CHEMCORE_PAYLOAD=$OUT" >> "$GITHUB_ENV"
-          python3 - <<'PY'
-          import json,os
-          d=json.load(open(os.environ['CHEMCORE_PAYLOAD'],encoding='utf-8')); c=d['content_counts']; p=d['policy']
-          assert d['schema']=='chemcore-stable-snapshot-v1'
-          assert d['source_commit_sha']==os.environ['GITHUB_SHA']
-          assert d['data_revision'].startswith('sha256:') and len(d['data_revision'])==71
-          assert d['evidence_revision']=='hazrob-evidence-policy/1'
-          assert c['chemical_identities']==652 and c['molecularly_resolved']==615 and c['identity_curation_records']==37
-          assert c['response_priors']==49 and c['model_artifacts']==76 and c['reference_artifacts']>=4
-          assert p['m4_requires_device_specific_validation'] is True and p['external_research_packaging_does_not_promote_m4'] is True
-          with open(os.environ['GITHUB_ENV'],'a',encoding='utf-8') as env:
-              env.write(f"CHEMICAL_COUNT={c['chemical_identities']}\nMODEL_COUNT={c['model_artifacts']}\nCALIBRATION_COUNT={c['calibrations']}\nSOURCE_COUNT={c['reference_artifacts']}\n")
-              env.write(f"DATA_REVISION={d['data_revision']}\nEVIDENCE_REVISION={d['evidence_revision']}\nPAYLOAD_SCHEMA={d['schema']}\n")
-          PY
-
-      - name: Build immutable SHA-256 publication bundle
-        run: |
-          set -euo pipefail
-          python3 tools/publish_chemcore_library.py \
-            --payload "$CHEMCORE_PAYLOAD" --out-dir "$RUNNER_TEMP/chemcore-stable" \
-            --library-version "$LIB_VERSION" --source-commit "$GITHUB_SHA" --channel stable \
-            --payload-format json --payload-schema "$PAYLOAD_SCHEMA" \
-            --data-revision "$DATA_REVISION" --evidence-revision "$EVIDENCE_REVISION" \
-            --min-app-version 0.10.2 --feature-schema chemcore-features/1 \
-            --sampling-profile hazrob-chemcore-chamber-v2 \
-            --chemical-count "$CHEMICAL_COUNT" --source-count "$SOURCE_COUNT" \
-            --model-count "$MODEL_COUNT" --calibration-count "$CALIBRATION_COUNT"
-
-      - name: Verify bundle contract and SHA-256
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          import hashlib,json,pathlib,os
-          r=pathlib.Path(os.environ['RUNNER_TEMP'])/'chemcore-stable'; m=json.loads((r/'manifest.json').read_text(encoding='utf-8'))
-          assert m['schema_version']==2 and m['channel']=='stable' and m['min_app_version']=='0.10.2'
-          assert m['integrity_mode']=='sha256'
-          assert m['payload_schema']==os.environ['PAYLOAD_SCHEMA']
-          assert m['data_revision']==os.environ['DATA_REVISION'] and m['evidence_revision']==os.environ['EVIDENCE_REVISION']
-          assert m['model_count']==76 and m['chemical_count']==652
-          payload_path=r/m['payload_file']; actual=hashlib.sha256(payload_path.read_bytes()).hexdigest()
-          assert actual==m['payload_sha256']
-          payload=json.loads(payload_path.read_text(encoding='utf-8'))
-          assert payload['schema']==m['payload_schema']; assert payload['source_commit_sha']==m['source_commit_sha']
-          assert payload['data_revision']==m['data_revision']; assert payload['evidence_revision']==m['evidence_revision']
-          PY
-
-      - name: Publish snapshot to app-update distribution branch
-        run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'; git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch origin app-update-distribution
-          rm -rf /tmp/hazrob-dist
-          git worktree add -B app-update-distribution /tmp/hazrob-dist origin/app-update-distribution
-          rm -rf /tmp/hazrob-dist/public/chemcore; mkdir -p /tmp/hazrob-dist/public/chemcore
-          cp "$RUNNER_TEMP/chemcore-stable/manifest.json" "$RUNNER_TEMP/chemcore-stable/publication_audit.json" /tmp/hazrob-dist/public/chemcore/
-          P=$(python3 -c 'import json,os;print(json.load(open(os.environ["RUNNER_TEMP"]+"/chemcore-stable/manifest.json"))["payload_file"])')
-          cp "$RUNNER_TEMP/chemcore-stable/$P" "/tmp/hazrob-dist/public/chemcore/$P"
-          git -C /tmp/hazrob-dist add -A public/chemcore
-          git -C /tmp/hazrob-dist diff --cached --quiet || { git -C /tmp/hazrob-dist commit -m "dist(chemcore): publish HR069 experimental $LIB_VERSION"; git -C /tmp/hazrob-dist push origin HEAD:app-update-distribution; }
-
-      - name: Upload bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: ChemCore-Experimental-0.10.2-HR069-${{ env.LIB_VERSION }}
-          path: ${{ runner.temp }}/chemcore-stable/
-          if-no-files-found: error
-          retention-days: 90
+          echo "::error::This legacy ChemCore publication workflow is retired under CR-20261004-009."
+          echo "No library/data/distribution publication may occur without a registered and approved HazRob Change Record."
+          echo "Current authority: HazRob/build-harness/CURRENT_RELEASE_AUTHORITY.md"
+          echo "Policy: HazRob/build-harness/docs/HAZROB_MANDATORY_CHANGE_CONTROL_AND_RELEASE_POLICY_2026-10-04.md"
+          echo "Canonical analytical corpus: research_data/hr069_analytical_library/"
+          exit 1
