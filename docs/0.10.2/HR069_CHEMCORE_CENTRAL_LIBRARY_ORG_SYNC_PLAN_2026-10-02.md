@@ -1,104 +1,63 @@
-# HR069 ChemCore Central Library ↔ Organization Research Sync Plan
+# SUPERSEDED — HR069 ChemCore Central Library ↔ Organization Research Sync Plan
 
-Date: 2026-10-02
-Release: HazRob 0.10.2 / RC2 / HR069
-Android source branch: `sohpany/SERVOC-Android@release/hazrob-0.10.2-rc2`
-Starting Android commit: `9efe2ff123664be261b1f2bff6a9f2fcff07a904`
-Canonical organization library: `HazRob/build-harness@main/library/`
-Starting organization commit: `2a965674ea9afe153f1507bb132b07b00684a48c`
+**Original plan date:** 2026-10-02  
+**Superseded:** 2026-10-04  
+**Change record:** `HazRob/build-harness/docs/CR-20261004-007_RETIRE_OBSOLETE_CENTRAL_LIBRARY_SYNC_PLAN.md`  
+**Status:** HISTORICAL REFERENCE ONLY — DO NOT EXECUTE
 
-## Purpose
-Synchronize the canonical ChemCore Stable library with all qualified research/reference assets available in the HazRob organization and the current Android source, without silently promoting transfer/research evidence to HR069 M4.
+## Why this document is superseded
 
-## Source-of-truth model
-1. `HazRob/build-harness/library/` is the canonical scientific-library owner.
-2. `library/research/hr069/` contains accepted research/transfer evidence.
-3. `library/reference-bank/` contains approved experiments and derived references.
-4. `library/chemcore/stable/` contains verified stable ChemCore publications.
-5. `sohpany/SERVOC-Android` is an application consumer plus source/tooling repository; its embedded assets must be reconciled with the canonical organization library.
+The original version of this file proposed an authority model in which `HazRob/build-harness/library/` would become the canonical scientific-library owner and `sohpany/SERVOC-Android` would act mainly as an application consumer.
 
-## Evidence rules
-- Never synthesize missing MQ channels.
-- External/cross-device literature remains `RESEARCH_EXTERNAL` or transfer-only unless separately validated on HR069.
-- Do not promote external evidence to `M4_HAZROB_VALIDATED`.
-- Reportable device-specific PPM remains subject to HR069 M4 quantitative gates.
-- Preserve source identity, provenance, source hash, sensor overlap, concentration domain, transfer status, and conflict notes.
-- Conflicting evidence is retained and classified; it is not overwritten simply because a newer file exists.
+That model is withdrawn and is **not** the current HazRob authority model.
 
-## Classification states
-Each relevant asset is classified as exactly one of:
-- `CENTRAL_USED` — already represented and actively used by ChemCore Stable/runtime.
-- `DUPLICATE_EQUIVALENT` — byte/content equivalent to an already represented source.
-- `ORG_NEWER` — organization asset supersedes an older embedded/application copy.
-- `ORG_UNMERGED_QUALIFIED` — qualified organization evidence exists but is not represented in the current stable/runtime library.
-- `SOURCE_CONFLICT` — source-backed evidence conflicts materially with another accepted source and requires explicit coexistence/precedence semantics.
-- `REJECTED_WITH_REASON` — not eligible for Central Stable; reason required.
-- `NEEDS_REVIEW` — insufficient evidence to classify safely.
+The original plan remains available through Git history for provenance, including commit `bea62203bfe509c794aada0fb74dba38ef7f6ba6`. It must not be resumed, completed, or used as authority for any present or future library synchronization.
 
-## Execution phases
-### P0 — Freeze and checkpoint
-- Record starting commits and canonical ownership.
-- Create this plan and a machine-readable synchronization ledger.
+## Current authoritative model
 
-### P1 — Inventory
-- Enumerate canonical `library/research/hr069`, `library/reference-bank`, and `library/chemcore/stable`.
-- Enumerate Android embedded/generated ChemCore assets, research assets, registries, extraction tools, and publication/update workflows.
+For HazRob RC2 / Android 0.10.2 / HR069:
 
-### P2 — Mapping
-For every relevant research/reference asset, record:
-- source repository/path/hash
-- asset type
-- analyte/material scope
-- MQ sensor scope
-- concentration/domain semantics
-- evidence tier/M4 status
-- matching Central Stable/runtime representation
-- classification and proposed action
+1. **Production/executable repository:** `sohpany/SERVOC-Android`.
+2. **Active branch:** `release/hazrob-0.10.2-rc2`.
+3. **Production ChemCore:** the ChemCore implementation in `sohpany/SERVOC-Android`.
+4. **Canonical active analytical corpus:**
+   `research_data/hr069_analytical_library/`
+   in `sohpany/SERVOC-Android`.
+5. **HazRob/build-harness:** governance, CI/build, test, qualification and release-evidence support only. It is not a second production source tree and it is not a second canonical scientific library.
+6. **sohpany/HazRob-Lab:** FROZEN / HISTORICAL REFERENCE ONLY since 2026-10-01.
 
-### P3 — Qualification
-- Validate schemas and hashes.
-- Verify analyte/CAS mapping and 144-catalog mapping where applicable.
-- Verify sensor overlap and missing-channel handling.
-- Detect duplicates and source conflicts.
-- Confirm Android/runtime consumption path.
+## Explicitly withdrawn assumptions from the original plan
 
-### P4 — Controlled promotion
-- Promote only qualified assets.
-- Preserve provenance and source tier.
-- Keep transfer-only evidence explicitly non-M4.
-- Update Central Stable metadata/manifest/status index where appropriate.
-- Update Android embedded/runtime representation only when required for the integrated APK.
+The following former statements/paths are non-authoritative and must not be used as current instructions:
 
-### P5 — Validation
-- Central-library integrity/schema tests.
-- ChemCore regression/unit tests.
-- Candidate-ranking and fingerprint regressions.
-- Smart-report integration tests.
-- Android build and signing/APK verification.
+- `HazRob/build-harness/library/` as canonical scientific-library owner;
+- `HazRob/build-harness/library/chemcore/stable/` as current Central Stable authority;
+- `HazRob/build-harness/library/research/hr069/` as the current primary research library;
+- `HazRob/build-harness/library/reference-bank/` as a current reference-bank authority;
+- the former `CLSYNC-0001` checkpoint as an active resume point;
+- the proposed `HR069_CHEMCORE_CENTRAL_LIBRARY_SYNC_LEDGER_2026-10-02.csv` as a required current ledger.
 
-### P6 — Release
-- Record final organization/app commits.
-- Record merged/rejected/conflicting counts.
-- Record library version/hash.
-- Build final integrated APK and record SHA-256.
+The referenced CSV was not present at the expected active RC2 path during the 2026-10-04 governance audit and must not be recreated under the withdrawn authority model.
 
-## Resume protocol
-After each material change, update `HR069_CHEMCORE_CENTRAL_LIBRARY_SYNC_LEDGER_2026-10-02.csv` and the checkpoint section below. A resumed session MUST start from the latest committed checkpoint, verify both recorded repository heads, and continue from `NEXT_ACTION`; no completed phase should be recomputed unless a recorded source head changed.
+## Current scientific admission rule
 
-## Checkpoint
-- CHECKPOINT_ID: `CLSYNC-0001`
-- STATUS: `P0_COMPLETE_P1_IN_PROGRESS`
-- ANDROID_HEAD_AT_START: `9efe2ff123664be261b1f2bff6a9f2fcff07a904`
-- ORG_HEAD_AT_START: `2a965674ea9afe153f1507bb132b07b00684a48c`
-- CANONICAL_LIBRARY_CONFIRMED: `HazRob/build-harness/library/`
-- CENTRAL_STABLE_PATH_CONFIRMED: `HazRob/build-harness/library/chemcore/stable/`
-- RESEARCH_PATH_CONFIRMED: `HazRob/build-harness/library/research/hr069/`
-- NEXT_ACTION: `Complete P1 inventory and populate the synchronization ledger.`
+Any new experiment, calibration, fingerprint, curve, dataset, model, transfer evidence or analytical record must enter the current canonical RC2/HR069 corpus through the active change-control process and preserve provenance, hashes, conditions, evidence tier and scientific limitations.
 
-## Release gate
-No final APK is considered the requested integrated build until:
-1. synchronization ledger has no unclassified relevant assets;
-2. every conflict has explicit disposition;
-3. ChemCore and smart-report regression tests pass;
-4. APK build/signature verification passes;
-5. final library/app hashes and commits are recorded.
+External or transfer evidence does not become M4 by source alone. HR069 reportable quantitative ppm remains subject to device/reference calibration and validation.
+
+## Current governance references
+
+Use the current records in `HazRob/build-harness`:
+
+- `CURRENT_RELEASE_AUTHORITY.md`
+- `CURRENT_EXECUTION_STATUS_0.10.2_HR069.md`
+- `EXECUTION_RULES_HR069.md`
+- `docs/HAZROB_MANDATORY_CHANGE_CONTROL_AND_RELEASE_POLICY_2026-10-04.md`
+- `docs/HR069_CURRENT_CONTROLLED_BASELINE_APPROVAL_2026-10-04.md`
+- `docs/HR069_RETROSPECTIVE_APK_AND_FIRMWARE_RELEASE_LEDGER_2026-10-04.md`
+
+## Final instruction
+
+**Do not execute or resume the original organization-library synchronization plan.**
+
+This file now exists only to make the historical provenance visible and to prevent the superseded authority model from being mistaken for the current one.
