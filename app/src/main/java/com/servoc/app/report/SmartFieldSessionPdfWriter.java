@@ -30,8 +30,8 @@ public final class SmartFieldSessionPdfWriter {
     private static final float MARGIN=28.35f;
 
     static final class Evidence {
-        final String sessionId;final SessionSeries.Series series;final JSONObject decision;final int recordCount,score;
-        Evidence(String sid,SessionSeries.Series s,JSONObject d,int records){sessionId=sid;series=s;decision=d;recordCount=records;score=score(s,d,records);}
+        final String sessionId;final SessionSeries.Series series;final JSONObject decision;final int recordCount;
+        Evidence(String sid,SessionSeries.Series s,JSONObject d,int records){sessionId=sid;series=s;decision=d;recordCount=records;}
         boolean seriesOk(){return series!=null&&series.usable();} boolean chemOk(){return decision!=null;}
         int samples(){return series==null?0:series.samples.size();} long durationMs(){return series==null?0:series.durationMs();}
         String outcome(){return decision==null?"—":decision.optString("outcome","—");} String topCandidate(){return SmartFieldSessionPdfWriter.topCandidate(decision);}
@@ -42,8 +42,10 @@ public final class SmartFieldSessionPdfWriter {
     public static void writePdf(OutputStream out,ExperimentsDb db,String fieldSessionId,ChemicalRepository chemicals)throws Exception{
         if(out==null)throw new IllegalArgumentException("output required");
         FieldSessionReportExporter.Bundle b=FieldSessionReportExporter.resolve(db,fieldSessionId);
-        List<Evidence> all=evidence(db,b.measurementSessionIds);Evidence primary=primary(all);Consensus cs=consensus(all);
-        SessionSeries.Series s=primary==null?null:primary.series;JSONObject q=primary==null?null:primary.decision;
+        if(b.analyticalContract==null)throw new IllegalStateException("SmartReport analytical contract missing");
+        SmartReportAnalyticalContract contract=b.analyticalContract;
+        List<Evidence> all=evidence(db,b.measurementSessionIds);Evidence primary=primaryFromBundle(b,contract,all);Consensus cs=consensus(all);
+        SessionSeries.Series s=contract.series();JSONObject q=contract.decision();
         ReportIntelligence.ReportPlan plan=ReportIntelligence.plan(s,q,b.measurementSessionIds.size());JSONObject hazard=CandidateHazardContext.evaluate(db,q);
         int total=all.size()>1?5:4;
         PdfDocument pdf=new PdfDocument();
@@ -56,8 +58,7 @@ public final class SmartFieldSessionPdfWriter {
     }
 
     static List<Evidence> evidence(ExperimentsDb db,List<String> ids){List<Evidence> out=new ArrayList<>();ChemCoreDecisionRepository decisions=new ChemCoreDecisionRepository(db);if(ids==null)return out;for(String sid:ids){if(sid==null||sid.trim().isEmpty())continue;String id=sid.trim();out.add(new Evidence(id,SessionSeries.byId(db,id),decisions.latestPayloadForSession(id),ExperimentQueries.bySessionId(db,id).size()));}return out;}
-    static Evidence primary(List<Evidence> all){Evidence best=null;for(Evidence e:all)if(best==null||e.score>=best.score)best=e;return best;}
-    private static int score(SessionSeries.Series s,JSONObject d,int records){int x=Math.min(12,Math.max(0,records));if(s!=null&&s.usable()){x+=70;x+=Math.min(20,s.samples.size()/5);}if(d!=null){x+=100;JSONArray a=d.optJSONArray("candidates");if(a!=null)x+=Math.min(20,a.length()*3);double p=topPosterior(d);if(Double.isFinite(p))x+=(int)Math.round(Math.max(0,Math.min(1,p))*20);int v=validMq(d);if(v>0)x+=Math.min(8,v);String o=d.optString("outcome","");if("IDENTIFIED".equals(o))x+=20;if("QUANTIFIED".equals(o)||d.optBoolean("ppm_reportable",false))x+=40;}return x;}
+    private static Evidence primaryFromBundle(FieldSessionReportExporter.Bundle b,SmartReportAnalyticalContract contract,List<Evidence> all){String id=b.primaryMeasurementSessionId==null?"":b.primaryMeasurementSessionId;int records=0;for(Evidence e:all)if(id.equals(e.sessionId)){records=e.recordCount;break;}return new Evidence(id,contract.series(),contract.decision(),records);}
     private static Consensus consensus(List<Evidence> all){Map<String,Integer> n=new LinkedHashMap<>();Map<String,Double> sum=new LinkedHashMap<>();int total=0;for(Evidence e:all){if(!e.chemOk())continue;String k=e.topCandidate();if(k.isEmpty()||"—".equals(k))continue;total++;n.put(k,n.containsKey(k)?n.get(k)+1:1);double p=e.posterior();sum.put(k,(sum.containsKey(k)?sum.get(k):0)+(Double.isFinite(p)?p:0));}String best="—";int bn=0;double mean=Double.NaN;for(String k:n.keySet())if(n.get(k)>bn){best=k;bn=n.get(k);mean=sum.get(k)/Math.max(1,bn);}return new Consensus(best,bn,total,mean);}
 
     private static PdfDocument.Page page(PdfDocument pdf,int n){return pdf.startPage(new PdfDocument.PageInfo.Builder(PAGE_WIDTH,PAGE_HEIGHT,n).create());}
@@ -66,7 +67,7 @@ public final class SmartFieldSessionPdfWriter {
     private static void executiveOverview(Canvas c,FieldSessionReportExporter.Bundle b,List<Evidence> all,Evidence primary,ReportIntelligence.ReportPlan plan,JSONObject hazard,Consensus cs){
         title(c,"الملخص التنفيذي • "+plan.modeAr,42);float y=74;String[][] rows={{"الموقع",b.site.name},{"الجلسة",b.fieldSession.name},{"الحالة",b.fieldSession.status},{"جلسات القياس",String.valueOf(all.size())},{"مرجع التحليل",primary==null?"—":shorten(primary.sessionId,32)}};for(String[] r:rows){labelValue(c,r[0],r[1],y);y+=22;}
         JSONObject q=primary==null?null:primary.decision;metric(c,420,72,178,70,"المرشح الأعلى",q==null?"—":topCandidate(q),q==null?"—":q.optString("evidence_tier","—"),0xFFFFF3E0);metric(c,610,72,190,70,"ثبات الجلسة",cs.count+" / "+cs.total,shorten(cs.label,24)+" • "+pct(cs.meanPosterior),0xFFE8F5E9);metric(c,420,152,178,70,"الجودة",primary==null?"—":(primary.validMq()<0?"MQ —":"MQ "+primary.validMq()+"/8"),"Posterior "+pct(plan.topPosterior)+" • OOD "+fmt(plan.oodScore),0xFFF4F6F8);metric(c,610,152,190,70,"مصفوفة 144",plan.panelCandidateSupported+" دعم","Evaluated "+plan.panelEvaluated+"/"+plan.panelTarget,0xFFE0F7FA);
-        text(c,"جلسات القياس الفنية",42,212,11,Color.BLACK,true);String[] h={"Session","Samples","Duration","Outcome","Top candidate","Post.","MQ"};float[] x={42,248,310,380,490,655,735};for(int i=0;i<h.length;i++)text(c,h[i],x[i],236,7.5f,Color.DKGRAY,true);float yy=258;int shown=0;for(Evidence e:all){if(shown++>=7)break;boolean p=e==primary;if(p)box(c,36,yy-14,765,23,0xFFE3F2FD);text(c,(p?"★ ":"")+shorten(e.sessionId,29),x[0],yy,7.2f,Color.BLACK,p);text(c,String.valueOf(e.samples()),x[1],yy,7.2f,Color.BLACK,false);text(c,String.format(Locale.US,"%.1fs",e.durationMs()/1000.0),x[2],yy,7.2f,Color.BLACK,false);text(c,shorten(e.outcome(),15),x[3],yy,7.2f,Color.BLACK,false);text(c,shorten(e.topCandidate(),20),x[4],yy,7.2f,Color.BLACK,false);text(c,pct(e.posterior()),x[5],yy,7.2f,Color.BLACK,false);text(c,e.validMq()<0?"—":e.validMq()+"/8",x[6],yy,7.2f,Color.BLACK,false);yy+=25;}
+        text(c,"جلسات القياس الفنية",42,212,11,Color.BLACK,true);String[] h={"Session","Samples","Duration","Outcome","Top candidate","Post.","MQ"};float[] x={42,248,310,380,490,655,735};for(int i=0;i<h.length;i++)text(c,h[i],x[i],236,7.5f,Color.DKGRAY,true);float yy=258;int shown=0;for(Evidence e:all){if(shown++>=7)break;boolean p=primary!=null&&e.sessionId.equals(primary.sessionId);if(p)box(c,36,yy-14,765,23,0xFFE3F2FD);text(c,(p?"★ ":"")+shorten(e.sessionId,29),x[0],yy,7.2f,Color.BLACK,p);text(c,String.valueOf(e.samples()),x[1],yy,7.2f,Color.BLACK,false);text(c,String.format(Locale.US,"%.1fs",e.durationMs()/1000.0),x[2],yy,7.2f,Color.BLACK,false);text(c,shorten(e.outcome(),15),x[3],yy,7.2f,Color.BLACK,false);text(c,shorten(e.topCandidate(),20),x[4],yy,7.2f,Color.BLACK,false);text(c,pct(e.posterior()),x[5],yy,7.2f,Color.BLACK,false);text(c,e.validMq()<0?"—":e.validMq()+"/8",x[6],yy,7.2f,Color.BLACK,false);yy+=25;}
         if(all.size()>7)text(c,"+ "+(all.size()-7)+" جلسات إضافية في Excel التفصيلي",42,yy+4,8,Color.DKGRAY,false);
         if(hazard!=null&&hazard.optJSONArray("candidates")!=null&&hazard.optJSONArray("candidates").length()>0)CandidateHazardCharts.executiveStrip(c,new RectF(42,442,800,526),hazard);
         text(c,"Screening لا يساوي هوية مؤكدة أو PPM؛ M4 وحده يسمح بالقياس الكمي المهني.",42,548,8,Color.DKGRAY,false);
