@@ -60,7 +60,7 @@ One or more slides for:
 - robot-assisted hazardous-gas inspection/sampling;
 - open-set/OOD sensing approaches;
 - adaptive/active sensing;
-- commercial multi-gas detectors, area monitors, inspection robots, and other relevant products;
+- commercial multi-gas detectors, area monitors, gas-imaging/inspection platforms, mobile robots and other relevant products;
 - documented market or quotation prices where traceable, otherwise `price on request` or clearly labeled indicative price.
 
 ### Need / human, asset and environmental protection
@@ -116,28 +116,34 @@ Primary sources:
 - original peer-reviewed papers/datasets referenced by `mq_experiment_source_index_v1.json` and related manifests;
 - public presenter research records and Yemen-specific occupational/environmental studies where directly relevant.
 
-Tasks:
-- create source register with DOI/URL/title/authors/year/type;
-- classify source as internal implementation, peer-reviewed research, manufacturer, standards/authority, market/product, project governance, presenter publication, or Yemen-context evidence;
-- verify key DOI/title pairs against original publishers where practical;
-- identify which scientific claims each source may legitimately support;
-- verify public research identifiers before displaying them;
-- assemble APA 7 working bibliography.
+Tasks completed:
+- created consolidated source register with title/authors/year/type/DOI where verified;
+- classified implementation, peer-reviewed, authority, presenter and Yemen-context evidence;
+- verified core ChemCore/MQ DOI/title pairs and recorded usage limits;
+- verified ORCID `0000-0002-6144-4209` for presenter use;
+- registered presenter publications and Yemen environmental/occupational studies;
+- registered WHO/ILO burden sources and wording restrictions;
+- built a claim-to-source matrix that prevents M3/M4, probability/ranking and burden-statistic overclaim;
+- assembled APA 7 working bibliography.
 
-Current P1 evidence already recorded:
-- `docs/presentation/P1_AUTHOR_AND_YEMEN_CONTEXT_SOURCES.md` created.
-- Presenter public research identity verified under name variants `شهاب محمد الصهباني / Shehab Mohamad Al-Sohpany / Shehab Al-Sohpany`.
-- ORCID `0000-0002-6144-4209` located in public published/archived research material.
-- Public ARID-hosted CV located; exact ARID identifier still requires direct-profile verification before display.
-- Relevant presenter publications identified for Yemen OSH, medical waste/hazardous exposure, and chemical-safety context.
-- Yemen-specific candidate environmental/occupational measurement studies identified for PM2.5/PM10, multi-pollutant air analysis, radon, industrial pollution, benzene exposure, and laboratory chemical exposure.
+Artifacts:
+- `docs/presentation/P1_SOURCE_REGISTER_APA7.md`
+- `docs/presentation/P1_CLAIM_TO_SOURCE_MATRIX.md`
+- `docs/presentation/P1_AUTHOR_AND_YEMEN_CONTEXT_SOURCES.md`
+
+Residual metadata items:
+- ARID exact numeric identifier not independently verified from a direct primary profile;
+- ResearcherID not independently verified;
+- AUT-03 DOI unresolved against publisher metadata;
+- AUT-04 volume/issue notation requires final P10 cleanup.
+These items do not block storyboard development and are explicitly excluded from unsupported display.
 
 Exit criteria:
 - every planned scientific claim category has one or more traceable sources;
 - uncertain references are tagged and excluded from strong claims;
 - APA register ready for slide citations.
 
-**Status: IN PROGRESS**
+**Status: COMPLETE**
 
 ---
 
@@ -163,7 +169,7 @@ Exit criteria:
 - all product/cost claims are sourced and dated;
 - comparison uses fair categories and avoids false equivalence.
 
-Status: NOT STARTED
+**Status: IN PROGRESS**
 
 ---
 
@@ -365,14 +371,15 @@ Status: NOT STARTED
 
 # Checkpoint protocol
 
-After each phase, replace this section with the latest state:
-
-- Current phase: P1
-- Last completed phase: P0
+- Current phase: **P2 — Prior art, related work, comparable products and cost evidence**
+- Last completed phase: **P1 — Scientific source inventory and APA bibliography**
 - Overall status: ACTIVE
 - Last stable baseline: RC2 `5250ea769615ec82c5dc944576ea3042736b3db2`
-- Last completed artifact: `docs/presentation/P1_AUTHOR_AND_YEMEN_CONTEXT_SOURCES.md`
-- Known blockers: ARID/other researcher identifiers not yet independently verified from primary profile pages; APA metadata verification still in progress.
-- Exact next action: continue P1 by verifying primary publisher/DOI metadata for presenter papers, Yemen environmental studies, and project-linked ChemCore/MQ sources; then assemble the APA 7 bibliography register.
+- Last completed artifacts:
+  - `docs/presentation/P1_SOURCE_REGISTER_APA7.md`
+  - `docs/presentation/P1_CLAIM_TO_SOURCE_MATRIX.md`
+  - `docs/presentation/P1_AUTHOR_AND_YEMEN_CONTEXT_SOURCES.md`
+- Known non-blocking metadata items: ARID exact ID, ResearcherID, AUT-03 DOI resolution, AUT-04 final volume/issue notation.
+- Exact next action: **build P2 prior-art and commercial-comparator evidence matrices, including sourced price/cost evidence and fair capability comparison; then record slide-ready prior-art gaps.**
 
 If work resumes in a new conversation, read this file and Issue #9 first, then continue from `Exact next action` without repeating completed phases unless the baseline has changed.
