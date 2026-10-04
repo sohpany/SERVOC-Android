@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Compatibility steering/safety gate for HazRob 0.10.2.
+"""Compatibility steering/safety gate for HazRob 0.10.2 / HR069 RC2.
 
-The gate locks travel-relative differential-drive geometry across the Android joystick, pure mixer,
-main-firmware side mapping, Direct HTTP and Remote MQTT transports. Physical wheel acceptance
-remains a post-flash gate.
+The gate locks the current tunable differential-drive geometry across the Android joystick,
+wheel wrapper, pure mixer, main-firmware side mapping, Direct HTTP and Remote MQTT transports.
+Automatic IR/ultrasonic movement blocking remains forced OFF in HR069 RC2; warnings, E-stop and
+the stale-command watchdog remain independent. Physical wheel acceptance remains a post-flash gate.
 """
 from pathlib import Path
 import os
@@ -16,11 +17,18 @@ def req(src,s,label):
 def forbid(src,s,label):
     if s in src: raise AssertionError(f"{label}: forbidden {s!r}")
 
-def mix(x,y):
+def mix(x,y,turn=40,pivot=60):
     x=max(-1.0,min(1.0,x));y=max(-1.0,min(1.0,y))
-    steer=-x if y<0 else x
-    l=y+steer;r=y-steer;q=max(1.0,abs(l),abs(r))
-    return round(l/q*100),round(r/q*100)
+    turn=max(0,min(100,turn))/100.0;pivot=max(0,min(100,pivot))/100.0
+    if abs(y)<=0.08:
+        p=x*pivot
+        return round(p*100),round(-p*100)
+    ratio=1.0-(1.0-turn)*abs(x)
+    full=y;slowed=y*ratio
+    if x>0: l,r=full,slowed
+    elif x<0: l,r=slowed,full
+    else: l=r=full
+    return round(l*100),round(r*100)
 
 def main():
     cfg=txt("firmware/HazRob/Config.h")
@@ -28,6 +36,8 @@ def main():
     safety=txt("firmware/HazRob/SafetyOptions.cpp")
     ino=txt("firmware/HazRob/HazRob.ino")
     joy=txt("app/src/main/java/com/servoc/app/control/JoystickView.java")
+    wheel=txt("app/src/main/java/com/servoc/app/control/SteeringWheelMixer.java")
+    tuning=txt("app/src/main/java/com/servoc/app/control/DriveTuning.java")
     mixer=txt("app/src/main/java/com/servoc/app/control/DriveMixer.java")
     mixer_test=txt("app/src/test/java/com/servoc/app/control/DriveMixerTest.java")
     limiter_test=txt("app/src/test/java/com/servoc/app/control/DriveSpeedLimiterTest.java")
@@ -36,39 +46,45 @@ def main():
     remote_policy=txt("app/src/main/java/com/servoc/app/communication/RemoteDrivePolicy.java")
     profile=txt("app/src/main/java/com/servoc/app/hardware/HazRobHardwareProfile.java")
 
-    req(joy,"DriveMixer.mix(x, y)","joystick uses audited mixer")
+    req(joy,"DriveMixer.mix(x, y, turn, pivot)","joystick uses canonical tunable mixer")
+    req(wheel,"return DriveMixer.mix(x,y,turnPercent,pivotPercent)","wheel wrapper delegates to canonical mixer")
     forbid(joy,"DEAD_ZONE","joystick software dead zone")
     req(joy,"magnitude <= 1.0e-6","joystick numerical center guard")
     req(joy,"requestDisallowInterceptTouchEvent(true)","joystick touch ownership")
-    req(mixer,"double steer=y<0?-x:x;","travel-relative steering")
-    req(mixer,"double left=y+steer;","mixer logical left")
-    req(mixer,"double right=y-steer;","mixer logical right")
-    req(mixer,"Math.max(1.0,Math.max(Math.abs(left),Math.abs(right)))","mixer normalization")
+    req(tuning,"DEFAULT_TURN_PERCENT = 40","default inside-side turn percentage")
+    req(tuning,"DEFAULT_PIVOT_PERCENT = 60","default pivot percentage")
+    req(mixer,"TRANSLATION_DEADZONE = 0.08","translation deadzone")
+    req(mixer,"double pivot=x*pivotMax;","tunable pivot geometry")
+    req(mixer,"double ratio=1.0-(1.0-minInnerRatio)*Math.abs(x);","progressive inside-side ratio")
+    req(mixer,"if(x>0)return new Command(pct(full),pct(slowed));","right steering mapping")
+    req(mixer,"if(x<0)return new Command(pct(slowed),pct(full));","left steering mapping")
 
     expected={
         "stop":((0,0),(0,0)),
         "forward":((0,1),(100,100)),
         "reverse":((0,-1),(-100,-100)),
-        "right_pivot":((1,0),(100,-100)),
-        "left_pivot":((-1,0),(-100,100)),
-        "forward_right":((.25,.75),(100,50)),
-        "forward_left":((-.25,.75),(50,100)),
-        "reverse_right":((.25,-.75),(-100,-50)),
-        "reverse_left":((-.25,-.75),(-50,-100)),
+        "right_pivot":((1,0),(60,-60)),
+        "left_pivot":((-1,0),(-60,60)),
+        "forward_right":((.5,.8),(80,56)),
+        "forward_left":((-.5,.8),(56,80)),
+        "reverse_right":((.5,-.8),(-80,-56)),
+        "reverse_left":((-.5,-.8),(-56,-80)),
     }
     for name,(xy,want) in expected.items():
         got=mix(*xy)
         if got!=want: raise AssertionError(f"{name} mix invalid: got={got} want={want}")
 
-    fr,rr=mix(.25,.75),mix(.25,-.75)
-    fl,rl=mix(-.25,.75),mix(-.25,-.75)
-    if not (abs(fr[1])<abs(fr[0]) and abs(rr[1])<abs(rr[0])):
-        raise AssertionError("right turn must slow physical RIGHT side in forward and reverse")
-    if not (abs(fl[0])<abs(fl[1]) and abs(rl[0])<abs(rl[1])):
-        raise AssertionError("left turn must slow physical LEFT side in forward and reverse")
-
-    for marker in ["purePivotUsesCounterRotation","forwardSteeringSlowsInsidePhysicalSide","reverseSteeringUsesSameInsidePhysicalSide","samePhysicalSideIsInsideForwardAndReverse","normalizationPreservesFullScaleWithoutClippingCurvature"]:
-        req(mixer_test,marker,"JUnit steering matrix")
+    for marker in [
+        "defaultCardinalTravelAndPivotArePredictable",
+        "defaultRightSteeringSlowsRightSideProgressively",
+        "defaultLeftSteeringSlowsLeftSideProgressively",
+        "reverseKeepsSameScreenDirectionRule",
+        "operatorTurnPercentControlsInnerSideAtFullLock",
+        "operatorPivotPercentControlsInPlaceRotation",
+        "tuningValuesAreClampedToPercentDomain",
+        "inputsAreBoundedToUnitCommandDomain",
+    ]:
+        req(mixer_test,marker,"JUnit steering/tuning matrix")
     req(limiter_test,"defaultIsFullScale","100-percent operator default")
     req(limiter_test,"assertEquals(100,DriveSpeedLimiter.scale(100,100))","100-percent forward full scale")
     req(limiter_test,"assertEquals(-100,DriveSpeedLimiter.scale(-100,100))","100-percent reverse full scale")
@@ -83,10 +99,11 @@ def main():
 
     req(hw,"void driveSet(int l,int r){","firmware drive entry")
     req(hw,"bool forwardRequested=(requestedL+requestedR)>0.1f;","front safety forward classification")
-    req(hw,"bool forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop);","operator-selectable front safety hazard gate")
-    req(hw,"if(forwardBlocked&&forwardRequested){curL=curR=0;}else{curL=requestedL;curR=requestedR;}","front safety forward-only block")
-    req(safety,'autoStop=safetyNv.getBool("autoStop",false)',"automatic hazard-stop build-stage default OFF")
-    req(safety,'safetyNv.putBool("autoStop",enabled);',"automatic hazard-stop persistent operator setting")
+    req(hw,"bool forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop);","front hazard gate remains behind disabled authority")
+    req(hw,"if(forwardBlocked&&forwardRequested){curL=curR=0;}else{curL=requestedL;curR=requestedR;}","forward-only block implementation")
+    req(safety,'safetyNv.putBool("autoStop",false)',"automatic hazard-stop persisted OFF")
+    req(safety,'return false;',"automatic hazard-stop runtime authority OFF")
+    req(safety,'if(persist)safetyNv.putBool("autoStop",false)',"compatibility setter cannot enable auto-stop")
     req(hw,"cmdAt=millis();staleStop=false;driveWrite();","firmware drive watchdog refresh")
     req(hw,"motorWrite(Cfg::DRIVE_L_EN,Cfg::DRIVE_L_IN1,Cfg::DRIVE_L_IN2,curL,Cfg::DRIVE_L_INVERT)","left output")
     req(hw,"motorWrite(Cfg::DRIVE_R_EN,Cfg::DRIVE_R_IN1,Cfg::DRIVE_R_IN2,curR,Cfg::DRIVE_R_INVERT)","right output")
@@ -107,7 +124,7 @@ def main():
     req(remote_policy,"MIN_PUBLISH_MS=40","remote publish ceiling")
 
     print("HazRob 0.10.2 steering contract: PASS")
-    print("travel-relative inside-side steering; optional persisted hazard auto-stop; warnings always active; Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
+    print("tunable inside-side steering (default turn=40%, pivot=60%); hazard auto-stop=FORCED-OFF; warnings active; Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
 
     if os.environ.get("HR048_SKIP_INTEGRATION") != "1":
         from audit_hr048_integration_contract import main as integration_main
