@@ -68,8 +68,10 @@ public class SessionLineageContractTest {
  @Test public void fieldReportResolvesOnlyExplicitLinkedMeasurementSessions() throws Exception {
   String r=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java")),StandardCharsets.UTF_8);
   assertTrue(r.contains("repo.measurementSessionIds(fs)"));
-  assertTrue(r.contains("ExperimentQueries.bySessionId(db,sid)"));
-  assertTrue(r.contains("SessionSeries.byId(db,primary)"));
+  assertTrue(r.contains("for(String sid:sessions)"));
+  assertTrue(r.contains("SessionSeries.byId(db,id)"));
+  assertTrue(r.contains("ExperimentQueries.bySessionId(db,id).size()"));
+  assertTrue(r.contains("SmartReportPrimarySelector.score(candidateSeries,candidateDecision,candidateRecords)"));
   assertFalse(r.contains("SessionSeries.nearest"));
  }
 }
