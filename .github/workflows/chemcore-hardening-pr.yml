@@ -59,5 +59,11 @@ jobs:
       - name: Run Android JVM unit and contract tests
         run: gradle --no-daemon :app:testDebugUnitTest
 
+      - name: Restore prototype signing key for build verification
+        run: |
+          set -euo pipefail
+          base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
+          chmod 600 signing/hazrob-prototype.jks
+
       - name: Compile Android debug application
         run: gradle --no-daemon :app:assembleDebug
