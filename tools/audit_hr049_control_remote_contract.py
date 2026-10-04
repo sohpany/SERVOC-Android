@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Compatibility control/remote gate for HazRob 0.10.2.
+"""Compatibility control/remote gate for HazRob 0.10.2 / HR069 RC2.
 
 Direct is AP-only + persistent low-latency HTTP control. Remote keeps the latest-command MQTT
-architecture and bounded publish policy. Steering geometry remains delegated to DriveMixer.
+architecture and bounded publish policy. Steering geometry remains delegated to the current
+operator-tunable DriveMixer contract.
 """
 from pathlib import Path
 
@@ -26,18 +27,21 @@ def main():
     mqtt=txt("firmware/HazRob/RemoteMqtt.cpp")
     link=txt("firmware/HazRob/RemoteLink.cpp")
     joy=txt("app/src/main/java/com/servoc/app/control/JoystickView.java")
+    tuning=txt("app/src/main/java/com/servoc/app/control/DriveTuning.java")
     mixer=txt("app/src/main/java/com/servoc/app/control/DriveMixer.java")
     mixer_test=txt("app/src/test/java/com/servoc/app/control/DriveMixerTest.java")
 
-    req(joy,"DriveMixer.mix(x, y)","joystick mixer authority")
+    req(joy,"DriveMixer.mix(x, y, turn, pivot)","joystick mixer authority")
     forbid(joy,"DEAD_ZONE","joystick software dead zone")
     req(joy,"magnitude <= 1.0e-6","joystick center guard")
-    req(mixer,"double steer=y<0?-x:x;","travel-relative steering")
-    req(mixer,"double left=y+steer;","left differential equation")
-    req(mixer,"double right=y-steer;","right differential equation")
-    req(mixer_test,"reverseSteeringUsesSameInsidePhysicalSide","reverse steering regression")
-    req(mixer_test,"samePhysicalSideIsInsideForwardAndReverse","physical-side steering regression")
-    req(mixer_test,"purePivotUsesCounterRotation","pivot regression")
+    req(tuning,"DEFAULT_TURN_PERCENT = 40","default turn tuning")
+    req(tuning,"DEFAULT_PIVOT_PERCENT = 60","default pivot tuning")
+    req(mixer,"double ratio=1.0-(1.0-minInnerRatio)*Math.abs(x);","tunable progressive steering")
+    req(mixer,"if(x>0)return new Command(pct(full),pct(slowed));","right-side steering mapping")
+    req(mixer,"if(x<0)return new Command(pct(slowed),pct(full));","left-side steering mapping")
+    req(mixer_test,"reverseKeepsSameScreenDirectionRule","reverse steering regression")
+    req(mixer_test,"operatorTurnPercentControlsInnerSideAtFullLock","operator turn tuning regression")
+    req(mixer_test,"operatorPivotPercentControlsInPlaceRotation","pivot tuning regression")
 
     # Direct: AP-only + HTTP drive, persistent Android route, no local UDP authority.
     # Check semantic markers separately so harmless source formatting cannot break the release gate.
@@ -95,7 +99,7 @@ def main():
     req(mqtt,"while(tls.available())processPacket()","incoming commands before telemetry")
 
     print("HazRob 0.10.2 control/remote contract: PASS")
-    print("Direct=existing HazRob route + HTTP 150ms keepalive / 250ms timeout; Remote=developer-authorized + explicit request + latest-command 25Hz max; watchdog=500ms")
+    print("Direct=existing HazRob route + HTTP 150ms keepalive / 250ms timeout; Remote=developer-authorized + explicit request + latest-command 25Hz max; steering=tunable RC2 mixer; watchdog=500ms")
     return 0
 
 if __name__=="__main__":
