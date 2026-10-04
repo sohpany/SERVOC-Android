@@ -16,9 +16,10 @@ Presenters: شهاب الصهباني، مجدي ذيبان
 - Distinguish IMPLEMENTED / VALIDATED / RESEARCH-SUPPORTED / PROPOSED / FUTURE WORK.
 - Never present M3 as M4, ranking weight as calibrated probability, or literature/reference PPM as HR069 M4 validation.
 - Patent-oriented content is framed as candidate invention families, not a legal conclusion.
+- **Key diagrams must be native editable/recolorable PowerPoint shapes, not flattened images.** Use Shapes + Connectors + editable Arabic text and logical grouping. PNG/JPG/GIF are reserved mainly for photographs/renders/source imagery.
 
 ## Owner-defined invention core
-The dominant invention narrative is now fixed as an **integrated low-cost robotic chemical-analysis system**, not any single algorithm or sensor.
+The dominant invention narrative is fixed as an **integrated low-cost robotic chemical-analysis system**, not any single algorithm or sensor.
 
 Core integrated pillars:
 1. multi-method chemical analysis inside one coordinated engine;
@@ -29,7 +30,7 @@ Core integrated pillars:
 6. controlled updateable analytical knowledge layer;
 7. low-cost prototype architecture with a project target/current estimate below USD 200, subject to final BOM scope verification.
 
-Supporting analytical mechanisms remain important subsystems:
+Supporting analytical mechanisms:
 - AMCI;
 - joint multi-sensor inverse solver;
 - OOD/Open-Set;
@@ -63,8 +64,8 @@ The low-cost point is a **commercial/accessibility differentiator**, not a stand
 - P1 Scientific sources/APA — COMPLETE
 - P2 Prior art/products/costs — COMPLETE
 - P3 Invention-family framing — COMPLETE
-- P4 Slide-by-slide storyboard — IN PROGRESS / REVISION REQUIRED TO REFLECT OWNER-DEFINED CORE
-- P5 Visual production — NOT STARTED
+- P4 Slide-by-slide storyboard — COMPLETE — 75 slides frozen
+- P5 Visual specification and figure production — IN PROGRESS
 - P6 PPTX build — NOT STARTED
 - P7 Scientific audit — NOT STARTED
 - P8 Patent/public-disclosure audit — NOT STARTED
@@ -87,14 +88,23 @@ The low-cost point is a **commercial/accessibility differentiator**, not a stand
 - `docs/presentation/P3_PATENT_CANDIDATE_MAP.md`
 - `docs/presentation/P3_INTEGRATED_INVENTION_CORE.md`
 
-## Current P4 requirements
-The storyboard must be revised so the integrated invention core dominates the narrative. Algorithm-family slides remain as supporting subsystems, not the sole definition of the invention.
+### P4
+- `docs/presentation/P4_MASTER_STORYBOARD.md` — frozen at 75 master slides with internal IDs S01–S75 only; no visible slide numbering in final deck.
 
-Required invention sequence inside the deck:
-`multi-method analysis → broad compound coverage → evidence-qualified result → exposure-limit/hazard context → remote robot operation → experimental/calibration lab → controlled updates → low-cost accessibility → candidate protection map`
+### P5
+- `docs/presentation/P5_VISUAL_SPECIFICATION.md` — editable vector-shape-first rule established.
+
+## Current P5 requirements
+- Build a visual asset manifest mapping S01–S75 to native diagram/chart/table/image/mixed composition.
+- Critical architecture, flow, state, evidence and invention diagrams must be native PowerPoint shapes and connectors.
+- Arabic labels remain editable RTL text.
+- Use theme-aware/neutral temporary colors to enable full recoloring later.
+- Group related components without flattening them.
+- Data charts remain editable where feasible.
+- PNG/JPG/GIF only when imagery is inherently photographic/illustrative or when animation materially improves explanation.
 
 ## Resume point
-Current phase: P4
-Last completed phase: P3
-Known blocker: none; `< USD 200` final wording requires BOM scope verification before P7/P10.
-Exact next action: revise `P4_MASTER_STORYBOARD.md` to center `P3_INTEGRATED_INVENTION_CORE.md`, keep the master at about 75 slides, then freeze visual assets for P5.
+Current phase: P5
+Last completed phase: P4
+Known blocker: `< USD 200` final wording requires BOM scope verification before P7/P10.
+Exact next action: create the P5 visual asset manifest for S01–S75 and begin production of the reusable editable diagrams, prioritizing the integrated invention map, end-to-end architecture, ChemCore flow, AMCI, OOD, M0–M4, evidence lineage, connectivity, and roadmap.
