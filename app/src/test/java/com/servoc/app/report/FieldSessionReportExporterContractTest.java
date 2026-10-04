@@ -41,11 +41,12 @@ public class FieldSessionReportExporterContractTest {
   assertTrue(s.contains("AnalyticalCharts.mqResponseKinetics(c,r[4],s)"));assertTrue(s.contains("AnalyticalCharts.mqPersistenceMap(c,r[5],s)"));
  }
 
- @Test public void chemCorePageContainsSixCandidateAndUncertaintyCharts() throws Exception {
+ @Test public void chemCorePageContainsSixCandidateUncertaintyAndDynamicMolecularCharts() throws Exception {
   String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
   assertTrue(s.contains("AnalyticalCharts.candidates(c,r[0],q)"));assertTrue(s.contains("AnalyticalCharts.candidateScatter(c,r[1],q)"));
   assertTrue(s.contains("AnalyticalCharts.candidateBubbleMap(c,r[2],q)"));assertTrue(s.contains("AnalyticalCharts.candidateResiduals(c,r[3],q)"));
-  assertTrue(s.contains("AnalyticalCharts.evidenceTiers(c,r[4],q)"));assertTrue(s.contains("SmartReportCharts.decisionQuality(c,r[5],q)"));
+  assertTrue(s.contains("MolecularReportCharts.hasQsprEvidence(q)"));assertTrue(s.contains("MolecularReportCharts.qsprEvidence(c,r[4],q)"));
+  assertTrue(s.contains("else AnalyticalCharts.evidenceTiers(c,r[4],q)"));assertTrue(s.contains("SmartReportCharts.decisionQuality(c,r[5],q)"));
  }
 
  @Test public void contextPageContains144EnvironmentAndConditionalSafety() throws Exception {
