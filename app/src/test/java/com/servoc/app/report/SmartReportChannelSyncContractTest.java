@@ -24,16 +24,30 @@ public final class SmartReportChannelSyncContractTest {
     @Test public void primarySelectorIsCentralizedInFieldFacade()throws Exception{
         String selector=read("SmartReportPrimarySelector.java");
         String facade=read("FieldSessionReportExporter.java");
+        String pdf=read("SmartFieldSessionPdfWriter.java");
         assertTrue(selector.contains("static int score(SessionSeries.Series s, JSONObject d, int records)"));
         assertTrue(selector.contains("\"QUANTIFIED\".equals(o)||d.optBoolean(\"ppm_reportable\",false)"));
         assertTrue(facade.contains("SmartReportPrimarySelector.score(candidateSeries,candidateDecision,candidateRecords)"));
+        assertFalse("PDF must not maintain a second scoring implementation",pdf.contains("private static int score("));
     }
 
-    @Test public void smartPdfRemainsSixChartsPerAnalyticalPageAndPassesFacadeGuard()throws Exception{
+    @Test public void smartPdfConsumesExactlyTheFacadeContractAndPrimarySession()throws Exception{
+        String s=read("SmartFieldSessionPdfWriter.java");
+        assertTrue(s.contains("FieldSessionReportExporter.resolve(db,fieldSessionId)"));
+        assertTrue(s.contains("SmartReportAnalyticalContract contract=b.analyticalContract"));
+        assertTrue(s.contains("contract.series()"));
+        assertTrue(s.contains("contract.decision()"));
+        assertTrue(s.contains("b.primaryMeasurementSessionId"));
+        assertFalse("PDF may not independently select a second primary session",s.contains("Evidence primary=primary(all)"));
+    }
+
+    @Test public void smartPdfRemainsSixChartsPerAnalyticalPage()throws Exception{
         String s=read("SmartFieldSessionPdfWriter.java");
         assertTrue(s.contains("CHARTS_PER_PAGE=6"));
-        assertTrue(s.contains("FieldSessionReportExporter.resolve(db,fieldSessionId)"));
         assertTrue(s.contains("3 columns x 2 rows = 6 charts"));
+        assertTrue(s.contains("sensorSix("));
+        assertTrue(s.contains("chemCoreSix("));
+        assertTrue(s.contains("contextSix("));
     }
 
     @Test public void smartXlsxConsumesContractAndWritesContractMetadataSheet()throws Exception{
