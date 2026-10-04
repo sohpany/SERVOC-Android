@@ -1,0 +1,60 @@
+name: ChemCore Hardening PR Validation
+
+on:
+  pull_request:
+    branches:
+      - 'release/hazrob-0.10.2-rc2'
+    paths:
+      - 'app/**'
+      - 'tools/**'
+      - '*.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/chemcore-hardening-pr.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chemcore-hardening-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  chemcore-unit-and-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout proposed merge
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install Android platform and build tools
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.5.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Run ChemCore source audits
+        run: |
+          set -euo pipefail
+          python3 tools/audit_0104_chemcore_library.py
+          python3 tools/audit_0105_analytical_engines.py
+          python3 tools/audit_0106_confidence_fusion.py
+
+      - name: Run Android JVM unit and contract tests
+        run: gradle --no-daemon :app:testDebugUnitTest
