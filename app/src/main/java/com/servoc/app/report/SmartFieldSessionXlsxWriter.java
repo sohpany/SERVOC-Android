@@ -26,8 +26,10 @@ final class SmartFieldSessionXlsxWriter {
 
     static void write(OutputStream out,ExperimentsDb db,FieldSessionReportExporter.Bundle b,ChemicalRepository chemicals)throws Exception{
         if(out==null||db==null||b==null)throw new IllegalArgumentException("output/db/session required");
-        JSONObject cc=b.primaryDecision,hazard=CandidateHazardContext.evaluate(db,cc);
-        ReportIntelligence.ReportPlan plan=ReportIntelligence.plan(b.primarySeries,cc,b.measurementSessionIds.size());
+        if(b.analyticalContract==null)throw new IllegalStateException("SmartReport analytical contract missing");
+        SmartReportAnalyticalContract contract=b.analyticalContract;
+        JSONObject cc=contract.decision(),hazard=CandidateHazardContext.evaluate(db,cc);
+        ReportIntelligence.ReportPlan plan=ReportIntelligence.plan(contract.series(),cc,b.measurementSessionIds.size());
         List<SmartXlsxPackage.Sheet> sheets=new ArrayList<>();
         sheets.add(new SmartXlsxPackage.Sheet("الملخص التنفيذي",executive(b,plan,cc,hazard)));
         sheets.add(new SmartXlsxPackage.Sheet("بيانات الجلسة",sessionMetadata(b)));
@@ -38,6 +40,7 @@ final class SmartFieldSessionXlsxWriter {
         sheets.add(new SmartXlsxPackage.Sheet("الجودة وعدم اليقين",qualityUncertainty(b,plan,cc)));
         sheets.add(new SmartXlsxPackage.Sheet("السلسلة الزمنية",timeSeries(db,b)));
         sheets.add(new SmartXlsxPackage.Sheet("القياسات الفنية",measurementRecords(b)));
+        sheets.add(new SmartXlsxPackage.Sheet("عقد التحليل",contractMetadata(b)));
         sheets.add(new SmartXlsxPackage.Sheet("المنهجية والمصدر",provenance(b,plan,cc)));
         SmartXlsxPackage.write(out,sheets);
     }
@@ -70,7 +73,25 @@ final class SmartFieldSessionXlsxWriter {
 
     private static String measurementRecords(FieldSessionReportExporter.Bundle b){SmartXlsxPackage.Grid g=wide();identity(g,b,"سجل القياسات الفنية والاشتقاقات");g.blank();g.header("Experiment ID","Measurement Session ID","UTC","Protocol","Capture ID","Chemical UID","Reference kind","Known ppm","Approved","Reference name");for(ExperimentQueries.Record r:b.records)g.row(r.id,nz(r.sessionId),nz(r.ts),nz(r.protocol),r.captureId,r.chemicalUid,nz(r.referenceKind),r.knownPpm,r.approved,nz(r.referenceName));return g.finish();}
 
-    private static String provenance(FieldSessionReportExporter.Bundle b,ReportIntelligence.ReportPlan plan,JSONObject cc){SmartXlsxPackage.Grid g=grid();identity(g,b,"المنهجية ومصدر القرار");g.blank();JSONObject lib=cc==null?null:cc.optJSONObject("library");g.header("العنصر","القيمة");g.row("HazRob version",ReleaseAudit.VERSION);g.row("Hardware revision","HR069");g.row("Report mode",plan.mode.name());g.row("Primary analytical measurement",b.primaryMeasurementSessionId);g.row("Result schema",cc==null?"—":cc.optString("schema","—"));g.row("Model version",cc==null?"—":cc.optString("model_version","—"));g.row("Feature schema",cc==null?"—":cc.optString("feature_schema","—"));g.row("Sampling profile",cc==null?"—":cc.optString("sampling_profile_id","—"));g.row("Evidence tier",cc==null?"—":cc.optString("evidence_tier","—"));g.row("Library version",lib==null?"—":lib.optString("version","—"));g.row("Library SHA-256",lib==null?"—":lib.optString("sha256","—"));g.row("Library source commit",lib==null?"—":lib.optString("source_commit","—"));g.blank();g.section("قواعد التفسير");g.row("1","Posterior/ranking weight ليس احتمالًا معايرًا لوجود المادة.");g.row("2","Session support index دليل إيجابي موزون وليس probability.");g.row("3","Screening-fit ppm سياق تحليلي/خطر فقط حتى اجتياز بوابة M4.");g.row("4","لا يتم متوسط PPM بين جلسات مستقلة أو دمج سلاسلها زمنيًا.");g.row("5","Tracking وظيفة تشغيلية وغير مدرجة في التقرير.");return g.finish();}
+    private static String contractMetadata(FieldSessionReportExporter.Bundle b){
+        SmartXlsxPackage.Grid g=grid();identity(g,b,"عقد ChemCore ↔ SmartReport");g.blank();
+        JSONObject m=b.analyticalContract.metadata();
+        g.header("العنصر","القيمة","الدلالة");
+        g.row("SmartReport contract",m.optString("smartreport_contract_version","—"),"نسخة عقد الاستهلاك في التقارير");
+        g.row("SmartReport revision",m.optInt("smartreport_contract_revision",0),"Schema revision");
+        g.row("ChemCore contract",m.optString("chemcore_report_contract_version","—"),"نسخة عقد المخرجات العلمية");
+        g.row("ChemCore revision",m.optInt("chemcore_report_contract_revision",0),"Schema revision");
+        g.row("Ranking semantics",m.optString("ranking_semantics","—"),"الوزن النسبي ليس calibrated probability");
+        g.blank();g.section("تغطية القدرات في هذه الجلسة");g.header("Capability","Available","Reason");
+        JSONObject caps=m.optJSONObject("capabilities");
+        for(SmartReportAnalyticalContract.Capability c:SmartReportAnalyticalContract.Capability.values()){
+            JSONObject q=caps==null?null:caps.optJSONObject(c.name());
+            g.row(c.name(),q!=null&&q.optBoolean("available",false),q==null?"not_evaluated":q.optString("reason",""));
+        }
+        return g.finish();
+    }
+
+    private static String provenance(FieldSessionReportExporter.Bundle b,ReportIntelligence.ReportPlan plan,JSONObject cc){SmartXlsxPackage.Grid g=grid();identity(g,b,"المنهجية ومصدر القرار");g.blank();JSONObject lib=cc==null?null:cc.optJSONObject("library");g.header("العنصر","القيمة");g.row("HazRob version",ReleaseAudit.VERSION);g.row("Hardware revision","HR069");g.row("SmartReport contract",SmartReportAnalyticalContract.VERSION);g.row("ChemCore report contract",com.servoc.app.chemcore.ChemCoreReportContract.VERSION);g.row("Report mode",plan.mode.name());g.row("Primary analytical measurement",b.primaryMeasurementSessionId);g.row("Result schema",cc==null?"—":cc.optString("schema","—"));g.row("Model version",cc==null?"—":cc.optString("model_version","—"));g.row("Feature schema",cc==null?"—":cc.optString("feature_schema","—"));g.row("Sampling profile",cc==null?"—":cc.optString("sampling_profile_id","—"));g.row("Evidence tier",cc==null?"—":cc.optString("evidence_tier","—"));g.row("Library version",lib==null?"—":lib.optString("version","—"));g.row("Library SHA-256",lib==null?"—":lib.optString("sha256","—"));g.row("Library source commit",lib==null?"—":lib.optString("source_commit","—"));g.blank();g.section("قواعد التفسير");g.row("1","Posterior/ranking weight ليس احتمالًا معايرًا لوجود المادة.");g.row("2","Session support index دليل إيجابي موزون وليس probability.");g.row("3","Screening-fit ppm سياق تحليلي/خطر فقط حتى اجتياز بوابة M4.");g.row("4","لا يتم متوسط PPM بين جلسات مستقلة أو دمج سلاسلها زمنيًا.");g.row("5","Tracking وظيفة تشغيلية وغير مدرجة في التقرير.");return g.finish();}
 
     private static SmartXlsxPackage.Grid grid(){return new SmartXlsxPackage.Grid(30,44,58);}
     private static SmartXlsxPackage.Grid wide(){return new SmartXlsxPackage.Grid(10,28,18,16,24,22,16,16,20,14,28,30,16,28,16,14,24,20);}
