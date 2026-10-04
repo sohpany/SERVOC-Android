@@ -75,14 +75,19 @@ def main():
     forbid(settings,'AppUpdateManager','library update must not reinstall APK')
     req(dev,'manager.rollback(active, ReleaseAudit.VERSION)','developer verified rollback')
 
-    # Build-pinned endpoint and publication workflow must agree on experimental v2 contract.
+    # Build-pinned endpoint remains part of the app contract, but the legacy CI publisher itself
+    # is intentionally retired and must fail closed under the mandatory change-control policy.
     req(gradle,'CHEMCORE_LIBRARY_MANIFEST_URL','build-pinned Stable endpoint')
-    req(workflow,"assert m['schema_version']==2",'publication workflow schema')
-    req(workflow,"assert m['integrity_mode']=='sha256'",'publication integrity mode')
-    req(workflow,'--data-revision "$DATA_REVISION" --evidence-revision "$EVIDENCE_REVISION"','publication revisions')
+    req(workflow,'RETIRED - HR069 ChemCore library publisher - DO NOT PUBLISH','retired publication workflow identity')
+    req(workflow,'CR-20261004-009','publication retirement change record')
+    req(workflow,'CURRENT_RELEASE_AUTHORITY.md','publication authority pointer')
+    req(workflow,'HAZROB_MANDATORY_CHANGE_CONTROL_AND_RELEASE_POLICY_2026-10-04.md','mandatory publication policy pointer')
+    req(workflow,'research_data/hr069_analytical_library/','canonical analytical corpus pointer')
+    req(workflow,'exit 1','legacy publisher must fail closed')
+    forbid(workflow,'publish_chemcore_library.py','retired workflow must not invoke the publisher')
 
     print('HazRob 0.10.2 / HR069 P4 experimental ChemCore updater contract: PASS')
-    print('Mode: HTTPS + SHA-256 + compatibility + semantic validation + atomic activation + rollback; no passwords/keys.')
+    print('Mode: HTTPS + SHA-256 + compatibility + semantic validation + atomic activation + rollback; legacy CI publication is retired/fail-closed.')
     return 0
 
 if __name__=='__main__':
