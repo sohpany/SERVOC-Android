@@ -8,6 +8,7 @@ import org.json.JSONObject;
 
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -18,13 +19,15 @@ import java.util.Map;
  * silently drifting away from the ChemCore contract.
  */
 public final class SmartReportAnalyticalContract {
-    public static final String VERSION="HR069-SMARTREPORT-1";
-    public static final int SCHEMA_REVISION=1;
+    public static final String VERSION="HR069-SMARTREPORT-2";
+    public static final int SCHEMA_REVISION=2;
     public static final String EXPECTED_CHEMCORE_VERSION="HR069-CC-SR-1";
 
     public enum Capability {
         RECORDED_TIME_SERIES,
+        CROSS_CHANNEL_CORRELATION,
         CANDIDATES,
+        COMMON_C_CURVE_CONSISTENCY,
         SCREENING_144,
         QUANTITATIVE_PPM,
         GAS_SAFETY,
@@ -57,8 +60,11 @@ public final class SmartReportAnalyticalContract {
         }
         validateScientificSemantics(decision);
         EnumMap<Capability,Availability> a=new EnumMap<>(Capability.class);
-        put(a,Capability.RECORDED_TIME_SERIES,series!=null&&series.usable(),"recorded_time_series_missing");
+        boolean timeSeries=series!=null&&series.usable();
+        put(a,Capability.RECORDED_TIME_SERIES,timeSeries,"recorded_time_series_missing");
+        put(a,Capability.CROSS_CHANNEL_CORRELATION,timeSeries&&series.samples.size()>=4,"insufficient_recorded_samples_for_correlation");
         put(a,Capability.CANDIDATES,arrayPresent(decision,"candidates"),"chemcore_candidates_missing");
+        put(a,Capability.COMMON_C_CURVE_CONSISTENCY,hasCommonCCurveEvidence(decision),"common_c_multichannel_evidence_missing");
         JSONObject panel=decision==null?null:decision.optJSONObject("screening_144");
         put(a,Capability.SCREENING_144,panel!=null&&panel.optInt("evaluated_count",0)>0,"screening_144_missing");
         boolean ppm=decision!=null&&decision.optBoolean("ppm_reportable",false)&&Double.isFinite(decision.optDouble("ppm",Double.NaN));
@@ -70,8 +76,7 @@ public final class SmartReportAnalyticalContract {
         put(a,Capability.UNCERTAINTY_DOMAIN,uncertainty,"uncertainty_domain_payload_missing");
         boolean provenance=decision!=null&&(decision.optJSONObject("library")!=null||decision.has("model_version")||decision.has("feature_schema")||decision.has("sampling_profile_id"));
         put(a,Capability.PROVENANCE,provenance,"provenance_payload_missing");
-        boolean molecular=decision!=null&&(decision.optJSONObject("molecular")!=null||decision.optJSONObject("qspr")!=null||decision.optJSONObject("molecular_qspr")!=null||decision.optJSONObject("pubchem")!=null);
-        put(a,Capability.MOLECULAR_QSPR,molecular,"molecular_qspr_payload_missing");
+        put(a,Capability.MOLECULAR_QSPR,hasMolecularQsprEvidence(decision),"molecular_qspr_payload_missing");
         String outcome=decision==null?"":decision.optString("outcome","");
         boolean open="UNKNOWN".equals(outcome)||"POSSIBLE_MIXTURE_OR_INTERFERENCE".equals(outcome)||"OUT_OF_VALIDATED_DOMAIN".equals(outcome)||decisionHasMixtureSurface(decision);
         put(a,Capability.MIXTURE_OPEN_SET,open,"mixture_open_set_not_active");
@@ -112,6 +117,35 @@ public final class SmartReportAnalyticalContract {
         if(gas!=null&&gas.optBoolean("input_gate_passed",false)&&!ppm){
             throw new IllegalStateException("gas safety quantitative gate cannot pass when ppm_reportable=false");
         }
+    }
+
+    private static boolean hasMolecularQsprEvidence(JSONObject d){
+        if(d==null)return false;
+        if(d.optJSONObject("molecular")!=null||d.optJSONObject("qspr")!=null||d.optJSONObject("molecular_qspr")!=null||d.optJSONObject("pubchem")!=null)return true;
+        JSONArray candidates=d.optJSONArray("candidates");
+        if(candidates==null)return false;
+        for(int i=0;i<candidates.length();i++){
+            JSONObject q=candidates.optJSONObject(i);JSONArray evidence=q==null?null:q.optJSONArray("evidence_observations");
+            if(evidence==null)continue;
+            for(int j=0;j<evidence.length();j++){
+                JSONObject e=evidence.optJSONObject(j);if(e==null)continue;
+                String type=e.optString("type","");String family=e.optString("family_id","").toUpperCase(Locale.US);
+                if("QSPR".equalsIgnoreCase(type)||family.contains("PUBCHEM_QSPR"))return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean hasCommonCCurveEvidence(JSONObject d){
+        JSONArray candidates=d==null?null:d.optJSONArray("candidates");if(candidates==null||candidates.length()==0)return false;
+        JSONObject q=candidates.optJSONObject(0);JSONArray evidence=q==null?null:q.optJSONArray("evidence_observations");if(evidence==null)return false;
+        int usable=0;
+        for(int i=0;i<evidence.length();i++){
+            JSONObject e=evidence.optJSONObject(i);if(e==null)continue;
+            double observed=e.optDouble("observed_ratio",Double.NaN),predicted=e.optDouble("predicted_log10_ratio",Double.NaN);
+            if(observed>0&&Double.isFinite(observed)&&Double.isFinite(predicted))usable++;
+        }
+        return usable>=2;
     }
 
     private static boolean arrayPresent(JSONObject d,String key){JSONArray a=d==null?null:d.optJSONArray(key);return a!=null&&a.length()>0;}
