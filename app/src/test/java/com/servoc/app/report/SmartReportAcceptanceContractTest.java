@@ -1,5 +1,7 @@
 package com.servoc.app.report;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -40,14 +42,31 @@ public final class SmartReportAcceptanceContractTest {
         assertTrue(s.contains("AnalyticalCharts.mqPersistenceMap(c,r[5],s)"));
     }
 
-    @Test public void chemCorePageCarriesSixDistinctInferenceViews()throws Exception{
+    @Test public void chemCorePageCarriesSixDistinctInferenceViewsIncludingDynamicMolecularQspr()throws Exception{
         String s=read("SmartFieldSessionPdfWriter.java");
         assertTrue(s.contains("AnalyticalCharts.candidates(c,r[0],q)"));
         assertTrue(s.contains("AnalyticalCharts.candidateScatter(c,r[1],q)"));
         assertTrue(s.contains("AnalyticalCharts.candidateBubbleMap(c,r[2],q)"));
         assertTrue(s.contains("AnalyticalCharts.candidateResiduals(c,r[3],q)"));
-        assertTrue(s.contains("AnalyticalCharts.evidenceTiers(c,r[4],q)"));
+        assertTrue(s.contains("if(MolecularReportCharts.hasQsprEvidence(q))MolecularReportCharts.qsprEvidence(c,r[4],q);else AnalyticalCharts.evidenceTiers(c,r[4],q)"));
         assertTrue(s.contains("SmartReportCharts.decisionQuality(c,r[5],q)"));
+    }
+
+    @Test public void molecularChartUsesOnlyPersistedQsprEvidenceAndNeverPromotesPpm()throws Exception{
+        String s=read("MolecularReportCharts.java");
+        assertTrue(s.contains("evidence_observations"));
+        assertTrue(s.contains("\"QSPR\".equalsIgnoreCase(type)"));
+        assertTrue(s.contains("PUBCHEM_QSPR"));
+        assertTrue(s.contains("inside_domain"));
+        assertTrue(s.contains("support_weight"));
+        assertTrue(s.contains("M1 molecular support only • never unlocks reportable PPM"));
+        assertTrue(s.contains("does not run QSPR"));
+
+        JSONObject qspr=new JSONObject().put("type","QSPR").put("family_id","PUBCHEM_QSPR_MOX").put("inside_domain",true).put("support_weight",0.4);
+        JSONObject candidate=new JSONObject().put("label","Example").put("evidence_observations",new JSONArray().put(qspr));
+        JSONObject cc=new JSONObject().put("candidates",new JSONArray().put(candidate));
+        assertTrue(MolecularReportCharts.hasQsprEvidence(cc));
+        assertFalse(MolecularReportCharts.hasQsprEvidence(new JSONObject().put("candidates",new JSONArray().put(new JSONObject().put("label","No QSPR")))));
     }
 
     @Test public void contextPageUsesSessionEvidenceAndKeepsQuantitativeExposureBehindM4Gate()throws Exception{
@@ -71,6 +90,7 @@ public final class SmartReportAcceptanceContractTest {
         assertTrue(s.contains("\"السلسلة الزمنية\""));
         assertTrue(s.contains("\"عقد التحليل\""));
         assertTrue(s.contains("\"المنهجية والمصدر\""));
+        assertTrue("Excel must expose the molecular/QSPR capability through the shared contract",read("SmartReportAnalyticalContract.java").contains("MOLECULAR_QSPR"));
     }
 
     @Test public void smartXlsxPackageProducesAValidInspectableWorkbookContainer()throws Exception{
