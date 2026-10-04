@@ -16,8 +16,29 @@ public final class SmartReportChannelSyncContractTest {
         String s=read("FieldSessionReportExporter.java");
         assertTrue(s.contains("public final SmartReportAnalyticalContract analyticalContract"));
         assertTrue(s.contains("for(String sid:sessions)"));
-        assertTrue(s.contains("SmartReportAnalyticalContract.bind(SessionSeries.byId(db,id),decisions.latestPayloadForSession(id))"));
+        assertTrue(s.contains("SmartReportAnalyticalContract.bind(candidateSeries,candidateDecision)"));
+        assertTrue(s.contains("SmartReportPrimarySelector.score(candidateSeries,candidateDecision,candidateRecords)"));
         assertTrue(s.contains("SmartReportAnalyticalContract contract=SmartReportAnalyticalContract.bind(series,decision)"));
+    }
+
+    @Test public void primarySelectorMirrorsCurrentSmartPdfEvidencePolicy()throws Exception{
+        String selector=read("SmartReportPrimarySelector.java");
+        String pdf=read("SmartFieldSessionPdfWriter.java");
+        String[] policy={
+                "Math.min(12,Math.max(0,records))",
+                "x+=70",
+                "Math.min(20,s.samples.size()/5)",
+                "x+=100",
+                "Math.min(20,a.length()*3)",
+                "Math.round(Math.max(0,Math.min(1,p))*20)",
+                "Math.min(8,v)",
+                "\"IDENTIFIED\".equals(o)",
+                "\"QUANTIFIED\".equals(o)||d.optBoolean(\"ppm_reportable\",false)"
+        };
+        for(String marker:policy){
+            assertTrue("selector missing "+marker,selector.contains(marker));
+            assertTrue("PDF scoring drifted from selector: "+marker,pdf.contains(marker));
+        }
     }
 
     @Test public void smartPdfRemainsSixChartsPerAnalyticalPageAndPassesFacadeGuard()throws Exception{
