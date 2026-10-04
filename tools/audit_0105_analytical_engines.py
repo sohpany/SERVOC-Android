@@ -36,12 +36,15 @@ def main():
     for n in ['default ChemCoreEvidenceObservation.Type evidenceType()','default String evidenceFamilyId()','default String sourceId()','default String independenceGroup()','default boolean reportableQuantitative()']:
         req(contract,n,'response-model evidence contract')
 
-    # QSPR stays M1/inferential and sensor channels share one evidentiary lineage.
+    # QSPR stays M1/inferential and sensor channels share one evidentiary lineage. QSPR-only
+    # candidates are retained only when sensor-specific validation and molecular descriptor AD pass.
     req(qspr,'M1_MOLECULARLY_INFERRED','QSPR M1 tier')
     req(qspr,'"QSPR:"+ChemCoreQsprRuntimeRegistry.VERSION','QSPR correlated independence group')
     req(qspr,'reportableQuantitative(){return false;}','QSPR cannot be reportable ppm')
     req(qreg,'leaveCompoundOut','QSPR leave-compound-out validation')
-    req(qreg,'QSPR-only compounds are available for estimated identification','QSPR-only candidate path')
+    req(qreg,'MolecularDescriptorApplicabilityDomain','QSPR molecular applicability domain')
+    req(qreg,'QSPR M1 candidates are restricted by sensor-specific descriptor applicability domains','QSPR-only candidate path is M1 and AD-restricted')
+    req(qreg,'QSPR-only identity remains M1/estimated and never creates reportable ppm','QSPR-only identity reportability boundary')
 
     # Reference uncertainty is explicit, centralized and remains a research proxy. R-squared is
     # never allowed to manufacture a sigma or a calibrated prediction interval.
