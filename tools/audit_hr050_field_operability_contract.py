@@ -43,8 +43,8 @@ def main() -> int:
     req(entry,"إلغاء الاتصال","cancellable remote entry");req(entry,'local.postForm("/connection/remote"',"explicit Direct-to-Remote handoff");req(entry,'WifiRoute.releaseRobotWifi(a)',"release local-only network for Remote");req(entry,"بعد إعادة تشغيل الروبوت يكون Direct افتراضيًا","Direct-first remote diagnostic UX");req(entry,"يجب تفعيل Remote محليًا","explicit Remote activation diagnostic UX");req(entry,'developer_authorized',"developer Remote authorization admission")
 
     req(instant,"RESPONSE_MIN_DELTA = 0.05","response visibility floor");req(instant,"Level{UNAVAILABLE,NORMAL,RESPONSE,ELEVATED,HIGH}","response state");req(instant,"3.0*Math.abs(noise)","noise-aware response threshold");forbid(gas_alert,"Level.RESPONSE","RESPONSE must not escalate gas alarm")
-    req(measurements,"data.setTextColor(0xFF616161)","legacy live-reading contrast marker pending UI-07")
-    req(measurements,"warn.level==InstantMqWarningEngine.Level.ELEVATED","elevated live warning state");req(measurements,"head.setBackgroundColor(0xFFD32F2F)","elevated gas red sensor heading");req(measurements,"التسجيل متوقف والقراءة الحية مستمرة","live acquisition independent of timed session")
+    req(measurements,"data.setTextColor(0xFFCFD8DC)","current high-contrast live sensor data text");req(measurements,"private static final int TEXT=0xFFECEFF1,MUTED=0xFFB0BEC5,GOOD=0xFF81C784,WARN=0xFFFFB74D,BAD=0xFFFF7043,INFO=0xFF90CAF9","current measurement semantic color palette")
+    req(measurements,"warn.level==InstantMqWarningEngine.Level.ELEVATED","elevated live warning state");req(measurements,"head.setBackgroundColor(0xFFD32F2F)","elevated gas red sensor heading");req(measurements,"القراءة الحية مستمرة","live acquisition independent of timed session")
     req(main_activity,"phoneAlertTone.update(phoneLevel,now)","phone audible warning path");req(main_activity,'String[] names={"القيادة","الجلسات","القياسات","التقارير","الحالة","الإعدادات","المطور"}',"reports navigation");req(main_activity,"new ReportsTab(this,this)","reports integration");req(host,"void testPhoneAlert();","phone alert host contract");req(settings,"اختبار صوت الهاتف","phone alert UI test")
 
     req(video_cfg,"FRAME_INTERVAL_MIN_MS=55","remote video fast target");req(video_cfg,"FRAME_INTERVAL_MAX_MS=120","remote video backoff ceiling");req(video,"if(w+6>=interval)interval=min(RemoteVideoCfg::FRAME_INTERVAL_MAX_MS","adaptive video slowdown");req(video,"interval=max(RemoteVideoCfg::FRAME_INTERVAL_MIN_MS,interval-RemoteVideoCfg::FRAME_INTERVAL_STEP_MS)","adaptive video recovery");forbid(video,"std::queue","remote video backlog")
@@ -57,7 +57,7 @@ def main() -> int:
     print("IR: ground signal present=no cliff; loss of ground=persistent cliff warning; explicit drive overlay")
     print("Echo: front distance exposed in cm; gas/MQ relay/Wi-Fi overlays present in drive workspace")
     print("Remote: bounded verified TLS/MQTT; explicit profile handoff; control admission independent from video")
-    print("MQ: RESPONSE visibility remains below warning/quantitative authority")
+    print("MQ: RESPONSE visibility remains below warning/quantitative authority; live sensor text uses current high-contrast palette")
     print("Video: inline adaptive 55..120 ms pacing; nominal good-link target ~18.2 fps")
     print("Build reproducibility: controlled flammability bytes recovered only from accepted APK and SHA-256 verified; no live regeneration")
     return 0
