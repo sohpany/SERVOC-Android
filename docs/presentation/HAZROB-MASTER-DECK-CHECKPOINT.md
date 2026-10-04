@@ -9,70 +9,40 @@ Presenters: شهاب الصهباني، مجدي ذيبان
 ## Fixed deck rules
 - Arabic RTL, 16:9, no visible slide numbering.
 - Large conference-readable typography.
-- Prefer diagrams/charts/process maps over dense text.
-- Tables must remain readable and use slide width efficiently.
-- Neutral backgrounds in this build.
-- All scientific statistics, prior-art statements and product prices require traceable sources.
-- Distinguish IMPLEMENTED / VALIDATED / RESEARCH-SUPPORTED / PROPOSED / FUTURE WORK.
-- Never present M3 as M4, ranking weight as calibrated probability, or literature/reference PPM as HR069 M4 validation.
-- Patent-oriented content is framed as candidate invention families, not a legal conclusion.
-- **Key diagrams must be native editable/recolorable PowerPoint shapes, not flattened images.** Use Shapes + Connectors + editable Arabic text and logical grouping. PNG/JPG/GIF are reserved mainly for photographs/renders/source imagery.
+- Yellow / gray / black visual identity; white only as supporting negative space.
+- Hexagonal cells are preferred where scientifically meaningful (chemical knowledge, evidence, fingerprints, innovation map), not as decoration on every slide.
+- Key architecture/flow/state/evidence/invention diagrams are native editable/recolorable PowerPoint Shapes + Connectors + editable Arabic text.
+- Raster assets are limited mainly to logos/photos/renders/source imagery.
+- Distinguish IMPLEMENTED / VALIDATED / RESEARCH-SUPPORTED / VALIDATION PENDING / PROPOSED / FUTURE WORK.
+- Never present M3 as M4, ranking weight as calibrated probability, or literature/reference PPM as HR069 device-validated PPM.
+- Patent-oriented content is framed as candidate invention families, not a legal novelty conclusion.
 
 ## Owner-defined invention core
-The dominant invention narrative is fixed as an **integrated low-cost robotic chemical-analysis system**, not any single algorithm or sensor.
-
-Core integrated pillars:
+The dominant narrative is an integrated low-cost robotic chemical-analysis system combining:
 1. multi-method chemical analysis inside one coordinated engine;
-2. broad compound-hypothesis coverage across dozens of operational targets / wider molecular knowledge;
+2. broad compound-hypothesis coverage across dozens of operational targets and wider molecular knowledge;
 3. linkage of qualified chemical results to occupational exposure/hazard limits;
 4. remote robot driving, video, telemetry and measurement;
 5. developer/laboratory experimentation and calibration workflow;
 6. controlled updateable analytical knowledge layer;
-7. low-cost prototype architecture with a project target/current estimate below USD 200, subject to final BOM scope verification.
+7. low-cost prototype architecture with a project target below USD 200, pending final BOM-scope verification.
 
-Supporting analytical mechanisms:
-- AMCI;
-- joint multi-sensor inverse solver;
-- OOD/Open-Set;
-- multi-channel fingerprints;
-- M0–M4 evidence tiers;
-- QSPR;
-- lineage-aware evidence fusion;
-- mixture/interference guards;
-- fail-closed outcomes.
-
-The low-cost point is a **commercial/accessibility differentiator**, not a standalone patent claim. Before final deck use, the `< USD 200` statement must be tied to a defined BOM scope.
-
-## Mandatory slides
-- terminology/abbreviations including Rs, R0, Rs/R0, ADC, PPM, MOX/MOS, M0–M4, OOD, Open-Set, AMCI, QSPR, UID, SNR, AUC, UX, UI, API, MQTT and ESP32;
-- blank presenter slide for شهاب الصهباني and مجدي ذيبان;
-- global/Yemen need;
-- prior work and products/costs;
-- HazRob/ChemCore methodology;
-- integrated invention-core slide;
-- exposure-limit integration slide;
-- remote-driving/field-operation slide;
-- experiment/calibration laboratory slide;
-- updateable-knowledge-layer slide;
-- low-cost/BOM-value slide;
-- candidate invention-family map;
-- APA 7 references;
-- final thanks slide.
+Supporting analytical mechanisms include AMCI, joint inverse solver, OOD/Open-Set, multi-channel fingerprints, M0–M4 evidence tiers, QSPR, lineage-aware evidence fusion, mixture/interference guards and fail-closed outcomes.
 
 ## Phase status
 - P0 Governance/baseline — COMPLETE
 - P1 Scientific sources/APA — COMPLETE
 - P2 Prior art/products/costs — COMPLETE
 - P3 Invention-family framing — COMPLETE
-- P4 Slide-by-slide storyboard — COMPLETE — 75 slides frozen
-- P5 Visual specification and figure production — IN PROGRESS
-- P6 PPTX build — NOT STARTED
-- P7 Scientific audit — NOT STARTED
-- P8 Patent/public-disclosure audit — NOT STARTED
-- P9 Visual QA — NOT STARTED
-- P10 Finalization — NOT STARTED
+- P4 Slide-by-slide storyboard — COMPLETE — 75 storyboard slides
+- P5 Visual specification / editable figure system — COMPLETE
+- P6 PPTX build — COMPLETE — 76 delivered-build slides (75 storyboard + dedicated terminology slide)
+- P7 Scientific/technical audit — IN PROGRESS
+- P8 Patent/public-disclosure audit — IN PROGRESS
+- P9 Visual/RTL QA — IN PROGRESS
+- P10 Finalization/handoff — NOT STARTED
 
-## Completed artifacts
+## Completed documentation artifacts
 ### P1
 - `docs/presentation/P1_SOURCE_REGISTER_APA7.md`
 - `docs/presentation/P1_CLAIM_TO_SOURCE_MATRIX.md`
@@ -88,23 +58,39 @@ The low-cost point is a **commercial/accessibility differentiator**, not a stand
 - `docs/presentation/P3_PATENT_CANDIDATE_MAP.md`
 - `docs/presentation/P3_INTEGRATED_INVENTION_CORE.md`
 
-### P4
-- `docs/presentation/P4_MASTER_STORYBOARD.md` — frozen at 75 master slides with internal IDs S01–S75 only; no visible slide numbering in final deck.
+### P4/P5
+- `docs/presentation/P4_MASTER_STORYBOARD.md`
+- `docs/presentation/P5_VISUAL_SPECIFICATION.md`
+- `docs/presentation/P5_VISUAL_ASSET_MANIFEST.md`
 
-### P5
-- `docs/presentation/P5_VISUAL_SPECIFICATION.md` — editable vector-shape-first rule established.
+## Current build
+Local working outputs:
+- `HazRob_Master_Technical_Patent_Deck_RC2_AR.pptx`
+- `HazRob_Master_Technical_Patent_Deck_RC2_AR.pdf`
 
-## Current P5 requirements
-- Build a visual asset manifest mapping S01–S75 to native diagram/chart/table/image/mixed composition.
-- Critical architecture, flow, state, evidence and invention diagrams must be native PowerPoint shapes and connectors.
-- Arabic labels remain editable RTL text.
-- Use theme-aware/neutral temporary colors to enable full recoloring later.
-- Group related components without flattening them.
-- Data charts remain editable where feasible.
-- PNG/JPG/GIF only when imagery is inherently photographic/illustrative or when animation materially improves explanation.
+Build facts:
+- 76 slides/pages.
+- 16:9 widescreen.
+- Full Arabic RTL rendering verified in exported PDF.
+- No detected slide objects outside canvas bounds.
+- Critical diagrams use editable PowerPoint shapes/connectors rather than flattened diagrams.
+- Only source footers / compact chart labels intentionally fall below normal conference body-size typography.
+- Contact-sheet visual review completed across all 76 slides; detailed P7/P8/P9 documentation pending.
+
+Current artifact hashes (working build; may change if QA edits are applied):
+- PPTX SHA-256: `fc9c80b373e3fc38cc3a8d8baa7b98b9c33cc0e27986f63c3b982bb29806e1b9`
+- PDF SHA-256: `03a825106c4779c2b55c9a3096d975da28383b38f163c088ce173fb464bbcc1e`
+
+## QA findings to preserve
+- IR/Ultrasonic content must not claim an automatic safety stop that RC2 firmware does not currently enforce; deck wording uses warnings/safety context and retains E-STOP/watchdog distinction.
+- Open-Set/OOD is implemented but independent threshold validation remains a documented pending task.
+- M4 quantitative calibration remains incomplete for broad professional/reportable PPM use; the deck keeps M3 and M4 explicitly separate.
+- Mixture logic is a guard against overclaiming pure identity, not a completed arbitrary mixture-component decomposition engine.
+- QSPR remains M1/supporting inference and cannot authorize reportable PPM.
+- `< USD 200` is a project prototype-cost target/commercial differentiator until final BOM scope is verified.
+- Ex/ATEX hazardous-area certification is future productization work, not a current capability claim.
 
 ## Resume point
-Current phase: P5
-Last completed phase: P4
-Known blocker: `< USD 200` final wording requires BOM scope verification before P7/P10.
-Exact next action: create the P5 visual asset manifest for S01–S75 and begin production of the reusable editable diagrams, prioritizing the integrated invention map, end-to-end architecture, ChemCore flow, AMCI, OOD, M0–M4, evidence lineage, connectivity, and roadmap.
+Current phase: P7/P8/P9 parallel audit.
+Last fully completed phase: P6.
+Exact next action: finish scientific claim audit, patent/public-disclosure audit, and visual QA; apply any final corrections; then recompute final SHA-256 hashes, mark P10 complete, update Issue #9, and hand off PPTX + PDF.
