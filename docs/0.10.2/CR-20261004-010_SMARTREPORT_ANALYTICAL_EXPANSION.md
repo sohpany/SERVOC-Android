@@ -2,15 +2,16 @@
 
 **Project:** HazRob 0.10.2 / HR069 / RC2  
 **Date:** 2026-10-04  
-**Status:** IN VALIDATION  
+**Status:** AUTOMATED ACCEPTANCE PASSED — FIELD/VISUAL ACCEPTANCE PENDING  
 **Production source:** `sohpany/SERVOC-Android`  
-**Authoritative branch:** `release/hazrob-0.10.2-rc2`
+**Authoritative branch:** `release/hazrob-0.10.2-rc2`  
+**Accepted runtime-code SHA:** `3f506ee7edd2103b07f2f89c798499342e0ebb5e`
 
 ## 1. Purpose
 
 Develop the existing SmartReport reporting engine rather than create a parallel analytical-report engine. SmartReport shall consume ChemCore outputs through one versioned analytical contract and render professional, dynamic, evidence-aware PDF and XLSX reports.
 
-The change addresses the prior failure mode in which a ChemCore-capable application could still produce a weak report with only one useful chart or could allow PDF/XLSX to drift from ChemCore semantics.
+The change addresses the prior failure mode in which a ChemCore-capable application could still produce a weak report with only one useful chart, could allow PDF/XLSX to drift from ChemCore semantics, or could expose a SmartReport user interface while still exporting through the legacy single-measurement report path.
 
 ## 2. Mandatory architecture
 
@@ -21,6 +22,7 @@ The change addresses the prior failure mode in which a ChemCore-capable applicat
 5. Any ChemCore/SmartReport contract-version mismatch must fail closed in tests/runtime binding.
 6. Quantitative occupational/safety interpretation remains gated by ChemCore M4/reportable-ppm status.
 7. Excel is the detailed auditable companion to the compact PDF, not a separate analytical authority.
+8. A measurement mapped to a user Field Session must export through the Field Session SmartReport entry point; the legacy single-measurement report is only a fallback for records without a Field Session mapping.
 
 ## 3. PDF acceptance design
 
@@ -60,8 +62,10 @@ Six distinct views:
 2. candidate scatter;
 3. candidate bubble map;
 4. residual/fit diagnostics;
-5. evidence tiers;
+5. persisted molecular/QSPR evidence when such evidence exists in the ChemCore decision; otherwise evidence-tier fallback;
 6. decision quality.
+
+The QSPR view is report-only visualization of persisted `evidence_observations`. It does not run a second QSPR engine inside the report and does not create evidence that ChemCore did not store.
 
 ### Page 4 — Evidence, 144 panel, environment and safety context
 
@@ -76,7 +80,7 @@ Six slots selected from session-supported analytics, including:
 
 ### Page 5 — Cross-session stability and provenance
 
-Generated when more than one Measurement Session is associated with the Field Session. It shows candidate/posterior stability plus model/library/session lineage. Cross-session consistency is not presented as proof of identity.
+Generated when more than one Measurement Session is associated with the Field Session. It shows candidate/ranking-weight stability plus model/library/session lineage. Cross-session consistency is not presented as proof of identity.
 
 ## 4. XLSX acceptance design
 
@@ -94,42 +98,91 @@ Generated when more than one Measurement Session is associated with the Field Se
 10. عقد التحليل
 11. المنهجية والمصدر
 
+The analytical-evidence sheet records, where present, evidence types, QSPR observation count, QSPR in-domain count, mean support weight, and QSPR lineage/source identifiers from persisted ChemCore evidence. QSPR remains M1 molecular support and never unlocks M4/reportable ppm.
+
 `SmartXlsxPackage` self-validates required XLSX container entries and worksheet presence before writing the final stream.
 
 ## 5. Scientific reporting gates
 
 - Relative ChemCore ranking weights are not relabelled as calibrated probabilities.
 - M1/M2/M3 evidence may be shown as screening/candidate evidence but may not unlock reportable ppm.
+- Molecular/QSPR evidence is support evidence only and may not be promoted to M4 by the report layer.
 - Reportable ppm requires the ChemCore M4 quantitative gate.
 - Gas-safety quantitative interpretation may not pass when ppm is withheld.
 - Screening-fit/estimated ppm used for diagnostic candidate context is not an occupational exposure determination.
 - Out-of-domain/open-set/mixture conditions remain explicitly reportable as uncertainty/limitations rather than being converted into a false identity.
 
-## 6. Anti-drift change implemented
+## 6. Anti-drift and export-path changes implemented
 
-During acceptance review a latent drift risk was found: `SmartFieldSessionPdfWriter` re-selected its own primary Measurement Session with a duplicate private scoring implementation even though `FieldSessionReportExporter.resolve()` already provided the authoritative primary session and shared contract used by XLSX.
+During acceptance review two release-integrity risks were found and corrected.
 
-This was treated as a release-integrity issue, not cosmetic cleanup.
+### 6.1 PDF/XLSX primary-session drift
+
+`SmartFieldSessionPdfWriter` had re-selected its own primary Measurement Session with a duplicate private scoring implementation even though `FieldSessionReportExporter.resolve()` already provided the authoritative primary session and shared contract used by XLSX.
+
+The duplicate PDF scorer was removed. PDF and XLSX are now bound to the same resolved Field Session bundle and the same `SmartReportAnalyticalContract`.
+
+### 6.2 SmartReport UI exporting through the legacy path
+
+The user-facing `ReportsTab` displayed SmartReport analytics but its PDF/Excel buttons still called `requestExport(...)`, the legacy single-measurement exporter. This could reproduce a weak/old report even though the new SmartReport engine itself was correct.
+
+The routing is now fail-safe and explicit:
+
+- `FieldSessionRepository.fieldSessionIdForMeasurement(...)` performs an exact reverse lookup from Measurement Session to Field Session.
+- If the selected measurement belongs to a Field Session, `ReportsTab` calls `requestFieldSessionExport(...)`.
+- `FieldSessionsTab` uses the same `requestFieldSessionExport(...)` entry point.
+- `requestExport(...)` remains only as a fallback for records that do not belong to a user Field Session.
 
 ### Corrective commits
 
 - `f442e2ba556ece74d0822cb94d1a333e63be04ee` — strengthened channel-sync tests so PDF cannot retain a second scoring implementation or independently select another primary session.
 - `2d967932715f35a4cfd2eddac4c68b1f1ca0c303` — bound PDF to `b.analyticalContract`, `b.primaryMeasurementSessionId`, `contract.series()` and `contract.decision()`; removed the duplicate PDF scorer.
 - `831d643e52a5c0bfda9332255a0492e4373886e9` — added SmartReport PDF/XLSX acceptance suite, including XLSX package-container validation.
+- `b3f46ed39e6cac8b71b3727af66e61a0059f952f` — completed the persisted molecular/QSPR reporting evidence and XLSX QSPR-lineage acceptance state.
+- `c0aa7728af2de4a064541afa27b134d009635515` — added exact Measurement Session → Field Session reverse lookup for report routing.
+- `a1782dd62d0d1fef508eaaf6a1a7ea077b436965` — routed SmartReport PDF/XLSX buttons through the Field Session exporter whenever the selected measurement is Field Session-mapped.
+- `3f506ee7edd2103b07f2f89c798499342e0ebb5e` — added the UI-routing acceptance lock preventing regression to the legacy export path.
 
 ## 7. Validation evidence
 
-Pre-change integration baseline:
+### 7.1 Earlier QSPR/report integration checkpoint
 
-- SHA `e0ed125030def90e82408a2ef8be78e574e9bf79`
-- Internal validation workflow run `37175490445`
-- canonical source contracts: PASS
-- ChemCore stable snapshot packaging: PASS
-- Android unit/contract tests: PASS
-- signed APK internal build: PASS
-- APK signature/integrity verification: PASS
+Code SHA `b3f46ed39e6cac8b71b3727af66e61a0059f952f` passed both relevant workflows:
 
-Current CR-010 head at this document creation is `831d643e52a5c0bfda9332255a0492e4373886e9`; new CI acceptance runs are pending and must pass before CR-010 is marked ACCEPTED.
+- Internal validation run `37177070310`: SUCCESS.
+- Diagnostic run `37177070271`: SUCCESS.
+
+This included Android unit/contract tests, signed APK build, APK integrity/signing verification, ChemCore diagnostic challenges, MQ3 digital-twin diagnostics, and MQ3 QSPR fingerprint diagnostics.
+
+### 7.2 Final automated acceptance of runtime-code SHA
+
+Accepted runtime-code SHA: `3f506ee7edd2103b07f2f89c798499342e0ebb5e`.
+
+**Internal validation workflow — run `37178457731`: SUCCESS**
+
+- checkout exact RC2 source: PASS;
+- canonical source contracts: PASS;
+- canonical ChemCore Stable snapshot packaging: PASS;
+- Android unit and contract tests: PASS;
+- signed APK internal build: PASS;
+- APK integrity and signing verification: PASS;
+- workflow completed successfully.
+
+**RC2 diagnostic workflow — run `37178457742`: SUCCESS**
+
+- current RC2 runtime contract: PASS;
+- Android unit tests and ChemCore reference challenges: PASS;
+- ChemCore reference simulation diagnostic: PASS/uploaded;
+- ChemCore Experiment 4 replay diagnostic: PASS/uploaded;
+- MQ3 digital twin pilot diagnostic: PASS/uploaded;
+- MQ3 QSPR fingerprint pilot diagnostic: PASS/uploaded;
+- installable diagnostic debug APK build: PASS;
+- diagnostic APK verification/fingerprinting: PASS;
+- workflow completed successfully.
+
+Therefore the source/unit/contract/build/signing/diagnostic acceptance for CR-010 is complete at SHA `3f506ee7...`.
+
+This documentation update records that evidence only and does not alter runtime code.
 
 ## 8. Acceptance tests introduced/strengthened
 
@@ -145,22 +198,49 @@ Current CR-010 head at this document creation is `831d643e52a5c0bfda9332255a0492
   - six-chart grid;
   - distinct sensor/fingerprint analytical views;
   - distinct ChemCore inference views;
+  - dynamic persisted molecular/QSPR evidence with non-QSPR fallback;
+  - QSPR must not promote reportable ppm;
   - M4 guard around quantitative exposure charting;
   - 11-sheet XLSX companion;
+  - QSPR evidence/lineage columns in the auditable workbook;
   - valid inspectable XLSX ZIP/container structure.
 
-## 9. Remaining acceptance boundary
+- `SmartReportUiRoutingContractTest`
+  - SmartReport UI must perform exact Field Session reverse lookup;
+  - Field Session-mapped measurements must call `requestFieldSessionExport(...)`;
+  - legacy `requestExport(...)` remains only as unmapped-measurement fallback;
+  - FieldSessionsTab and ReportsTab converge on the same Field Session SmartReport entry point.
 
-Automated source/unit/build validation can prove contract synchronization, page/chart topology, scientific gates, compile correctness and XLSX package integrity. It does **not** by itself constitute manual visual inspection of a PDF/XLSX generated from a new real robot Field Session on the target Android device.
+## 9. Automated acceptance decision
 
-Therefore the final field acceptance step remains: generate one representative Field Session PDF and XLSX from real/representative HR069 session data, inspect readability/RTL/chart density, and confirm the exported files open correctly on the target phone/desktop. This step must be recorded when performed; it must not be implied before evidence exists.
+Automated acceptance is **PASSED** for runtime-code SHA `3f506ee7edd2103b07f2f89c798499342e0ebb5e`.
 
-## 10. Promotion rule
+The following automated gates are satisfied:
 
-CR-010 may be marked **ACCEPTED** only when:
-
-1. current branch CI passes with the synchronization and acceptance tests;
-2. no new report path bypasses `SmartReportAnalyticalContract`;
-3. PDF and XLSX remain bound to the same primary Measurement Session;
+1. current RC2 branch code passed synchronization and acceptance tests;
+2. the user SmartReport export path no longer bypasses the Field Session SmartReport when a mapping exists;
+3. PDF and XLSX remain bound to the same primary Measurement Session and analytical contract;
 4. reportable ppm and gas-safety quantitative outputs remain M4-gated;
-5. any later field/visual acceptance evidence is appended to this record rather than kept only in chat.
+5. signed and diagnostic APK builds completed successfully.
+
+This is an **automated engineering acceptance**, not yet a manual field/visual acceptance of rendered report files.
+
+## 10. Remaining field/visual acceptance boundary
+
+Automated source/unit/build validation can prove contract synchronization, page/chart topology, scientific gates, compile correctness, routing correctness and XLSX package integrity. It does **not** by itself constitute manual visual inspection of a PDF/XLSX generated from a new real robot Field Session on the target Android device.
+
+The remaining step is therefore limited to field/visual acceptance:
+
+1. create or use one representative HR069 user Field Session with recorded Measurement Session data;
+2. export PDF from the SmartReport path;
+3. export XLSX from the same Field Session;
+4. verify PDF page count/layout, RTL readability, chart labels, chart density and absence of clipping;
+5. verify that XLSX opens correctly and contains all 11 sheets with consistent primary-session identity and evidence lineage;
+6. verify on the target Android phone and at least one desktop viewer;
+7. append the generated-file evidence and observations to this CR.
+
+Until this evidence exists, CR-010 remains **AUTOMATED ACCEPTANCE PASSED — FIELD/VISUAL ACCEPTANCE PENDING**, not fully field-accepted.
+
+## 11. Final promotion rule
+
+CR-010 may be promoted to **FULLY ACCEPTED** only when the field/visual acceptance evidence in Section 10 is appended to this record. No further runtime-code change is required unless that inspection exposes a real rendering/export defect.
