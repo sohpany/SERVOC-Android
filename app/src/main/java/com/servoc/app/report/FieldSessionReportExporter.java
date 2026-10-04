@@ -46,19 +46,22 @@ public final class FieldSessionReportExporter {
         List<String> sessions=repo.measurementSessionIds(fs);List<ExperimentQueries.Record> records=new ArrayList<>();for(String sid:sessions)records.addAll(ExperimentQueries.bySessionId(db,sid));
         ChemCoreDecisionRepository decisions=new ChemCoreDecisionRepository(db);
 
-        // Validate every measurement-session decision up front. The smart PDF may choose the strongest
-        // analytical session rather than the latest one, so no session that can be rendered may bypass
-        // the same ChemCore -> SmartReport compatibility and scientific-semantic guard used by XLSX.
+        // Validate every candidate measurement session and select the same strongest analytical session
+        // used by the smart PDF scoring policy. XLSX therefore cannot silently bind to a different
+        // "latest" session while the PDF displays a stronger earlier session.
+        String primary="";SessionSeries.Series series=null;JSONObject decision=null;int bestScore=Integer.MIN_VALUE;
         for(String sid:sessions){
             if(sid==null||sid.trim().isEmpty())continue;
             String id=sid.trim();
-            SmartReportAnalyticalContract.bind(SessionSeries.byId(db,id),decisions.latestPayloadForSession(id));
+            SessionSeries.Series candidateSeries=SessionSeries.byId(db,id);
+            JSONObject candidateDecision=decisions.latestPayloadForSession(id);
+            SmartReportAnalyticalContract.bind(candidateSeries,candidateDecision);
+            int candidateRecords=ExperimentQueries.bySessionId(db,id).size();
+            int score=SmartReportPrimarySelector.score(candidateSeries,candidateDecision,candidateRecords);
+            if(primary.isEmpty()||score>=bestScore){
+                bestScore=score;primary=id;series=candidateSeries;decision=candidateDecision;
+            }
         }
-
-        String primary="";JSONObject decision=null;
-        for(int i=sessions.size()-1;i>=0;i--){String sid=sessions.get(i);JSONObject p=decisions.latestPayloadForSession(sid);if(p!=null){primary=sid;decision=p;break;}}
-        if(primary.isEmpty()&&!sessions.isEmpty())primary=sessions.get(sessions.size()-1);
-        SessionSeries.Series series=primary.isEmpty()?null:SessionSeries.byId(db,primary);
         SmartReportAnalyticalContract contract=SmartReportAnalyticalContract.bind(series,decision);
         return new Bundle(fs,site,field,new ArrayList<>(sessions),records,primary,series,decision,contract);
     }
