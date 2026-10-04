@@ -17,12 +17,43 @@ Presenters: شهاب الصهباني، مجدي ذيبان
 - Never present M3 as M4, ranking weight as calibrated probability, or literature/reference PPM as HR069 M4 validation.
 - Patent-oriented content is framed as candidate invention families, not a legal conclusion.
 
+## Owner-defined invention core
+The dominant invention narrative is now fixed as an **integrated low-cost robotic chemical-analysis system**, not any single algorithm or sensor.
+
+Core integrated pillars:
+1. multi-method chemical analysis inside one coordinated engine;
+2. broad compound-hypothesis coverage across dozens of operational targets / wider molecular knowledge;
+3. linkage of qualified chemical results to occupational exposure/hazard limits;
+4. remote robot driving, video, telemetry and measurement;
+5. developer/laboratory experimentation and calibration workflow;
+6. controlled updateable analytical knowledge layer;
+7. low-cost prototype architecture with a project target/current estimate below USD 200, subject to final BOM scope verification.
+
+Supporting analytical mechanisms remain important subsystems:
+- AMCI;
+- joint multi-sensor inverse solver;
+- OOD/Open-Set;
+- multi-channel fingerprints;
+- M0–M4 evidence tiers;
+- QSPR;
+- lineage-aware evidence fusion;
+- mixture/interference guards;
+- fail-closed outcomes.
+
+The low-cost point is a **commercial/accessibility differentiator**, not a standalone patent claim. Before final deck use, the `< USD 200` statement must be tied to a defined BOM scope.
+
 ## Mandatory slides
 - terminology/abbreviations including Rs, R0, Rs/R0, ADC, PPM, MOX/MOS, M0–M4, OOD, Open-Set, AMCI, QSPR, UID, SNR, AUC, UX, UI, API, MQTT and ESP32;
 - blank presenter slide for شهاب الصهباني and مجدي ذيبان;
 - global/Yemen need;
 - prior work and products/costs;
 - HazRob/ChemCore methodology;
+- integrated invention-core slide;
+- exposure-limit integration slide;
+- remote-driving/field-operation slide;
+- experiment/calibration laboratory slide;
+- updateable-knowledge-layer slide;
+- low-cost/BOM-value slide;
 - candidate invention-family map;
 - APA 7 references;
 - final thanks slide.
@@ -32,7 +63,7 @@ Presenters: شهاب الصهباني، مجدي ذيبان
 - P1 Scientific sources/APA — COMPLETE
 - P2 Prior art/products/costs — COMPLETE
 - P3 Invention-family framing — COMPLETE
-- P4 Slide-by-slide storyboard — IN PROGRESS
+- P4 Slide-by-slide storyboard — IN PROGRESS / REVISION REQUIRED TO REFLECT OWNER-DEFINED CORE
 - P5 Visual production — NOT STARTED
 - P6 PPTX build — NOT STARTED
 - P7 Scientific audit — NOT STARTED
@@ -54,37 +85,16 @@ Presenters: شهاب الصهباني، مجدي ذيبان
 ### P3
 - `docs/presentation/P3_INVENTION_FAMILY_MATRIX.md`
 - `docs/presentation/P3_PATENT_CANDIDATE_MAP.md`
-
-Front-stage P3 families:
-1. AMCI adaptive multisensor chemical interrogation.
-2. Joint multi-sensor inverse chemical/concentration inference.
-3. OOD → fingerprint → M3 identity → separate M4 quantitative gate.
-4. Lineage-aware evidence fusion.
-5. Robot/sample state coupled to analytical validity.
-
-Supporting families:
-- M0–M4 identity/quantification separation.
-- Fail-closed analytical outcomes.
-- Research-to-runtime scientific provenance.
+- `docs/presentation/P3_INTEGRATED_INVENTION_CORE.md`
 
 ## Current P4 requirements
-Create a master storyboard of approximately 60–75 slides. Internal production IDs may be used in documentation, but the actual deck will have no visible slide numbers.
+The storyboard must be revised so the integrated invention core dominates the narrative. Algorithm-family slides remain as supporting subsystems, not the sole definition of the invention.
 
-Every storyboard entry must record:
-- Arabic slide title;
-- single core message;
-- concise content;
-- proposed visual;
-- source IDs;
-- implementation-status label where relevant;
-- presenter note;
-- public/master-only suitability where relevant.
-
-Narrative sequence:
-`need → Yemen/global context → prior art/products/cost → gap → HazRob concept → robot/hardware → measurement pipeline → fingerprints → ChemCore → inverse solver → OOD → AMCI → evidence tiers/fusion → outcomes/reporting → invention families → applications → roadmap → limitations → references → thanks`
+Required invention sequence inside the deck:
+`multi-method analysis → broad compound coverage → evidence-qualified result → exposure-limit/hazard context → remote robot operation → experimental/calibration lab → controlled updates → low-cost accessibility → candidate protection map`
 
 ## Resume point
 Current phase: P4
 Last completed phase: P3
-Known blockers: none for P4.
-Exact next action: create `P4_MASTER_STORYBOARD.md`, freeze slide content and visual requirements, then advance to P5.
+Known blocker: none; `< USD 200` final wording requires BOM scope verification before P7/P10.
+Exact next action: revise `P4_MASTER_STORYBOARD.md` to center `P3_INTEGRATED_INVENTION_CORE.md`, keep the master at about 75 slides, then freeze visual assets for P5.
