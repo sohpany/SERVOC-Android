@@ -1,6 +1,6 @@
 # CR-20261008-006 — HR069-R1 developer-reference publication / ChemCore Stable update compatibility audit
 
-**Status:** REGISTERED — AUDIT COMPLETE / REMEDIATION DESIGN PENDING / NO SCIENTIFIC PROMOTION
+**Status:** REGISTERED / IMPLEMENTED NON-OPERATIONAL STAGING / SCIENTIFIC ADMISSION AND STABLE DISTRIBUTION STILL BLOCKED
 **Registered:** 2026-10-08
 **Release line:** Android 0.10.2, engineering HR069-R1 (HR069 controlled baseline), Main ESP32 API v4, ESP32-CAM unchanged.
 **Only development branch:** `sohpany/SERVOC-Android:release/hazrob-0.10.2-rc2`
@@ -44,3 +44,15 @@ User-domain Field Sessions/Sites must stay local. Only explicitly developer-init
 **NO CHANGE executed by this audit:** no stable scientific payload or manifest published, no remote endpoint changed, no user sessions uploaded, no previous versions reintroduced. New code for re-routing publication must be reviewed against this CR and the current change-control policy before adoption.
 
 **Resume on the same branch** with these files: `GitHubReferencePublisher.java`, `DeveloperExperimentsTab.java`, `ReferenceLineageGuard.java`, `ReferenceArtifactBuilder.java`, `ReferenceBankExporter.java`, `ChemCoreLibraryManager.java`, `ChemCoreStableKnowledgeReader.java`, `app/build.gradle` and retired workflow status.
+
+## Implementation checkpoint — HR069-R1 (non-authoritative)
+
+The previously identified hardcoded publisher destination was corrected **in this working RC2 source** to:
+
+- Repository `sohpany/SERVOC-Android`, branch `release/hazrob-0.10.2-rc2`;
+- Non-runtime review-only paths `research_data/hr069_developer_submissions/approved_experiments/` and `derived_references/`;
+- Exact developer-origin and approved source lineage checks inside the publication implementation (not only UI);
+- Content-addressed immutable names, replay-resistant create-only GitHub write, source and derived SHA-256 integrity checks;
+- User-facing wording/status `STAGED_FOR_REVIEW`, not `PUBLISHED`. No user data may reach staging.
+
+This is a **source implementation**, not a scientific admission or live upload. Approved analytical knowledge remains exclusively at `research_data/hr069_analytical_library/`, subject to a separate controlled decision. The read-only Stable source in BuildConfig is still unconfigured, so **download/update end-to-end remains blocked**. No retired CI publishing workflow has been reactivated. This CR is not approved/promoted.
