@@ -28,8 +28,8 @@ def main() -> int:
 
     req(cfg,"IR_GROUND_ACTIVE=HIGH","IR operator-calibrated HIGH-ground polarity");req(cfg,"IR_CLIFF_ASSERT_SAMPLES=3","IR persistence");req(cfg,"IR_REFERENCE_HEIGHT_CM=4.0f","IR 4 cm mounting reference")
     req(hw,"groundNow=irLevel==Cfg::IR_GROUND_ACTIVE","IR ground semantics");req(hw,"irWarning=true","IR cliff assertion");req(hw,'\\"cliff_warning\\"',"IR telemetry cliff state");req(hw,'\\"ground_detected\\"',"IR telemetry ground state")
-    req(control_tab,'irBadge.setText(cliff?"⚠ لا توجد أرضية":ground?"أرض ●":"أرض ؟")',"drive cliff UX")
-    req(control_tab,'optBoolean("cliff_warning",ir.optBoolean("warning",false))',"drive cliff telemetry authority")
+    req(control_tab,'irBadge.setText(ir==null?"أرض ؟":cliff?"⚠ لا توجد أرضية":ground?"أرض ●":"أرض ؟")',"drive cliff UX")
+    req(control_tab,'optBoolean("cliff_warning",ir.optBoolean("warning",true))',"drive cliff telemetry authority")
     req(control_tab,'String.format(Locale.US,"أمام %.1f cm",cm)',"drive Echo distance in cm")
     req(control_tab,'host.liveGasState()',"drive live-gas overlay authority")
     req(control_tab,'host.robotApi().mqPower(target)',"floating MQ relay control")
