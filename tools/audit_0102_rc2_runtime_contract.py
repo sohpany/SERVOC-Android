@@ -45,7 +45,7 @@ def main() -> int:
 
     require(release,'VERSION="0.10.2"',"release version")
     require(release,'ENGINEERING_REVISION="HR069-R1"',"engineering revision")
-    require(cfg,'FW[]="HazRob 0.10.2 / HR069-R1"',"firmware identity")
+    require(cfg,'FW[]="HazRob 0.10.2"',"firmware identity")
     require(cfg,'API=4',"API4 identity")
 
     # IR is a downward cliff sensor: reflection/ground is SAFE; missing reflection is the warning.
