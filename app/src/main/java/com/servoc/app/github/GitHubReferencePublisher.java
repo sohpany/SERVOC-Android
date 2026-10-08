@@ -2,6 +2,7 @@ package com.servoc.app.github;
 
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.data.ExperimentsDb;
+import com.servoc.app.data.ReferenceLineageGuard;
 import com.servoc.app.report.ReferenceBankExporter;
 import org.json.JSONObject;
 import java.io.BufferedReader;
@@ -16,14 +17,14 @@ import java.security.MessageDigest;
 import java.util.Base64;
 import java.util.Locale;
 
-/** Publishes immutable approved raw experiments and derived references to the HazRob organization library. */
+/** Sends approved developer references to RC2 non-runtime research review staging only. */
 public final class GitHubReferencePublisher {
     /** Canonical scientific-library owner for HazRob 0.10.2 / HR069. */
-    public static final String REPOSITORY="HazRob/build-harness";
-    public static final String BRANCH="main";
-    public static final String LIBRARY_ROOT="library";
-    public static final String DIRECTORY=LIBRARY_ROOT+"/reference-bank/approved-experiments";
-    public static final String DERIVED_DIRECTORY=LIBRARY_ROOT+"/reference-bank/derived-references";
+    public static final String REPOSITORY="sohpany/SERVOC-Android";
+    public static final String BRANCH="release/hazrob-0.10.2-rc2";
+    public static final String LIBRARY_ROOT="research_data/hr069_developer_submissions";
+    public static final String DIRECTORY=LIBRARY_ROOT+"/approved_experiments";
+    public static final String DERIVED_DIRECTORY=LIBRARY_ROOT+"/derived_references";
     private static final String API_VERSION="2022-11-28";
     private GitHubReferencePublisher(){}
 
@@ -32,14 +33,30 @@ public final class GitHubReferencePublisher {
         Result(boolean success,int httpCode,String path,String commitSha,String message,String payloadSha256){this.success=success;this.httpCode=httpCode;this.path=path;this.commitSha=commitSha;this.message=message;this.payloadSha256=payloadSha256;}
     }
 
-    public static Result publish(String token,ExperimentQueries.Record record)throws Exception{
+    /** Submits a developer-approved experiment into NON-OPERATIONAL REVIEW STAGING.
+     * Never updates the ChemCore runtime, canonical stable knowledge or M4 evidence.
+     */
+    public static Result publish(String token,ExperimentsDb db,ExperimentQueries.Record record)throws Exception{
         validateApprovedRecord(record);
-        String secret=secret(token);String fileName=canonicalFileName(record);byte[] bytes=serialize(record);
-        return put(secret,DIRECTORY+"/"+fileName,fileName,bytes,"Add HazRob approved reference experiment ");
+        if(db==null||!ExperimentQueries.isDeveloperReference(db,record.id)
+                ||!ReferenceLineageGuard.valid(db,record))
+            throw new IllegalArgumentException("developer-only verified reference lineage required before staging upload");
+        ExperimentQueries.Record persisted=ExperimentQueries.byId(db,record.id);
+        if(persisted==null||!persisted.approved||!record.sessionId.equals(persisted.sessionId)
+                ||record.captureId!=persisted.captureId||record.chemicalUid!=persisted.chemicalUid
+                ||!record.approvedTs.equals(persisted.approvedTs))
+            throw new IllegalArgumentException("unverified or stale publication record");
+        byte[] bytes=serialize(persisted);
+        String fileName=canonicalFileName(persisted).replace(".json","")
+                +"_"+safeName(persisted.sessionId)+"_"+sha256(bytes).substring(0,16)+".json";
+        return put(secret,DIRECTORY+"/"+fileName,fileName,bytes,"Stage HR069 developer experiment for scientific review ");
     }
 
-    public static Result publishArtifact(String token,ExperimentsDb.ReferenceArtifactRecord artifact)throws Exception{
+    /** Derived artifacts require verified lineage of every approved source, not only a local UI click. */
+    public static Result publishArtifact(String token,ExperimentsDb db,ExperimentsDb.ReferenceArtifactRecord artifact)throws Exception{
         validateDerivedArtifact(artifact);
+        if(db==null||!ReferenceLineageGuard.artifactSourcesValid(db,artifact))
+            throw new IllegalArgumentException("derived sources are not approved HR069 developer references");
         String secret=secret(token);String kind=safeName(artifact.kind);String hash=artifact.sha256;
         String prefix=hash.substring(0,12);
         String fileName=String.format(Locale.US,"HazRob_DERIVED_%s_C%06d_A%06d_%s.json",kind,artifact.chemicalUid,artifact.id,prefix);
@@ -47,14 +64,15 @@ public final class GitHubReferencePublisher {
         root.put("schema","hazrob-derived-reference-publication/1");
         root.put("release","0.10.2");
         root.put("hardware_revision","HR069");
-        root.put("status","APPROVED_DERIVED");
+        root.put("status","SUBMITTED_FOR_SCIENTIFIC_REVIEW");
+        root.put("scientific_promotion",false);root.put("m4_promotion",false);
         root.put("canonical_repository",REPOSITORY);
         root.put("canonical_branch",BRANCH);
         root.put("artifact_id",artifact.id);root.put("chemical_uid",artifact.chemicalUid);root.put("kind",artifact.kind);
         root.put("version",artifact.version);root.put("created_at_utc",artifact.createdTs);root.put("source_experiment_ids",artifact.sourceIds);
         root.put("payload_sha256",artifact.sha256);root.put("metrics",json(artifact.metrics));root.put("reference",json(artifact.payload));
         byte[] bytes=root.toString(2).getBytes(StandardCharsets.UTF_8);
-        return put(secret,DERIVED_DIRECTORY+"/"+fileName,fileName,bytes,"Add HazRob derived reference ");
+        return put(secret,DERIVED_DIRECTORY+"/"+fileName,fileName,bytes,"Stage HR069 derived artifact for scientific review ");
     }
 
     private static void validateApprovedRecord(ExperimentQueries.Record r){
@@ -91,7 +109,7 @@ public final class GitHubReferencePublisher {
         byte[] body=request.toString().getBytes(StandardCharsets.UTF_8);c.setFixedLengthStreamingMode(body.length);
         try(OutputStream out=c.getOutputStream()){out.write(body);out.flush();}
         int code=c.getResponseCode();String response=read(code>=200&&code<300?c.getInputStream():c.getErrorStream());c.disconnect();
-        if(code==201){JSONObject j=json(response);String sha="";JSONObject commit=j.optJSONObject("commit");if(commit!=null)sha=commit.optString("sha","");return new Result(true,code,path,sha,"published",payloadHash);}
+        if(code==201){JSONObject j=json(response);String sha="";JSONObject commit=j.optJSONObject("commit");if(commit!=null)sha=commit.optString("sha","");return new Result(true,code,path,sha,"submitted_for_review",payloadHash);}
         // Canonical experiment/reference files are intentionally append-only. HTTP 422/409 fails closed rather than overwriting evidence.
         return new Result(false,code,path,"",safeError(code,response),payloadHash);
     }
