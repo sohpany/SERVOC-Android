@@ -27,6 +27,7 @@ public class SessionSeriesNormalizationTest {
         assertEquals("MANUAL-R0-20261008",q.getString("r0_session"));
         assertEquals("persisted_rs_r0",q.getString("historical_ratio_source"));
         assertTrue(q.getBoolean("historical_calibration_frozen"));
+        assertTrue(q.getBoolean("r0_device_local"));
         assertFalse(q.getBoolean("r0_reference_validated"));
         assertFalse(q.getBoolean("r0_centrally_publishable"));
         // No mutation of the serialized sample or artificial replacement with today's default.
@@ -42,6 +43,7 @@ public class SessionSeriesNormalizationTest {
         assertEquals(2.5,q.getDouble("ratio"),1e-9);
         assertFalse(q.has("r0"));
         assertFalse(q.has("r0_session"));
+        assertFalse(q.getBoolean("r0_device_local"));
         assertEquals("persisted_ratio",q.getString("historical_ratio_source"));
     }
 }
