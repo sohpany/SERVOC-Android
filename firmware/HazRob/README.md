@@ -1,5 +1,17 @@
 # HazRob main ESP32 firmware — 0.10.2 / HR069-R1 WORKING
 
+## Latest documented Main ESP32 source / matched Android app (2026-10-08)
+
+**LATEST DELIVERED WORKING Arduino sketch:** HazRob **0.10.2 / HR069-R1**, from Git commit `e6a14bc570c335b824c153c7cd7fd2677b9bd005`. The Arduino source ZIP `HazRob-0.10.2-HR069-R1-ESP32-Arduino.zip` has SHA-256 `6532c3495de23b1d4917ad64882519d3cc9c0cb42fd66634dc92059ba560058e`.
+
+**LATEST DELIVERED WORKING Android app:** HazRob **0.10.2 / HR069-R1**, **versionCode 28**, APK source commit `8b89e4c27fa7fda4cc25b294f9a973a2a1a2a60a`, APK SHA-256 `022ba04594cd7b7735e2fd67a37586ee4b9e235eaf5e7e799e170b1e42d19618`. Embedded ChemCore Stable: `1.0.0-hr069r1`; locally editable R0 remains on Android. ESP32-CAM is still 0.10.2/HR069.
+
+**Verified compatibility of the source revisions:** `firmware/HazRob/` is the identical Git tree `12c8b5fe3c903d320b12e19a9c58d9a94c8cf2f0` in the two delivery commits and documentation baseline. The firmware source did not change between the Arduino ZIP and v28 APK deliveries. Both are the **latest delivered diagnostic versions**; neither has passed real-robot physical validation or been promoted to an approved field/production release.
+
+**Build evidence:** [Arduino compiler and ZIP](https://github.com/sohpany/SERVOC-Android/actions/runs/37852367741) · [v28 APK](https://github.com/sohpany/SERVOC-Android/actions/runs/37854726140). All ongoing engineering continues on **`release/hazrob-0.10.2-rc2` only**; do not flash HR068 or earlier firmware in place of this source.
+
+---
+
 Hardware target: DOIT ESP32 DEVKIT V1 / ESP32-WROOM-compatible board.
 
 This directory contains the Main ESP32 firmware in the current 0.10.2 / HR069-R1 working branch `release/hazrob-0.10.2-rc2`. This is *not* an approved new production firmware until bench/physical acceptance. Pair with Android 0.10.2 / HR069-R1 and API4. ESP32-CAM firmware is a separate module.
