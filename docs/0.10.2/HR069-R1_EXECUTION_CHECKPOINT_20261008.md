@@ -24,8 +24,8 @@
 - P3: Hardware status and selected-chemical unique MQ sample timestamp protection: CODE CHANGED / CI+FIELD PENDING.
 - P4: Atomic user session delete with protected developer references, SAF tombstones; Developer vs USER role separation: CODE CHANGED / DB TEST PENDING.
 - P5: Site/single-session scope UI and asynchronous site PDF/XLSX + ZIP-on-disk: CODE CHANGED / Android BUILD+EXPORT TEST PENDING.
-- P6: PNG brand asset and entry/launcher: PENDING.
-- P7: README updated, selected legacy tests/audits migrated to HR069-R1; GitHub Actions initially failed on obsolete pinned contract assertions; compile/physical gates PENDING.
+- P6: Deterministic transparent PNG generator (1024×1024), launcher/splash references and source test: CODE CHANGED; CI + on-phone visual approval PENDING.
+- P7: README updated, Android `versionCode 27` WORKING (approved baseline still 26), legacy contract assertions migrated; end-to-end build, firmware, physical and PDF/XLSX verification PENDING.
 
 ## Safeguards
 - Direct AP and Remote MQTT are independent transports of the same normalized API4 fields.
@@ -62,3 +62,14 @@
 - Confirmed `CHEMCORE_LIBRARY_MANIFEST_URL` empty in production Gradle and legacy publication workflows retired. Read-only Stable updater is designed but its end-to-end runtime distribution remains UNVERIFIED.
 - Implemented dedicated developer-session update interlock at SHA `5d4c545e7152f4e1bb8779b526268a00b69003e0` and accompanying unit regression at SHA `e0c47aed51b873a793b393480be37baf7e247f31`: neither firmware-idle controlled captures nor active local recordings may activate a new Stable package.
 - No older-than-0.10.2/HR069 code used; no new branch. APK/Main firmware/physical/Stable end-to-end release gates all PENDING.
+
+## 2026-10-08 — continued execution after project-owner approval
+
+- Developer and user session isolation: both `DeveloperExperimentsTab` and legacy unused `ExperimentsTab` use persisted `DEVELOPER` role, explicit developer capture origin and `ReferenceLineageGuard`; ordinary user sessions stay local and cannot publish.
+- Reference submission destination switched from obsolete `HazRob/build-harness/library` to *non-runtime* `sohpany/SERVOC-Android:release/hazrob-0.10.2-rc2/research_data/hr069_developer_submissions/`. Submission filenames include session and payload hash. The publisher validates raw developer lineage, local approval, immutable source integrity, derived source lineage and derived SHA-256.
+- Developer UI labels send action **scientific review submission only** and records `STAGED_FOR_REVIEW` rather than `PUBLISHED`. It does not alter the canonical accepted corpus or the installed Stable library. No actual reference upload performed in this session.
+- CR-20261008-006 identifies the missing science-admission pipeline and public read-only Stable manifest endpoint. The retired GitHub workflows remain retired. ChemCore updates cannot be called fully operational until an approved release is published and installed end-to-end.
+- Branding step generates a 1024px alpha PNG with opaque black *inside* the golden hexagon and transparent black *outside*. `AndroidManifest.xml` and `ConnectionGate.java` reference `ic_hazrob_hr069_r1`. The Gradle branding task tracks the generator output. Legacy ReportExporter/XlsxReportWriter source mutation was removed from `tools/apply_hazrob_branding.py`.
+- Android working build identity: `versionName 0.10.2`, `versionCode 27`, `ReleaseAudit.ENGINEERING_REVISION HR069-R1`. Main ESP32 API4/firmware banner 0.10.2 with separate build_revision HR069-R1, ESP32-CAM unchanged. This working code is NOT a new approved release.
+- CI before these fixes exposed 3 unit contract problems (ReleaseAudit revision, invalid MQ channel tracking reason, obsolete report UI assertions) and 2 compile errors from the unused ExperimentsTab legacy publisher signature. These were corrected; re-run CI and retain all failures in audit trail.
+- Resume directly on the same RC2 branch. Check latest HEAD and `docs/0.10.2/CR-20261008-006_DEV_REFERENCE_CHEMCORE_SYNC_AUDIT.md`. Do not touch versions older than 0.10.2/HR069, do not create branches, do not promote or publish unqualified data.
