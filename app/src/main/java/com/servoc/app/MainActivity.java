@@ -119,7 +119,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     private void scheduleComms(){
         if(commsScheduled)return;commsScheduled=true;
         workers.scheduleAtFixedRate(()->{if(entered)queueDriveSend();},0,50,TimeUnit.MILLISECONDS);
-        workers.scheduleAtFixedRate(()->pollTelemetry(false),0,250,TimeUnit.MILLISECONDS);
+        workers.scheduleAtFixedRate(()->pollTelemetry(false),0,150,TimeUnit.MILLISECONDS);
     }
     private void requestManualRefresh(){workers.execute(()->pollTelemetry(true));}
     private void pollTelemetry(boolean manual){
