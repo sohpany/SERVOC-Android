@@ -52,7 +52,10 @@ public final class ChemCoreQuantitativeTimeSeries {
         try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms,id",new String[]{sessionId.trim()})){
             while(c.moveToNext()){
                 persisted++;long t=c.getLong(0);JSONObject env=json(c.getString(1)),mq=json(c.getString(2));Map<String,Double> ratios=new LinkedHashMap<>();
-                for(ChemCoreResponseModel model:m4.models){String key=model.sensorKey();JSONObject q=mq.optJSONObject(key);double ratio=AcceptedR0Normalizer.ratio(key,q);if(Double.isFinite(ratio)&&ratio>0)ratios.put(key,ratio);}
+                for(ChemCoreResponseModel model:m4.models){String key=model.sensorKey();JSONObject q=mq.optJSONObject(key);// Historical quantitative replays use the R0 frozen in each recorded sample;
+                    // recalibration of the live robot cannot rewrite an earlier exposure estimate.
+                    double ratio=AcceptedR0Normalizer.recordedRatio(key,q);
+                    if(Double.isFinite(ratio)&&ratio>0)ratios.put(key,ratio);}
                 double tc=finite(env,"temperature_c","temperature","temp_c"),rh=finite(env,"humidity_rh","humidity","rh"),ph=finite(env,"pressure_hpa","pressure");if(Double.isFinite(ph)&&ph>2000)ph/=100.0;
                 if(Double.isFinite(tc)){tSum+=tc;tn++;}if(Double.isFinite(rh)){rhSum+=rh;rhn++;}if(Double.isFinite(ph)){pSum+=ph;pn++;}
                 InverseMolecularSolver.Result r=InverseMolecularSolver.solveOne(ratios,m4,tc,rh,profile);
