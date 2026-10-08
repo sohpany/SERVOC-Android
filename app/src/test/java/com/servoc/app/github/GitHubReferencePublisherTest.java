@@ -8,6 +8,15 @@ import java.util.Base64;
 import static org.junit.Assert.*;
 
 public class GitHubReferencePublisherTest {
+    @Test public void uploadDestinationIsRc2NonRuntimeDeveloperStaging(){
+        assertEquals("sohpany/SERVOC-Android",GitHubReferencePublisher.REPOSITORY);
+        assertEquals("release/hazrob-0.10.2-rc2",GitHubReferencePublisher.BRANCH);
+        assertEquals("research_data/hr069_developer_submissions/approved_experiments",GitHubReferencePublisher.DIRECTORY);
+        assertEquals("research_data/hr069_developer_submissions/derived_references",GitHubReferencePublisher.DERIVED_DIRECTORY);
+        assertFalse(GitHubReferencePublisher.DIRECTORY.contains("build-harness"));
+        assertFalse(GitHubReferencePublisher.DIRECTORY.contains("/hr069_analytical_library/"));
+    }
+
     @Test public void canonicalNameIgnoresUnsafeStoredReferenceName(){
         ExperimentQueries.Record r=new ExperimentQueries.Record(42,"2026-08-31T14:00:00Z","{}","p","{}",true,"2026-08-31T14:01:00Z","../../escape.json");
         String name=GitHubReferencePublisher.canonicalFileName(r);
