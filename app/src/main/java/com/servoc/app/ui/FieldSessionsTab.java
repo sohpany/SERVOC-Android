@@ -32,12 +32,12 @@ public final class FieldSessionsTab {
         state=UiKit.text(c,"لا توجد جلسة ميدانية نشطة");state.setBackgroundColor(0xFF151A20);root.addView(state,UiKit.full(c));
 
         LinearLayout actions=UiKit.hbox(c);
-        Button addSite=UiKit.button(c,"إضافة موقع");addSite.setOnClickListener(v->ask(c,"اسم الموقع","",name->{try{selectedSiteId=repo.createSite(name,"");host.showToast("تم إنشاء الموقع");host.syncUserLibrary();refresh();}catch(Exception e){host.showToast("تعذر إنشاء الموقع");}}));actions.addView(addSite,UiKit.weight(1));
+        Button addSite=UiKit.button(c,"إضافة موقع");addSite.setOnClickListener(v->ask(c,"اسم الموقع","",name->{try{selectedSiteId=repo.createSite(name,"");host.showToast("تم إنشاء الموقع");refresh();}catch(Exception e){host.showToast("تعذر إنشاء الموقع");}}));actions.addView(addSite,UiKit.weight(1));
         Button addSession=UiKit.button(c,"بدء جلسة");addSession.setOnClickListener(v->{if(selectedSiteId.isEmpty()){host.showToast("اختر موقعًا أولًا");return;}ask(c,"اسم الجلسة","",name->{try{repo.startFieldSession(selectedSiteId,name);host.showToast("بدأت الجلسة الميدانية");host.syncUserLibrary();refresh();}catch(Exception e){host.showToast("تعذر بدء الجلسة: "+e.getMessage());}});});actions.addView(addSession,UiKit.weight(1));
         Button close=UiKit.button(c,"إنهاء الجلسة");close.setOnClickListener(v->{FieldSessionRepository.FieldSession a=repo.activeFieldSession();if(a==null){host.showToast("لا توجد جلسة نشطة");return;}repo.closeFieldSession(a.id);host.syncUserLibrary();host.showToast("تم إنهاء الجلسة");refresh();});actions.addView(close,UiKit.weight(1));
         root.addView(actions,UiKit.full(c));
 
-        LinearLayout library=UiKit.card(c);library.addView(UiKit.title(c,"مكتبة HazRob الدائمة"),UiKit.full(c));Button folder=UiKit.button(c,"فتح / اختيار مجلد المكتبة");folder.setOnClickListener(v->host.requestUserLibraryFolder());library.addView(folder,UiKit.full(c));Button syncLibrary=UiKit.button(c,"مزامنة المكتبة");syncLibrary.setOnClickListener(v->host.syncUserLibrary());library.addView(syncLibrary,UiKit.full(c));Button restore=UiKit.button(c,"استعادة المواقع والجلسات");restore.setOnClickListener(v->host.restoreUserLibrary());library.addView(restore,UiKit.full(c));root.addView(library,UiKit.full(c));
+        TextView localNote=UiKit.small(c,"المواقع والجلسات محفوظة محليًا داخل التطبيق. لا تُرفع بيانات جلسات المستخدم إلى المكتبة العلمية المركزية. إدارة المزامنة والنشر محصورة في واجهات المطور.");localNote.setTextColor(0xFFB0BEC5);root.addView(localNote,UiKit.full(c));
         root.addView(UiKit.title(c,"مكتبة المواقع والجلسات"),UiKit.full(c));
         sites=UiKit.vbox(c);root.addView(sites,UiKit.full(c));
         selectedSiteSummary=UiKit.text(c,"اختر موقعًا");selectedSiteSummary.setBackgroundColor(0xFF151A20);root.addView(selectedSiteSummary,UiKit.full(c));
@@ -58,7 +58,7 @@ public final class FieldSessionsTab {
 
     public void refresh(){
         FieldSessionRepository.FieldSession active=repo.activeFieldSession();
-        state.setText((host.userLibraryAttached()?"المكتبة الدائمة: مرتبطة":"المكتبة الدائمة: غير مرتبطة")+"\n"+(active==null?"لا توجد جلسة ميدانية نشطة":"جلسة نشطة: "+active.name+" • القياسات الجديدة ستُربط بهذه الجلسة"));
+        state.setText("تخزين محلي • لا مزامنة مركزية"+"\n"+(active==null?"لا توجد جلسة ميدانية نشطة":"جلسة نشطة: "+active.name+" • القياسات الجديدة ستُربط بهذه الجلسة"));
         state.setTextColor(active==null?0xFFFFB74D:0xFF81C784);
         sites.removeAllViews();List<FieldSessionRepository.Site> ss=repo.sites();
         if(ss.isEmpty()){selectedSiteId="";siteReportPdf.setEnabled(false);siteReportXlsx.setEnabled(false);deleteSite.setEnabled(false);selectedSiteSummary.setText("لا توجد مواقع محفوظة.");sites.addView(UiKit.small(sites.getContext(),"لا توجد مواقع محفوظة."),UiKit.full(sites.getContext()));sessions.removeAllViews();return;}
@@ -70,7 +70,7 @@ public final class FieldSessionsTab {
         for(FieldSessionRepository.FieldSession q:children){String status=q.active()?"نشطة":"منتهية";LinearLayout card=UiKit.card(sessions.getContext());TextView t=UiKit.text(sessions.getContext(),q.name+" • "+status+"\n"+q.startedTs+" • القياسات: "+repo.measurementSessionIds(q.id).size());t.setBackgroundColor(0xFF151A20);card.addView(t,UiKit.full(sessions.getContext()));LinearLayout ex=UiKit.hbox(sessions.getContext());Button p=UiKit.button(sessions.getContext(),"تقرير الجلسة PDF • 4–5 صفحات أفقية");p.setOnClickListener(v->host.openReportsForSite(selectedSiteId,q.id));ex.addView(p,UiKit.weight(1.35f));Button x=UiKit.button(sessions.getContext(),"Excel ذكي للجلسة");x.setOnClickListener(v->host.openReportsForSite(selectedSiteId,q.id));ex.addView(x,UiKit.weight(.65f));card.addView(ex,UiKit.full(sessions.getContext()));
             Button remove=UiKit.button(sessions.getContext(),"حذف الجلسة وبياناتها");remove.setEnabled(!q.active());
             remove.setOnClickListener(v->new AlertDialog.Builder(sessions.getContext())
-                .setTitle("حذف الجلسة نهائيًا").setMessage("ستُحذف الجلسة «"+q.name+"» وجميع قياساتها وعيناتها ونتائج ChemCore المرتبطة بها من التطبيق والمكتبة المتصلة. لا يمكن التراجع عن ذلك. التقارير المصدرة مسبقًا خارج التطبيق لن تُحذف.")
+                .setTitle("حذف الجلسة نهائيًا").setMessage("ستُحذف الجلسة «"+q.name+"» وجميع قياساتها وعيناتها ونتائج ChemCore المرتبطة بها من التخزين المحلي للتطبيق وأي أرشيف محلي مرتبط. لا يمكن التراجع عن ذلك. التقارير المصدرة مسبقًا خارج التطبيق لن تُحذف.")
                 .setNegativeButton("إلغاء",null).setPositiveButton("حذف نهائي",(d,w)->host.deleteUserFieldSession(q.id)).show());
             card.addView(remove,UiKit.full(sessions.getContext()));sessions.addView(card,UiKit.full(sessions.getContext()));}
     }
