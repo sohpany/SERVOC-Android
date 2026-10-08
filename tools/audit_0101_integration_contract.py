@@ -22,7 +22,9 @@ def main():
     req(cfg,'SSID[]="HazRob"','Main AP authority')
     req(cfg,'CAM[]="192.168.4.2"','CAM canonical IP')
     forbid(cfg,'HR-','Main firmware revision marker')
-    forbid(cfg,'HR0','Main firmware revision marker')
+    # HR069-R1 is a separate engineering revision field; the canonical FW banner remains stable.
+    req(cfg,'ENGINEERING_REVISION[]=\"HR069-R1\"','explicit engineering revision field')
+    forbid(cfg.replace('ENGINEERING_REVISION[]=\"HR069-R1\"',''),'HR0','stale revision embedded outside dedicated field')
 
     req(master,'enum class RadioProfile:uint8_t{DIRECT=0,REMOTE=1}','radio profiles')
     req(master,'applyRadioProfile(RadioProfile::DIRECT,false);','Direct boot')
