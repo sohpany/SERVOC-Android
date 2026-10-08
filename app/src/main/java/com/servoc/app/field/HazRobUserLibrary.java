@@ -105,10 +105,12 @@ public final class HazRobUserLibrary {
             while(c.moveToNext()){JSONObject x=new JSONObject();x.put("field_session_id",c.getString(0));x.put("measurement_session_id",c.getString(1));x.put("linked_ts",c.getString(2));links.put(x);}
         }
         root.put("sites",sites);root.put("field_sessions",sessions);root.put("measurement_links",links);
-        writeText("field-index.json",root.toString(2));
+        root.put("deleted_field_sessions",tombstones(db,"deleted_field_session_"));
+        root.put("deleted_sites",tombstones(db,"deleted_site_"));
         // Source archives make the user library independently useful after app reinstall.
         for(int i=0;i<sessions.length();i++){JSONObject fs=sessions.optJSONObject(i);if(fs==null)continue;String id=fs.optString("field_session_id","").trim();if(id.isEmpty())continue;JSONObject archive=FieldSessionArchive.exportSession(db,id);writeText("session-"+safeId(id)+".json",archive.toString(2));}
-
+        // Commit the index only AFTER all referenced session archives exist.
+        writeText("field-index.json",root.toString(2));
     }
 
     public static final class RestoreSummary {
@@ -129,16 +131,44 @@ public final class HazRobUserLibrary {
         if(root.optInt("schema_version",0)>SCHEMA_VERSION)throw new IllegalStateException("field index was created by a newer app");
         if(!"HazRob User Field Index".equals(root.optString("type","")))throw new IllegalStateException("invalid HazRob field index");
         JSONArray sites=root.optJSONArray("sites"),sessions=root.optJSONArray("field_sessions"),links=root.optJSONArray("measurement_links");
+        JSONArray deletedFields=root.optJSONArray("deleted_field_sessions"),deletedSites=root.optJSONArray("deleted_sites");
         SQLiteDatabase w=db.getWritableDatabase();int ns=0,nf=0,nl=0,skip=0,am=0,ax=0,as=0,ae=0,ad=0;
         w.beginTransaction();
         try{
-            if(sites!=null)for(int i=0;i<sites.length();i++){JSONObject x=sites.optJSONObject(i);if(x==null)continue;String id=req(x,"site_id"),name=req(x,"name");ContentValues v=new ContentValues();v.put("site_id",id);v.put("name",name);v.put("notes",x.optString("notes",""));v.put("created_ts",req(x,"created_ts"));v.put("updated_ts",req(x,"updated_ts"));w.insertWithOnConflict("sites",null,v,SQLiteDatabase.CONFLICT_REPLACE);ns++;}
-            if(sessions!=null)for(int i=0;i<sessions.length();i++){JSONObject x=sessions.optJSONObject(i);if(x==null)continue;String id=req(x,"field_session_id"),site=req(x,"site_id"),status=req(x,"status");if(!siteExists(w,site))throw new IllegalStateException("field session references missing site");ContentValues v=new ContentValues();v.put("field_session_id",id);v.put("site_id",site);v.put("name",req(x,"name"));v.put("started_ts",req(x,"started_ts"));String ended=x.optString("ended_ts","");if(!ended.isEmpty())v.put("ended_ts",ended);v.put("status",status);v.put("created_ts",req(x,"created_ts"));v.put("updated_ts",req(x,"updated_ts"));w.insertWithOnConflict("field_sessions",null,v,SQLiteDatabase.CONFLICT_REPLACE);nf++;}
-            if(sessions!=null)for(int i=0;i<sessions.length();i++){JSONObject fs=sessions.optJSONObject(i);if(fs==null)continue;String id=fs.optString("field_session_id","").trim();if(id.isEmpty())continue;JSONObject archive=readJson("session-"+safeId(id)+".json");if(archive==null)continue;FieldSessionArchive.ImportSummary q=FieldSessionArchive.importSessionInTransaction(db,archive,w);am+=q.measurements;ax+=q.experiments;as+=q.samples;ae+=q.events;ad+=q.decisions;}
-            if(links!=null)for(int i=0;i<links.length();i++){JSONObject x=links.optJSONObject(i);if(x==null)continue;String fs=req(x,"field_session_id"),ms=req(x,"measurement_session_id");if(!fieldSessionExists(w,fs)||!measurementExists(w,ms)){skip++;continue;}ContentValues v=new ContentValues();v.put("field_session_id",fs);v.put("measurement_session_id",ms);v.put("linked_ts",req(x,"linked_ts"));long r=w.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);if(r!=-1)nl++;}
+            rememberTombstones(w,"deleted_field_session_",deletedFields);
+            rememberTombstones(w,"deleted_site_",deletedSites);
+            if(sites!=null)for(int i=0;i<sites.length();i++){JSONObject x=sites.optJSONObject(i);if(x==null)continue;String id=req(x,"site_id"),name=req(x,"name");if(isTombstoned(w,"deleted_site_"+id))continue;ContentValues v=new ContentValues();v.put("site_id",id);v.put("name",name);v.put("notes",x.optString("notes",""));v.put("created_ts",req(x,"created_ts"));v.put("updated_ts",req(x,"updated_ts"));w.insertWithOnConflict("sites",null,v,SQLiteDatabase.CONFLICT_REPLACE);ns++;}
+            if(sessions!=null)for(int i=0;i<sessions.length();i++){JSONObject x=sessions.optJSONObject(i);if(x==null)continue;String id=req(x,"field_session_id"),site=req(x,"site_id"),status=req(x,"status");if(isTombstoned(w,"deleted_field_session_"+id)||isTombstoned(w,"deleted_site_"+site))continue;if(!siteExists(w,site))throw new IllegalStateException("field session references missing site");ContentValues v=new ContentValues();v.put("field_session_id",id);v.put("site_id",site);v.put("name",req(x,"name"));v.put("started_ts",req(x,"started_ts"));String ended=x.optString("ended_ts","");if(!ended.isEmpty())v.put("ended_ts",ended);v.put("status",status);v.put("created_ts",req(x,"created_ts"));v.put("updated_ts",req(x,"updated_ts"));w.insertWithOnConflict("field_sessions",null,v,SQLiteDatabase.CONFLICT_REPLACE);nf++;}
+            if(sessions!=null)for(int i=0;i<sessions.length();i++){JSONObject fs=sessions.optJSONObject(i);if(fs==null)continue;String id=fs.optString("field_session_id","").trim();if(id.isEmpty()||isTombstoned(w,"deleted_field_session_"+id)||!fieldSessionExists(w,id))continue;JSONObject archive=readJson("session-"+safeId(id)+".json");if(archive==null)continue;FieldSessionArchive.ImportSummary q=FieldSessionArchive.importSessionInTransaction(db,archive,w);am+=q.measurements;ax+=q.experiments;as+=q.samples;ae+=q.events;ad+=q.decisions;}
+            if(links!=null)for(int i=0;i<links.length();i++){JSONObject x=links.optJSONObject(i);if(x==null)continue;String fs=req(x,"field_session_id"),ms=req(x,"measurement_session_id");if(isTombstoned(w,"deleted_field_session_"+fs)||!fieldSessionExists(w,fs)||!measurementExists(w,ms)){skip++;continue;}ContentValues v=new ContentValues();v.put("field_session_id",fs);v.put("measurement_session_id",ms);v.put("linked_ts",req(x,"linked_ts"));long r=w.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);if(r!=-1)nl++;}
             w.setTransactionSuccessful();
         }finally{w.endTransaction();}
         return new RestoreSummary(ns,nf,nl,skip,am,ax,as,ae,ad);
+    }
+
+    /** Delete portable source archive; externally exported reports are user-owned and not touched. */
+    public synchronized void deleteStoredSessionArchive(String fieldSessionId) throws Exception {
+        if(!attached())return;
+        Uri file=find("session-"+safeId(fieldSessionId)+".json");
+        if(file!=null&&!DocumentsContract.deleteDocument(context.getContentResolver(),file))
+            throw new IllegalStateException("Unable to remove stored session archive");
+    }
+
+    private static JSONArray tombstones(ExperimentsDb db,String prefix)throws Exception{
+        JSONArray a=new JSONArray();try(Cursor c=db.getReadableDatabase().rawQuery(
+                "SELECT k FROM meta WHERE k LIKE ? ORDER BY k",new String[]{prefix+"%"})){
+            while(c.moveToNext())a.put(c.getString(0).substring(prefix.length()));
+        }return a;
+    }
+    private static void rememberTombstones(SQLiteDatabase w,String prefix,JSONArray items)throws Exception{
+        if(items==null)return;
+        for(int i=0;i<items.length();i++){String id=items.optString(i,"").trim();if(id.isEmpty())continue;
+            ContentValues v=new ContentValues();v.put("k",prefix+id);v.put("v","restored_deletion");
+            w.insertWithOnConflict("meta",null,v,SQLiteDatabase.CONFLICT_IGNORE);
+        }
+    }
+    private static boolean isTombstoned(SQLiteDatabase w,String key){
+        try(Cursor c=w.rawQuery("SELECT 1 FROM meta WHERE k=? LIMIT 1",new String[]{key})){return c.moveToFirst();}
     }
 
     private static String safeId(String id){return id.replaceAll("[^A-Za-z0-9._-]","_");}
