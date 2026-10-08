@@ -27,9 +27,11 @@ public final class DirectionPadView extends GridLayout {
         add(DiscreteDrive.Intent.FORWARD_LEFT,"↖",0,0);
         add(DiscreteDrive.Intent.FORWARD,"↑",0,1);
         add(DiscreteDrive.Intent.FORWARD_RIGHT,"↗",0,2);
-        add(DiscreteDrive.Intent.PIVOT_LEFT,"↺",1,0);
+        // HR069 field correction: the two on-screen spin buttons had opposite physical results.
+        // Only swap pivot intents; preserve forward/reverse turns and the other drive modes.
+        add(DiscreteDrive.Intent.PIVOT_RIGHT,"↺",1,0);
         Button stop=button("■");stop.setBackgroundColor(STOP);stop.setTextColor(Color.WHITE);stop.setOnClickListener(v->emit(DiscreteDrive.Intent.STOP,false));addView(stop,cell(1,1));
-        add(DiscreteDrive.Intent.PIVOT_RIGHT,"↻",1,2);
+        add(DiscreteDrive.Intent.PIVOT_LEFT,"↻",1,2);
         add(DiscreteDrive.Intent.REVERSE_LEFT,"↙",2,0);
         add(DiscreteDrive.Intent.REVERSE,"↓",2,1);
         add(DiscreteDrive.Intent.REVERSE_RIGHT,"↘",2,2);
