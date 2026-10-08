@@ -19,7 +19,7 @@ import java.util.Locale;
 
 /** Sends approved developer references to RC2 non-runtime research review staging only. */
 public final class GitHubReferencePublisher {
-    /** Canonical scientific-library owner for HazRob 0.10.2 / HR069. */
+    /** Controlled RC2 developer submission destination; distinct from canonical active analytical corpus. */
     public static final String REPOSITORY="sohpany/SERVOC-Android";
     public static final String BRANCH="release/hazrob-0.10.2-rc2";
     public static final String LIBRARY_ROOT="research_data/hr069_developer_submissions";
@@ -46,6 +46,7 @@ public final class GitHubReferencePublisher {
                 ||record.captureId!=persisted.captureId||record.chemicalUid!=persisted.chemicalUid
                 ||!record.approvedTs.equals(persisted.approvedTs))
             throw new IllegalArgumentException("unverified or stale publication record");
+        String secret=secret(token);
         byte[] bytes=serialize(persisted);
         String fileName=canonicalFileName(persisted).replace(".json","")
                 +"_"+safeName(persisted.sessionId)+"_"+sha256(bytes).substring(0,16)+".json";
