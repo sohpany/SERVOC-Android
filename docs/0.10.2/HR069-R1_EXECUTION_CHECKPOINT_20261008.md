@@ -117,3 +117,32 @@
 - New local editable R0 supports MQ2, MQ3, MQ4, MQ5, MQ7, MQ8, MQ9, MQ135 with atomic positive-finite batch update, single-channel commit, reset/fallback and UTC/session provenance. It persists for in-place signed APK updates; an uninstall may erase internal SharedPreferences and MUST NOT be recommended as a routine upgrade.
 - Physical tests still NOT PERFORMED: sensor polarity/response, 150ms transmission, ECHO validity, navigation/driving, real R0 clean-air calibration, battery-load stability, PDF/XLSX phone opening, camera, remote drive. No claim of field safety or M4 quantitative ppm.
 - Approved production baseline remains unchanged. Working diagnostic artifacts do not promote themselves. Review/manually flash Main ESP32 and test while wheels raised; after sensor tuning and device validation only consider a release approval.
+
+## Continuation — vCode28 corrective revision: archived R0 scientific reproducibility and early SmartReport
+
+**Change target:** Same `0.10.2 / HR069-R1` branch `release/hazrob-0.10.2-rc2`; Android versionCode `28` (the previously delivered working diagnostic was vCode27). Main ESP32 `HR069-R1` sketch remains untouched after the verified Arduino IDE ZIP; no unnecessary re-flash requested.
+
+### Defect A: retroactive recalibration of archived measurements
+
+- Root cause: `ChemCoreSessionFeatureAdapter.extract()` reused `AcceptedR0Normalizer.ratio()` against **current** `ManualR0Calibration.get()` when replaying persisted `telemetry_samples`. `SessionSeries.normalizeMq()` also overwrote saved sample `r0` with the **fixed historic field baseline**, contaminating SmartReport graph/Excel provenance. `ChemCoreQuantitativeTimeSeries.extract()` repeated the current-R0 recalculation even for historical M4 time-series.
+- Remediation: Introduced read-only `AcceptedR0Normalizer.recordedRatio/availableRecordedRatio/usesRecordedDeviceR0`, using the positive `rs/r0` **within the exact recorded sample**, or that sample's frozen `ratio` when no saved R0 exists. Missing R0+ratio is *not* manufactured from the phone's current R0.
+- All three historical readers now explicitly use the persisted snapshot for strict and corroborative evidence. `SessionSeries.normalizeMq()` keeps the original R0, time, source, provenance and M4 marker intact and adds `historical_calibration_frozen` plus `historical_ratio_source`.
+- `DeveloperR0Tab` rejects saves/resets during active firmware acquisition or local ChemCore measurement, to avoid within-session calibration changes. Future live snapshots still normalize using the freshly edited phone-local R0.
+- Tests updated/added: `SessionSeriesNormalizationTest`, `HR069R1EditableR0PersistenceTest.changingDeviceR0NeverReinterpretsAnArchivedSession` and `HR069R1HistoricalR0LineageContractTest` guard all three historical readers, live write lock, and no synthetic historical inputs.
+
+### Defect B: Excel blocked when an operator has a field session but no derived ChemCore record
+
+- Removed only the artificial `b.records.isEmpty()` blocker from `FieldSessionReportExporter.writeXlsx`. Existing USER field session identity, telemetry and quality evidence remain available in the 11-tab SmartReport workbook; absent chemical analysis stays explicitly missing, never fabricated.
+- Source regression contract `FieldSessionReportExporterContractTest.excelRemainsAvailableBeforeDerivedChemCoreExperiment` prevents reintroducing this check.
+- Existing scientific distinction is unchanged: no M4/validated exposure conclusions solely from R0 or M1/M2 response priors.
+
+### Build checkpoints
+
+- Latest functional source SHA as of this checkpoint: `64669f4eb4d67f869db3f745b2332f1e36caa179`; CI build runs:
+  - diagnostic APK: https://github.com/sohpany/SERVOC-Android/actions/runs/37853945739
+  - internal release APK: https://github.com/sohpany/SERVOC-Android/actions/runs/37853945611
+  - combined development audit and firmware recompile: https://github.com/sohpany/SERVOC-Android/actions/runs/37853945618
+- **NOT YET ACCEPTED** until at least vCode28 debug APK build, APK signer, all JUnit tests and source audit succeed. Source checkpoint documentation commits may advance branch HEAD without changing compiled application source; compare the exact tested SHA with functional changes, not README SHA alone.
+- Both scientific data stores are intentionally unchanged: APK embedded ChemCore Stable `1.0.0-hr069r1` and local user R0 values; no central developer experiments uploaded.
+- Physical Android/R0 measurement and exported PDF/XLSX openability are still pending bench trials.
+
