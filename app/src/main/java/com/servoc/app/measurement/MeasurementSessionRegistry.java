@@ -12,6 +12,7 @@ public final class MeasurementSessionRegistry {
     private static final AtomicReference<String> ACTIVE = new AtomicReference<>("");
     private static final AtomicReference<String> LAST_COMPLETED = new AtomicReference<>("");
     private static final AtomicBoolean CHEMCORE_CAPTURE = new AtomicBoolean(false);
+    private static final AtomicBoolean DEVELOPER_MQ_CYCLE = new AtomicBoolean(false);
     private static final AtomicBoolean CHEMCORE_DEVELOPER = new AtomicBoolean(true);
     private static final AtomicReference<String> CHEMCORE_STOP_REASON = new AtomicReference<>("");
 
@@ -32,6 +33,11 @@ public final class MeasurementSessionRegistry {
 
     public static String activeSessionId() { String s=ACTIVE.get();return s==null?"":s; }
     public static String lastCompletedSessionId() { String s=LAST_COMPLETED.get();return s==null?"":s; }
+
+    /** Explicit origin tag for a developer-started firmware averaging cycle. */
+    public static void markDeveloperMqCycle(){DEVELOPER_MQ_CYCLE.set(true);}
+    public static boolean consumeDeveloperMqCycle(){return DEVELOPER_MQ_CYCLE.getAndSet(false);}
+    public static void clearDeveloperMqCycle(){DEVELOPER_MQ_CYCLE.set(false);}
 
     /** Requests continuous local telemetry capture even while the legacy ESP32 measurement state is idle. */
     public static boolean requestChemCoreCapture(boolean developer) {
