@@ -93,3 +93,27 @@
 - R0 stays on the Android phone under `SharedPreferences servoc`, separate from embedded/installed ChemCore Stable. In-place update with same applicationId and signing key preserves R0. Explicitly warn users that *uninstall/reinstall* can erase stored R0 if it has not been backed up.
 - One-branch exact-revision packaging workflow `.github/workflows/package-hr069-r1-arduino-source.yml` added. Compiles Main ESP32 with core 3.3.11 then exports ZIP with Arduino-recognized `HazRob/HazRob.ino`, `.h`, `.cpp`, guide and SHA-256. APK remains a distinct artifact validated from the same current source SHA.
 - Pending acceptance: latest-sha Android unit tests (including editable R0 and embedded Stable), one-sha Arduino source ZIP and diagnostic APK, manifest SHA/certificate validation, user physical calibration and report-device functional trial. NEVER relabel diagnostic artifacts as qualified production.
+
+## Distribution handoff checkpoint — Arduino ZIP + Android R0/Stable APK (2026-10-08)
+
+**Branch:** `release/hazrob-0.10.2-rc2`; development increment `HR069-R1`. NO newer branch, NO pre-HR069 code. These remain WORKING / UNAPPROVED / physical validation outstanding.
+
+### Conventional Arduino IDE source — verified CI
+- GitHub Actions run: https://github.com/sohpany/SERVOC-Android/actions/runs/37852367741
+- Exact source commit: `e6a14bc570c335b824c153c7cd7fd2677b9bd005`
+- ZIP name: `HazRob-0.10.2-HR069-R1-ESP32-Arduino-e6a14bc570c335b824c153c7cd7fd2677b9bd005.zip`
+- ZIP SHA-256: `6532c3495de23b1d4917ad64882519d3cc9c0cb42fd66634dc92059ba560058e`
+- ZIP validated by decompression + CRC; contains `HazRob/HazRob.ino`, all project `.h/.cpp`, serial/board instructions and build identity. Compiled with ESP32 Arduino core 3.3.11, board `esp32:esp32:esp32:PartitionScheme=huge_app`; physical serial upload UNTESTED.
+
+### WORKING diagnostic Android APK — verified CI
+- GitHub Actions run: https://github.com/sohpany/SERVOC-Android/actions/runs/37852241553
+- Exact Android compiled source commit: `42a379bd15b7f12d4f4236383bacb5033d14bae2` (R0 UI and persistence included; later firmware workflow/docs commits do not affect that Android binary)
+- Original artifact filename: `HazRob-0.10.2-HR069-R1-RC2-WORKING-317-42a379bd15b7f12d4f4236383bacb5033d14bae2.apk`
+- APK SHA-256: `766a7768352a3218a3bbcd7f20f06f053b84b2aa799c334f07a6f6e96bb9692b`
+- package name `com.servoc.app`, `versionName 0.10.2`, `versionCode 27`. Signing certificate SHA-256: `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
+- CI asserts: runtime contracts PASS, Android unit tests PASS, APK build PASS, `apksigner verify` PASS. APK decompressed with CRC PASS.
+- APK includes `DeveloperR0Tab`, `ManualR0Calibration.saveAll`, `ChemCoreEmbeddedStableInstaller` in DEX and `assets/generated/chemcore/embedded_stable/manifest.json` + `chemcore-stable-snapshot.json`.
+- Embedded Stable: `1.0.0-hr069r1`, `chemcore-stable-snapshot-v1`, 652 chemical identities, 49 non-M4 research response priors, 37 identity-curation records, zero approved device-specific M4 calibrations. Stable payload SHA-256 `94f41ba754a1c239122b82081a91e9656012503cebda0eae6473ed8a4e45d7cf` verified against bundled manifest; this is **research screening knowledge**, not quantitative exposure certification.
+- New local editable R0 supports MQ2, MQ3, MQ4, MQ5, MQ7, MQ8, MQ9, MQ135 with atomic positive-finite batch update, single-channel commit, reset/fallback and UTC/session provenance. It persists for in-place signed APK updates; an uninstall may erase internal SharedPreferences and MUST NOT be recommended as a routine upgrade.
+- Physical tests still NOT PERFORMED: sensor polarity/response, 150ms transmission, ECHO validity, navigation/driving, real R0 clean-air calibration, battery-load stability, PDF/XLSX phone opening, camera, remote drive. No claim of field safety or M4 quantitative ppm.
+- Approved production baseline remains unchanged. Working diagnostic artifacts do not promote themselves. Review/manually flash Main ESP32 and test while wheels raised; after sensor tuning and device validation only consider a release approval.
