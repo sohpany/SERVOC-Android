@@ -72,15 +72,18 @@ public final class ChemCoreLibraryManager {
 
     public Status status() {
         File active = store.activePayload();
-        boolean remote = active != null && active.isFile() && !store.activeVersion().isEmpty();
+        boolean installed = active != null && active.isFile() && !store.activeVersion().isEmpty();
+        boolean apkStable=installed&&ChemCoreEmbeddedStableInstaller.LIBRARY_VERSION.equals(store.activeVersion());
+        boolean remote=installed&&!apkStable;
         ChemCoreEmbeddedFallback.Info embedded = ChemCoreEmbeddedFallback.inspect(context);
         return new Status(remote,
-                remote ? store.activeVersion() : "embedded",
-                remote ? store.activeSha256() : embedded.sha256,
-                remote ? store.activeSourceCommit() : "apk",
-                remote ? store.activeDataRevision() : "embedded/apk",
-                remote ? store.activeEvidenceRevision() : "embedded/apk",
-                remote ? "verified remote ChemCore snapshot" : embedded.label,
+                installed ? store.activeVersion() : "embedded",
+                installed ? store.activeSha256() : embedded.sha256,
+                installed ? store.activeSourceCommit() : "apk",
+                installed ? store.activeDataRevision() : "embedded/apk",
+                installed ? store.activeEvidenceRevision() : "embedded/apk",
+                remote ? "verified remote ChemCore Stable snapshot" :
+                    apkStable ? "APK embedded ChemCore Stable pre-release (screening only; non-M4)" : embedded.label,
                 embedded);
     }
 
