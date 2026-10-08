@@ -40,8 +40,7 @@ public final class SiteSummaryExportActivity extends Activity {
         format="xlsx".equalsIgnoreCase(format)?"xlsx":"pdf";
         if(siteId.isEmpty()){Toast.makeText(this,"الموقع غير صالح",Toast.LENGTH_SHORT).show();finish();return;}
         if(state!=null&&state.getBoolean("picker_opened",false)){pickerOpened=true;return;}
-        try(ExperimentsDb db=new ExperimentsDb(this)){SiteSummaryReportExporter.resolve(db,siteId);}
-        catch(Exception e){Toast.makeText(this,"تعذر قراءة الموقع",Toast.LENGTH_SHORT).show();finish();return;}
+        // Do not build a full-site bundle on the main thread before SAF opens.
         boolean xlsx="xlsx".equals(format);
         Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);
         i.addCategory(Intent.CATEGORY_OPENABLE);
