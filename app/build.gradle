@@ -27,6 +27,16 @@ tasks.register('applyHazRobBranding', Exec) {
     outputs.file file('src/main/assets/hazrob_hr069_r1_logo.png')
 }
 
+// Rebuild the source-locked HR069 non-M4 scientific evidence corpus at every APK build.
+tasks.register('prepareHr069OfflineResearchCorpus', Exec) {
+    workingDir rootProject.projectDir
+    commandLine 'python3', 'tools/build_hr069_offline_corpus.py',
+            '--out-dir', file("$buildDir/generated/hazrobAssets/generated/chemcore/hr069_offline").absolutePath
+    inputs.file rootProject.file('tools/build_hr069_offline_corpus.py')
+    inputs.dir rootProject.file('research_data/hr069_analytical_library')
+    outputs.dir file("$buildDir/generated/hazrobAssets/generated/chemcore/hr069_offline")
+}
+
 tasks.register('prepareHazRobFlammabilitySeed') {
     outputs.file(generatedFlammability)
     doLast {
@@ -112,7 +122,7 @@ android {
     }
 }
 
-tasks.named('preBuild').configure { dependsOn tasks.named('applyHazRobBranding'); dependsOn tasks.named('prepareHazRobFlammabilitySeed') }
+tasks.named('preBuild').configure { dependsOn tasks.named('applyHazRobBranding'); dependsOn tasks.named('prepareHazRobFlammabilitySeed'); dependsOn tasks.named('prepareHr069OfflineResearchCorpus') }
 
 dependencies {
     implementation 'androidx.core:core:1.15.0'
