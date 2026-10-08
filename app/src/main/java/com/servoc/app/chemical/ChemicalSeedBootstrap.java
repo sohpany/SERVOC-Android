@@ -5,6 +5,8 @@ import android.content.Context;
 import com.servoc.app.chemcore.ChemCoreIdentityCurationRepository;
 import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
 import com.servoc.app.chemcore.ChemCoreQsprRuntimeRegistry;
+import com.servoc.app.chemcore.library.ChemCoreEmbeddedStableInstaller;
+import com.servoc.app.chemcore.library.ChemCoreLibraryStore;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
 import com.servoc.app.exposure.GasFlammabilitySeedBootstrap;
@@ -38,6 +40,13 @@ public final class ChemicalSeedBootstrap {
         try{MqLargeVocEvidenceBootstrap.ensure(db.getWritableDatabase());db.putMeta("mq_large_voc_evidence_seed_status","available:"+MqLargeVocEvidenceBootstrap.SEED_VERSION);}catch(Exception e){db.putMeta("mq_large_voc_evidence_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));}
         try{MqReactiveEvidenceBootstrap.ensure(db.getWritableDatabase());db.putMeta("mq_reactive_evidence_seed_status","available:"+MqReactiveEvidenceBootstrap.SEED_VERSION);}catch(Exception e){db.putMeta("mq_reactive_evidence_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));}
         try{OperationalHazardTransferBootstrap.ensure(db.getWritableDatabase());db.putMeta("operational_hazard_transfer_seed_status","available:"+OperationalHazardTransferBootstrap.SEED_VERSION);}catch(Exception e){db.putMeta("operational_hazard_transfer_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));}
+
+        // HR069-R1: initialize the genuine embedded Stable-channel snapshot before
+        // molecular/QSPR imports. This does not write developer reference data or
+        // override an installed remote Stable; failures retain existing APK fallback.
+        ChemCoreLibraryStore.InstallResult embedded=ChemCoreEmbeddedStableInstaller.ensureInstalled(context);
+        db.putMeta("chemcore_embedded_stable_bootstrap",
+                embedded.installed?"installed:"+embedded.version:"unchanged_or_failed:"+embedded.reason+":"+embedded.version);
 
         ChemCoreMolecularSeedImporter.Result molecular=ChemCoreMolecularSeedImporter.importBestAvailable(context,db);
         db.putMeta("chemcore_molecular_seed_status",molecular.available?("available:"+molecular.records+":"+molecular.matched+":"+molecular.origin):molecular.message);
