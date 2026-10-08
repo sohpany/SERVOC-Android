@@ -54,6 +54,7 @@ public final class SettingsTab {
         cfg.addView(directionReverseCheck(c,"العجلة: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_WHEEL),UiKit.full(c));
         cfg.addView(directionReverseCheck(c,"Joystick: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_JOYSTICK),UiKit.full(c));
         cfg.addView(directionReverseCheck(c,"الأزرار: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_BUTTONS),UiKit.full(c));
+        cfg.addView(directionReverseCheck(c,"عكس الدوران في المكان (Joystick + عجلة + الأزرار؛ باستثناء المساطر)",DriveDirectionOption.PREF_REVERSE_PIVOT_ALL),UiKit.full(c));
         safetyAutoStop=new CheckBox(c);safetyAutoStop.setText("التوقف التلقائي للحركة: ملغي — تنبيه فقط");safetyAutoStop.setTextColor(Color.LTGRAY);safetyAutoStop.setChecked(false);safetyAutoStop.setEnabled(false);cfg.addView(safetyAutoStop,UiKit.full(c));
         TextView safetyHelp=UiKit.small(c,"حساسا IR وEcho يعرضان التحذيرات فقط ولا يمنعان حركة المركبة. E-STOP وزر الإيقاف وwatchdog انقطاع أوامر القيادة تبقى فعالة ومستقلة.");safetyHelp.setTextColor(0xFFFFB74D);cfg.addView(safetyHelp,UiKit.full(c));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
