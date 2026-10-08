@@ -16,6 +16,8 @@
 - Site/session deletion removes the closed user's measurement data, excludes developer/reference records and records deletion tombstones for local restore safety.
 - New yellow/white hexagon-and-target logo requested as transparent PNG; asset integration and release acceptance are tracked separately.
 
+**Developer reference publication / ChemCore Stable compatibility:** [CR-20261008-006 audit](docs/0.10.2/CR-20261008-006_DEV_REFERENCE_CHEMCORE_SYNC_AUDIT.md) found an obsolete publisher target (`HazRob/build-harness`), a missing approved Stable publication/distribution pipeline, and an empty default manifest endpoint. Upload does not equal a ChemCore update. This path is **NOT E2E VERIFIED**; no live data publication authorized. HR069-R1 adds a local developer-session-aware update interlock, including controlled captures when the ESP32 firmware is idle.
+
 **Resumable execution checklist:** [HR069-R1 checkpoint](docs/0.10.2/HR069-R1_EXECUTION_CHECKPOINT_20261008.md). The canonical stable 0.10.2 HR069 documentation below remains the historical baseline until HR069-R1 passes CI and physical validation.
 
 
