@@ -97,6 +97,14 @@ public final class FieldSessionRepository {
         }
     }
 
+    /** Lightweight identity lookup; report bundles must be resolved OFF the UI thread. */
+    public FieldSession fieldSessionById(String fieldSessionId){
+        String id=requiredId(fieldSessionId);
+        try(Cursor c=db.getReadableDatabase().rawQuery(
+            "SELECT field_session_id,site_id,name,started_ts,ended_ts,status FROM field_sessions WHERE field_session_id=? LIMIT 1",
+            new String[]{id})){return c.moveToFirst()?fieldSession(c):null;}
+    }
+
     public List<FieldSession> sessionsForSite(String siteId){
         List<FieldSession> out=new ArrayList<>();
         try(Cursor c=db.getReadableDatabase().rawQuery("SELECT field_session_id,site_id,name,started_ts,ended_ts,status FROM field_sessions WHERE site_id=? ORDER BY started_ts DESC,field_session_id DESC",new String[]{requiredId(siteId)})){
