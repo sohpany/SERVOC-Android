@@ -138,7 +138,19 @@ public final class MainActivity extends Activity implements HazRobHost {
     private void refreshVisibleTab(){if(!entered)return;if(selectedTab==0)controlTab.refresh();else if(selectedTab==2)measurementsTab.refresh();else if(selectedTab==4)statusTab.refresh();else if(selectedTab==5)settingsTab.refresh();else if(selectedTab==6)developerTab.refresh();}
 
     @Override protected void onResume(){super.onResume();if(!"remote".equalsIgnoreCase(prefs.getString("connection_mode","direct")))WifiRoute.bindConnectedWifi(this);foreground=true;if(entered){startLinkService();if(selectedTab==0)controlTab.startCamera();refreshVisibleTab();}}
-    @Override protected void onPause(){foreground=false;if(entered)controlTab.stopCamera();super.onPause();}
+    @Override protected void onPause(){
+        foreground=false;
+        if(entered){
+            // HR069-R1 drive dead-man: Android SAF pickers, incoming calls, app switching
+            // and focus loss cannot leave a stale nonzero motor command running.
+            left=right=0;
+            motionHistory.record(0,0,SystemClock.elapsedRealtime());
+            if(controlTab!=null){controlTab.resetJoystick();controlTab.stopCamera();}
+            queueDriveSend();
+            workers.execute(()->{try{robotApi.motionStop();}catch(Exception ignored){}});
+        }
+        super.onPause();
+    }
     @Override protected void onDestroy(){entered=false;if(controlTab!=null)controlTab.releaseCamera();try{if(lastGasAlertLevel!=GasAlertCoordinator.NONE)robotApi.setAlertLevel(GasAlertCoordinator.NONE,500);}catch(Exception ignored){}if(phoneAlertTone!=null)try{phoneAlertTone.close();}catch(Exception ignored){}workers.shutdownNow();WifiRoute.unbind(this);if(db!=null)db.close();super.onDestroy();}
     private void startLinkService(){try{RobotLinkService.start(getApplicationContext());}catch(Exception ignored){}}
 
