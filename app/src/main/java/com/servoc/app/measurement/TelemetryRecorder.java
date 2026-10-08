@@ -22,7 +22,7 @@ public final class TelemetryRecorder {
         if(snapshot==null)return;JSONObject m=snapshot.optJSONObject("measurement");String state=m==null?"idle":m.optString("state","idle");long now=SystemClock.elapsedRealtime();
         boolean firmwareActive="warmup".equals(state)||"measuring".equals(state);boolean forced=MeasurementSessionRegistry.chemCoreCaptureRequested();
         boolean activeState=firmwareActive||forced;
-        if(sessionId==null&&activeState)start(forced?MeasurementSessionRegistry.chemCoreDeveloper():developer,now,forced);
+        if(sessionId==null&&activeState){boolean fromDeveloper=MeasurementSessionRegistry.consumeDeveloperMqCycle();start(forced?MeasurementSessionRegistry.chemCoreDeveloper():(fromDeveloper||developer),now,forced);}
 
         boolean terminalFirmware="ready".equals(state)||"error".equals(state)||"idle".equals(state);
         long samplePeriod=chemCoreCaptureSession?200:250;
