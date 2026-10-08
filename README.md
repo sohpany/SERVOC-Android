@@ -20,6 +20,8 @@
 
 **Developer reference publication / ChemCore Stable compatibility:** [CR-20261008-006 audit](docs/0.10.2/CR-20261008-006_DEV_REFERENCE_CHEMCORE_SYNC_AUDIT.md) found an obsolete publisher target (`HazRob/build-harness`), a missing approved Stable publication/distribution pipeline, and an empty default manifest endpoint. Upload does not equal a ChemCore update. Developer staging now targets `research_data/hr069_developer_submissions/`, *not* `HazRob/build-harness`; a separate science-admission and Stable distribution pipeline is still missing. **NOT E2E VERIFIED**; no direct canonical/M4 publication authorized. HR069-R1 adds a local developer-session-aware update interlock, including controlled captures when the ESP32 firmware is idle.
 
+**Available WORKING diagnostic build artifacts (NOT production-approved):** Android 0.10.2 / HR069-R1 `versionCode 27` (source SHA `42a379bd`, APK SHA-256 `766a7768352a3218a3bbcd7f20f06f053b84b2aa799c334f07a6f6e96bb9692b`) and Main ESP32 Arduino `HazRob.ino` ZIP (source SHA `e6a14bc5`, ZIP SHA-256 `6532c3495de23b1d4917ad64882519d3cc9c0cb42fd66634dc92059ba560058e`). APK embeds ChemCore Stable `1.0.0-hr069r1` with 652 identities and 49 non-M4 priors, plus the local editable eight-channel R0 developer tab. See the [verified artifact checkpoint](docs/0.10.2/HR069-R1_EXECUTION_CHECKPOINT_20261008.md); physical device acceptance and final release approval remain pending.
+
 **Resumable execution checklist:** [HR069-R1 checkpoint](docs/0.10.2/HR069-R1_EXECUTION_CHECKPOINT_20261008.md). The canonical stable 0.10.2 HR069 documentation below remains the historical baseline until HR069-R1 passes CI and physical validation.
 
 
