@@ -162,7 +162,25 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override public int trackingTargetId(){return trackingTarget;}@Override public String trackingTargetName(){return trackingName;}
 
     @Override public void requestExport(String format,long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Report_%06d_%s%s",r.id,fileStamp(),pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_PDF:EXPORT_XLSX);}
-    @Override public void requestFieldSessionExport(String format,String fieldSessionId){String fs=fieldSessionId==null?"":fieldSessionId.trim();if(fs.isEmpty()){showToast("الجلسة غير صالحة");return;}FieldSessionReportExporter.Bundle b;try{b=FieldSessionReportExporter.resolve(db,fs);}catch(Exception e){showToast("تعذر قراءة الجلسة");return;}if(b.records.isEmpty()){showToast("لا توجد قياسات قابلة للتصدير في هذه الجلسة");return;}pendingFieldSessionId=fs;boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");String site=b.site==null?"Site":b.site.name.replaceAll("[^A-Za-z0-9._-]","_");i.putExtra(Intent.EXTRA_TITLE,"HazRob_"+site+"_FieldSession_"+fs.replaceAll("[^A-Za-z0-9._-]","_")+"_"+fileStamp()+(pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_FIELD_PDF:EXPORT_FIELD_XLSX);}
+    @Override public void requestFieldSessionExport(String format,String fieldSessionId){
+        String fs=fieldSessionId==null?"":fieldSessionId.trim();
+        if(fs.isEmpty()){showToast("الجلسة غير صالحة");return;}
+        // Only a lightweight indexed ID lookup is allowed on the Android UI thread.
+        // FieldSessionReportExporter.resolve + PDF/XLSX construction execute later on workers.
+        FieldSessionRepository.FieldSession selected;
+        try{selected=new FieldSessionRepository(db).fieldSessionById(fs);}
+        catch(Exception e){showToast("تعذر قراءة الجلسة");return;}
+        if(selected==null){showToast("هذه الجلسة غير موجودة");return;}
+        pendingFieldSessionId=fs;
+        boolean pdf="pdf".equalsIgnoreCase(format);
+        Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        String safeName=selected.name.replaceAll("[^A-Za-z0-9._-]","_");
+        i.putExtra(Intent.EXTRA_TITLE,"HazRob_FieldSession_"+safeName+"_"+fs.replaceAll("[^A-Za-z0-9._-]","_")+"_"+fileStamp()+(pdf?".pdf":".xlsx"));
+        startActivityForResult(i,pdf?EXPORT_FIELD_PDF:EXPORT_FIELD_XLSX);
+    }
+
     @Override public void openReportsForSite(String siteId,String fieldSessionId){
         ui.post(()->{if(reportsTab!=null){reportsTab.selectScope(siteId,fieldSessionId);showTab(3);}});
     }
