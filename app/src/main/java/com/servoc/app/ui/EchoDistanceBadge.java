@@ -11,7 +11,7 @@ import java.util.Locale;
 
 /** Landscape-only driving overlay for the forward ultrasonic distance. */
 public final class EchoDistanceBadge extends TextView implements Runnable {
-    private static final long REFRESH_MS=250L;
+    private static final long REFRESH_MS=150L;
     private static final double WARNING_CM=10.0;
     private final HazRobHost host;
     private boolean running=false;
