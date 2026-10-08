@@ -1,5 +1,27 @@
 # HazRob 0.10.2 / HR069
 
+## Latest delivered application and Main ESP32 firmware — HR069-R1 (2026-10-08)
+
+**LATEST DELIVERED WORKING / DIAGNOSTIC PAIR**, using the **single existing development branch** `release/hazrob-0.10.2-rc2`. These are the newest compiled and delivered Android and **Main ESP32** sources at this checkpoint; do not substitute HR068/HR067/HR050 or older code. **Production/field acceptance remains PENDING.**
+
+| Component | Latest delivered version | Exact source used | Verified artifact |
+|---|---|---|---|
+| Android APK | **0.10.2 / HR069-R1**, `versionCode 28`, `com.servoc.app` | `8b89e4c27fa7fda4cc25b294f9a973a2a1a2a60a` | `HazRob-0.10.2-HR069-R1-v28-R0-Stable-WORKING.apk`; SHA-256 `022ba04594cd7b7735e2fd67a37586ee4b9e235eaf5e7e799e170b1e42d19618` |
+| Main ESP32 / Arduino IDE source | **0.10.2 / HR069-R1**, HazRob API v4 | `e6a14bc570c335b824c153c7cd7fd2677b9bd005` | `HazRob-0.10.2-HR069-R1-ESP32-Arduino.zip`; SHA-256 `6532c3495de23b1d4917ad64882519d3cc9c0cb42fd66634dc92059ba560058e` |
+| Embedded ChemCore Stable | **1.0.0-hr069r1**, offline/working | Inside Android v28 | Preserves locally editable 8-channel R0; scientific M4 and field validation not implied |
+| ESP32-CAM | **0.10.2 / HR069** | Unchanged from the previously documented HR069 camera source | Not part of this Main ESP32 Arduino ZIP |
+
+**Source compatibility verification:** the `firmware/HazRob/` Git tree SHA is identically `12c8b5fe3c903d320b12e19a9c58d9a94c8cf2f0` at the ZIP source commit `e6a14bc5`, the Android v28 source commit `8b89e4c2`, and the documentation baseline commit `1a2a1452`. Thus the latest Android changes **did not silently change Main ESP32 firmware bytes**. The different build-commit identifiers are deliberate and documented, not conflicting firmware revisions.
+
+**Evidence:** [APK build and artifact (passed)](https://github.com/sohpany/SERVOC-Android/actions/runs/37854726140) · [Android/firmware integration tests (passed)](https://github.com/sohpany/SERVOC-Android/actions/runs/37854726087) · [Arduino source compilation and ZIP artifact (passed)](https://github.com/sohpany/SERVOC-Android/actions/runs/37852367741). SHA-256 values above identify the downloadable artifacts; compare hashes after download.
+
+**User installation note:** install the signed v28 APK **over the current app** without uninstalling to retain local sites, sessions and R0, provided Android accepts the matching signing certificate. Open `HazRob/HazRob.ino` inside the ZIP using Arduino IDE, board **ESP32 Dev Module**, Arduino-ESP32 core **3.3.11** and **Huge APP** partition scheme. Android R0 edits affect new `Rs/R0` analyses and do **not** require reflashing Main ESP32.
+
+**Release distinction:** this section tracks the **latest delivered diagnostic builds**. The separately recorded controlled/production-release authority below is historical and **has not been automatically superseded**. CI compilation, signing and test success do not verify manual IR calibration, Echo electrical signaling, collision/cliff behavior, motors, actual R0 calibration, Direct/Remote response under load or real-device PDF/XLSX opening.
+
+---
+
+
 ## Active engineering increment — HR069-R1 (2026-10-08)
 
 **Development branch:** `release/hazrob-0.10.2-rc2` (single branch; do not create another).
@@ -31,7 +53,7 @@
 
 HazRob is a mobile research robot for hazardous-environment reconnaissance, multi-sensor gas **screening**, controlled chemical experiments, environmental sensing, remote inspection, video, evidence capture and traceable analytical research.
 
-## Release authority
+## Previously controlled release authority (historical production baseline; latest diagnostic pair is documented above)
 
 | Component | Controlled release |
 |---|---|
@@ -144,13 +166,13 @@ ENA/ENB jumpers are removed when GPIO16/GPIO17 provide PWM enable control. IN1..
 - GPIO: **35**;
 - input-only ESP32 pin;
 - installed downward at the lower/front robot area;
-- logical ground-detected active level: **LOW**;
+- **latest HR069-R1 WORKING** ground-detected active level: **HIGH** (LOW means no ground);
 - IR is treated as a **digital ground/cliff detector**, not a distance sensor;
-- reference installation height: approximately `8 cm`;
+- latest actual reported sensor installation height: **less than 4 cm** (the firmware reference is 4 cm);
 - cliff assertion requires **3 consecutive samples**;
 - clearing requires **2 consecutive ground samples**.
 
-A persistent loss of ground sets the cliff warning and blocks motion with a forward component. Reverse and appropriate escape/pivot movement remain available so the operator can recover the robot.
+A persistent loss of ground sets a cliff warning and **blocks forward-component motion only when the optional automatic-stop setting is enabled** (the setting defaults OFF on a first install). Reverse and appropriate escape/pivot movement remain available so the operator can recover the robot.
 
 ### 3.3 Ultrasonic / ECHO collision protection — HR069
 
@@ -165,7 +187,7 @@ A persistent loss of ground sets the cliff warning and blocks motion with a forw
 
 Ultrasonic acquisition is implemented as a non-blocking state machine rather than a long blocking `pulseIn()` path. The purpose is to preserve control-loop, MQTT and acquisition responsiveness.
 
-At ≤5 cm, forward-component motion is blocked. Reverse/pivot escape remains possible. The Android UI receives the warning/blocked state; enforcement remains in firmware so UI/network failure cannot remove the physical safety gate.
+At ≤5 cm, forward-component motion is blocked **only when the optional automatic-stop setting is enabled**. Reverse/pivot escape remains possible. The Android UI receives the warning/blocked state; enforcement remains in firmware so UI/network failure cannot remove the physical safety gate.
 
 ### 3.4 Other Main ESP32 channels
 
