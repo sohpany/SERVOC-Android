@@ -96,6 +96,8 @@ public final class GitHubReferencePublisher {
         if(n(a.version).isEmpty()||n(a.createdTs).isEmpty()||n(a.sourceIds).isEmpty())throw new IllegalArgumentException("derived provenance required");
         if(!hash.matches("[0-9a-fA-F]{64}"))throw new IllegalArgumentException("derived SHA-256 required");
         if(payload.isEmpty())throw new IllegalArgumentException("derived payload required");
+        try{if(!sha256(payload.getBytes(StandardCharsets.UTF_8)).equalsIgnoreCase(hash))throw new IllegalArgumentException("derived content SHA-256 mismatch");}
+        catch(IllegalArgumentException e){throw e;}catch(Exception e){throw new IllegalArgumentException("derived SHA-256 calculation failed",e);}
         JSONObject ref=json(payload);String schema=ref.optString("schema","");
         if(!schema.startsWith("hazrob-derived-"))throw new IllegalArgumentException("unexpected derived schema");
     }
