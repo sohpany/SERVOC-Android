@@ -54,7 +54,8 @@ def main():
         req(mode,marker,"current drive selector")
     req(control,"driveMode.next()","drive-mode cycling")
     req(tank,"onCommand(int value)","independent signed tank side")
-    req(tank,"selected value remains active after finger-up","latching tank semantics")
+    req(tank,"setValue(0,true)","independent spring-to-zero tank safety")
+    req(tank,"MotionEvent.ACTION_POINTER_UP","tank touch pointer release safety")
     req(control,"host.setDriveCommand(tankLeftRaw,tankRightRaw)","tank direct left/right command ordering")
     req(direction,"PREF_REVERSE_JOYSTICK","independent joystick reversal")
     req(direction,"PREF_REVERSE_WHEEL","independent wheel reversal")
@@ -91,7 +92,7 @@ def main():
     req(hardware,'\\"cliff_warning\\"',"IR cliff telemetry")
     req(protocol,"ground=raw==1","field-confirmed HIGH means ground")
     req(protocol,"boolean cliff=!ground","no ground means cliff")
-    req(protocol,'x.put("polarity_corrected",corrected)',"IR deployed-firmware polarity correction diagnostics")
+    req(protocol,'x.put("polarity_corrected",firmwareActive>=0&&firmwareActive!=1)',"HIGH-ground firmware compatibility diagnostics")
 
     # UI-04: operational measurement workspace.
     req(measurements,'String[] names={"الفيزيائية","القياس الحي","التحليل","النتائج"}',"current measurement workspace tabs")
@@ -117,7 +118,7 @@ def main():
     req(measurements,"ChemCoreAnalysisPresenter.equationsAndResiduals","expandable technical residual details")
 
     # UI-06: smart reports and chart evidence gating.
-    req(reports,'UiKit.title(c,"التقارير الذكية • HR069")',"smart report workspace")
+    req(reports,'UiKit.title(c,"التقارير الذكية • HR069-R1")',"current smart report workspace")
     req(reports,"لا توجد نقاط مصطنعة","explicit chart evidence disclosure")
     req(reports,"ChemCoreAnalysisPresenter.summary","report technical provenance")
     req(reports,"AnalyticalCharts.screening144","144-screening chart")
@@ -143,7 +144,7 @@ def main():
     req(uikit,"setHintTextColor(0xFF90A4AE)","dark-input hint contrast")
 
     print("HazRob 0.10.2 / HR069 operator UI contract: PASS")
-    print("UI-01..UI-07: per-mode reversal, tunable 40% curve / 60% pivot defaults, direct tank sliders, IR field polarity, compact warnings")
+    print("UI-01..UI-07: per-mode reversal, tunable 40% curve / 60% pivot defaults, spring-return tank sliders, IR field polarity, compact warnings")
     return 0
 
 if __name__=="__main__":
