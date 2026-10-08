@@ -21,7 +21,10 @@ tasks.register('applyHazRobBranding', Exec) {
     commandLine 'python3', 'tools/apply_hazrob_branding.py'
     inputs.file rootProject.file('branding/hazrob_sensing_logo_96.webp.b64')
     inputs.file rootProject.file('tools/apply_hazrob_branding.py')
+    inputs.file rootProject.file('tools/hazrob_hr069_r1_png.py')
     outputs.file file('src/main/res/drawable/ic_hazrob_app.webp')
+    outputs.file file('src/main/res/drawable/ic_hazrob_hr069_r1.png')
+    outputs.file file('src/main/assets/hazrob_hr069_r1_logo.png')
 }
 
 tasks.register('prepareHazRobFlammabilitySeed') {
@@ -76,7 +79,7 @@ android {
         applicationId 'com.servoc.app'
         minSdk 26
         targetSdk 36
-        versionCode 26
+        versionCode 27
         versionName '0.10.2'
 
         // P4 policy: application and ChemCore update distribution is GitHub-only.
