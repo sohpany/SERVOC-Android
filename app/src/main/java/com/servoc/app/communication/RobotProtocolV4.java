@@ -16,6 +16,7 @@ public final class RobotProtocolV4 {
         try{
             if(diag==null)diag=new JSONObject();if(data==null)data=new JSONObject();
             out.put("firmware",diag.optString("fw",diag.optString("firmware","HazRob")));
+            out.put("build_revision",diag.optString("build_revision","unknown"));
             out.put("api_version",diag.has("api")?diag.optInt("api",4):diag.optInt("api_version",4));
             out.put("heap",diag.optLong("heap",0));out.put("clients",diag.optInt("clients",0));
             out.put("hardware_profile",diag.optString("hardware_profile",HazRobHardwareProfile.ID));
@@ -91,7 +92,8 @@ public final class RobotProtocolV4 {
             JSONObject b=d.optJSONObject("battery"),p=d.optJSONObject("proximity"),t=d.optJSONObject("internal_temp"),e=d.optJSONObject("energy_basis");
             JSONObject battery=new JSONObject();if(b==null)b=new JSONObject();battery.put("voltage_v",finiteAny(b,"v","voltage_v"));battery.put("raw",b.has("raw")?b.optLong("raw",0):JSONObject.NULL);battery.put("estimated",b.optBoolean("estimated",true));out.put("battery",battery);
             JSONObject proximity=new JSONObject();if(p==null)p=new JSONObject();
-            proximity.put("distance_cm",finiteAny(p,"cm","distance_cm"));proximity.put("warning",p.optBoolean("warning",false));proximity.put("stop_zone",p.optBoolean("stop_zone",false));
+            proximity.put("distance_cm",finiteAny(p,"cm","distance_cm"));
+            proximity.put("valid",p.optBoolean("valid",false));proximity.put("pulse_us",Math.max(0,p.optLong("pulse_us",0)));proximity.put("timeouts",Math.max(0,p.optLong("timeouts",0)));proximity.put("warning",p.optBoolean("warning",false));proximity.put("stop_zone",p.optBoolean("stop_zone",false));
             proximity.put("auto_stop_enabled",p.optBoolean("auto_stop_enabled",false));proximity.put("forward_blocked",p.optBoolean("forward_blocked",false));
             proximity.put("warning_cm",finiteAny(p,"warning_cm","warn_cm"));proximity.put("stop_cm",finiteAny(p,"stop_cm","stop_distance_cm"));
             proximity.put("trig_gpio",p.has("trig")?p.optInt("trig",23):23);proximity.put("echo_gpio",p.has("echo")?p.optInt("echo",39):39);out.put("proximity",proximity);
@@ -135,21 +137,20 @@ public final class RobotProtocolV4 {
             boolean ground=i.optBoolean("ground_detected",!firmwareCliff);
             boolean corrected=false;
 
-            // HR069 field observation: the installed downward IR module reports HIGH when a nearby
-            // floor reflects the beam. Existing LOW-active firmware therefore asserted a permanent
-            // cliff while the robot was standing on the floor. Prefer raw telemetry when present so
-            // this APK fixes that deployed firmware without requiring an immediate reflash.
-            if(raw==0||raw==1){
-                ground=raw==1;
-                corrected=firmwareActive==0;
-            }
+            // HR069-R1: physical LOW means NO GROUND, HIGH means possible ground.
+            // The old HIGH-only installation was constant at both floor and >70cm: do not
+            // show green/safe until firmware has observed both electrical levels.
+            boolean verified=i.optBoolean("verified",false);
+            if(raw==0||raw==1)ground=verified&&raw==1;
+            else ground=false;
             boolean cliff=!ground;
             boolean warning=cliff;
+            boolean corrected=false;
 
-            x.put("installed",true);x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",ground);
+            x.put("installed",true);x.put("verified",verified);x.put("status",!verified?"unverified":ground?"ground":"cliff");x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",ground);
             x.put("raw_level",raw);x.put("level",raw);
             x.put("ground_active_level",1);x.put("firmware_ground_active_level",firmwareActive<0?JSONObject.NULL:firmwareActive);
-            x.put("polarity_corrected",corrected);x.put("polarity_source",raw==0||raw==1?"hr069_field_raw_high_ground":"firmware_semantics");
+            x.put("polarity_corrected",corrected);x.put("polarity_source","hr069_r1_high_ground_verified_only");
             x.put("gpio",i.has("gpio")?i.optInt("gpio",35):35);
             x.put("reference_height_cm",finiteAny(i,"reference_height_cm","reference_cm"));x.put("assert_samples",Math.max(0,i.optInt("assert_samples",0)));x.put("clear_samples",Math.max(0,i.optInt("clear_samples",0)));
             x.put("auto_stop_enabled",safetyAutoStop);x.put("drive_interlock",safetyAutoStop&&cliff);
