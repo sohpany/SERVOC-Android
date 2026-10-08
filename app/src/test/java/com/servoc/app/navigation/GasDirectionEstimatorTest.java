@@ -5,14 +5,24 @@ import org.junit.Test;
 import static org.junit.Assert.*;
 
 public class GasDirectionEstimatorTest {
+    private static long nextSampleUs=100000;
     private static JSONObject sample(double ratio)throws Exception{return sample(ratio,true);}
     private static JSONObject sample(double ratio,boolean valid)throws Exception{
-        JSONObject root=new JSONObject(),mq=new JSONObject();
+        JSONObject root=new JSONObject(),mq=new JSONObject();long measured=nextSampleUs+=100000;
         for(String k:new String[]{"mq2","mq3","mq4","mq5","mq7","mq8","mq9","mq135"}){
-            JSONObject r=new JSONObject();r.put("valid",valid);r.put("ratio",ratio);
+            JSONObject r=new JSONObject();r.put("valid",valid);r.put("ratio",ratio);r.put("sample_us",measured);
             JSONObject q=new JSONObject();q.put("valid",valid);q.put("status",valid?"VALID":"INVALID");q.put("manufacturer_heater_protocol_valid",true);r.put("quality",q);mq.put(k,r);
         }
         root.put("mq",mq);return root;
+    }
+
+    @Test public void reusedSnapshotCannotInventNewVotes()throws Exception{
+        GasDirectionEstimator e=new GasDirectionEstimator();JSONObject a=sample(1.0),b=sample(0.9);
+        e.update(a,100,100,1000,103);GasDirectionEstimator.Result first=e.update(b,100,100,1150,103);
+        GasDirectionEstimator.Result duplicate=e.update(b,100,100,1300,103);
+        assertFalse(duplicate.valid);assertEquals("WAITING_FOR_FRESH_TARGET_SAMPLE",duplicate.reason);
+        GasDirectionEstimator.Result old=e.update(b,100,100,2000,103);
+        assertFalse(old.valid);assertEquals("TARGET_SAMPLE_STALE",old.reason);
     }
 
     @Test public void risingGasEvidenceWhileDrivingForwardPointsForward()throws Exception{
