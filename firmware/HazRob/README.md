@@ -1,8 +1,8 @@
-# HazRob main ESP32 firmware — 0.10.1
+# HazRob main ESP32 firmware — 0.10.2 / HR069-R1 WORKING
 
 Hardware target: DOIT ESP32 DEVKIT V1 / ESP32-WROOM-compatible board.
 
-This directory is the canonical main-controller source for HazRob 0.10.1. The network contract is defined by the source in this directory and is not inherited from later experimental firmware.
+This directory contains the Main ESP32 firmware in the current 0.10.2 / HR069-R1 working branch `release/hazrob-0.10.2-rc2`. This is *not* an approved new production firmware until bench/physical acceptance. Pair with Android 0.10.2 / HR069-R1 and API4. ESP32-CAM firmware is a separate module.
 
 ## Network contract
 
@@ -69,4 +69,18 @@ Remote MQTT uses TLS. The robot-scoped MQTT identity is obtained from the bootst
 
 Recommended Arduino-ESP32 core: 3.3.11.
 
-Manual board target: ESP32 Dev Module with Huge APP partitioning, matching the project build workflow.
+Manual board target: **ESP32 Dev Module** with **Huge APP** partitioning, matching the current RC2 build workflow. Open `HazRob/HazRob.ino` from the Arduino sketch folder, install ESP32 board core **3.3.11**, choose your real serial port, verify/compile, then upload. There is no .bin flashing prerequisite for this ZIP. Take the robot wheels off the ground for initial tests. Verify the 3.3V logic-level echo input before power-on.
+
+## Engineering revision / physical safety
+
+- Firmware banner stays `HazRob 0.10.2`; diagnostic `/diag.build_revision` identifies `HR069-R1`.
+- IR polarity: **HIGH = ground present; LOW = no ground**. The user will adjust the IR sensor manually. The software no longer requires a prior HIGH/LOW transition; a stuck HIGH can therefore falsely indicate ground. Do not rely on it before testing at floor height and raised height.
+- Operator-selectable forward auto-stop is retained in nonvolatile ESP32 storage, default OFF before first use. Emergency stop and the control-command watchdog remain independent.
+- HC-SR04 TRIG23 and ECHO39: shift any 5V echo output safely to 3.3V at the input pin; never connect 5V directly to GPIO39.
+- Nominal ultrasonic telemetry/Direct/Remote refresh is 150ms. Actual rates depend on MQTT/network congestion and valid echoes.
+
+## R0 authority
+
+Device R0 for ChemCore is editable **on the Android application** in Developer → R0 calibration. Eight individual overrides or a single eight-channel batch are persisted locally; the fallback field clean-air baseline is preserved. This changes new normalized measurements via `Rs/R0`; it does not program new R0 values into ESP32, does not replace reference-gas ppm curve calibration, and does not overwrite the independently versioned ChemCore Stable library.
+
+**Never flash firmware from any HR050/HR067/HR068 working tree as a substitute for the HR069-R1 sketch.**
