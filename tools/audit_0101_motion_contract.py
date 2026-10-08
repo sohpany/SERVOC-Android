@@ -4,8 +4,8 @@
 This audit prevents reintroduction of retired acceleration/retrace/link-hold shaping while
 preserving the independent 500 ms stale-command neutral stop, explicit E-stop, tunable
 travel-relative differential steering, low-latency Direct/Remote command paths, the four operator
-drive modes, and the current HR069 warning-only IR/ultrasonic policy. Automatic hazard movement
-blocking is forced OFF; hazard warnings remain active and E-stop/watchdog remain independent.
+drive modes, and the HR069-R1 optional IR/ultrasonic forward-stop policy. Automatic hazard movement
+blocking is operator-selectable (default OFF); warnings and E-stop/watchdog remain independent.
 """
 from pathlib import Path
 
@@ -32,8 +32,8 @@ def main() -> int:
 
     require(cfg,"CONTROL_COMMAND_TIMEOUT_MS=500","bounded stale-command policy")
     for retired in ("DRIVE_LEASE_MS","LINK_DETECT_MS","LINK_HOLD_MS","RETRACE_MS","RETRACE_MAX_SPEED","ACCEL=","DECEL=","REVERSE="): forbid(cfg,retired,"Config.h")
-    require(hw,"void driveSet(int l,int r){","driveSet entry");require(hw,"bool forwardRequested=(requestedL+requestedR)>0.1f;","forward motion classification");require(hw,"bool forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop);","front hazard block remains gated by disabled HR069 auto-stop authority");require(hw,"Alerts::setIr(irWarning||ultraWarning)","hazard warnings independent of auto-stop")
-    require(safety_options,'safetyNv.putBool("autoStop",false)',"persisted auto-stop forced off");require(safety_options,'return false;',"runtime auto-stop authority forced off");require(safety_options,'if(persist)safetyNv.putBool("autoStop",false)',"compatibility setter cannot re-enable auto-stop");require(cfg,"ULTRA_WARN_CM=10.0f","ultrasonic warning threshold");require(cfg,"ULTRA_STOP_CM=5.0f","ultrasonic stop-zone telemetry threshold")
+    require(hw,"void driveSet(int l,int r){","driveSet entry");require(hw,"bool forwardRequested=(requestedL+requestedR)>0.1f;","forward motion classification");require(hw,"bool forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop);","front hazard block remains gated by operator-selected auto-stop authority");require(hw,"Alerts::setIr(irWarning||ultraWarning)","hazard warnings independent of auto-stop")
+    require(safety_options,'safetyNv.getBool("autoStop",false)',"default-OFF persisted setting");require(safety_options,'return autoStop;',"runtime selectable authority");require(safety_options,'if(persist)safetyNv.putBool("autoStop",enabled)',"setter persists operator choice");require(cfg,"ULTRA_WARN_CM=10.0f","ultrasonic warning threshold");require(cfg,"ULTRA_STOP_CM=5.0f","ultrasonic stop-zone telemetry threshold")
     require(hw,"ultraCm=NAN;ultraWarning=false;ultraStop=false;ultraTimeoutCount++;hazardAlert();","ultrasonic timeout clears warning/stop and records timeout");require(hw,"if(forwardBlocked&&forwardRequested){curL=curR=0;}else{curL=requestedL;curR=requestedR;}","forward-only block implementation remains inert unless future authority explicitly enables it");require(hw,"cmdAt=millis();staleStop=false;driveWrite();","drive watchdog refresh");require(hw,"n-cmdAt>Cfg::CONTROL_COMMAND_TIMEOUT_MS","stale stop timeout");require(hw,"staleStop=true;driveWrite();","stale stop neutral output")
     for retired in ("float ramp(","beginRetrace","retraceUpdate","historyUpdate","clearHistory","struct Hist","linkWatchUpdate","beginLinkHold","recoverLink","linkHold","linkLost","retracing","RETRACE","failsafe","hold_remaining_ms"): forbid(hw,retired,"Hardware.cpp")
 
@@ -58,7 +58,7 @@ def main() -> int:
     require(remote,'p.put("left",left);p.put("right",right);command("drive",p,RemoteDrivePolicy.COMMAND_TTL_MS,false,0);',"Remote fire-and-forget drive");require(mqtt,"if(!fresh(j))","Remote TTL freshness");require(mqtt,"if(q<=lastSeq)","Remote sequence rejection")
 
     print("HazRob 0.10.2 motion contract: PASS")
-    print("modes=tank,wheel,joystick,buttons; watchdog=500ms; direct keepalive=150ms; tunable turn/pivot; hazard auto-stop=FORCED-OFF; warnings always active; physical acceptance=PENDING")
+    print("modes=tank,wheel,joystick,buttons; watchdog=500ms; direct keepalive=150ms; tunable turn/pivot; hazard auto-stop=OPERATOR-SELECTABLE-DEFAULT-OFF; warnings always active; physical acceptance=PENDING")
     return 0
 
 if __name__ == "__main__": raise SystemExit(main())
