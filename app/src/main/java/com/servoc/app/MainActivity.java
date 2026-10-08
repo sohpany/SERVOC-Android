@@ -161,7 +161,30 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override public void setTrackingTarget(int chemicalId,String name){trackingTarget=chemicalId;trackingName=chemicalId<0?"":(name==null?"":name);prefs.edit().putInt("tracking_id",trackingTarget).putString("tracking_name",trackingName).apply();}
     @Override public int trackingTargetId(){return trackingTarget;}@Override public String trackingTargetName(){return trackingName;}
 
-    @Override public void requestExport(String format,long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Report_%06d_%s%s",r.id,fileStamp(),pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_PDF:EXPORT_XLSX);}
+    @Override public void requestExport(String format,long experimentId){
+        ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);
+        if(r==null){showToast("السجل غير موجود");return;}
+        // Operator PDF/XLSX must NEVER silently fall back to the legacy one-chart exporter.
+        // A persisted user measurement belongs to exactly one Field Session when reportable.
+        String fs="";
+        try{if(r.sessionId!=null&&!r.sessionId.isEmpty())
+            fs=new FieldSessionRepository(db).fieldSessionIdForMeasurement(r.sessionId);}
+        catch(Exception e){showToast("تعذر العثور على جلسة القياس");return;}
+        if(fs!=null&&!fs.isEmpty()){requestFieldSessionExport(format,fs);return;}
+        // Developer laboratory experiments have their own scientific export identity;
+        // they are not field-session reports and cannot be relabeled as site/session data.
+        if(!developerMode||!ExperimentQueries.isDeveloperMeasurementSession(db,r.sessionId)){
+            showToast("التقرير الذكي يتطلب جلسة مستخدم ميدانية؛ اختر الموقع والجلسة من تبويب التقارير");
+            return;
+        }
+        pendingExperimentId=experimentId;
+        boolean pdf="pdf".equalsIgnoreCase(format);
+        Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Developer_Experiment_%06d_%s%s",r.id,fileStamp(),pdf?".pdf":".xlsx"));
+        startActivityForResult(i,pdf?EXPORT_PDF:EXPORT_XLSX);
+    }
     @Override public void requestFieldSessionExport(String format,String fieldSessionId){
         String fs=fieldSessionId==null?"":fieldSessionId.trim();
         if(fs.isEmpty()){showToast("الجلسة غير صالحة");return;}
