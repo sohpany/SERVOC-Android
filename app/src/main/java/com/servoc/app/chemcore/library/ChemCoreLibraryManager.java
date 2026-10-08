@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 
 import com.servoc.app.BuildConfig;
 import com.servoc.app.chemcore.SamplingProfile;
+import com.servoc.app.measurement.MeasurementSessionRegistry;
 
 import org.json.JSONObject;
 
@@ -149,6 +150,10 @@ public final class ChemCoreLibraryManager {
 
     /** Fail closed for both firmware numeric states and Android/ChemCore named states. */
     public static boolean measurementOrAnalysisActive(JSONObject snapshot) {
+        // HR069-R1: a developer ChemCore controlled capture can be active while ESP32 state is idle.
+        // Never swap the stable reference snapshot during any active local recording/capture.
+        if (MeasurementSessionRegistry.chemCoreCaptureRequested()
+                || !MeasurementSessionRegistry.activeSessionId().isEmpty()) return true;
         if (snapshot == null) return false;
         JSONObject m = snapshot.optJSONObject("measurement");
         if (m == null) return false;
