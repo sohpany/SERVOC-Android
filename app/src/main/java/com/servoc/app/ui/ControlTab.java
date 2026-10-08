@@ -28,6 +28,7 @@ import com.servoc.app.control.SteeringWheelView;
 import com.servoc.app.control.VerticalSpeedControl;
 import com.servoc.app.measurement.LiveGasStateEngine;
 import com.servoc.app.navigation.GasDirectionEstimator;
+import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.vision.FlameEvidenceTracker;
 import com.servoc.app.vision.FlameFrameAnalyzer;
 import com.servoc.app.vision.HazardOverlayView;
@@ -45,7 +46,7 @@ public final class ControlTab {
     private final Button stop,flash,record,cancelTracking,driveModeButton,relayButton;
     private final MjpegView video;private final MjpegRecorder recorder;private final FlameFrameAnalyzer flameAnalyzer;private final HazardOverlayView overlay;private final GasDirectionEstimator gasDirection=new GasDirectionEstimator();
     private final JoystickView joystick;private final SteeringWheelView wheel;private final DirectionPadView directionPad;private final VerticalSpeedControl speedControl;private final DualTankDriveControl tankLeft,tankRight;
-    private volatile boolean recordingStopping=false,estopLatched=false;private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;private FlameFrameAnalyzer.Result lastFlameResult;private int lastTarget=-1;
+    private volatile boolean recordingStopping=false,estopLatched=false;private FlameEvidenceTracker.State lastFlameState=FlameEvidenceTracker.State.CLEAR;private FlameFrameAnalyzer.Result lastFlameResult;private int lastTarget=-1,trackingLegacyIndex=-999;
     private int mappedLeftRaw=0,mappedRightRaw=0,tankLeftRaw=0,tankRightRaw=0,speedPercent=DriveSpeedLimiter.DEFAULT_PERCENT;private DriveMode driveMode;
     private Runnable estopHoldAction;private boolean estopPressActive=false,estopHoldTriggered=false;
 
@@ -124,14 +125,20 @@ public final class ControlTab {
         flash.setText("فلاش "+("on".equals(effectiveFlashMode())?"ON":"OFF"));if(recorder.isRecording())recordInfo.setText("REC ●   "+recorder.frameCount()+" frames   drop "+recorder.droppedFrames());renderDriveModeButton();
         WifiSignalReader.Snapshot ws=remoteMode()?null:WifiSignalReader.read(appContext);if(ws!=null&&ws.available){wifiBadge.setText("Wi‑Fi "+ws.qualityPercent+"%  "+ws.rssiDbm+" dBm");wifiBadge.setTextColor(ws.qualityPercent>=60?0xFF81C784:ws.qualityPercent>=30?0xFFFFB74D:0xFFFF7043);}else{wifiBadge.setText(remoteMode()?"REMOTE":"Wi‑Fi —");wifiBadge.setTextColor(0xFFCFD8DC);}
         LiveGasStateEngine.Snapshot gas=host.liveGasState();renderGas(gas);
-        int target=host.trackingTargetId();String targetName=host.trackingTargetName();if(target!=lastTarget){lastTarget=target;gasDirection.reset();overlay.clearGas();}cancelTracking.setVisibility(target>=0?View.VISIBLE:View.GONE);trackingBadge.setText(target>=0?"تتبع ● "+targetName:"تتبع —");trackingBadge.setTextColor(target>=0?0xFF81C784:0xFFCFD8DC);
+        int target=host.trackingTargetId();String targetName=host.trackingTargetName();if(target!=lastTarget){
+            lastTarget=target;trackingLegacyIndex=-999;gasDirection.reset();overlay.clearGas();
+            if(target>=0){
+                ChemicalRepository.Chemical selected=new ChemicalRepository(host.database()).byUid(target);
+                if(selected!=null&&selected.legacyId!=null)trackingLegacyIndex=selected.legacyId;
+            }
+        }cancelTracking.setVisibility(target>=0?View.VISIBLE:View.GONE);trackingBadge.setText(target>=0?"تتبع ● "+targetName:"تتبع —");trackingBadge.setTextColor(target>=0?0xFF81C784:0xFFCFD8DC);
         JSONObject d=host.latestDiagnostics();syncEstopFromDiagnostics(d);if(d==null){status.setText("ROBOT ○");status.setTextColor(0xFFFFB74D);irBadge.setText("أرض —");irBadge.setTextColor(0xFFCFD8DC);distanceBadge.setText("أمام — cm");distanceBadge.setTextColor(0xFFCFD8DC);relayButton.setText("MQ —");relayButton.setBackgroundColor(0xCC455A64);safetyWarning.setVisibility(View.GONE);drive.setText("L "+host.driveLeft()+"   R "+host.driveRight()+"   LINK —");overlay.clearGas();gasDirection.reset();return;}
         status.setText("ROBOT ●");status.setTextColor(0xFF81C784);JSONObject relay=d.optJSONObject("relay");boolean mqOn=relay!=null&&relay.optBoolean("on",relay.optInt("mask",0)!=0);relayButton.setText(mqOn?"MQ ON":"MQ OFF");relayButton.setBackgroundColor(mqOn?0xCC2E7D32:0xCC455A64);
         JSONObject ir=d.optJSONObject("ir");boolean cliff=ir!=null&&ir.optBoolean("cliff_warning",ir.optBoolean("warning",true));boolean ground=ir!=null&&ir.optBoolean("ground_detected",false);irBadge.setText(ir==null?"أرض ؟":cliff?"⚠ لا توجد أرضية":ground?"أرض ●":"أرض ؟");irBadge.setTextColor(ir==null?0xFFFFB74D:cliff?0xFFFF7043:ground?0xFF81C784:0xFFFFB74D);
         JSONObject device=d.optJSONObject("device"),proximity=device==null?null:device.optJSONObject("proximity");boolean collision=proximity!=null&&proximity.optBoolean("warning",false),stopZone=proximity!=null&&proximity.optBoolean("stop_zone",false);Object cmObj=proximity==null?null:proximity.opt("distance_cm");if(cmObj instanceof Number){double cm=((Number)cmObj).doubleValue();if(Double.isFinite(cm)){distanceBadge.setText(String.format(Locale.US,"أمام %.1f cm",cm));distanceBadge.setTextColor(stopZone?0xFFFF5252:collision?0xFFFFB74D:0xFF81C784);}else distanceBadge.setText("أمام — cm");}else distanceBadge.setText("أمام — cm");
         if(cliff){safetyWarning.setText("⚠ خطر سقوط");safetyWarning.setVisibility(View.VISIBLE);}else if(stopZone){safetyWarning.setText("⛔ جسم أمامي قريب جدًا");safetyWarning.setVisibility(View.VISIBLE);}else if(collision){safetyWarning.setText("⚠ جسم أمامي قريب");safetyWarning.setVisibility(View.VISIBLE);}else safetyWarning.setVisibility(View.GONE);
         JSONObject x=d.optJSONObject("drive");if(x!=null){boolean stale=x.optBoolean("stale_stop",false);drive.setText("L "+x.optInt("left",host.driveLeft())+"   R "+x.optInt("right",host.driveRight())+"   "+(estopLatched?"E-STOP":stale?"STALE STOP":"DIRECT"));drive.setTextColor(estopLatched?0xFFFF7043:stale?0xFFFFB74D:Color.WHITE);}
-        if(target<0){overlay.clearGas();return;}GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime(),target);if(g.valid){overlay.setGasDirection(g.angleRad,g.confidence);trackingBadge.setText("تتبع ● "+targetName+" • اتجاه محتمل");}else{overlay.clearGas();trackingBadge.setText("تتبع "+targetName+" • "+trackingReason(g.reason));}
+        if(target<0){overlay.clearGas();return;}if(trackingLegacyIndex<0){overlay.clearGas();trackingBadge.setText("تتبع "+targetName+" • لا توجد قناة MQ موثوقة لهذه المادة");return;}GasDirectionEstimator.Result g=gasDirection.update(d,host.driveLeft(),host.driveRight(),SystemClock.elapsedRealtime(),trackingLegacyIndex);if(g.valid){overlay.setGasDirection(g.angleRad,g.confidence);trackingBadge.setText("تتبع ● "+targetName+" • اتجاه محتمل");}else{overlay.clearGas();trackingBadge.setText("تتبع "+targetName+" • "+trackingReason(g.reason));}
     }
 
     private void renderGas(LiveGasStateEngine.Snapshot g){if(g==null){gasBadge.setText("غازات —");gasBadge.setTextColor(0xFFCFD8DC);return;}switch(g.state){case RESPONSE_ALERT:gasBadge.setText("⛔ استجابة غاز قوية • "+g.respondingChannels+" قنوات");gasBadge.setTextColor(0xFFFF5252);break;case RESPONSE_WATCH:gasBadge.setText("⚠ استجابة غاز متعددة • "+g.respondingChannels+" قنوات");gasBadge.setTextColor(0xFFFFB74D);break;case INSTANT_RESPONSE:gasBadge.setText("⚠ استجابة MQ فورية");gasBadge.setTextColor(0xFFFFB74D);break;case NORMAL:gasBadge.setText("غازات ● طبيعي");gasBadge.setTextColor(0xFF81C784);break;case WARMING_UP:gasBadge.setText("MQ • تسخين");gasBadge.setTextColor(0xFF90CAF9);break;case BASELINE_REQUIRED:gasBadge.setText("MQ • خط أساس مطلوب");gasBadge.setTextColor(0xFFFFB74D);break;case DEGRADED:gasBadge.setText("MQ • قنوات غير كافية");gasBadge.setTextColor(0xFFFF7043);break;default:gasBadge.setText("غازات —");gasBadge.setTextColor(0xFFCFD8DC);}}
