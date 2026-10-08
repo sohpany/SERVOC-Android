@@ -54,3 +54,11 @@
 - Asset P6: generate **faithful** transparent exterior PNG from the supplied approved hexagon-target image, not a stylistically modified substitute.
 - Final gate: IR physical polarity and accurate Echo measurements on device, manual on/off forward interlock, Direct/Remote, PDF/XLSX openability, E-STOP, motor-deadman. Do not label those tests PASS without device or real CI logs.
 
+
+## CR-20261008-006 checkpoint — Developer publication / ChemCore library update audit
+- Registered scientific-library compatibility and destination review: [`CR-20261008-006`](CR-20261008-006_DEV_REFERENCE_CHEMCORE_SYNC_AUDIT.md), baseline `9eeeab979c4c1bc350c789a67d7dd85cdd1b3d68`.
+- Authority reconciled against build-harness `CURRENT_RELEASE_AUTHORITY.md` and mandatory governance: only `sohpany/SERVOC-Android:release/hazrob-0.10.2-rc2/research_data/hr069_analytical_library/` is canonical for analytical material.
+- Confirmed current `GitHubReferencePublisher.java` writes to a superseded organization library location; rejected any claim that this provides canonical publication. No live upload, reference promotion or change to user files executed.
+- Confirmed `CHEMCORE_LIBRARY_MANIFEST_URL` empty in production Gradle and legacy publication workflows retired. Read-only Stable updater is designed but its end-to-end runtime distribution remains UNVERIFIED.
+- Implemented dedicated developer-session update interlock at SHA `5d4c545e7152f4e1bb8779b526268a00b69003e0` and accompanying unit regression at SHA `e0c47aed51b873a793b393480be37baf7e247f31`: neither firmware-idle controlled captures nor active local recordings may activate a new Stable package.
+- No older-than-0.10.2/HR069 code used; no new branch. APK/Main firmware/physical/Stable end-to-end release gates all PENDING.
