@@ -4,6 +4,7 @@ import android.content.Context;
 
 import com.servoc.app.chemcore.ChemCoreIdentityCurationRepository;
 import com.servoc.app.chemcore.ChemCoreMolecularSeedImporter;
+import com.servoc.app.chemcore.ChemCoreOfflineResearchCorpus;
 import com.servoc.app.chemcore.ChemCoreQsprRuntimeRegistry;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
@@ -38,6 +39,12 @@ public final class ChemicalSeedBootstrap {
         try{MqLargeVocEvidenceBootstrap.ensure(db.getWritableDatabase());db.putMeta("mq_large_voc_evidence_seed_status","available:"+MqLargeVocEvidenceBootstrap.SEED_VERSION);}catch(Exception e){db.putMeta("mq_large_voc_evidence_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));}
         try{MqReactiveEvidenceBootstrap.ensure(db.getWritableDatabase());db.putMeta("mq_reactive_evidence_seed_status","available:"+MqReactiveEvidenceBootstrap.SEED_VERSION);}catch(Exception e){db.putMeta("mq_reactive_evidence_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));}
         try{OperationalHazardTransferBootstrap.ensure(db.getWritableDatabase());db.putMeta("operational_hazard_transfer_seed_status","available:"+OperationalHazardTransferBootstrap.SEED_VERSION);}catch(Exception e){db.putMeta("operational_hazard_transfer_seed_status","error:"+e.getClass().getSimpleName()+":"+String.valueOf(e.getMessage()));}
+
+        // Ship the current 14-file canonical HR069 research references in every APK, with
+        // a SHA-verified, isolated SQLite provenance table. No automatic M4 promotion.
+        ChemCoreOfflineResearchCorpus.Result corpus=ChemCoreOfflineResearchCorpus.importIfPresent(context,db);
+        db.putMeta("chemcore_offline_research_corpus_status",
+                corpus.available?"available:"+corpus.imported+":"+corpus.sha256:"error:"+corpus.reason);
 
         ChemCoreMolecularSeedImporter.Result molecular=ChemCoreMolecularSeedImporter.importBestAvailable(context,db);
         db.putMeta("chemcore_molecular_seed_status",molecular.available?("available:"+molecular.records+":"+molecular.matched+":"+molecular.origin):molecular.message);
