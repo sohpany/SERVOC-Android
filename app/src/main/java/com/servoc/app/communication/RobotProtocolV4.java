@@ -145,7 +145,6 @@ public final class RobotProtocolV4 {
             else ground=false;
             boolean cliff=!ground;
             boolean warning=cliff;
-            boolean corrected=false;
 
             x.put("installed",true);x.put("verified",verified);x.put("status",!verified?"unverified":ground?"ground":"cliff");x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",ground);
             x.put("raw_level",raw);x.put("level",raw);
