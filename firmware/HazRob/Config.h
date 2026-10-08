@@ -2,7 +2,8 @@
 #include <Arduino.h>
 
 namespace Cfg{
-constexpr char FW[]="HazRob 0.10.2";
+constexpr char FW[]="HazRob 0.10.2 / HR069-R1";
+constexpr char ENGINEERING_REVISION[]="HR069-R1";
 constexpr uint8_t API=4;
 constexpr char HW_PROFILE[]="hazrob-0.10.2-hr069-1r8mq-l298n6-batt-ultra-ir-ldr-env2-v2";
 constexpr char SSID[]="HazRob",NVS[]="servoc",CAM[]="192.168.4.2";
@@ -36,14 +37,15 @@ constexpr uint8_t ULTRA_TRIG_PIN=23;      // front ultrasonic trigger
 constexpr uint8_t ULTRA_ECHO_PIN=39;      // input only; reduce 5 V echo to <=3.3 V
 
 // The configured active level represents GROUND PRESENT, not an obstacle-ahead event.
-// Physical polarity must be confirmed after flashing: with this configuration LOW=ground present
-// and HIGH=no ground/cliff. Forward motion starts fail-safe blocked until ground is confirmed.
-constexpr uint8_t IR_GROUND_ACTIVE=LOW;
+// Per verified operator requirement LOW=no ground/cliff; HIGH=surface reflection.
+// HIGH alone is NEVER trusted until the input has actually transitioned LOW/HIGH during boot.
+// A stationary HIGH-only electrical input remains unverified and must not be shown as safe.
+constexpr uint8_t IR_GROUND_ACTIVE=HIGH;
 constexpr bool IR_FAIL_SAFE_STARTUP=true;
 constexpr uint8_t IR_CLIFF_ASSERT_SAMPLES=3;
 constexpr uint8_t IR_CLIFF_CLEAR_SAMPLES=2;
 // Digital IR is calibrated physically at the installed downward reference height; it does not measure distance.
-constexpr float IR_REFERENCE_HEIGHT_CM=8.0f;
+constexpr float IR_REFERENCE_HEIGHT_CM=4.0f;
 
 // Future quantitative illuminance: prefer BH1750 on an explicitly assigned bus after installation.
 constexpr bool LUX_SENSOR_INSTALLED=false;
