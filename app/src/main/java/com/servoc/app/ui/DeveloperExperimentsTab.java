@@ -19,6 +19,7 @@ import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.chemical.ChemicalExperimentStatusRepository;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.data.ExperimentQueries;
+import com.servoc.app.data.ReferenceLineageGuard;
 import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.github.GitHubCredentialStore;
 import com.servoc.app.github.GitHubReferencePublisher;
@@ -88,7 +89,7 @@ public final class DeveloperExperimentsTab {
         LinearLayout models=UiKit.card(context);models.addView(UiKit.title(context,"نماذج التحليل الكمي"),UiKit.full(context));modelStatus=UiKit.small(context,modelLibraryStatus());modelStatus.setBackgroundColor(0xFF151A20);models.addView(modelStatus,UiKit.full(context));models.addView(UiKit.small(context,"اختر حساسًا لمقارنة النماذج مع نقاط المعايرة المعتمدة للمادة الحالية."),UiKit.full(context));modelSensorSpinner=new Spinner(context);String[] labels=new String[modelSensorKeys.length];for(int i=0;i<labels.length;i++)labels[i]=modelSensorKeys[i].toUpperCase(Locale.US);ArrayAdapter<String> sensorAdapter=new ArrayAdapter<>(context,android.R.layout.simple_spinner_item,labels);sensorAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);modelSensorSpinner.setAdapter(sensorAdapter);models.addView(modelSensorSpinner,UiKit.full(context));Button compare=UiKit.button(context,"مقارنة النماذج");compare.setOnClickListener(v->compareCalibrationModels());models.addView(compare,UiKit.full(context));modelResult=UiKit.small(context,"—");modelResult.setBackgroundColor(0xFF151A20);modelResult.setTextIsSelectable(true);models.addView(modelResult,UiKit.full(context));root.addView(models,UiKit.full(context));
 
         LinearLayout records=UiKit.card(context);records.addView(UiKit.title(context,"السجلات والاعتماد"),UiKit.full(context));summary=UiKit.small(context,"—");summary.setBackgroundColor(0xFF151A20);records.addView(summary,UiKit.full(context));details=UiKit.text(context,"اختر تجربة محفوظة.");details.setBackgroundColor(0xFF11171D);details.setTextIsSelectable(true);records.addView(details,UiKit.full(context));LinearLayout ex=UiKit.hbox(context);pdf=UiKit.button(context,"PDF");pdf.setOnClickListener(v->export("pdf"));ex.addView(pdf,UiKit.weight(1));xlsx=UiKit.button(context,"Excel");xlsx.setOnClickListener(v->export("xlsx"));ex.addView(xlsx,UiKit.weight(1));records.addView(ex,UiKit.full(context));approve=UiKit.button(context,"اعتماد وبناء المرجع العلمي");approve.setOnClickListener(v->approveSelected());records.addView(approve,UiKit.full(context));
-        uploadStatus=UiKit.small(context,"صلاحية الرفع: —");uploadStatus.setBackgroundColor(0xFF151A20);records.addView(uploadStatus,UiKit.full(context));LinearLayout auth=UiKit.hbox(context);Button provision=UiKit.button(context,"تهيئة/تغيير صلاحية الرفع");provision.setOnClickListener(v->promptCredential(false));auth.addView(provision,UiKit.weight(1));Button clear=UiKit.button(context,"مسح الصلاحية");clear.setOnClickListener(v->{GitHubCredentialStore.clear(context);refreshUploadStatus();host.showToast("تم مسح صلاحية الرفع من هذا الجهاز");});auth.addView(clear,UiKit.weight(.7f));records.addView(auth,UiKit.full(context));publish=UiKit.button(context,"رفع التجربة والمرجع إلى مكتبة HazRob");publish.setOnClickListener(v->publishSelected());records.addView(publish,UiKit.full(context));list=UiKit.vbox(context);records.addView(list,UiKit.full(context));root.addView(records,UiKit.full(context));
+        uploadStatus=UiKit.small(context,"صلاحية الرفع: —");uploadStatus.setBackgroundColor(0xFF151A20);records.addView(uploadStatus,UiKit.full(context));LinearLayout auth=UiKit.hbox(context);Button provision=UiKit.button(context,"تهيئة/تغيير صلاحية الرفع");provision.setOnClickListener(v->promptCredential(false));auth.addView(provision,UiKit.weight(1));Button clear=UiKit.button(context,"مسح الصلاحية");clear.setOnClickListener(v->{GitHubCredentialStore.clear(context);refreshUploadStatus();host.showToast("تم مسح صلاحية الرفع من هذا الجهاز");});auth.addView(clear,UiKit.weight(.7f));records.addView(auth,UiKit.full(context));publish=UiKit.button(context,"إرسال التجربة المعتمدة للمراجعة العلمية (غير تشغيلية)");publish.setOnClickListener(v->publishSelected());records.addView(publish,UiKit.full(context));list=UiKit.vbox(context);records.addView(list,UiKit.full(context));root.addView(records,UiKit.full(context));
 
         setActionState(false);selectInitialChemical();refresh();
     }
@@ -135,14 +136,59 @@ public final class DeveloperExperimentsTab {
     private void refreshUploadStatus(){boolean ok=GitHubCredentialStore.available(context);uploadStatus.setText(ok?"صلاحية الرفع: مهيأة ومشفرة على هذا الجهاز ✓":"صلاحية الرفع: غير مهيأة");uploadStatus.setTextColor(ok?0xFF81C784:0xFFFFB74D);}
 
     private void renderRecords(){list.removeAllViews();List<ExperimentQueries.Record> rows=ExperimentQueries.recentDeveloper(host.database(),100);summary.setText("المواد "+host.database().chemicalCount()+" • مختبرة "+statusRepo.countTestedMaterials()+" • بصمات محلية "+statusRepo.countFingerprintMaterials()+" • PPM فعال "+statusRepo.countPpmMaterials()+" • M4 "+statusRepo.countM4Materials()+" • تجارب معتمدة "+host.database().approvedCount());if(rows.isEmpty()){selectedId=-1;setActionState(false);list.addView(UiKit.small(context,"لا توجد تجارب محفوظة."),UiKit.full(context));return;}if(selectedId<0)selectedId=rows.get(0).id;boolean found=false;for(ExperimentQueries.Record r:rows){if(r.id==selectedId)found=true;String kind="fingerprint".equals(r.referenceKind)?"بصمة":"calibration".equals(r.referenceKind)?"PPM/M4":"قياس";Button b=UiKit.button(context,(r.approved?"✓ ":"")+"#"+r.id+" • "+kind+" • "+safe(r.ts));b.setOnClickListener(v->{selectedId=r.id;showSelected();});list.addView(b,UiKit.full(context));}if(!found)selectedId=rows.get(0).id;showSelected();}
-    private void showSelected(){ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){setActionState(false);return;}setActionState(true);StringBuilder s=new StringBuilder("السجل #").append(r.id).append("\nUTC: ").append(safe(r.ts)).append("\nالنوع: ").append(safe(r.referenceKind)).append("\nSession: ").append(safe(r.sessionId)).append("\nCapture: ").append(r.captureId>0?r.captureId:"—").append("\nالاعتماد: ").append(r.approved?"معتمد":"مسودة");if(r.knownPpm!=null)s.append("\nReference ppm: ").append(r.knownPpm);if(r.approved){ExperimentsDb.ReferenceArtifactRecord a=host.database().latestReferenceArtifact(r.chemicalUid,r.referenceKind);if(a!=null)s.append("\nDerived: ").append(a.version).append("\nSHA-256: ").append(a.sha256);}String pub=ReferencePublishAudit.latestStatus(host.database(),r.id);if(!pub.isEmpty())s.append("\nCentral library: ").append(pub);details.setText(s.toString());approve.setEnabled(r.isReference()&&!r.approved&&ExperimentQueries.isDeveloperReference(host.database(),r.id));approve.setText(r.approved?"معتمد — المرجع محدث":"اعتماد وبناء المرجع العلمي");publish.setEnabled(r.approved&&r.isReference()&&ExperimentQueries.isDeveloperReference(host.database(),r.id));}
+    private void showSelected(){ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){setActionState(false);return;}setActionState(true);StringBuilder s=new StringBuilder("السجل #").append(r.id).append("\nUTC: ").append(safe(r.ts)).append("\nالنوع: ").append(safe(r.referenceKind)).append("\nSession: ").append(safe(r.sessionId)).append("\nCapture: ").append(r.captureId>0?r.captureId:"—").append("\nالاعتماد: ").append(r.approved?"معتمد":"مسودة");if(r.knownPpm!=null)s.append("\nReference ppm: ").append(r.knownPpm);if(r.approved){ExperimentsDb.ReferenceArtifactRecord a=host.database().latestReferenceArtifact(r.chemicalUid,r.referenceKind);if(a!=null)s.append("\nDerived: ").append(a.version).append("\nSHA-256: ").append(a.sha256);}String pub=ReferencePublishAudit.latestStatus(host.database(),r.id);if(!pub.isEmpty())s.append("\nمراجعة علمية — ليست تحديث ChemCore: ").append(pub);details.setText(s.toString());approve.setEnabled(r.isReference()&&!r.approved&&ExperimentQueries.isDeveloperReference(host.database(),r.id));approve.setText(r.approved?"معتمد — المرجع محدث":"اعتماد وبناء المرجع العلمي");publish.setEnabled(r.approved&&r.isReference()&&ExperimentQueries.isDeveloperReference(host.database(),r.id));}
     private void setActionState(boolean on){pdf.setEnabled(on);xlsx.setEnabled(on);approve.setEnabled(on);publish.setEnabled(false);}
     private void export(String format){if(selectedId>=0)host.requestExport(format,selectedId);}
 
     private void approveSelected(){if(selectedId<0)return;ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null||!ExperimentQueries.isDeveloperReference(host.database(),r.id)){host.showToast("هذه ليست تجربة مرجعية للمطور");return;}if(!"ready_average".equals(host.database().capturePhase(r.captureId))){host.showToast("لا يعتمد إلا التعرض averaged في حالة READY");return;}if(r.approved){host.showToast("التجربة معتمدة مسبقًا");return;}String ts=isoNow(),name=ReferenceBankExporter.fileName(r.id,r.ts);if(!host.database().approveExperiment(r.id,ts,name)){host.showToast("تعذر اعتماد السجل");return;}host.io().execute(()->{try{ReferenceArtifactBuilder.Result built=ReferenceArtifactBuilder.rebuild(host.database(),r.chemicalUid,r.referenceKind);host.showToast(built.message);host.refreshAllTabs();}catch(Exception e){host.showToast("اعتمدت التجربة، لكن تعذر تحديث المرجع المشتق");host.refreshAllTabs();}});}
 
     private void promptCredential(boolean continuePublish){EditText token=UiKit.input(context,"");token.setHint("GitHub fine-grained token");token.setSingleLine(true);token.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);AlertDialog d=new AlertDialog.Builder(context).setTitle("تهيئة صلاحية الرفع").setMessage("تُحفظ مشفرة بمفتاح Android Keystore خاص بهذا الجهاز ولا تُدمج في APK.").setView(token).setNegativeButton("إلغاء",null).setPositiveButton("حفظ",null).create();d.setOnShowListener(x->d.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v->{try{GitHubCredentialStore.save(context,token.getText().toString());d.dismiss();refreshUploadStatus();host.showToast("تمت تهيئة صلاحية الرفع");if(continuePublish)publishSelected();}catch(Exception e){host.showToast("تعذر حفظ صلاحية الرفع");}}));d.show();}
-    private void publishSelected(){if(selectedId<0)return;final ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null||!r.approved||!ExperimentQueries.isDeveloperReference(host.database(),r.id)){host.showToast("يُسمح بنشر التجارب المرجعية المعتمدة للمطور فقط");return;}final String token=GitHubCredentialStore.load(context);if(token.length()<20){promptCredential(true);return;}publish.setEnabled(false);host.showToast("جارٍ الرفع إلى مكتبة HazRob المركزية...");host.io().execute(()->{try{GitHubReferencePublisher.Result raw=GitHubReferencePublisher.publish(token,r);ExperimentsDb.ReferenceArtifactRecord a=host.database().latestReferenceArtifact(r.chemicalUid,r.referenceKind);GitHubReferencePublisher.Result derived=a==null?null:GitHubReferencePublisher.publishArtifact(token,a);boolean ok=raw.success&&(derived==null||derived.success);String ref=raw.path+(derived==null?"":" | "+derived.path);ReferencePublishAudit.record(host.database(),r.id,ok?"PUBLISHED":"PARTIAL_OR_FAILED",isoNow(),raw.payloadSha256,ref);scroll.post(()->{host.showToast(ok?"تم الرفع إلى المكتبة المركزية":"الرفع غير مكتمل؛ راجع حالة السجل");host.refreshAllTabs();});}catch(Exception e){try{ReferencePublishAudit.record(host.database(),r.id,"FAILED_"+e.getClass().getSimpleName(),isoNow(),null,null);}catch(Exception ignored){}scroll.post(()->{host.showToast("تعذر الرفع إلى GitHub");host.refreshAllTabs();});}});}
+    private void publishSelected(){
+        if(selectedId<0)return;
+        final ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);
+        if(r==null||!r.approved||!ExperimentQueries.isDeveloperReference(host.database(),r.id)
+                ||!ReferenceLineageGuard.valid(host.database(),r)){
+            host.showToast("يلزم اعتماد تجربة مطور ذات مصدر قياس صحيح؛ لا تُقبل جلسات المستخدم");
+            return;
+        }
+        new AlertDialog.Builder(context)
+            .setTitle("إرسال للمراجعة العلمية فقط")
+            .setMessage("ستُرسل التجربة المعتمدة إلى منطقة مراجعة HR069-R1 غير التشغيلية في مستودع الإصدار الحالي. لا يُحدَّث ChemCore ولا تُمنح رتبة M4 بالرفع. تأكيد الإرسال؟")
+            .setNegativeButton("إلغاء",null)
+            .setPositiveButton("إرسال",(dialog,which)->submitSelectedForReview(r)).show();
+    }
+
+    private void submitSelectedForReview(ExperimentQueries.Record r){
+        final String token=GitHubCredentialStore.load(context);
+        if(token.length()<20){promptCredential(true);return;}
+        publish.setEnabled(false);
+        host.showToast("جارٍ إرسال مرجع المطور إلى منطقة المراجعة غير التشغيلية...");
+        host.io().execute(()->{
+            try{
+                GitHubReferencePublisher.Result raw=GitHubReferencePublisher.publish(token,host.database(),r);
+                if(!raw.success)throw new IllegalStateException("reference staging HTTP "+raw.httpCode);
+                ExperimentsDb.ReferenceArtifactRecord a=host.database().latestReferenceArtifact(r.chemicalUid,r.referenceKind);
+                GitHubReferencePublisher.Result derived=null;
+                boolean derivedExpected=a!=null;
+                if(derivedExpected&&ReferenceLineageGuard.artifactSourcesValid(host.database(),a))
+                    derived=GitHubReferencePublisher.publishArtifact(token,host.database(),a);
+                boolean fullySubmitted=!derivedExpected||(derived!=null&&derived.success);
+                String status=fullySubmitted?"STAGED_FOR_REVIEW":"STAGED_EXPERIMENT_DERIVED_PENDING";
+                String paths=raw.path+(derived==null?"":" | "+derived.path);
+                ReferencePublishAudit.record(host.database(),r.id,status,isoNow(),raw.payloadSha256,paths);
+                final boolean complete=fullySubmitted;
+                scroll.post(()->{
+                    host.showToast(complete?"تم الإرسال للمراجعة، دون تفعيل ChemCore":"أُرسلت التجربة؛ المرجع المشتق يحتاج استكمال المراجعة");
+                    host.refreshAllTabs();
+                });
+            }catch(Exception e){
+                try{ReferencePublishAudit.record(host.database(),r.id,
+                    "REVIEW_STAGING_FAILED_"+e.getClass().getSimpleName(),isoNow(),null,null);
+                }catch(Exception ignored){}
+                scroll.post(()->{host.showToast("فشل إرسال التجربة إلى منطقة المراجعة");host.refreshAllTabs();});
+            }
+        });
+    }
 
     private static String safe(String s){return s==null?"":s;}
     private static String isoNow(){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date());}
