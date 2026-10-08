@@ -42,6 +42,44 @@ public final class AcceptedR0Normalizer {
     }
 
     /**
+     * Archived samples must be replayed against the R0 captured WITH that sample,
+     * never against today's device override. Otherwise updating R0 silently rewrites
+     * the chemical fingerprint and score of an older stored session.
+     *
+     * Legacy samples without saved R0 may only use their previously recorded ratio;
+     * no current or synthetic R0 is substituted during history re-analysis.
+     */
+    public static double recordedRatio(String sensorKey,JSONObject recorded){
+        if(recorded==null||!recorded.optBoolean("valid",recorded.optBoolean("ok",false)))
+            return Double.NaN;
+        return recordedPhysicalRatio(recorded);
+    }
+
+    /** Quality-weighted historical corroboration uses the same frozen R0 evidence. */
+    public static double availableRecordedRatio(String sensorKey,JSONObject recorded){
+        return recordedPhysicalRatio(recorded);
+    }
+
+    /** Did this saved sample actually carry the active device R0 with provenance? */
+    public static boolean usesRecordedDeviceR0(String sensorKey,JSONObject recorded){
+        if(recorded==null||!recorded.optBoolean("valid",recorded.optBoolean("ok",false)))
+            return false;
+        double rs=recorded.optDouble("rs",Double.NaN),r0=recorded.optDouble("r0",Double.NaN);
+        if(!(Double.isFinite(rs)&&rs>0&&Double.isFinite(r0)&&r0>0))return false;
+        String source=recorded.optString("r0_source","");
+        return ("manual_device_r0".equals(source)||FieldR0Baseline.SOURCE.equals(source))
+                &&recorded.optBoolean("r0_provenance_complete",true);
+    }
+
+    private static double recordedPhysicalRatio(JSONObject recorded){
+        if(recorded==null)return Double.NaN;
+        double r0=recorded.optDouble("r0",Double.NaN),rs=recorded.optDouble("rs",Double.NaN);
+        if(Double.isFinite(r0)&&r0>0&&Double.isFinite(rs)&&rs>0)return rs/r0;
+        double frozen=recorded.optDouble("ratio",Double.NaN);
+        return Double.isFinite(frozen)&&frozen>0?frozen:Double.NaN;
+    }
+
+    /**
      * Support weight for chemically interpretable but degraded measurements.
      * 1.0 = full-quality signal; 0 < w < 1 = support-only; 0 = no chemical signal available.
      */
