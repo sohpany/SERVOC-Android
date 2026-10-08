@@ -27,6 +27,21 @@ tasks.register('applyHazRobBranding', Exec) {
     outputs.file file('src/main/assets/hazrob_hr069_r1_logo.png')
 }
 
+// Independently versioned ChemCore Stable-channel pre-release embedded into each
+// 0.10.2 HR069-R1 diagnostic APK, alongside (not instead of) local user sessions.
+tasks.register('prepareHr069EmbeddedStable', Exec) {
+    workingDir rootProject.projectDir
+    commandLine 'python3', 'tools/build_hr069_embedded_stable.py',
+            '--out-dir', file("$buildDir/generated/hazrobAssets/generated/chemcore/embedded_stable").absolutePath
+    inputs.files rootProject.file('tools/build_hr069_embedded_stable.py'),
+            rootProject.file('tools/build_hr069_research_priors.py'),
+            rootProject.file('tools/build_chemcore_stable_snapshot.py'),
+            rootProject.file('research_data/hr069_analytical_library/mq_research_curves_43.json'),
+            rootProject.file('app/src/main/assets/generated/chemcore/molecular_descriptors.json'),
+            rootProject.file('app/src/main/assets/generated/chemcore/unresolved_curation.json')
+    outputs.dir file("$buildDir/generated/hazrobAssets/generated/chemcore/embedded_stable")
+}
+
 tasks.register('prepareHazRobFlammabilitySeed') {
     outputs.file(generatedFlammability)
     doLast {
@@ -112,7 +127,7 @@ android {
     }
 }
 
-tasks.named('preBuild').configure { dependsOn tasks.named('applyHazRobBranding'); dependsOn tasks.named('prepareHazRobFlammabilitySeed') }
+tasks.named('preBuild').configure { dependsOn tasks.named('applyHazRobBranding'); dependsOn tasks.named('prepareHazRobFlammabilitySeed'); dependsOn tasks.named('prepareHr069EmbeddedStable') }
 
 dependencies {
     implementation 'androidx.core:core:1.15.0'
