@@ -241,7 +241,15 @@ public final class MeasurementsTab {
             candidatePreview.setText(compactCandidates(p,4));
             technical.setText(ChemCoreAnalysisPresenter.equationsAndResiduals(p,4));
         }
-        void export(String format){List<ExperimentQueries.Record> r=ExperimentQueries.recent(host.database(),1);if(r.isEmpty()){host.showToast("نفّذ جلسة ChemCore أو احفظ جلسة أولًا");return;}if("raw".equals(format))host.requestRawExport(r.get(0).id);else host.requestExport(format,r.get(0).id);}
+        void export(String format){
+            String sid=host.lastMeasurementSessionId();
+            if(sid==null||sid.isEmpty()){host.showToast("لا توجد جلسة قياس محفوظة مطابقة للمعروض");return;}
+            List<ExperimentQueries.Record> records=ExperimentQueries.bySessionId(host.database(),sid);
+            if(records.isEmpty()){host.showToast("لم يُحفظ تقرير لهذه الجلسة بعد");return;}
+            ExperimentQueries.Record latest=records.get(records.size()-1);
+            if("raw".equals(format))host.requestRawExport(latest.id);
+            else host.requestExport(format,latest.id);
+        }
     }
 
     private final class AnalysisResultsPane {
