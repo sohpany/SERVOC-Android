@@ -12,6 +12,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
+import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
 import org.json.JSONObject;
 
 import java.util.LinkedHashMap;
@@ -40,6 +41,7 @@ public final class DeveloperR0Tab {
         TextView instructions=UiKit.small(c,
             "هذه معايرة هواء نظيف خاصة بروبوتك؛ يمكن تعديل R0 وحفظها دون إنترنت. أدخل القيمة المقاسة بالأوم لكل حساس، بعد ثبات تغذية الحساسات وإحمائها. " +
             "لا يتم اعتماد قراءة Rs على أنها R0 تلقائيًا. R0 وحدها لا تحقق معايرة PPM مرجعية. " +
+            "الحفظ معطل أثناء التسجيل/التحليل النشط حتى لا تتغير المعايرة وسط الجلسة. " +
             "حفظ القيم يؤثر في التحليلات الجديدة فقط؛ جلسات القياس المحفوظة لا تُعدّل.");
         instructions.setTextColor(0xFFFFC107);root.addView(instructions,UiKit.full(c));
 
@@ -82,7 +84,15 @@ public final class DeveloperR0Tab {
             return Double.isFinite(v)&&v>0?v:Double.NaN;
         }catch(Exception e){return Double.NaN;}
     }
+    private boolean calibrationChangeBlocked(){
+        if(ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics())){
+            host.showToast("لا يمكن تغيير R0 أثناء القياس أو التحليل؛ أنهِ الجلسة أولًا");
+            return true;
+        }
+        return false;
+    }
     private void saveOne(int index){
+        if(calibrationChangeBlocked())return;
         double value=parse(index);
         if(!Double.isFinite(value)){host.showToast("قيمة R0 غير صالحة — أدخل رقمًا موجبًا");return;}
         if(!ManualR0Calibration.save(host.preferences(),keys[index],value)){
@@ -92,6 +102,7 @@ public final class DeveloperR0Tab {
         host.showToast("تم تحديث R0 لـ "+keys[index].toUpperCase(Locale.US)+" — يسري على القياسات الجديدة");
     }
     private void saveAll(){
+        if(calibrationChangeBlocked())return;
         Map<String,Double> values=new LinkedHashMap<>();
         for(int i=0;i<keys.length;i++){
             double v=parse(i);
@@ -105,6 +116,7 @@ public final class DeveloperR0Tab {
         host.showToast("تم حفظ قيم R0 الثماني مع سجل مصدر وتوقيت معايرة واحد");
     }
     private void resetOne(int index){
+        if(calibrationChangeBlocked())return;
         if(!ManualR0Calibration.reset(host.preferences(),keys[index])){
             host.showToast("تعذّر استعادة خط أساس R0");return;
         }
