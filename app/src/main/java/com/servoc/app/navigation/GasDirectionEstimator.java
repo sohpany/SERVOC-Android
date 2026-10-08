@@ -57,7 +57,10 @@ public final class GasDirectionEstimator {
         long now=Math.max(0,nowMs);
         if(lastMs>0&&now-lastMs>MAX_TELEMETRY_GAP_MS)resetTemporal();
         long sampleStamp=sampleStamp(snapshot.optJSONObject("mq"),chemical);
-        if(sampleStamp<=0)return Result.none(Double.NaN,chemical,0,"TARGET_SAMPLE_TIMESTAMP_UNAVAILABLE");
+        if(sampleStamp<=0){
+            if(!hasValidTargetChannel(snapshot.optJSONObject("mq"),chemical))return Result.none(Double.NaN,chemical,0,"NO_VALID_TARGET_CHANNELS");
+            return Result.none(Double.NaN,chemical,0,"TARGET_SAMPLE_TIMESTAMP_UNAVAILABLE");
+        }
         if(sampleStamp==lastSampleStamp){
             if(freshAt>0&&now-freshAt<=450&&lastValidResult!=null)return lastValidResult;
             if(freshAt>0&&now-freshAt>750){resetTemporal();return Result.none(Double.NaN,chemical,0,"TARGET_SAMPLE_STALE");}
@@ -116,6 +119,21 @@ public final class GasDirectionEstimator {
             if(t>latest)latest=t;
         }
         return latest;
+    }
+
+    private static boolean hasValidTargetChannel(JSONObject mq,int chemical){
+        if(mq==null)return false;
+        int mask=chemical<0?MqSensorAffinity.ALL:MqSensorAffinity.forChemical(chemical).mask;
+        for(int i=0;i<KEYS.length;i++)if((mask&(1<<i))!=0){
+            JSONObject r=mq.optJSONObject(KEYS[i]);
+            if(r==null||!r.optBoolean("valid",r.optBoolean("ok",false)))continue;
+            JSONObject q=r.optJSONObject("quality");
+            if(q!=null&&(!q.optBoolean("valid",true)||!"VALID".equals(q.optString("status","VALID"))
+                ||(q.has("manufacturer_heater_protocol_valid")&&!q.optBoolean("manufacturer_heater_protocol_valid",false))))continue;
+            double ratio=r.optDouble("ratio",Double.NaN);
+            if(Double.isFinite(ratio)&&ratio>0)return true;
+        }
+        return false;
     }
 
     private Score gasScore(JSONObject mq,int chemical){
