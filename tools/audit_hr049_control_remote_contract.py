@@ -93,7 +93,7 @@ def main():
     req(mqtt_client,"s.setTcpNoDelay(true)","Android TLS TCP_NODELAY")
     req(mqtt_client,"s.setKeepAlive(true)","Android TLS keepalive")
     req(mqtt,"tls.setNoDelay(true)","ESP32 TLS TCP_NODELAY")
-    req(mqtt,"CONTROL_TELEMETRY_MS=500","Remote telemetry load ceiling")
+    req(mqtt,"CONTROL_TELEMETRY_MS=150","operator-approved nominal 150ms telemetry for Remote transport")
     req(mqtt,'t=="drive"||t=="heartbeat"||t=="alert"',"fire-and-forget ACK suppression set")
     req(mqtt,"if(!quietSuccess)ack(s,q,n,ok,p,err)","critical/error ACK retention")
     req(mqtt,"while(tls.available())processPacket()","incoming commands before telemetry")
