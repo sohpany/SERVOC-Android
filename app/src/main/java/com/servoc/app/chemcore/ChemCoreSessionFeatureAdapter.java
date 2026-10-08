@@ -3,7 +3,6 @@ package com.servoc.app.chemcore;
 import android.database.Cursor;
 
 import com.servoc.app.calibration.AcceptedR0Normalizer;
-import com.servoc.app.calibration.FieldR0Baseline;
 import com.servoc.app.data.ExperimentsDb;
 
 import org.json.JSONObject;
@@ -68,9 +67,16 @@ public final class ChemCoreSessionFeatureAdapter {
                 long t=c.getLong(0);if(first<0)first=t;last=t;times.add(t/1000.0);
                 JSONObject env=json(c.getString(1)),mq=json(c.getString(2));double[] r=new double[SENSOR_ORDER.length];java.util.Arrays.fill(r,Double.NaN);boolean has=false;
                 for(int i=0;i<SENSOR_ORDER.length;i++){
-                    String key=SENSOR_ORDER[i];JSONObject q=mq.optJSONObject(key);double v=AcceptedR0Normalizer.ratio(key,q);
-                    if(Double.isFinite(v)&&v>0){r[i]=v;has=true;if(AcceptedR0Normalizer.usesAcceptedFieldR0(key,q))accepted++;else fallback++;}
-                    double available=AcceptedR0Normalizer.availableRatio(key,q),weight=AcceptedR0Normalizer.evidenceWeight(q);
+                    String key=SENSOR_ORDER[i];JSONObject q=mq.optJSONObject(key);
+                    // Historical ChemCore replay is ALWAYS bound to the R0/ratio stored
+                    // with the original reading; a later manual R0 update cannot change it.
+                    double v=AcceptedR0Normalizer.recordedRatio(key,q);
+                    if(Double.isFinite(v)&&v>0){
+                        r[i]=v;has=true;
+                        if(AcceptedR0Normalizer.usesRecordedDeviceR0(key,q))accepted++;
+                        else fallback++;
+                    }
+                    double available=AcceptedR0Normalizer.availableRecordedRatio(key,q),weight=AcceptedR0Normalizer.evidenceWeight(q);
                     if(Double.isFinite(available)&&available>0&&Double.isFinite(weight)&&weight>0){
                         supportLogSum[i]+=weight*Math.log(available);supportWeightSum[i]+=weight;supportQualitySum[i]+=weight;supportCount[i]++;corroborativeCount++;
                     }
@@ -91,7 +97,7 @@ public final class ChemCoreSessionFeatureAdapter {
         bindCorroborativeSession(id,supportRatios,supportWeights);
         return new Extraction(id,f,rows.size(),any,first>=0&&last>=first?(last-first)/1000.0:0,
                 tn>0?tSum/tn:Double.NaN,rhn>0?rhSum/rhn:Double.NaN,pn>0?pSum/pn:Double.NaN,sha,
-                AcceptedR0Normalizer.SOURCE,FieldR0Baseline.SESSION,accepted,fallback,supportRatios,supportWeights,corroborativeCount);
+                "recorded_per_sample_r0","archived_session_sample_provenance",accepted,fallback,supportRatios,supportWeights,corroborativeCount);
     }
 
     /** One controlled analysis session is active at a time; expose only the matching session cache. */
