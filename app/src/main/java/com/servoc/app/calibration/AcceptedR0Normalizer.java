@@ -67,8 +67,11 @@ public final class AcceptedR0Normalizer {
         double rs=recorded.optDouble("rs",Double.NaN),r0=recorded.optDouble("r0",Double.NaN);
         if(!(Double.isFinite(rs)&&rs>0&&Double.isFinite(r0)&&r0>0))return false;
         String source=recorded.optString("r0_source","");
-        return ("manual_device_r0".equals(source)||FieldR0Baseline.SOURCE.equals(source))
-                &&recorded.optBoolean("r0_provenance_complete",true);
+        boolean known="manual_device_r0".equals(source)||FieldR0Baseline.SOURCE.equals(source);
+        boolean provenance=recorded.has("r0_provenance_complete")
+                ?recorded.optBoolean("r0_provenance_complete",false)
+                :!recorded.optString("r0_session","").isEmpty()&&!recorded.optString("r0_utc","").isEmpty();
+        return known&&provenance;
     }
 
     private static double recordedPhysicalRatio(JSONObject recorded){
