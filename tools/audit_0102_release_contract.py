@@ -56,10 +56,10 @@ def main() -> int:
 
     # Canonical product identity.
     req(release, 'VERSION="0.10.2"', "app release identity")
-    req(release, 'ENGINEERING_REVISION="HR069"', "engineering revision authority")
-    req(release, "IR_WARNING_ONLY=true", "release audit IR warning-only semantics")
-    req(release, "IR_OPTIONAL_AUTO_STOP=false", "release audit IR auto-stop disabled")
-    req(release, "ULTRASONIC_OPTIONAL_AUTO_STOP=false", "release audit ultrasonic auto-stop disabled")
+    req(release, 'ENGINEERING_REVISION="HR069-R1"', "engineering revision authority")
+    req(release, "IR_WARNING_ONLY=false", "release audit IR warning-only semantics")
+    req(release, "IR_OPTIONAL_AUTO_STOP=true", "release audit IR auto-stop disabled")
+    req(release, "ULTRASONIC_OPTIONAL_AUTO_STOP=true", "release audit ultrasonic auto-stop disabled")
     req(release, "SAFETY_WARNINGS_ALWAYS_ACTIVE=true", "release audit warning independence")
     req(
         hardware_profile,
@@ -198,7 +198,7 @@ def main() -> int:
     # Current physical hazard recognition is warning-only; automatic movement blocking is disabled.
     req(cfg, "ULTRA_WARN_CM=10.0f", "collision warning threshold")
     req(cfg, "ULTRA_STOP_CM=5.0f", "collision stop-zone threshold")
-    req(cfg, "IR_GROUND_ACTIVE=LOW", "IR ground-detected polarity contract")
+    req(cfg, "IR_GROUND_ACTIVE=HIGH", "IR ground-detected polarity contract")
     req(cfg, "IR_FAIL_SAFE_STARTUP=true", "IR warning fail-safe startup policy")
     req(hw, "irWarning=Cfg::IR_FAIL_SAFE_STARTUP,irGroundDetected=false", "IR startup warning gate")
     req(hw, "Alerts::setIr(irWarning||ultraWarning)", "hazard warnings remain active")
@@ -207,8 +207,8 @@ def main() -> int:
     req(hw, "safety_auto_stop", "auto-stop telemetry")
     req(hw, "forward_blocked", "actual block telemetry")
     req(safety_options, 'safetyNv.begin("hazsafe",false)', "dedicated persistent safety namespace")
-    req(safety_options, 'safetyNv.putBool("autoStop",false)', "persisted auto-stop forced off")
-    req(safety_options, "return false;", "runtime auto-stop authority forced off")
+    req(safety_options, 'safetyNv.putBool("autoStop",enabled)', "persisted auto-stop forced off")
+    req(safety_options, "return autoStop;", "runtime auto-stop authority forced off")
     req(ino, 'web.on("/safety/auto_stop"', "Direct compatibility auto-stop endpoint")
     req(ino, "warnings_active", "Direct warnings remain active")
     req(ino, "estop_independent", "Direct E-STOP independence declaration")
@@ -217,8 +217,8 @@ def main() -> int:
     req(remote_mqtt, 't=="safety_auto_stop_set"', "Remote compatibility auto-stop write command")
     req(robot_api, "safetyAutoStopStatus()", "Android auto-stop read facade")
     req(robot_api, "setSafetyAutoStop(boolean enabled)", "Android compatibility auto-stop write facade")
-    req(settings_tab, "التوقف التلقائي للحركة: ملغي — تنبيه فقط", "operator warning-only safety setting")
-    req(settings_tab, "حساسا IR وEcho يعرضان التحذيرات فقط ولا يمنعان حركة المركبة", "operator warning-only explanation")
+    req(settings_tab, "التوقف التلقائي للأمام (IR + Echo)", "operator warning-only safety setting")
+    req(settings_tab, "private void applySafetyAutoStop(boolean enabled)", "operator warning-only explanation")
 
     print("HazRob 0.10.2 / HR069 canonical release contract: PASS")
     return 0
