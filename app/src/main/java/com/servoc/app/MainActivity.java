@@ -96,7 +96,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     private void showTab(int index){
         if(!entered||index<0||index>=tabViews.length)return;
         if(selectedTab==0&&index!=0)controlTab.stopCamera();
-        selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}if(index==6&&!developerTab.isUnlocked())developerTab.requestUnlock();if(index==0&&foreground)controlTab.startCamera();refreshVisibleTab();
+        selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++){tabButtons[i].setTextColor(i==index?0xFF90CAF9:Color.DKGRAY);tabButtons[i].setBackgroundColor(i==index?0xFF263238:0xFFE0E0E0);}if(index==6&&!developerTab.isUnlocked())developerTab.requestUnlock();if(index==0&&foreground)controlTab.startCamera();if(index==1)fieldSessionsTab.refresh();else if(index==3)reportsTab.refresh();else refreshVisibleTab();
     }
 
     private void queueDriveSend(){
@@ -134,7 +134,7 @@ public final class MainActivity extends Activity implements HazRobHost {
         boolean changed=level!=lastGasAlertLevel,refresh=level>0&&now-gasAlertSentAt>=1000;if(!changed&&!refresh)return;lastGasAlertLevel=level;gasAlertSentAt=now;try{robotApi.setAlertLevel(level,3000);}catch(Exception ignored){}
     }
     private void onTelemetryUpdated(){JSONObject d=latestDiag;if(globalStatus==null)return;if(d==null){globalStatus.setText("غير متصل");globalStatus.setTextColor(0xFFFFB74D);}else{JSONObject ir=d.optJSONObject("ir"),drv=d.optJSONObject("drive"),device=d.optJSONObject("device"),proximity=device==null?null:device.optJSONObject("proximity");boolean cliff=ir!=null&&ir.optBoolean("cliff_warning",ir.optBoolean("warning",false)),near=proximity!=null&&proximity.optBoolean("warning",false),stale=drv!=null&&drv.optBoolean("stale_stop",false),gas=lastGasAlertLevel>0;globalStatus.setText("متصل"+(stale?" • توقف لانقطاع أوامر القيادة":gas?" • ⚠ غازات":cliff?" • ⚠ خطر سقوط":near?" • ⚠ جسم قريب":""));globalStatus.setTextColor(stale?0xFFFFB74D:gas?0xFFFF7043:cliff||near?0xFFFF7043:0xFF81C784);}refreshVisibleTab();}
-    private void refreshVisibleTab(){if(!entered)return;if(selectedTab==0)controlTab.refresh();else if(selectedTab==1)fieldSessionsTab.refresh();else if(selectedTab==2)measurementsTab.refresh();else if(selectedTab==3)reportsTab.refresh();else if(selectedTab==4)statusTab.refresh();else if(selectedTab==5)settingsTab.refresh();else if(selectedTab==6)developerTab.refresh();}
+    private void refreshVisibleTab(){if(!entered)return;if(selectedTab==0)controlTab.refresh();else if(selectedTab==2)measurementsTab.refresh();else if(selectedTab==4)statusTab.refresh();else if(selectedTab==5)settingsTab.refresh();else if(selectedTab==6)developerTab.refresh();}
 
     @Override protected void onResume(){super.onResume();if(!"remote".equalsIgnoreCase(prefs.getString("connection_mode","direct")))WifiRoute.bindConnectedWifi(this);foreground=true;if(entered){startLinkService();if(selectedTab==0)controlTab.startCamera();refreshVisibleTab();}}
     @Override protected void onPause(){foreground=false;if(entered)controlTab.stopCamera();super.onPause();}
