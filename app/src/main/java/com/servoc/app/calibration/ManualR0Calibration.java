@@ -45,22 +45,65 @@ public final class ManualR0Calibration {
     public static synchronized String getUtc(String key){key=norm(key);String s=utcs.get(key);if(s!=null)return s;return FieldR0Baseline.has(key)&&FieldR0Baseline.SOURCE.equals(getSource(key))?FieldR0Baseline.UTC:"";}
     public static synchronized boolean has(String key){double v=get(key);return Double.isFinite(v)&&v>0;}
 
-    /** A manual R0 override is device normalization only; it does not by itself validate a ppm curve. */
+    /** Device-specific clean-air baseline, NOT a reference-gas/ppm curve calibration. */
     public static synchronized boolean save(SharedPreferences p,String key,double r0){
-        key=norm(key);if(p==null||key.isEmpty()||!Double.isFinite(r0)||r0<=0)return false;
-        long now=System.currentTimeMillis();String utc=iso(now),session="MANUAL-R0-"+now;
+        key=norm(key);
+        if(p==null||!supported(key)||!Double.isFinite(r0)||r0<=0)return false;
+        String utc=iso(System.currentTimeMillis()),session="MANUAL-R0-"+System.currentTimeMillis();
+        SharedPreferences.Editor edit=p.edit()
+                .putString("manual_r0_"+key,Double.toString(r0))
+                .putString("manual_r0_source_"+key,"manual_device_r0")
+                .putString("manual_r0_session_"+key,session)
+                .putString("manual_r0_utc_"+key,utc);
+        // Do not change live ChemCore R0 until durable phone storage has succeeded.
+        if(!edit.commit())return false;
         values.put(key,r0);sources.put(key,"manual_device_r0");sessions.put(key,session);utcs.put(key,utc);
-        p.edit().putString("manual_r0_"+key,Double.toString(r0)).putString("manual_r0_source_"+key,"manual_device_r0")
-                .putString("manual_r0_session_"+key,session).putString("manual_r0_utc_"+key,utc).apply();
+        loaded=true;
         return true;
     }
 
-    /** Removes a manual override and reverts the channel to the accepted field clean-air baseline. */
-    public static synchronized void clear(SharedPreferences p,String key){
-        key=norm(key);values.remove(key);sources.remove(key);sessions.remove(key);utcs.remove(key);
-        if(p!=null)p.edit().remove("manual_r0_"+key).remove("manual_r0_source_"+key).remove("manual_r0_session_"+key).remove("manual_r0_utc_"+key).apply();
-        if(FieldR0Baseline.has(key))setFieldFallback(key);
+    /**
+     * Commits a complete eight-sensor revision as one atomic SharedPreferences transaction.
+     * All values are checked before writing; no partial in-memory or on-disk updates.
+     */
+    public static synchronized boolean saveAll(SharedPreferences p,Map<String,Double> updated){
+        if(p==null||updated==null||updated.size()!=KEYS.length)return false;
+        for(String k:KEYS){
+            Double v=updated.get(k);
+            if(v==null||!Double.isFinite(v)||v<=0)return false;
+        }
+        long now=System.currentTimeMillis();String utc=iso(now),session="MANUAL-R0-"+now;
+        SharedPreferences.Editor e=p.edit();
+        for(String k:KEYS){
+            double r0=updated.get(k);
+            e.putString("manual_r0_"+k,Double.toString(r0));
+            e.putString("manual_r0_source_"+k,"manual_device_r0");
+            e.putString("manual_r0_session_"+k,session);
+            e.putString("manual_r0_utc_"+k,utc);
+        }
+        if(!e.commit())return false;
+        for(String k:KEYS){
+            values.put(k,updated.get(k));sources.put(k,"manual_device_r0");
+            sessions.put(k,session);utcs.put(k,utc);
+        }
+        loaded=true;
+        return true;
     }
+
+    /** Reset one manually overridden channel to the preserved HR069 clean-air fallback. */
+    public static synchronized boolean reset(SharedPreferences p,String key){
+        key=norm(key);
+        if(p==null||!supported(key))return false;
+        if(!p.edit().remove("manual_r0_"+key).remove("manual_r0_source_"+key)
+                .remove("manual_r0_session_"+key).remove("manual_r0_utc_"+key).commit())return false;
+        values.remove(key);sources.remove(key);sessions.remove(key);utcs.remove(key);
+        if(FieldR0Baseline.has(key))setFieldFallback(key);
+        loaded=true;
+        return true;
+    }
+
+    /** Legacy no-return API; delegates to the durable reset implementation. */
+    public static synchronized void clear(SharedPreferences p,String key){reset(p,key);}
 
     /** Recomputes Rs/R0 from received Rs using the active device-specific normalization baseline. */
     public static synchronized void apply(String key,JSONObject q){
@@ -88,6 +131,7 @@ public final class ManualR0Calibration {
 
     public static String[] keys(){return KEYS.clone();}
     private static void setFieldFallback(String k){values.put(k,FieldR0Baseline.value(k));sources.put(k,FieldR0Baseline.SOURCE);sessions.put(k,FieldR0Baseline.SESSION);utcs.put(k,FieldR0Baseline.UTC);}
+    private static boolean supported(String key){for(String k:KEYS)if(k.equals(key))return true;return false;}
     private static String norm(String key){return key==null?"":key.trim().toLowerCase(Locale.US);}
     private static String iso(long ms){SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));return f.format(new Date(ms));}
     private static long ageMs(String utc){if(utc==null||utc.isEmpty())return -1;try{SimpleDateFormat f=new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'",Locale.US);f.setTimeZone(TimeZone.getTimeZone("UTC"));Date d=f.parse(utc);return d==null?-1:Math.max(0,System.currentTimeMillis()-d.getTime());}catch(Exception e){return -1;}}
