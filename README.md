@@ -3,7 +3,7 @@
 ## Active engineering increment — HR069-R1 (2026-10-08)
 
 **Development branch:** `release/hazrob-0.10.2-rc2` (single branch; do not create another).
-**Android:** 0.10.2 / HR069-R1 source, `versionCode 26` until the signed release-build gate; **Main ESP32:** firmware API4 / engineering revision `HR069-R1`, identified by `/diag.build_revision`. **ESP32-CAM:** 0.10.2 / HR069, unchanged.
+**Android:** 0.10.2 / HR069-R1 WORKING source, `versionCode 27` (NOT YET APPROVED; controlled 0.10.2/HR069 APK baseline remains versionCode 26); **Main ESP32:** firmware API4 / engineering revision `HR069-R1`, identified by `/diag.build_revision`. **ESP32-CAM:** 0.10.2 / HR069, unchanged.
 **Current status: IN DEVELOPMENT / NOT DEVICE-ACCEPTED.** GitHub Actions, Android compilation, firmware compilation, physical IR/Echo validation, mobile UI and PDF/XLSX checks must pass before the release can be accepted or installed as a replacement.
 
 - IR polarity: **HIGH = ground present; LOW = no ground**. Operator manually adjusts the sensor. Automatic verification of state transitions was removed by explicit request; a stuck HIGH sensor can falsely report ground.
@@ -11,12 +11,12 @@
 - Echo acquisition, Direct polling and MQTT telemetry have a **150 ms nominal cadence**, without a guarantee of one new data sample per screen frame. Echo validity and timeout fields remain explicit.
 - Four controls: spring-return dual motor sliders; corrected in-place pivot buttons; independent invert-pivot setting for Joystick/Wheel/Buttons (tank excluded); retain moving-turn steering and STOP.
 - Tracking is target-specific for the selected chemical, uses fresh unique MQ sensor sample timestamps and does not invent direction without supporting motion/gradient evidence.
-- **User sites and Field Sessions are LOCAL on the phone.** No central upload or reference-bank promotion in user interface. Developer laboratory/reference captures are separated by persisted role and only vetted/approved developer references may publish to the central GitHub library from developer-only UI. The existing phone-folder SAF archive is a local backup, **not a central upload**.
+- **User sites and Field Sessions are LOCAL on the phone.** No central upload or reference-bank promotion in user interface. Developer laboratory/reference captures are separated by persisted role and only approved laboratory developer references may be **submitted for scientific review** into the non-operational RC2 staging path; this is not ChemCore promotion. The existing phone-folder SAF archive is a local backup, **not a central upload**.
 - Reports: one selected Field Session or **the entire selected Site** (all its sessions); PDF/XLSX use SmartReport; no arbitrarily selected subset report. Site export is asynchronous, with SAF lifecycle protection.
 - Site/session deletion removes the closed user's measurement data, excludes developer/reference records and records deletion tombstones for local restore safety.
-- New yellow/white hexagon-and-target logo requested as transparent PNG; asset integration and release acceptance are tracked separately.
+- New 1024×1024 yellow/white/black targeting-hexagon PNG with transparent **outer** canvas is generated reproducibly by `tools/hazrob_hr069_r1_png.py`; launcher and first connection screen use this asset. Visual/device acceptance remains pending.
 
-**Developer reference publication / ChemCore Stable compatibility:** [CR-20261008-006 audit](docs/0.10.2/CR-20261008-006_DEV_REFERENCE_CHEMCORE_SYNC_AUDIT.md) found an obsolete publisher target (`HazRob/build-harness`), a missing approved Stable publication/distribution pipeline, and an empty default manifest endpoint. Upload does not equal a ChemCore update. This path is **NOT E2E VERIFIED**; no live data publication authorized. HR069-R1 adds a local developer-session-aware update interlock, including controlled captures when the ESP32 firmware is idle.
+**Developer reference publication / ChemCore Stable compatibility:** [CR-20261008-006 audit](docs/0.10.2/CR-20261008-006_DEV_REFERENCE_CHEMCORE_SYNC_AUDIT.md) found an obsolete publisher target (`HazRob/build-harness`), a missing approved Stable publication/distribution pipeline, and an empty default manifest endpoint. Upload does not equal a ChemCore update. Developer staging now targets `research_data/hr069_developer_submissions/`, *not* `HazRob/build-harness`; a separate science-admission and Stable distribution pipeline is still missing. **NOT E2E VERIFIED**; no direct canonical/M4 publication authorized. HR069-R1 adds a local developer-session-aware update interlock, including controlled captures when the ESP32 firmware is idle.
 
 **Resumable execution checklist:** [HR069-R1 checkpoint](docs/0.10.2/HR069-R1_EXECUTION_CHECKPOINT_20261008.md). The canonical stable 0.10.2 HR069 documentation below remains the historical baseline until HR069-R1 passes CI and physical validation.
 
