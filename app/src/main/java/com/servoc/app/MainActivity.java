@@ -162,6 +162,37 @@ public final class MainActivity extends Activity implements HazRobHost {
 
     @Override public void requestExport(String format,long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Report_%06d_%s%s",r.id,fileStamp(),pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_PDF:EXPORT_XLSX);}
     @Override public void requestFieldSessionExport(String format,String fieldSessionId){String fs=fieldSessionId==null?"":fieldSessionId.trim();if(fs.isEmpty()){showToast("الجلسة غير صالحة");return;}FieldSessionReportExporter.Bundle b;try{b=FieldSessionReportExporter.resolve(db,fs);}catch(Exception e){showToast("تعذر قراءة الجلسة");return;}if(b.records.isEmpty()){showToast("لا توجد قياسات قابلة للتصدير في هذه الجلسة");return;}pendingFieldSessionId=fs;boolean pdf="pdf".equalsIgnoreCase(format);Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType(pdf?"application/pdf":"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");String site=b.site==null?"Site":b.site.name.replaceAll("[^A-Za-z0-9._-]","_");i.putExtra(Intent.EXTRA_TITLE,"HazRob_"+site+"_FieldSession_"+fs.replaceAll("[^A-Za-z0-9._-]","_")+"_"+fileStamp()+(pdf?".pdf":".xlsx"));startActivityForResult(i,pdf?EXPORT_FIELD_PDF:EXPORT_FIELD_XLSX);}
+    @Override public void openReportsForSite(String siteId,String fieldSessionId){
+        ui.post(()->{if(reportsTab!=null){reportsTab.selectScope(siteId,fieldSessionId);showTab(3);}});
+    }
+    @Override public void deleteUserFieldSession(String fieldSessionId){
+        workers.execute(()->{
+            try{
+                boolean ok=new FieldSessionRepository(db).deleteFieldSession(fieldSessionId);
+                if(!ok){showToast("لا يمكن حذف جلسة نشطة أو غير موجودة");return;}
+                boolean synced=true;
+                if(userLibrary!=null&&userLibrary.attached()){
+                    try{userLibrary.deleteStoredSessionArchive(fieldSessionId);userLibrary.syncUserIndex(db);}
+                    catch(Exception e){synced=false;}
+                }
+                showToast(synced?"تم حذف الجلسة وقياساتها":"حذفت الجلسة محليًا؛ فشلت مزامنة المكتبة، يرجى إعادة المزامنة");
+                refreshAllTabs();
+            }catch(Exception e){showToast("رفض الحذف لحماية القياسات المرجعية أو تعذر الحذف: "+e.getClass().getSimpleName());}
+        });
+    }
+    @Override public void deleteEmptyUserSite(String siteId){
+        workers.execute(()->{
+            try{
+                boolean ok=new FieldSessionRepository(db).deleteEmptySite(siteId);
+                if(!ok){showToast("لا يمكن حذف موقع يحوي جلسات");return;}
+                boolean synced=true;
+                if(userLibrary!=null&&userLibrary.attached())try{userLibrary.syncUserIndex(db);}catch(Exception e){synced=false;}
+                showToast(synced?"تم حذف الموقع الفارغ":"حذف الموقع محليًا؛ يرجى مزامنة المكتبة");
+                refreshAllTabs();
+            }catch(Exception e){showToast("تعذر حذف الموقع: "+e.getClass().getSimpleName());}
+        });
+    }
+
     @Override public void requestRawExport(long experimentId){ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("السجل غير موجود");return;}pendingExperimentId=experimentId;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,String.format(Locale.US,"HazRob_Raw_%06d_%s.json",r.id,fileStamp()));startActivityForResult(i,EXPORT_RAW);}
     @Override public void requestReferenceBankExport(long experimentId){if(!developerMode){showToast("هذه الوظيفة متاحة للمطور فقط");return;}ExperimentQueries.Record r=ExperimentQueries.byId(db,experimentId);if(r==null){showToast("التجربة غير موجودة");return;}pendingExperimentId=experimentId;Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/json");i.putExtra(Intent.EXTRA_TITLE,r.referenceName==null||r.referenceName.isEmpty()?ReferenceBankExporter.fileName(r.id,r.ts):r.referenceName);startActivityForResult(i,EXPORT_REFERENCE);}
 
@@ -195,7 +226,7 @@ public final class MainActivity extends Activity implements HazRobHost {
     @Override public void requestUserLibraryFolder(){startActivityForResult(HazRobUserLibrary.createPickerIntent(),USER_LIBRARY_TREE);}
     @Override public void syncUserLibrary(){if(userLibrary==null||!userLibrary.attached()){showToast("اختر مجلد مكتبة HazRob أولًا");return;}workers.execute(()->{try{userLibrary.syncUserIndex(db);showToast("تمت مزامنة مكتبة المواقع والجلسات");}catch(Exception e){showToast("فشلت مزامنة مكتبة HazRob");}});}
     @Override public void restoreUserLibrary(){if(userLibrary==null||!userLibrary.attached()){showToast("اختر مجلد مكتبة HazRob أولًا");return;}workers.execute(()->{try{HazRobUserLibrary.RestoreSummary r=userLibrary.restoreUserIndex(db);showToast("استعادة المكتبة: "+r.sites+" موقع • "+r.sessions+" جلسة • "+r.measurements+" قياس • "+r.samples+" عينة"+(r.skippedLinks>0?" • "+r.skippedLinks+" رابط غير مستعاد":""));refreshAllTabs();}catch(Exception e){showToast("فشلت استعادة مكتبة HazRob");}});}
-    @Override public void refreshAllTabs(){if(Looper.myLooper()!=Looper.getMainLooper()){ui.post(this::refreshAllTabs);return;}refreshVisibleTab();}
+    @Override public void refreshAllTabs(){if(Looper.myLooper()!=Looper.getMainLooper()){ui.post(this::refreshAllTabs);return;}if(fieldSessionsTab!=null)fieldSessionsTab.refresh();if(reportsTab!=null)reportsTab.refresh();refreshVisibleTab();}
 
     private static String flashAr(String m){return"on".equals(m)?"تشغيل":"إيقاف";}
     private static String fileStamp(){SimpleDateFormat f=new SimpleDateFormat("yyyyMMdd_HHmmss",Locale.US);f.setTimeZone(TimeZone.getDefault());return f.format(new Date());}
