@@ -27,7 +27,6 @@ public final class DeveloperR0Tab {
     private final EditText[] entry=new EditText[keys.length];
     private final TextView[] info=new TextView[keys.length];
     private final TextView summary;
-    private boolean firstDisplay=true;
 
     public DeveloperR0Tab(Context c,HazRobHost h){
         context=c;host=h;
@@ -117,7 +116,6 @@ public final class DeveloperR0Tab {
             double v=ManualR0Calibration.get(keys[i]);
             entry[i].setText(Double.isFinite(v)?String.format(Locale.US,"%.10f",v).replaceAll("0+$","").replaceAll("\\.$",""):"");
         }
-        firstDisplay=false;
         refresh();
     }
     public void refresh(){
