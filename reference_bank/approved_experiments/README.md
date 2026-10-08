@@ -1,20 +1,7 @@
-# HazRob Approved Experiment Reference Bank
+# FROZEN / HISTORICAL — HR069 reference-bank directory
 
-This directory is the immutable reference bank for experiments explicitly approved in the HazRob Android application.
+**Do not upload new 0.10.2 / HR069-R1 developer experiments to this historical directory.**
 
-## Workflow
+The current working developer submission flow uses `research_data/hr069_developer_submissions/approved_experiments/` inside `sohpany/SERVOC-Android:release/hazrob-0.10.2-rc2`, **as a review inbox only**. Scientific admission into the canonical `research_data/hr069_analytical_library/` requires provenance verification, experimental/device-specific evaluation, change-control and approval.
 
-1. Complete the ESP32 MQ measurement cycle.
-2. Accept the measurement in HazRob so telemetry and analytics are frozen in SQLite.
-3. In **Experiments**, select the record and choose **Approve for GitHub reference bank**.
-4. HazRob marks the local record approved and exports a JSON file named `HazRob_APPROVED_<id>_<timestamp>.json`.
-5. Upload that JSON file to this directory (optionally grouped by year/month).
-6. Never overwrite an approved record. If analysis changes later, create a derived/new record and preserve the original.
-
-## Integrity
-
-Each exported record contains SHA-256 digests of the stored telemetry and analytics payloads. The app deliberately does **not** embed a GitHub personal access token. Automated GitHub sync should use OAuth or a GitHub App in a later release.
-
-## Schema
-
-Current schema identifier: `hazrob-approved-experiment/1`.
+The earlier manual upload guidance for `reference_bank/approved_experiments/` is superseded and must not be resumed. Existing history remains immutable for provenance.
