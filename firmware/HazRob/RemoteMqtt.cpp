@@ -10,7 +10,7 @@
 #include <time.h>
 
 namespace{
-constexpr uint32_t CONTROL_TELEMETRY_MS=500;
+constexpr uint32_t CONTROL_TELEMETRY_MS=150;
 constexpr uint32_t TLS_CONNECT_TIMEOUT_MS=5000;
 constexpr uint32_t TLS_RUNTIME_TIMEOUT_MS=1000;
 constexpr uint32_t LOCAL_HTTP_TIMEOUT_MS=1000;
