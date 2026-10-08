@@ -21,6 +21,8 @@ import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.chemical.ChemicalRepository;
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.data.ExperimentsDb;
+import com.servoc.app.data.ReferenceLineageGuard;
+import com.servoc.app.measurement.MeasurementSessionRegistry;
 import com.servoc.app.github.GitHubCredentialStore;
 import com.servoc.app.github.GitHubReferencePublisher;
 import com.servoc.app.github.ReferencePublishAudit;
@@ -253,7 +255,7 @@ public final class ExperimentsTab {
 
         LinearLayout github = UiKit.card(c);
         github.addView(UiKit.title(c, "المكتبة المركزية • GitHub"), UiKit.full(c));
-        github.addView(UiKit.small(c, "ينشر المطور فقط السجل الخام المعتمد ثم أحدث بصمة/منحنى مشتق إلى HazRob/build-harness. اعتماد الرفع لا يُدمج في APK؛ يُهيأ مرة واحدة ويُحفظ مشفرًا بمفتاح Android Keystore على جهاز المطور."), UiKit.full(c));
+        github.addView(UiKit.small(c, "إرسال تجارب المطور المرجعية المعتمدة إلى منطقة مراجعة غير تشغيلية في مستودع إصدار HR069-R1. لا يفعّل الإرسال تحديث ChemCore أو مرتبة M4. الصلاحية مشفرة محليًا ولا تُدمج في APK."), UiKit.full(c));
         publishCredentialStatus = UiKit.small(c, "صلاحية الرفع: —");
         publishCredentialStatus.setBackgroundColor(0xFF151A20);
         github.addView(publishCredentialStatus, UiKit.full(c));
@@ -269,7 +271,7 @@ public final class ExperimentsTab {
         });
         authButtons.addView(clearCredential, UiKit.weight(.7f));
         github.addView(authButtons, UiKit.full(c));
-        publish = UiKit.button(c, "رفع التجربة والمرجع إلى مكتبة HazRob");
+        publish = UiKit.button(c, "إرسال مرجع المطور للمراجعة العلمية فقط");
         publish.setOnClickListener(v -> publishSelected());
         github.addView(publish, UiKit.full(c));
         root.addView(github, UiKit.full(c));
@@ -359,7 +361,8 @@ public final class ExperimentsTab {
     private void measurement(boolean start) {
         host.io().execute(() -> {
             try {
-                if (start) host.robotApi().startMeasurement(); else host.robotApi().cancelMeasurement();
+                if (start) { MeasurementSessionRegistry.markDeveloperMqCycle(); host.robotApi().startMeasurement(); }
+                else { MeasurementSessionRegistry.clearDeveloperMqCycle(); host.robotApi().cancelMeasurement(); }
                 host.showToast(start ? "بدأ averaging؛ أبقِ MQ ON حتى READY" : "أُلغي averaging");
             } catch (Exception e) {
                 host.showToast("تعذر إرسال الأمر");
@@ -400,6 +403,9 @@ public final class ExperimentsTab {
             return;
         }
 
+        if (!ExperimentQueries.isDeveloperMeasurementSession(host.database(), session)) {
+            host.showToast("قياسات المستخدم المحلية ليست جلسات مختبر للمطور");return;
+        }
         JSONObject env = d.optJSONObject("env");
         Double t = env != null && Double.isFinite(env.optDouble("temperature", Double.NaN)) ? env.optDouble("temperature") : null;
         Double rh = env != null && Double.isFinite(env.optDouble("humidity", Double.NaN)) ? env.optDouble("humidity") : null;
@@ -556,7 +562,7 @@ public final class ExperimentsTab {
         refreshCredentialStatus();
         modelStatus.setText(modelLibraryStatus());
         list.removeAllViews();
-        List<ExperimentQueries.Record> rows = ExperimentQueries.recent(host.database(), 100);
+        List<ExperimentQueries.Record> rows = ExperimentQueries.recentDeveloper(host.database(), 100);
         summary.setText("المواد: " + host.database().chemicalCount()
                 + " • السجلات: " + host.database().count()
                 + " • التعرضات: " + host.database().captureCount()
@@ -648,9 +654,9 @@ public final class ExperimentsTab {
         String published = ReferencePublishAudit.latestStatus(host.database(), r.id);
         if (!published.isEmpty()) s.append("\nGitHub: ").append(published);
         details.setText(s.toString());
-        approve.setEnabled(r.isReference() && !r.approved);
+        approve.setEnabled(r.isReference() && !r.approved && ExperimentQueries.isDeveloperReference(host.database(),r.id));
         approve.setText(r.approved ? "معتمد — المرجع المشتق محدث" : "اعتماد وبناء المرجع العلمي");
-        publish.setEnabled(r.approved && r.isReference());
+        publish.setEnabled(r.approved && r.isReference() && ExperimentQueries.isDeveloperReference(host.database(),r.id));
     }
 
     private void setActionState(boolean on) {
@@ -665,7 +671,7 @@ public final class ExperimentsTab {
     private void approveSelected() {
         if (selectedId < 0) return;
         ExperimentQueries.Record r = ExperimentQueries.byId(host.database(), selectedId);
-        if (r == null || !r.isReference()) { host.showToast("هذا السجل ليس تجربة مرجعية مرتبطة بجلسة"); return; }
+        if (r == null || !ExperimentQueries.isDeveloperReference(host.database(),r.id)) { host.showToast("السجل ليس تجربة مرجعية للمطور"); return; }
         if (!"ready_average".equals(host.database().capturePhase(r.captureId))) { host.showToast("لا يعتمد إلا التعرض averaged في حالة READY"); return; }
         if (r.approved) { host.showToast("التجربة معتمدة مسبقاً"); return; }
         String ts = isoNow(), name = ReferenceBankExporter.fileName(r.id, r.ts);
@@ -685,7 +691,7 @@ public final class ExperimentsTab {
     private void publishSelected() {
         if (selectedId < 0) return;
         final ExperimentQueries.Record r = ExperimentQueries.byId(host.database(), selectedId);
-        if (r == null || !r.approved || !r.isReference()) { host.showToast("اعتمد تجربة مرجعية أولاً"); return; }
+        if (r == null || !r.approved || !ExperimentQueries.isDeveloperReference(host.database(),r.id) || !ReferenceLineageGuard.valid(host.database(),r)) { host.showToast("اعتمد تجربة مطور صالحة أولًا"); return; }
         String token = GitHubCredentialStore.load(context);
         if (token.length() < 20) {
             promptCredential(r);
@@ -727,27 +733,27 @@ public final class ExperimentsTab {
     }
 
     private void publishWithToken(final ExperimentQueries.Record r, final String token) {
+        if(r==null||!ExperimentQueries.isDeveloperReference(host.database(),r.id)
+                ||!ReferenceLineageGuard.valid(host.database(),r)){
+            host.showToast("رفض الإرسال: لا تتوافق التجربة مع جلسة مطور معتمدة");return;
+        }
         publish.setEnabled(false);
-        host.showToast("جارٍ نشر السجل والمرجع المشتق إلى مكتبة HazRob...");
         host.io().execute(() -> {
             try {
-                GitHubReferencePublisher.Result raw = GitHubReferencePublisher.publish(token, r);
+                GitHubReferencePublisher.Result raw = GitHubReferencePublisher.publish(token,host.database(),r);
+                if(!raw.success)throw new IllegalStateException("staging HTTP "+raw.httpCode);
                 ExperimentsDb.ReferenceArtifactRecord a = host.database().latestReferenceArtifact(r.chemicalUid, r.referenceKind);
-                GitHubReferencePublisher.Result derived = a == null ? null : GitHubReferencePublisher.publishArtifact(token, a);
-                boolean ok = raw.success && (derived == null || derived.success);
-                String ref = raw.path + (derived == null ? "" : " | " + derived.path);
-                ReferencePublishAudit.record(host.database(), r.id, ok ? "PUBLISHED" : "PARTIAL_OR_FAILED", isoNow(), raw.payloadSha256, ref);
-                scroll.post(() -> {
-                    host.showToast(ok ? "تم نشر السجل والمرجع إلى مكتبة HazRob" : "النشر غير مكتمل؛ راجع الحالة");
-                    host.refreshAllTabs();
-                });
-            } catch (Exception ex) {
-                try { ReferencePublishAudit.record(host.database(), r.id, "FAILED_" + ex.getClass().getSimpleName(), isoNow(), null, null); }
-                catch (Exception ignored) {}
-                scroll.post(() -> {
-                    host.showToast("تعذر النشر إلى مكتبة HazRob");
-                    host.refreshAllTabs();
-                });
+                GitHubReferencePublisher.Result derived = null;
+                if(a!=null&&ReferenceLineageGuard.artifactSourcesValid(host.database(),a))
+                    derived=GitHubReferencePublisher.publishArtifact(token,host.database(),a);
+                boolean complete=a==null||(derived!=null&&derived.success);
+                String status=complete?"STAGED_FOR_REVIEW":"STAGED_EXPERIMENT_DERIVED_PENDING";
+                String path=raw.path+(derived==null?"":" | "+derived.path);
+                ReferencePublishAudit.record(host.database(),r.id,status,isoNow(),raw.payloadSha256,path);
+                scroll.post(()->{host.showToast(complete?"أُرسلت التجربة للمراجعة دون تفعيل ChemCore":"أُرسلت التجربة؛ المرجع المشتق يحتاج مراجعة");host.refreshAllTabs();});
+            } catch(Exception ex) {
+                try{ReferencePublishAudit.record(host.database(),r.id,"REVIEW_STAGING_FAILED_"+ex.getClass().getSimpleName(),isoNow(),null,null);}catch(Exception ignored){}
+                scroll.post(()->{host.showToast("تعذر الإرسال إلى منطقة المراجعة غير التشغيلية");host.refreshAllTabs();});
             }
         });
     }
