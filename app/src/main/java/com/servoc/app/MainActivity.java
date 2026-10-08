@@ -173,7 +173,7 @@ public final class MainActivity extends Activity implements HazRobHost {
         if(fs!=null&&!fs.isEmpty()){requestFieldSessionExport(format,fs);return;}
         // Developer laboratory experiments have their own scientific export identity;
         // they are not field-session reports and cannot be relabeled as site/session data.
-        if(!developerMode||!ExperimentQueries.isDeveloperMeasurementSession(db,r.sessionId)){
+        if(!developerMode||selectedTab!=6||!ExperimentQueries.isDeveloperMeasurementSession(db,r.sessionId)){
             showToast("التقرير الذكي يتطلب جلسة مستخدم ميدانية؛ اختر الموقع والجلسة من تبويب التقارير");
             return;
         }
