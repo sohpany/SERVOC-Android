@@ -130,7 +130,8 @@ public final class GasDirectionEstimator {
             JSONObject q=r.optJSONObject("quality");
             if(q!=null&&(!q.optBoolean("valid",true)||!"VALID".equals(q.optString("status","VALID"))
                 ||(q.has("manufacturer_heater_protocol_valid")&&!q.optBoolean("manufacturer_heater_protocol_valid",false))))continue;
-            double ratio=r.optDouble("ratio",Double.NaN);
+            double rs=r.optDouble("rs",Double.NaN);
+            double ratio=Double.isFinite(rs)&&rs>0?rs:r.optDouble("ratio",Double.NaN);
             if(Double.isFinite(ratio)&&ratio>0)return true;
         }
         return false;
@@ -150,7 +151,12 @@ public final class GasDirectionEstimator {
                 String status=quality.optString("status","VALID");if(!"VALID".equals(status))continue;
                 if(quality.has("manufacturer_heater_protocol_valid")&&!quality.optBoolean("manufacturer_heater_protocol_valid",false))continue;
             }
-            double ratio=r.optDouble("ratio",Double.NaN);if(!Double.isFinite(ratio)||ratio<=0)continue;
+            // Relative Rs excursion is sufficient for a provisional gradient; it does not
+            // require R0 or imply analyte-specific ppm. Prefer physical Rs so
+            // R0 installation mid-track cannot change the score denominator.
+            double rs=r.optDouble("rs",Double.NaN);
+            double ratio=Double.isFinite(rs)&&rs>0?rs:r.optDouble("ratio",Double.NaN);
+            if(!Double.isFinite(ratio)||ratio<=0)continue;
             support++;
             if(!baselineReady[i]){baseline[i]=ratio;baselineReady[i]=true;continue;}
             double b=baseline[i];if(!Double.isFinite(b)||b<=0){baseline[i]=ratio;continue;}
