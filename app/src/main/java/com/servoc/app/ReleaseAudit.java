@@ -3,9 +3,9 @@ package com.servoc.app;
 /** Build markers for the HazRob 0.10.2 integrated connectivity release. */
 public final class ReleaseAudit {
     private ReleaseAudit(){}
-    // HR069 RC2 delivery gate: app + Main ESP32 + ESP32-CAM are validated from one commit.
+    // HR069-R1 engineering increment; Main ESP32 and Android must match. Camera remains HR069 until a camera-side change is required.
     public static final String VERSION="0.10.2";
-    public static final String ENGINEERING_REVISION="HR069";
+    public static final String ENGINEERING_REVISION="HR069-R1";
     public static final String PROJECT_PREPARERS="شهاب الصهباني، مجدي ذيبان";
     public static final int DATABASE_SCHEMA=9;
     public static final String ESP32_API="HazRob API v4 / firmware 0.10.2 / L298N 4WD LEFT GPIO17-19-32 / RIGHT GPIO16-18-27 / ADS I2C GPIO21-22 / ENV I2C GPIO13-14 / single MQ relay / fixed ADS1115 5V supply / unified direct+remote transport";
