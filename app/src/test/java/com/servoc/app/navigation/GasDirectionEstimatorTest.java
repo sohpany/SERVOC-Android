@@ -72,6 +72,39 @@ public class GasDirectionEstimatorTest {
         assertFalse(r.valid);assertEquals(0,r.supportSensors);assertEquals("NO_VALID_TARGET_CHANNELS",r.reason);
     }
 
+    private static JSONObject rawRsSample(double rs)throws Exception{
+        JSONObject root=new JSONObject(),mq=new JSONObject();
+        long stamp=nextSampleUs+=150000;
+        for(String key:new String[]{"mq2","mq3","mq4","mq5","mq7","mq8","mq9","mq135"}){
+            JSONObject sensor=new JSONObject();
+            sensor.put("valid",true);
+            sensor.put("rs",rs);
+            sensor.put("sample_us",stamp);
+            JSONObject quality=new JSONObject();
+            quality.put("valid",true);quality.put("status","VALID");
+            quality.put("manufacturer_heater_protocol_valid",true);
+            sensor.put("quality",quality);
+            mq.put(key,sensor);
+        }
+        root.put("mq",mq);
+        return root;
+    }
+
+    @Test public void preR0RelativeResistanceCanSuggestDirectionButNotWithoutMotion()throws Exception{
+        GasDirectionEstimator e=new GasDirectionEstimator();
+        e.update(rawRsSample(10.0),100,100,1000,103);
+        e.update(rawRsSample(9.0),100,100,1500,103);
+        e.update(rawRsSample(8.0),100,100,2000,103);
+        GasDirectionEstimator.Result result=e.update(rawRsSample(7.0),100,100,2500,103);
+        assertTrue(result.valid);
+        assertTrue(result.supportSensors>0);
+        assertEquals(103,result.targetChemical);
+        e.reset();
+        e.update(rawRsSample(10.0),0,0,3000,103);
+        e.update(rawRsSample(8.0),0,0,3500,103);
+        assertFalse(e.update(rawRsSample(7.0),0,0,4000,103).valid);
+    }
+
     @Test public void unsupportedTargetFailsClosed()throws Exception{
         GasDirectionEstimator e=new GasDirectionEstimator();
         GasDirectionEstimator.Result r=e.update(sample(0.7),100,100,1000,0);
