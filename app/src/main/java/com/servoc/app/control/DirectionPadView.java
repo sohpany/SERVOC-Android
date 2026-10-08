@@ -49,7 +49,7 @@ public final class DirectionPadView extends GridLayout {
     private Button button(String s){Button b=new Button(getContext());b.setText(s);b.setTextSize(26);b.setGravity(Gravity.CENTER);b.setTextColor(TEXT);b.setBackgroundColor(BASE);b.setAllCaps(false);b.setMinWidth(dp(48));b.setMinHeight(dp(48));b.setPadding(dp(2),0,dp(2),0);return b;}
     private LayoutParams cell(int row,int col){Spec rs=GridLayout.spec(row,1,1f),cs=GridLayout.spec(col,1,1f);LayoutParams p=new LayoutParams(rs,cs);p.width=0;p.height=0;p.setGravity(Gravity.FILL);return p;}
     private void emit(DiscreteDrive.Intent i,boolean active){if(listener==null)return;int turn=drivePreferences.getInt(DriveTuning.PREF_TURN_PERCENT,DriveTuning.DEFAULT_TURN_PERCENT);int pivot=drivePreferences.getInt(DriveTuning.PREF_PIVOT_PERCENT,DriveTuning.DEFAULT_PIVOT_PERCENT);DriveMixer.Command c=DiscreteDrive.command(i,turn,pivot);boolean reverse=drivePreferences.getBoolean(DriveDirectionOption.PREF_REVERSE_BUTTONS,false);boolean reverseSpin=drivePreferences.getBoolean(DriveDirectionOption.PREF_REVERSE_PIVOT_ALL,false);
-        boolean pivot=i==DiscreteDrive.Intent.PIVOT_LEFT||i==DiscreteDrive.Intent.PIVOT_RIGHT;
-        DriveMixer.Command mapped=DriveDirectionOption.applyPivot(DriveMode.BUTTONS,reverse,reverseSpin,pivot,c.left,c.right);listener.onDrive(mapped.left,mapped.right,active);}
+        boolean isSpinIntent=i==DiscreteDrive.Intent.PIVOT_LEFT||i==DiscreteDrive.Intent.PIVOT_RIGHT;
+        DriveMixer.Command mapped=DriveDirectionOption.applyPivot(DriveMode.BUTTONS,reverse,reverseSpin,isSpinIntent,c.left,c.right);listener.onDrive(mapped.left,mapped.right,active);}
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);}
 }
