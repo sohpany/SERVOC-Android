@@ -72,7 +72,10 @@ public final class FieldSessionReportExporter {
     }
     public static void writeXlsx(OutputStream out,ExperimentsDb db,String fieldSessionId,ChemicalRepository chemicals)throws Exception{
         Bundle b=resolve(db,fieldSessionId);
-        if(b.records.isEmpty())throw new IllegalStateException("field session has no derived experiment workbook");
+        // A valid Field Session is exportable even before a derived experiment or
+        // ChemCore decision has been saved. Missing analysis is shown as missing,
+        // while independent raw telemetry, session identity and QA remain auditable.
+        // Do not silently deny Excel to an operator because chemistry is incomplete.
         // XLSX receives the same already-validated Bundle/contract used by the field-report system.
         SmartFieldSessionXlsxWriter.write(out,db,b,chemicals);
     }
