@@ -1,6 +1,9 @@
 package com.servoc.app.ui;
 
+import android.app.AlertDialog;
 import android.content.Context;
+import android.widget.EditText;
+import android.text.InputType;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.view.View;
@@ -269,20 +272,52 @@ public final class MeasurementsTab {
             tracking=card("التتبع: لا يوجد");box.addView(tracking,UiKit.full(c));selected=card("المرشح المحدد: لا يوجد");box.addView(selected,UiKit.full(c));
             TextView ch=UiKit.small(c,"المرشحون الديناميكيون • اللون ترتيب تحليلي وليس مستوى خطورة");ch.setTextColor(MUTED);box.addView(ch,UiKit.full(c));
             candidateList=UiKit.vbox(c);box.addView(candidateList,UiKit.full(c));
-            LinearLayout actions=UiKit.hbox(c);startTracking=UiKit.button(c,"بدء التتبع");startTracking.setEnabled(false);startTracking.setOnClickListener(v->{if(selectedCandidateId<0){host.showToast("اختر مرشحًا أولًا");return;}host.setTrackingTarget(selectedCandidateId,selectedCandidateName);host.showToast("بدأ تتبع: "+selectedCandidateName);refresh();});actions.addView(startTracking,UiKit.weight(1));Button stop=UiKit.button(c,"إيقاف التتبع");stop.setOnClickListener(v->{host.setTrackingTarget(-1,"");host.showToast("تم إيقاف التتبع");refresh();});actions.addView(stop,UiKit.weight(1));box.addView(actions,UiKit.full(c));
+            LinearLayout actions=UiKit.hbox(c);startTracking=UiKit.button(c,"بدء التتبع");startTracking.setEnabled(false);startTracking.setOnClickListener(v->{if(selectedCandidateId<0){host.showToast("اختر مرشحًا أولًا");return;}host.setTrackingTarget(selectedCandidateId,selectedCandidateName);host.showToast("بدأ تتبع: "+selectedCandidateName);refresh();});actions.addView(startTracking,UiKit.weight(1));Button pick=UiKit.button(c,"اختيار غاز من المكتبة");pick.setOnClickListener(v->chooseTrackingChemical());actions.addView(pick,UiKit.weight(1.15f));Button stop=UiKit.button(c,"إيقاف التتبع");stop.setOnClickListener(v->{host.setTrackingTarget(-1,"");host.showToast("تم إيقاف التتبع");refresh();});actions.addView(stop,UiKit.weight(1));box.addView(actions,UiKit.full(c));
             screeningToggle=UiKit.button(c,"إظهار فحص 144");screeningToggle.setOnClickListener(v->{showAll144=!showAll144;screeningToggle.setText(showAll144?"إخفاء فحص 144":"إظهار فحص 144");refresh();});box.addView(screeningToggle,UiKit.full(c));screeningList=UiKit.vbox(c);box.addView(screeningList,UiKit.full(c));
             technicalToggle=UiKit.button(c,"إظهار البواقي والتفاصيل");technicalToggle.setOnClickListener(v->{showTechnical=!showTechnical;technical.setVisibility(showTechnical?View.VISIBLE:View.GONE);technicalToggle.setText(showTechnical?"إخفاء البواقي والتفاصيل":"إظهار البواقي والتفاصيل");});box.addView(technicalToggle,UiKit.full(c));technical=card("");technical.setVisibility(View.GONE);technical.setTextIsSelectable(true);box.addView(technical,UiKit.full(c));
             decisions=new ChemCoreDecisionRepository(host.database());
         }
         void refresh(){
             String id=host.lastMeasurementSessionId();JSONObject p=id==null||id.isEmpty()?null:decisions.latestPayloadForSession(id);candidateList.removeAllViews();screeningList.removeAllViews();tracking.setText(host.trackingTargetId()>=0?"التتبع • "+host.trackingTargetName()+" (#"+host.trackingTargetId()+") • فرضية مشغل":"التتبع • لا يوجد");
-            if(p==null){decisionCard.setText("القرار: لا توجد نتيجة محفوظة");screeningCard.setText("فحص 144: —");safetyCard.setText("السلامة والتعرض: —");technical.setText("—");return;}
+            if(p==null){startTracking.setEnabled(selectedCandidateId>=0);decisionCard.setText("القرار: لا توجد نتيجة محفوظة — يسمح بالتتبع الاستدلالي قبل المعايرة");screeningCard.setText("فحص 144: —");safetyCard.setText("السلامة والتعرض: —");technical.setText("—");return;}
             String chemical=p.optString("chemical","—"),outcome=p.optString("outcome","—"),tier=p.optString("evidence_tier","—");double post=p.optDouble("top_posterior",Double.NaN),margin=p.optDouble("posterior_separation_margin",Double.NaN);boolean ppmOk=p.optBoolean("ppm_reportable",false);double ppm=p.optDouble("ppm",Double.NaN);
             decisionCard.setText("القرار • "+outcome+"\n"+chemical+" • "+pct(post)+" • Δ "+pct(margin)+" • "+tier+(ppmOk&&Double.isFinite(ppm)?" • "+String.format(Locale.US,"%.2f ppm",ppm):" • PPM محجوب"));decisionCard.setTextColor("M4_HAZROB_VALIDATED".equals(tier)?GOOD:INFO);
             JSONObject s=p.optJSONObject("screening_144");screeningCard.setText("فحص 144 • "+(s==null?"غير متاح":s.optString("state","—")+" • "+s.optInt("evaluated_count",0)+"/"+s.optInt("target_count",144)));
             JSONObject g=p.optJSONObject("gas_exposure_ppm");safetyCard.setText(g==null?"السلامة والتعرض • محجوب/غير متاح":"السلامة والتعرض • "+g.optString("toxicity_state",g.optString("state","—"))+" • الاشتعال "+g.optString("flammability_state","—")+" • أولوية "+fmt(g.optDouble("hazard_priority_percent",Double.NaN))+"%");
             renderCandidates(p);if(showAll144)renderScreening(s,p);technical.setText(ChemCoreAnalysisPresenter.equationsAndResiduals(p,8));
         }
+        /** Operator can select a target from the local ChemCore catalogue before R0
+         *  and even before the first stored analysis. Selection is NOT detection.
+         */
+        private void chooseTrackingChemical(){
+            EditText query=new EditText(c);query.setSingleLine(true);
+            query.setHint("اسم المادة أو رقم CAS");
+            query.setInputType(InputType.TYPE_CLASS_TEXT);
+            new AlertDialog.Builder(c)
+                .setTitle("اختيار مادة للتتبع الاستدلالي")
+                .setMessage("اختيار الغاز لا يعني رصده. قبل R0 يكون تتبع التدرج من تغير Rs النسبي فقط، دون هوية أو ppm معتمدين.")
+                .setView(query)
+                .setNegativeButton("إلغاء",null)
+                .setPositiveButton("بحث",(d,w)->{
+                    List<ChemicalRepository.Chemical> matches=new ChemicalRepository(host.database()).search(query.getText().toString(),30);
+                    if(matches.isEmpty()){host.showToast("لا توجد مادة مطابقة في المكتبة");return;}
+                    String[] labels=new String[matches.size()];
+                    for(int i=0;i<matches.size();i++)labels[i]=matches.get(i).label();
+                    new AlertDialog.Builder(c)
+                        .setTitle("حدد المادة")
+                        .setItems(labels,(dialog,index)->{
+                            ChemicalRepository.Chemical item=matches.get(index);
+                            if(item.uid>Integer.MAX_VALUE){host.showToast("معرّف غير مدعوم");return;}
+                            selectedCandidateId=(int)item.uid;
+                            selectedCandidateName=item.label();
+                            selected.setText("مادة محددة من المكتبة • "+selectedCandidateName+" • لم يُثبت رصدها بعد");
+                            startTracking.setEnabled(true);
+                        })
+                        .setNegativeButton("إلغاء",null)
+                        .show();
+                }).show();
+        }
+
         private void renderCandidates(JSONObject p){
             JSONArray a=p.optJSONArray("candidates");if(a==null||a.length()==0){candidateList.addView(card("لا توجد فرضيات قابلة للحل"),UiKit.full(c));return;}int n=Math.min(12,a.length());
             for(int i=0;i<n;i++){JSONObject q=a.optJSONObject(i);if(q==null)continue;int rank=q.optInt("rank",i+1);long uid=q.optLong("chemical_uid",-1);String name=q.optString("label","—");double posterior=q.optDouble("posterior",Double.NaN),coverage=q.optDouble("coverage_pct",Double.NaN),agreement=q.optDouble("agreement_pct",Double.NaN),residual=q.optDouble("residual_rms",Double.NaN);String tier=q.optString("evidence_tier",p.optString("evidence_tier","—"));int bg=candidateColor(rank-1,"");Button row=UiKit.button(c,(uid==selectedCandidateId?"◉ ":"")+"#"+rank+"  "+name+"\nPosterior "+pct(posterior)+" • Coverage "+pctAny(coverage)+" • Agreement "+pctAny(agreement)+" • Residual "+fmt(residual)+" • "+tier);row.setAllCaps(false);row.setTextColor(foregroundFor(bg));row.setBackgroundColor(bg);row.setOnClickListener(v->{selectedCandidateId=(int)uid;selectedCandidateName=name;selected.setText("المرشح المحدد • "+name+" (#"+uid+") • الاختيار لا يعني قبول الهوية");startTracking.setEnabled(uid>=0);renderCandidates(p);});candidateList.addView(row,UiKit.full(c));}
