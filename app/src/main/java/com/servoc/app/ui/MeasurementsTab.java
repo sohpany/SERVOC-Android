@@ -231,7 +231,10 @@ public final class MeasurementsTab {
         }
         void refresh(){
             JSONObject d=host.latestDiagnostics();ChemCoreLabQuality q=ChemCoreLabQuality.evaluate(d,host.driveLeft(),host.driveRight(),host.database());
-            boolean ready=q.configurationReady&&q.captureReady;readiness.setText("الجاهزية\n"+(ready?"● READY":"● WAIT"));colorState(readiness,ready,q.configurationReady);
+            boolean ready=q.configurationReady&&q.captureReady;
+            boolean exploratory=q.exploratoryScreeningReady();
+            readiness.setText("الجاهزية\n"+(ready?"● مُهيّأ للمعايرة/التحليل":exploratory?"● فحص بحثي متاح قبل R0":"● انتظار حساسات MQ"));
+            colorState(readiness,ready,exploratory);
             quality.setText("MQ صالح "+q.validMqChannels+"/8 • R0 "+q.r0NormalizedChannels+"/8 • M4-ref "+q.referenceValidatedChannels+"/8 • ENV "+(q.environmentReady?"جاهز":"محجوب"));quality.setTextColor(q.validMqChannels>=6?GOOD:WARN);
             String id=host.lastMeasurementSessionId();JSONObject p=id==null||id.isEmpty()?null:decisions.latestPayloadForSession(id);if(p!=null&&p.optJSONObject("lab_quality")==null){decisions.attachLabQuality(id,q.toJson(),System.currentTimeMillis());p=decisions.latestPayloadForSession(id);}
             if(p==null){topCandidate.setText("المرشح الأول\n—");confidence.setText("الثقة\n—");evidence.setText("الدليل\n—");quantitative.setText("PPM الكمي\nلا توجد جلسة محللة");candidatePreview.setText("لا توجد نتيجة ChemCore مرتبطة بجلسة مكتملة.");technical.setText("لا توجد تفاصيل تقنية.");return;}
