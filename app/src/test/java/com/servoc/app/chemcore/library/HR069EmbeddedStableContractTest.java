@@ -18,7 +18,7 @@ public final class HR069EmbeddedStableContractTest {
 
     @Test public void bundledStableHasExactlyCompatibleVerifiedManifest()throws Exception{
         File payload=new File(DIR+"chemcore-stable-snapshot.json");
-        JSONObject manifestJson=new JSONObject(Files.readString(Paths.get(DIR+"manifest.json"),StandardCharsets.UTF_8));
+        JSONObject manifestJson=new JSONObject(new String(Files.readAllBytes(Paths.get(DIR+"manifest.json")),StandardCharsets.UTF_8));
         ChemCoreLibraryManifest manifest=ChemCoreLibraryManifest.fromJson(manifestJson);
         assertEquals("1.0.0-hr069r1",manifest.libraryVersion);
         assertEquals(ChemCoreLibraryManifest.Channel.STABLE,manifest.channel);
@@ -61,7 +61,7 @@ public final class HR069EmbeddedStableContractTest {
     }
 
     @Test public void installerDoesNotReplaceExistingRemoteStableOrLocalUserData()throws Exception{
-        String installer=Files.readString(Paths.get("src/main/java/com/servoc/app/chemcore/library/ChemCoreEmbeddedStableInstaller.java"),StandardCharsets.UTF_8);
+        String installer=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/chemcore/library/ChemCoreEmbeddedStableInstaller.java")),StandardCharsets.UTF_8);
         assertTrue(installer.contains("store.activeVersion()"));
         assertTrue(installer.contains("if(!old.isEmpty())"));
         assertTrue(installer.contains("verifyPayload(stage,manifest,ReleaseAudit.VERSION)"));
@@ -69,7 +69,7 @@ public final class HR069EmbeddedStableContractTest {
         assertFalse(installer.contains("field_sessions"));
         assertFalse(installer.contains("calibration_curves"));
         assertFalse(installer.contains("DELETE FROM"));
-        String seed=Files.readString(Paths.get("src/main/java/com/servoc/app/chemical/ChemicalSeedBootstrap.java"),StandardCharsets.UTF_8);
+        String seed=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/chemical/ChemicalSeedBootstrap.java")),StandardCharsets.UTF_8);
         assertTrue(seed.contains("ChemCoreEmbeddedStableInstaller.ensureInstalled(context)"));
     }
 }
