@@ -12,6 +12,7 @@ public final class DriveDirectionOption {
     public static final String PREF_REVERSE_JOYSTICK = "drive_reverse_joystick";
     public static final String PREF_REVERSE_WHEEL = "drive_reverse_wheel";
     public static final String PREF_REVERSE_BUTTONS = "drive_reverse_buttons";
+    public static final String PREF_REVERSE_PIVOT_ALL = "drive_reverse_pivot_all";
 
     private DriveDirectionOption() {}
 
@@ -24,6 +25,12 @@ public final class DriveDirectionOption {
 
     public static boolean supportsReverse(DriveMode mode) {
         return mode == DriveMode.JOYSTICK || mode == DriveMode.WHEEL || mode == DriveMode.BUTTONS;
+    }
+
+    /** Independent option affecting in-place spin in all operator controls except dual tank sliders. */
+    public static DriveMixer.Command applyPivot(DriveMode mode, boolean reverseSteering, boolean reverseSpin, boolean pivot, int left, int right) {
+        // Existing steering reversal remains independent. A second switch reverses only spin.
+        return apply(mode, reverseSteering ^ (pivot && reverseSpin), left, right);
     }
 
     public static DriveMixer.Command apply(DriveMode mode, boolean reverse, int left, int right) {
