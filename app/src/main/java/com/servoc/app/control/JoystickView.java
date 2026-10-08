@@ -124,7 +124,8 @@ public final class JoystickView extends View {
         int pivot = drivePreferences.getInt(DriveTuning.PREF_PIVOT_PERCENT, DriveTuning.DEFAULT_PIVOT_PERCENT);
         DriveMixer.Command command = DriveMixer.mix(x, y, turn, pivot);
         boolean reverse = drivePreferences.getBoolean(DriveDirectionOption.PREF_REVERSE_JOYSTICK, false);
-        DriveMixer.Command mapped = DriveDirectionOption.apply(DriveMode.JOYSTICK, reverse, command.left, command.right);
+        boolean reverseSpin = drivePreferences.getBoolean(DriveDirectionOption.PREF_REVERSE_PIVOT_ALL, false);
+        DriveMixer.Command mapped = DriveDirectionOption.applyPivot(DriveMode.JOYSTICK, reverse, reverseSpin, Math.abs(y)<=0.08f && Math.abs(x)>0.01f, command.left, command.right);
         listener.onDrive(mapped.left, mapped.right, active);
     }
 
