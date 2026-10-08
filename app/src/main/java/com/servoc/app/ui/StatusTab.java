@@ -136,7 +136,7 @@ public final class StatusTab {
         else if(echo.optBoolean("valid",false)&&echo.has("distance_cm")&&!echo.isNull("distance_cm"))
             echoText+=String.format(Locale.US,"● %.1f cm",echo.optDouble("distance_cm",Double.NaN));
         else echoText+="⚠ قياس غير صالح • timeouts "+echo.optLong("timeouts",0);
-        String irText="IR GPIO35   "+(ir==null?"○ لا بيانات":!ir.optBoolean("verified",false)?"⚠ غير متحقق من تغير الإشارة":ir.optBoolean("ground_detected",false)?"● أرض موجودة":"⚠ لا توجد أرض");
+        String irText="IR GPIO35   "+(ir==null?"○ لا بيانات":ir.optBoolean("ground_detected",false)?"● أرض موجودة":"⚠ لا توجد أرض");
         String voltage=battery==null||battery.isNull("voltage_v")?"○ لا قراءة":String.format(Locale.US,"%.2f V (تقديري)",battery.optDouble("voltage_v",Double.NaN));
         String microphone=sound==null||sound.isNull("rms_v")?"○ لا قراءة":String.format(Locale.US,"● RMS %.3f V",sound.optDouble("rms_v",Double.NaN));
         hardware.append("\n"+echoText+"\n"+irText+"\nBATTERY GPIO33   "+voltage+"\nMIC GPIO36   "+microphone+"\nL298N   "+(drive==null?"○ غير متاح":drive.optBoolean("stale_stop",false)?"⚠ مهلة توقف":"● أوامر متاحة (لا يوجد تأكيد دوران)")+"\nALERT GPIO26   منطق تحكم؛ خرج صوتي غير مثبت");
