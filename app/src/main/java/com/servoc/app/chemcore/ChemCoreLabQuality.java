@@ -122,6 +122,13 @@ public final class ChemCoreLabQuality {
                 value(env,"temperature"),value(env,"humidity"),value(env,"pressure"),blockers,advisories);
     }
 
+    /** Operational screening availability is not the same as accepted Rs/R0 or M4.
+     *  Pre-R0 runs can collect signal, candidate hypotheses and provisional reports.
+     */
+    public boolean exploratoryScreeningReady(){
+        return connected&&mqPower&&(ads1||ads2)&&validMqChannels>0;
+    }
+
     public boolean fingerprintNormalizationReady(){return r0NormalizedChannels>=REQUIRED_R0_CHANNELS;}
     public boolean anyReferenceGasCalibrationAvailable(){return referenceValidatedChannels>0;}
 
@@ -134,7 +141,9 @@ public final class ChemCoreLabQuality {
         try{
             JSONObject o=new JSONObject();o.put("schema",SCHEMA);o.put("connected",connected);o.put("mq_power",mqPower);o.put("ads1_ready",ads1);o.put("ads2_ready",ads2);o.put("stationary",stationary);
             o.put("valid_mq_channels",validMqChannels);o.put("r0_normalized_channels",r0NormalizedChannels);o.put("field_r0_channels",fieldR0Channels);o.put("reference_validated_channels",referenceValidatedChannels);
-            o.put("configuration_ready",configurationReady);o.put("capture_ready",captureReady);o.put("fingerprint_normalization_ready",fingerprintNormalizationReady());o.put("any_reference_gas_calibration_available",anyReferenceGasCalibrationAvailable());
+            o.put("configuration_ready",configurationReady);o.put("capture_ready",captureReady);
+            o.put("exploratory_screening_ready",exploratoryScreeningReady());o.put("exploratory_results_may_be_exported",true);
+            o.put("exploratory_measurement_not_quantitative_calibration",true);o.put("fingerprint_normalization_ready",fingerprintNormalizationReady());o.put("any_reference_gas_calibration_available",anyReferenceGasCalibrationAvailable());
             JSONObject r0=new JSONObject();r0.put("source",FieldR0Baseline.SOURCE);r0.put("campaign",FieldR0Baseline.SESSION);r0.put("samples",FieldR0Baseline.SAMPLE_COUNT);r0.put("session_count",FieldR0Baseline.SESSION_COUNT);r0.put("reference_gas_validated",FieldR0Baseline.REFERENCE_GAS_VALIDATED);r0.put("environment_compensated",FieldR0Baseline.ENVIRONMENT_COMPENSATED);r0.put("active_policy","manual_override_else_field_baseline");r0.put("normalized_channels",r0NormalizedChannels);r0.put("field_baseline_channels",fieldR0Channels);o.put("r0_standard",r0);
             JSONObject e=new JSONObject();e.put("ready",environmentReady);e.put("sensor",environmentSensor);e.put("status",environmentStatus);e.put("address",environmentAddress);e.put("chip_id",environmentChipId);putFinite(e,"temperature_c",temperatureC);putFinite(e,"humidity_rh",humidityRh);putFinite(e,"pressure_hpa",pressureHpa);o.put("environment",e);
             o.put("blockers",array(blockers));o.put("advisories",array(advisories));
