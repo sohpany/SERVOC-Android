@@ -146,3 +146,18 @@
 - Both scientific data stores are intentionally unchanged: APK embedded ChemCore Stable `1.0.0-hr069r1` and local user R0 values; no central developer experiments uploaded.
 - Physical Android/R0 measurement and exported PDF/XLSX openability are still pending bench trials.
 
+
+## Continuation — vCode28 scientific R0 provenance correction
+
+**Code head (final for validation):** `8b89e4c27fa7fda4cc25b294f9a973a2a1a2a60a`. This is Android `versionCode 28`, Main ESP32 still HR069-R1, existing ChemCore Stable remains `1.0.0-hr069r1`.
+
+- After historic R0 replay corrections, previous JUnit build run `37853945618` correctly detected `SessionLineageContractTest.r0IsDeviceLocalAndNonPublishable` failure: the old report contract expected a `r0_device_local` tag. Corrected `SessionSeries.normalizeMq` to set it **TRUE only** where original local R0 value and provenance are actually present, FALSE for unqualified historical ratios. Did not restore the previously erroneous overwrite.
+- Strengthened `SessionSeriesNormalizationTest` for proven device-local vs legacy no-R0 rows.
+- Identified a second old-field-provenance attribution defect: `ChemCoreLabQuality.toJson().r0_standard` asserted the 2026-09-13 field campaign even if today's device has newer manually entered R0. Corrected `source` to field/manual/mixed based on currently accepted R0; `campaign` reports the actual or mixed source session; `per_sensor` gives each channel's value, source, UTC and session. Original field campaign sample counts are asserted only when field baseline is the sole source, not for new mixed/manual calibrations. `field_r0_normalization_ready` is no longer falsely TRUE for mixed channels; overall `r0_normalization_ready` remains TRUE where eight accepted R0 values exist.
+- `ChemCoreAnalysisTab.persistAnalyticalExperiment` now stores and names the actual R0 revision from the same `ChemCoreLabQuality` snapshot attached to the persisted ChemCore decision, instead of falsely labeling it `FieldR0Baseline.SESSION`.
+- Added `HR069R1EditableR0PersistenceTest.labAndExportProvenanceTracksActualDeviceR0Revision` to protect exact per-channel source, mixed campaign and non-M4 interpretation.
+- **New validation runs at SHA `8b89e4c2`**:
+  - https://github.com/sohpany/SERVOC-Android/actions/runs/37854726140 — diagnostic APK and tests.
+  - https://github.com/sohpany/SERVOC-Android/actions/runs/37854726118 — internal release APK test.
+  - https://github.com/sohpany/SERVOC-Android/actions/runs/37854726087 — app/firmware integration.
+- Do not mark the new APK ready, add PASS assertions or distribute a vCode28 link until those runs finish successfully and the artifact digest/certificate/contents are verified. Older vCode27 artifact still lacks this correction and is superseded for new test installation.
