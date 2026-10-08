@@ -44,7 +44,7 @@ public final class GasDirectionEstimator {
     private final double[] baseline=new double[KEYS.length];
     private final boolean[] baselineReady=new boolean[KEYS.length];
     private final Deque<Vote> votes=new ArrayDeque<>();
-    private long lastMs=0;private double lastScore=Double.NaN,heading=0;private int targetChemical=Integer.MIN_VALUE;
+    private long lastMs=0,lastSampleStamp=Long.MIN_VALUE,freshAt=0;private double lastScore=Double.NaN,heading=0;private int targetChemical=Integer.MIN_VALUE;private Result lastValidResult=null;
 
     /** Compatibility aggregate mode. It is still arrow-only and never has control authority. */
     public synchronized Result update(JSONObject snapshot,int left,int right,long nowMs){return update(snapshot,left,right,nowMs,-1);}
@@ -56,6 +56,14 @@ public final class GasDirectionEstimator {
 
         long now=Math.max(0,nowMs);
         if(lastMs>0&&now-lastMs>MAX_TELEMETRY_GAP_MS)resetTemporal();
+        long sampleStamp=sampleStamp(snapshot.optJSONObject("mq"),chemical);
+        if(sampleStamp<=0)return Result.none(Double.NaN,chemical,0,"TARGET_SAMPLE_TIMESTAMP_UNAVAILABLE");
+        if(sampleStamp==lastSampleStamp){
+            if(freshAt>0&&now-freshAt<=450&&lastValidResult!=null)return lastValidResult;
+            if(freshAt>0&&now-freshAt>750){resetTemporal();return Result.none(Double.NaN,chemical,0,"TARGET_SAMPLE_STALE");}
+            return Result.none(lastScore,chemical,0,"WAITING_FOR_FRESH_TARGET_SAMPLE");
+        }
+        lastSampleStamp=sampleStamp;freshAt=now;
         double dt=lastMs>0?Math.max(0,Math.min(1.5,(now-lastMs)/1000.0)):0;lastMs=now;
 
         // Joystick convention: positive X => left command > right command => turn right.
@@ -87,13 +95,28 @@ public final class GasDirectionEstimator {
         if(confidence<MIN_DIRECTION_CONFIDENCE)
             return new Result(false,Double.NaN,confidence,score.value,coherence,strength,votes.size(),score.supportSensors,chemical,"LOW_DIRECTION_COHERENCE");
         double global=Math.atan2(y,x),relative=wrap(global-heading);
-        return new Result(true,relative,confidence,score.value,coherence,strength,votes.size(),score.supportSensors,chemical,"DIRECTION_HYPOTHESIS");
+        lastValidResult=new Result(true,relative,confidence,score.value,coherence,strength,votes.size(),score.supportSensors,chemical,"DIRECTION_HYPOTHESIS");
+        return lastValidResult;
     }
 
     public synchronized void reset(){targetChemical=Integer.MIN_VALUE;resetState();}
 
     private void resetState(){resetTemporal();for(int i=0;i<baseline.length;i++){baseline[i]=0;baselineReady[i]=false;}}
-    private void resetTemporal(){votes.clear();lastMs=0;lastScore=Double.NaN;heading=0;}
+    private void resetTemporal(){votes.clear();lastMs=0;lastScore=Double.NaN;heading=0;lastSampleStamp=Long.MIN_VALUE;freshAt=0;lastValidResult=null;}
+
+    /** The newest target-relevant MCU sample, not the age of an Android redraw. */
+    private static long sampleStamp(JSONObject mq,int chemical){
+        if(mq==null)return -1;
+        int mask=chemical<0?MqSensorAffinity.ALL:MqSensorAffinity.forChemical(chemical).mask;
+        long latest=-1;
+        for(int i=0;i<KEYS.length;i++)if((mask&(1<<i))!=0){
+            JSONObject r=mq.optJSONObject(KEYS[i]);
+            if(r==null||!r.optBoolean("valid",r.optBoolean("ok",false)))continue;
+            long t=r.optLong("sample_us",0);
+            if(t>latest)latest=t;
+        }
+        return latest;
+    }
 
     private Score gasScore(JSONObject mq,int chemical){
         if(mq==null)return new Score(Double.NaN,0,"MQ_UNAVAILABLE");
