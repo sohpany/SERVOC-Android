@@ -86,7 +86,7 @@ public final class RemoteConnection implements SecureMqtt311Client.Listener,Auto
     public void cameraFlash(String mode)throws Exception{JSONObject p=new JSONObject();p.put("mode",mode==null?"off":mode);command("camera_flash",p,3000,true,2500);}
 
     public JSONObject snapshot(int left,int right){
-        JSONObject t=latestTelemetry;if(t==null)return null;JSONObject s=t.optJSONObject("snapshot");if(s!=null)return s;
+        JSONObject t=latestTelemetry;if(t==null||telemetryAt<=0||SystemClock.elapsedRealtime()-telemetryAt>750)return null;JSONObject s=t.optJSONObject("snapshot");if(s!=null)return s;
         JSONObject sourceDiag=t.optJSONObject("diag"),data=t.optJSONObject("data");
         if(sourceDiag!=null||data!=null){
             JSONObject diag;
