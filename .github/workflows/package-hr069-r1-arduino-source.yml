@@ -1,0 +1,106 @@
+name: Package HazRob HR069-R1 Arduino Source — Working Validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'release/hazrob-0.10.2-rc2'
+    paths:
+      - 'firmware/HazRob/**'
+      - 'app/src/main/java/com/servoc/app/calibration/**'
+      - 'app/src/main/java/com/servoc/app/ui/DeveloperR0Tab.java'
+      - 'app/src/main/java/com/servoc/app/ui/DeveloperTab.java'
+      - '.github/workflows/package-hr069-r1-arduino-source.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hazrob-rc2-arduino-working-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-and-package-arduino:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact RC2 source
+        uses: actions/checkout@v4
+
+      - name: Assert main controller revision and sketch structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "release/hazrob-0.10.2-rc2"
+          test -f firmware/HazRob/HazRob.ino
+          test -f firmware/HazRob/Config.h
+          grep -q 'ENGINEERING_REVISION\[\]="HR069-R1"' firmware/HazRob/Config.h
+          grep -q 'IR_GROUND_ACTIVE=HIGH' firmware/HazRob/Config.h
+          python3 tools/audit_0101_firmware_baseline.py
+          python3 tools/audit_0102_rc2_runtime_contract.py
+
+      - uses: arduino/setup-arduino-cli@v2
+
+      - name: Install pinned Arduino-ESP32 3.3.11
+        run: |
+          set -euo pipefail
+          arduino-cli config init
+          arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.11
+
+      - name: Compile exact Main ESP32 source before packaging
+        run: arduino-cli compile --fqbn esp32:esp32:esp32:PartitionScheme=huge_app --warnings all firmware/HazRob
+
+      - name: Prepare Arduino IDE conventional sketch directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p delivery/HazRob
+          cp firmware/HazRob/HazRob.ino delivery/HazRob/
+          cp firmware/HazRob/*.h firmware/HazRob/*.cpp delivery/HazRob/
+          cat > delivery/HazRob/FLASH_WITH_ARDUINO_IDE.txt <<EOF
+          HazRob 0.10.2 / HR069-R1 — MAIN ESP32 ARDUINO SKETCH
+          Working diagnostic source only; not physically validated for field deployment.
+          Exact source SHA: ${GITHUB_SHA}
+          Branch: ${GITHUB_REF_NAME}
+
+          1. Extract this ZIP completely. Open HazRob/HazRob.ino in Arduino IDE.
+          2. Install 'esp32 by Espressif Systems' board core version 3.3.11.
+          3. Board: ESP32 Dev Module. Partition Scheme: Huge APP.
+          4. Connect the MAIN ESP32 with USB; select the correct COM/serial Port.
+          5. Sketch > Verify/Compile, then Sketch > Upload.
+          6. Keep robot wheels raised and motors disabled until verified.
+          7. HC-SR04 ECHO requires 3.3V level shifting before GPIO39.
+          8. IR GPIO35: HIGH=ground; LOW=no ground. Physically calibrate manually.
+          9. Auto-stop is optional and OFF on first use. Test E-STOP/watchdog.
+          10. The Android HR069-R1 R0 editor changes local app normalization only.
+
+          All .ino/.h/.cpp files in this folder are from ONE Git SHA.
+          No HR068 or previous generation firmware source is mixed into this sketch.
+          EOF
+          cat > delivery/BUILD-IDENTITY.txt <<EOF
+          product=HazRob 0.10.2 Main ESP32
+          engineering_revision=HR069-R1
+          source_commit=${GITHUB_SHA}
+          branch=${GITHUB_REF_NAME}
+          arduino_esp32_core=3.3.11
+          fqbn=esp32:esp32:esp32:PartitionScheme=huge_app
+          status=WORKING_UNAPPROVED_PHYSICAL_VALIDATION_PENDING
+          EOF
+          cd delivery
+          ZIP="HazRob-0.10.2-HR069-R1-ESP32-Arduino-${GITHUB_SHA}.zip"
+          zip -q -r "$ZIP" HazRob BUILD-IDENTITY.txt
+          sha256sum "$ZIP" > SHA256SUMS.txt
+          unzip -l "$ZIP" | head -35
+          cat SHA256SUMS.txt
+
+      - name: Upload verified WORKING Arduino IDE source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: HazRob-0.10.2-HR069-R1-ESP32-Arduino-WORKING-${{ github.sha }}
+          path: |
+            delivery/HazRob-0.10.2-HR069-R1-ESP32-Arduino-*.zip
+            delivery/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
