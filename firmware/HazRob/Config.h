@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 namespace Cfg{
-constexpr char FW[]="HazRob 0.10.2 / HR069-R1";
+constexpr char FW[]="HazRob 0.10.2";
 constexpr char ENGINEERING_REVISION[]="HR069-R1";
 constexpr uint8_t API=4;
 constexpr char HW_PROFILE[]="hazrob-0.10.2-hr069-1r8mq-l298n6-batt-ultra-ir-ldr-env2-v2";
