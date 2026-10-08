@@ -24,6 +24,12 @@ public final class ExperimentQueries {
         try(Cursor c=db.getReadableDatabase().rawQuery(sql,null)){while(c.moveToNext())out.add(read(c));}
         return out;
     }
+    public static boolean isDeveloperMeasurementSession(ExperimentsDb db,String id){
+        if(db==null||id==null||id.trim().isEmpty())return false;
+        try(Cursor c=db.getReadableDatabase().rawQuery(
+                "SELECT 1 FROM measurement_sessions WHERE session_id=? AND operator_role='DEVELOPER' LIMIT 1",
+                new String[]{id.trim()})){return c.moveToFirst();}
+    }
     public static boolean isDeveloperReference(ExperimentsDb db,long id){
         if(db==null||id<=0)return false;
         String sql="SELECT 1 FROM experiments e JOIN measurement_sessions m ON m.session_id=e.session_id "+
