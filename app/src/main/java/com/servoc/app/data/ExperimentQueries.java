@@ -15,6 +15,16 @@ public final class ExperimentQueries {
     }
     private static final String COLS="id,ts,payload,protocol,analytics,approved,approved_ts,reference_name,session_id,capture_id,chemical_uid,reference_kind,known_ppm";
     public static List<Record> recent(ExperimentsDb db,int limit){List<Record> out=new ArrayList<>();int n=Math.max(1,Math.min(limit,1000));try(Cursor c=db.getReadableDatabase().rawQuery("SELECT "+COLS+" FROM experiments ORDER BY id DESC LIMIT "+n,null)){while(c.moveToNext())out.add(read(c));}return out;}
+    /** User-facing report list: only locally recorded USER field measurements. */
+    public static List<Record> recentUser(ExperimentsDb db,int limit){
+        List<Record> out=new ArrayList<>();int n=Math.max(1,Math.min(limit,1000));
+        String select="e."+COLS.replace(",",",e.");
+        String sql="SELECT "+select+" FROM experiments e JOIN measurement_sessions m ON m.session_id=e.session_id "+
+            "WHERE m.operator_role='USER' AND m.kind LIKE 'field_%' ORDER BY e.id DESC LIMIT "+n;
+        try(Cursor c=db.getReadableDatabase().rawQuery(sql,null)){while(c.moveToNext())out.add(read(c));}
+        return out;
+    }
+
     /** Developer-only laboratory/reference records; never show USER field records as publishable. */
     public static List<Record> recentDeveloper(ExperimentsDb db,int limit){
         List<Record> out=new ArrayList<>();int n=Math.max(1,Math.min(limit,1000));
