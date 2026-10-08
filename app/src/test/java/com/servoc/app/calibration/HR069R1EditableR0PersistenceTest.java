@@ -2,6 +2,7 @@ package com.servoc.app.calibration;
 
 import android.content.SharedPreferences;
 import org.json.JSONObject;
+import com.servoc.app.chemcore.ChemCoreLabQuality;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -132,5 +133,27 @@ public final class HR069R1EditableR0PersistenceTest {
         oldSample.put("valid",false);
         assertTrue(Double.isNaN(AcceptedR0Normalizer.recordedRatio("mq2",oldSample)));
         assertEquals(4.0,AcceptedR0Normalizer.availableRecordedRatio("mq2",oldSample),1e-12);
+    }
+
+    @Test public void labAndExportProvenanceTracksActualDeviceR0Revision()throws Exception{
+        Prefs p=new Prefs();SharedPreferences prefs=p.preferences();
+        try{
+            ManualR0Calibration.load(prefs);
+            assertTrue(ManualR0Calibration.save(prefs,"mq3",47.25));
+            ChemCoreLabQuality lab=ChemCoreLabQuality.evaluate(new JSONObject(),0,0);
+            JSONObject provenance=lab.toJson().getJSONObject("r0_standard");
+            assertEquals("mixed_device_r0",provenance.getString("source"));
+            assertEquals("mixed_device_r0_sessions",provenance.getString("campaign"));
+            assertEquals(7,provenance.getInt("field_baseline_channels"));
+            assertEquals(8,provenance.getInt("normalized_channels"));
+            assertEquals(0,provenance.getInt("samples"));
+            JSONObject channels=provenance.getJSONObject("per_sensor");
+            assertEquals(47.25,channels.getJSONObject("mq3").getDouble("r0"),1e-12);
+            assertEquals("manual_device_r0",channels.getJSONObject("mq3").getString("source"));
+            assertFalse(channels.getJSONObject("mq3").getBoolean("reference_gas_validated"));
+            assertEquals(FieldR0Baseline.SOURCE,channels.getJSONObject("mq2").getString("source"));
+            assertFalse(lab.toJson().getJSONObject("calibration_gate").getBoolean("field_r0_normalization_ready"));
+            assertTrue(lab.toJson().getJSONObject("calibration_gate").getBoolean("r0_normalization_ready"));
+        }finally{ManualR0Calibration.load(null);}
     }
 }
