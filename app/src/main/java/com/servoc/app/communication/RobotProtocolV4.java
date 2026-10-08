@@ -137,19 +137,18 @@ public final class RobotProtocolV4 {
             boolean ground=i.optBoolean("ground_detected",!firmwareCliff);
             boolean corrected=false;
 
-            // HR069-R1: physical LOW means NO GROUND, HIGH means possible ground.
-            // The old HIGH-only installation was constant at both floor and >70cm: do not
-            // show green/safe until firmware has observed both electrical levels.
-            boolean verified=i.optBoolean("verified",false);
-            if(raw==0||raw==1)ground=verified&&raw==1;
-            else ground=false;
+            // Operator-confirmed MH-B polarity: HIGH means ground; LOW means no ground.
+            // Firmware owns the debounce and exposed cliff/ground state.
+            // Do not introduce extra transition-verification or calibration gates here.
+            ground=i.optBoolean("ground_detected",raw==1);
+            if((raw==0||raw==1)&&firmwareActive>=0&&firmwareActive!=1)ground=raw==1;
             boolean cliff=!ground;
             boolean warning=cliff;
-
-            x.put("installed",true);x.put("verified",verified);x.put("status",!verified?"unverified":ground?"ground":"cliff");x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",ground);
+            x.put("installed",true);x.put("status",ground?"ground":"cliff");
+            x.put("warning",warning);x.put("cliff_warning",cliff);x.put("ground_detected",ground);
             x.put("raw_level",raw);x.put("level",raw);
             x.put("ground_active_level",1);x.put("firmware_ground_active_level",firmwareActive<0?JSONObject.NULL:firmwareActive);
-            x.put("polarity_corrected",corrected);x.put("polarity_source","hr069_r1_high_ground_verified_only");
+            x.put("polarity_corrected",firmwareActive>=0&&firmwareActive!=1);x.put("polarity_source","hr069_r1_high_ground");
             x.put("gpio",i.has("gpio")?i.optInt("gpio",35):35);
             x.put("reference_height_cm",finiteAny(i,"reference_height_cm","reference_cm"));x.put("assert_samples",Math.max(0,i.optInt("assert_samples",0)));x.put("clear_samples",Math.max(0,i.optInt("clear_samples",0)));
             x.put("auto_stop_enabled",safetyAutoStop);x.put("drive_interlock",safetyAutoStop&&cliff);
