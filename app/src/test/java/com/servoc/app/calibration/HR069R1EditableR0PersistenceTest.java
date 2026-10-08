@@ -102,4 +102,35 @@ public final class HR069R1EditableR0PersistenceTest {
         assertFalse(ManualR0Calibration.reset(p,"unknown"));
         assertEquals(8,ManualR0Calibration.keys().length);
     }
+
+    @Test public void changingDeviceR0NeverReinterpretsAnArchivedSession()throws Exception{
+        Prefs memory=new Prefs();SharedPreferences prefs=memory.preferences();
+        ManualR0Calibration.load(prefs);
+        // A real archived sample stores its measured Rs and its original R0.
+        JSONObject oldSample=new JSONObject().put("rs",80.0).put("r0",20.0)
+                .put("ratio",4.0).put("valid",true)
+                .put("r0_source","manual_device_r0")
+                .put("r0_provenance_complete",true);
+        double archived=AcceptedR0Normalizer.recordedRatio("mq2",oldSample);
+        assertEquals(4.0,archived,1e-12);
+        assertTrue(AcceptedR0Normalizer.usesRecordedDeviceR0("mq2",oldSample));
+
+        // New device R0 changes future live calculations but not the stored evidence.
+        assertTrue(ManualR0Calibration.save(prefs,"mq2",40.0));
+        assertEquals(2.0,AcceptedR0Normalizer.ratio("mq2",oldSample),1e-12);
+        assertEquals(archived,AcceptedR0Normalizer.recordedRatio("mq2",oldSample),1e-12);
+        assertEquals(archived,AcceptedR0Normalizer.availableRecordedRatio("mq2",oldSample),1e-12);
+        ManualR0Calibration.load(prefs);
+        assertEquals(archived,AcceptedR0Normalizer.recordedRatio("mq2",oldSample),1e-12);
+
+        // Legacy samples may use their recorded historical ratio, not today's R0.
+        JSONObject legacy=new JSONObject().put("rs",80.0).put("ratio",1.75).put("valid",true);
+        assertEquals(1.75,AcceptedR0Normalizer.recordedRatio("mq2",legacy),1e-12);
+        assertFalse(AcceptedR0Normalizer.usesRecordedDeviceR0("mq2",legacy));
+        JSONObject missing=new JSONObject().put("rs",80.0).put("valid",true);
+        assertTrue(Double.isNaN(AcceptedR0Normalizer.recordedRatio("mq2",missing)));
+        oldSample.put("valid",false);
+        assertTrue(Double.isNaN(AcceptedR0Normalizer.recordedRatio("mq2",oldSample)));
+        assertEquals(4.0,AcceptedR0Normalizer.availableRecordedRatio("mq2",oldSample),1e-12);
+    }
 }
