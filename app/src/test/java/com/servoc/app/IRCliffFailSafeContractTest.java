@@ -20,7 +20,7 @@ public class IRCliffFailSafeContractTest {
 
     @Test public void groundPresencePolarityAndDebounceAreExplicit() throws Exception {
         String cfg=source("firmware/HazRob/Config.h");
-        assertTrue(cfg.contains("IR_GROUND_ACTIVE=LOW"));
+        assertTrue(cfg.contains("IR_GROUND_ACTIVE=HIGH"));
         assertTrue(cfg.contains("IR_FAIL_SAFE_STARTUP=true"));
         assertTrue(cfg.contains("IR_CLIFF_ASSERT_SAMPLES=3"));
         assertTrue(cfg.contains("IR_CLIFF_CLEAR_SAMPLES=2"));
@@ -34,6 +34,7 @@ public class IRCliffFailSafeContractTest {
         assertTrue(hw.contains("irGroundDetected=true;irWarning=false"));
         assertTrue(hw.contains("irGroundDetected=false;irWarning=true"));
         assertTrue(hw.contains("Alerts::setIr(irWarning||ultraWarning)"));
+        assertTrue(!hw.contains("irVerified"));
     }
 
     @Test public void cliffBlocksNetForwardOnlyWhenAutoStopIsEnabled() throws Exception {
