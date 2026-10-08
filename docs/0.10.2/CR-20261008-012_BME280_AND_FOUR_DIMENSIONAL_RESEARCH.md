@@ -35,3 +35,13 @@ No changes to ESP32, ESP32-CAM, power supplies, hardware status flags, app, Chem
 - Confirm no authority/promotion claim, operational-test claim or M4 calibration inference.
 
 **Approval boundary:** User's instruction is to record facts and analyze current methods, not to deploy or certify a new algorithm.
+
+## Documentation execution checkpoint — 2026-10-08
+- **Recorded:** `docs/0.10.2/HR069_BME280_USER_CONFIRMED_STATUS_AND_4D_RESEARCH_2026-10-08.md` at commit `8aa90fab6bd18b94d3b33726f89d24eb1d27db6e`.
+- **Direct branch:** `release/hazrob-0.10.2-rc2`. No new branch for this update.
+- **Repository read-back:** both documentation files exist on the current branch; status text `USER_CONFIRMED_OPERATIONAL` and scientific non-M4 declaration verified.
+- **Diff verification:** starting SHA `5250ea769615ec82c5dc944576ea3042736b3db2` vs `8aa90fab6bd18b94d3b33726f89d24eb1d27db6e`: exactly two added Markdown files, zero existing files modified or deleted — PASS.
+- **Independent BME280 instrument check:** not performed; operator-confirmed only.
+- **4D model training/testing:** not performed; literature/source and code inspection only.
+- **Runtime/calibration changes:** none.
+- **Status:** Documentation completed; research-only findings, no operational/M3/M4 promotion or scientific parameter approval.
