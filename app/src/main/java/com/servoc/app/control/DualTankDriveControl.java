@@ -7,14 +7,14 @@ import android.view.MotionEvent;
 import android.view.View;
 
 /**
- * Wide latching vertical speed control for one physical side of the HazRob differential drive.
- * Top is +100, centre 0 and bottom -100. The selected value remains active after finger-up so
- * the operator can independently set both sides. Mode changes, reset and E-STOP still force 0.
+ * Spring-centred vertical speed control for one physical side of the HazRob differential drive.
+ * Top is +100, centre 0 and bottom -100. Releasing this control ALWAYS emits 0
+ * for its physical side, without changing the other independent tank slider.
  */
 public final class DualTankDriveControl extends View {
     public interface Listener { void onCommand(int value); }
     private final Paint track=new Paint(Paint.ANTI_ALIAS_FLAG),fill=new Paint(Paint.ANTI_ALIAS_FLAG),knob=new Paint(Paint.ANTI_ALIAS_FLAG),text=new Paint(Paint.ANTI_ALIAS_FLAG);
-    private int value=0; private Listener listener;
+    private int value=0; private int pointerId=-1; private Listener listener;
 
     public DualTankDriveControl(Context c){
         super(c);setClickable(true);setFocusable(true);
@@ -36,11 +36,17 @@ public final class DualTankDriveControl extends View {
     }
     @Override public boolean onTouchEvent(MotionEvent e){
         int a=e.getActionMasked();
-        if(a==MotionEvent.ACTION_DOWN){if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);update(e.getY());return true;}
-        if(a==MotionEvent.ACTION_MOVE){update(e.getY());return true;}
-        if(a==MotionEvent.ACTION_UP){update(e.getY());performClick();if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);return true;}
-        if(a==MotionEvent.ACTION_CANCEL){if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);setValue(0,true);return true;}
+        if(a==MotionEvent.ACTION_DOWN){pointerId=e.getPointerId(0);if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(true);update(e.getY(0));return true;}
+        if(a==MotionEvent.ACTION_MOVE){int ix=e.findPointerIndex(pointerId);if(ix<0){release();return true;}update(e.getY(ix));return true;}
+        if(a==MotionEvent.ACTION_POINTER_UP){if(e.getPointerId(e.getActionIndex())==pointerId)release();return true;}
+        if(a==MotionEvent.ACTION_UP){performClick();release();return true;}
+        if(a==MotionEvent.ACTION_CANCEL){release();return true;}
         return true;
+    }
+    private void release(){
+        pointerId=-1;
+        if(getParent()!=null)getParent().requestDisallowInterceptTouchEvent(false);
+        setValue(0,true); // fail-neutral: sends zero even if the visual control already reads zero.
     }
     private void update(float py){float top=dp(25),bottom=getHeight()-dp(25),mid=(top+bottom)/2f,half=(bottom-top)/2f;float y=Math.max(top,Math.min(bottom,py));setValue(Math.round((mid-y)*100f/half),true);}
     @Override public boolean performClick(){super.performClick();return true;}
