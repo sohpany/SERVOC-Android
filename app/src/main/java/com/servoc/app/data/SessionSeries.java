@@ -77,6 +77,12 @@ public final class SessionSeries {
                     double storedR0=q.optDouble("r0",Double.NaN),storedRs=q.optDouble("rs",Double.NaN);
                     q.put("historical_ratio_source",Double.isFinite(storedR0)&&storedR0>0
                         &&Double.isFinite(storedRs)&&storedRs>0?"persisted_rs_r0":"persisted_ratio");
+                    String recordedSource=q.optString("r0_source","");
+                    boolean deviceLocal=Double.isFinite(storedR0)&&storedR0>0
+                        &&("manual_device_r0".equals(recordedSource)||"field_clean_air_r0".equals(recordedSource))
+                        &&(q.optBoolean("r0_provenance_complete",false)
+                          ||(!q.optString("r0_session","").isEmpty()&&!q.optString("r0_utc","").isEmpty()));
+                    q.put("r0_device_local",deviceLocal);
                     q.put("r0_centrally_publishable",false);
                     // Do not claim manual R0, field provenance or M4 which were not actually captured.
                 }
