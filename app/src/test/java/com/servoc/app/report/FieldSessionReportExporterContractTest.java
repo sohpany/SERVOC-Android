@@ -16,6 +16,16 @@ public class FieldSessionReportExporterContractTest {
   assertFalse(s.contains("SessionSeries.nearest"));assertFalse(s.contains("ORDER BY ABS"));
  }
 
+ @Test public void excelRemainsAvailableBeforeDerivedChemCoreExperiment()throws Exception {
+  String facade=src("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
+  String workbook=src("src/main/java/com/servoc/app/report/SmartFieldSessionXlsxWriter.java");
+  assertFalse(facade.contains("if(b.records.isEmpty())throw"));
+  assertTrue(facade.contains("SmartFieldSessionXlsxWriter.write(out,db,b,chemicals)"));
+  assertTrue(workbook.contains("sheets.add(new SmartXlsxPackage.Sheet(\"بيانات الجلسة\""));
+  assertTrue(workbook.contains("sheets.add(new SmartXlsxPackage.Sheet(\"السلسلة الزمنية\""));
+  assertTrue(workbook.contains("g.row(\"Derived experiment records\",b.records.size())"));
+ }
+
  @Test public void pdfIsCompactFourToFivePagesAndXlsxStaysDetailed() throws Exception {
   String f=src("src/main/java/com/servoc/app/report/FieldSessionReportExporter.java");
   String s=src("src/main/java/com/servoc/app/report/SmartFieldSessionPdfWriter.java");
