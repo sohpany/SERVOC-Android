@@ -37,9 +37,9 @@ constexpr uint8_t ULTRA_TRIG_PIN=23;      // front ultrasonic trigger
 constexpr uint8_t ULTRA_ECHO_PIN=39;      // input only; reduce 5 V echo to <=3.3 V
 
 // The configured active level represents GROUND PRESENT, not an obstacle-ahead event.
-// Per verified operator requirement LOW=no ground/cliff; HIGH=surface reflection.
-// HIGH alone is NEVER trusted until the input has actually transitioned LOW/HIGH during boot.
-// A stationary HIGH-only electrical input remains unverified and must not be shown as safe.
+// Operator-calibrated MH-B output: HIGH = ground present; LOW = ground absent/cliff.
+// There is no automatic validation of sensor wiring or calibration.
+// Verify the detector manually before enabling automatic forward-stop.
 constexpr uint8_t IR_GROUND_ACTIVE=HIGH;
 constexpr bool IR_FAIL_SAFE_STARTUP=true;
 constexpr uint8_t IR_CLIFF_ASSERT_SAMPLES=3;
