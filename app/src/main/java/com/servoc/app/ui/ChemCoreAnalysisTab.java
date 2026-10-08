@@ -9,7 +9,6 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import com.servoc.app.calibration.FieldR0Baseline;
 import com.servoc.app.chemcore.ChemCoreAnalysisPresenter;
 import com.servoc.app.chemcore.ChemCoreDecision;
 import com.servoc.app.chemcore.ChemCoreDecisionRepository;
@@ -131,7 +130,7 @@ public final class ChemCoreAnalysisTab {
             }
             ChemCoreLibraryManager.Status lib=libraries.status();lastResult=lastResult.withLibraryProvenance(lib.version,lib.sha256,lib.sourceCommit);
             ChemCoreLabQuality lab=ChemCoreLabQuality.evaluate(host.latestDiagnostics(),host.driveLeft(),host.driveRight(),host.database());lastResult=lastResult.withLabQuality(lab.toJson());
-            ChemCoreDecisionRepository decisionRepo=new ChemCoreDecisionRepository(host.database());decisionRepo.save(Math.max(0,Math.round(x.durationSeconds*1000.0)),lastResult);ChemCoreP10SessionFinalizer.finalizeAndAttach(host.database(),attachedSessionId,lastResult,libraries.activePayload(),runtime.profile());persistAnalyticalExperiment(lastResult);
+            ChemCoreDecisionRepository decisionRepo=new ChemCoreDecisionRepository(host.database());decisionRepo.save(Math.max(0,Math.round(x.durationSeconds*1000.0)),lastResult);ChemCoreP10SessionFinalizer.finalizeAndAttach(host.database(),attachedSessionId,lastResult,libraries.activePayload(),runtime.profile());persistAnalyticalExperiment(lastResult,lab);
             runtime.finish(lastResult);if(runtime.snapshot().state==ChemCoreSessionController.State.REPORT)runtime.advance(ChemCoreSessionController.Event.REPORT_SAVED,true,"{\"saved\":true}");primaryAnalysisElapsedMs=Math.max(0,SystemClock.elapsedRealtime()-computeStarted);
             awaitingRecoveryRemoval=true;recoveryConfirmed=false;stability.reset();renderResult(x,lastResult);safetyPanel.refreshNow();status.setText(lastResult.outcome==ChemCoreDecision.Outcome.UNKNOWN?"رفض Open-Set الهوية؛ القرار الأولي محفوظ. أزل العينة وابدأ Recovery لإكمال نتيجة الجلسة.":"تم حفظ القرار الأولي. أزل العينة ثم ابدأ Recovery لإكمال نتيجة الجلسة العميقة.");
         }catch(Exception e){runtime.fail("{\"reason\":\"feature_or_inference_failure\"}");lastResult=null;active=false;status.setText("فشل التحليل: "+e.getMessage());}
@@ -150,8 +149,27 @@ public final class ChemCoreAnalysisTab {
         }catch(Exception e){runtime.fail("{\"reason\":\"recovery_dynamics_failure\"}");active=false;status.setText("فشل تثبيت نتيجة Recovery: "+e.getMessage());}
     }
 
-    private void persistAnalyticalExperiment(ChemCoreResultEnvelope r){
-        try{JSONObject d=host.latestDiagnostics(),a=new JSONObject();a.put("analysis_version","chemcore-v4-deep-session");a.put("chemcore_schema",ChemCoreResultEnvelope.SCHEMA);a.put("session_dynamics_schema",ChemCoreSessionDynamics.SCHEMA);a.put("r0_campaign",FieldR0Baseline.SESSION);ContentValues v=new ContentValues();v.put("ts",isoNow());v.put("payload",d==null?"{}":d.toString());v.put("protocol","HazRob 0.10.2 • controlled ChemCore deep analytical session • R0 "+FieldR0Baseline.SESSION);v.put("analytics",a.toString());v.put("session_id",attachedSessionId);v.put("reference_kind","chemcore_controlled_analysis");if(r.chemicalUid!=null)v.put("chemical_uid",r.chemicalUid);host.database().getWritableDatabase().insert("experiments",null,v);}catch(Exception ignored){}
+    private void persistAnalyticalExperiment(ChemCoreResultEnvelope r,ChemCoreLabQuality quality){
+        try{
+            JSONObject d=host.latestDiagnostics(),a=new JSONObject();
+            JSONObject r0=quality==null?null:quality.toJson().optJSONObject("r0_standard");
+            String campaign=r0==null?"unknown_device_r0":r0.optString("campaign","unknown_device_r0");
+            String source=r0==null?"unavailable":r0.optString("source","unavailable");
+            a.put("analysis_version","chemcore-v4-deep-session");
+            a.put("chemcore_schema",ChemCoreResultEnvelope.SCHEMA);
+            a.put("session_dynamics_schema",ChemCoreSessionDynamics.SCHEMA);
+            a.put("r0_campaign",campaign);a.put("r0_source",source);
+            if(r0!=null)a.put("r0_standard",new JSONObject(r0.toString()));
+            ContentValues v=new ContentValues();
+            v.put("ts",isoNow());
+            v.put("payload",d==null?"{}":d.toString());
+            v.put("protocol","HazRob 0.10.2 • controlled ChemCore deep analytical session • R0 "+campaign);
+            v.put("analytics",a.toString());
+            v.put("session_id",attachedSessionId);
+            v.put("reference_kind","chemcore_controlled_analysis");
+            if(r.chemicalUid!=null)v.put("chemical_uid",r.chemicalUid);
+            host.database().getWritableDatabase().insert("experiments",null,v);
+        }catch(Exception ignored){}
     }
 
     private void advanceEvidenceState(ChemCoreResultEnvelope result,ChemCoreStableKnowledgeReader.OpenSetArtifact artifact,ChemCoreOpenSetGate.Result openResult){if(result==null){runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"missing_result\"}");return;}if(artifact==null||openResult==null){runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"validated_open_set_model_not_bound\"}");return;}if(result.outcome==ChemCoreDecision.Outcome.INVALID_MEASUREMENT||result.outcome==ChemCoreDecision.Outcome.INSUFFICIENT_EVIDENCE){runtime.advance(ChemCoreSessionController.Event.EVIDENCE_INSUFFICIENT,true,"{\"reason\":\"inference_evidence_insufficient\"}");return;}runtime.advance(ChemCoreSessionController.Event.IDENTITY_READY,true,"{\"identity_model\":\"stable\"}");if(!openResult.accepted||result.outcome==ChemCoreDecision.Outcome.UNKNOWN){runtime.advance(ChemCoreSessionController.Event.OPEN_SET_REJECTED,true,"{\"distance\":"+openResult.distance+",\"threshold\":"+openResult.threshold+"}");return;}runtime.advance(ChemCoreSessionController.Event.OPEN_SET_ACCEPTED,true,"{\"distance\":"+openResult.distance+",\"threshold\":"+openResult.threshold+"}");runtime.advance(ChemCoreSessionController.Event.QUANTIFICATION_READY,true,"{\"quantitative_outcome\":\""+result.outcome.name()+"\"}");if(result.outcome==ChemCoreDecision.Outcome.POSSIBLE_MIXTURE_OR_INTERFERENCE)runtime.advance(ChemCoreSessionController.Event.MIXTURE_SUSPECTED,true,"{\"guard\":\"residual\"}");else runtime.advance(ChemCoreSessionController.Event.CONSISTENCY_ACCEPTED,true,"{\"guard\":\"passed_or_nonquantitative\"}");}
