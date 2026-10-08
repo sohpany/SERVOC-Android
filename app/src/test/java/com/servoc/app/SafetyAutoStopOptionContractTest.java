@@ -1,71 +1,68 @@
 package com.servoc.app;
 
 import org.junit.Test;
-
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import static org.junit.Assert.*;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-/** Source-level guard for RC2: IR/Echo warnings stay active while automatic motion stopping is disabled. */
+/** HR069-R1: E-STOP/watchdog independent, IR/Echo auto-stop is explicit/persistent. */
 public class SafetyAutoStopOptionContractTest {
-    private static String source(String relative) throws Exception {
-        Path p=Paths.get(relative);
-        if(!Files.exists(p))p=Paths.get("app").resolve(relative);
-        if(!Files.exists(p))p=Paths.get("..").resolve(relative);
+    private static String source(String path)throws Exception{
+        Path p=Paths.get(path);if(!Files.exists(p))p=Paths.get("app").resolve(path);
+        if(!Files.exists(p))p=Paths.get("..").resolve(path);
         return new String(Files.readAllBytes(p),StandardCharsets.UTF_8);
     }
 
-    @Test public void firmwareForcesAutoStopOffAndPersistsThatState() throws Exception {
-        String options=source("firmware/HazRob/SafetyOptions.cpp");
-        assertTrue(options.contains("safetyNv.begin(\"hazsafe\",false)"));
-        assertTrue(options.contains("safetyNv.putBool(\"autoStop\",false)"));
-        assertTrue(options.contains("bool safetyAutoStopEnabled()"));
-        assertTrue(options.contains("return false;"));
-        assertFalse(options.contains("putBool(\"autoStop\",enabled)"));
+    @Test public void firmwarePersistsOperatorSettingWithDefaultOff()throws Exception{
+        String s=source("firmware/HazRob/SafetyOptions.cpp");
+        assertTrue(s.contains("safetyNv.begin(\"hazsafe\",false)"));
+        assertTrue(s.contains("safetyNv.getBool(\"autoStop\",false)"));
+        assertTrue(s.contains("safetyNv.putBool(\"autoStop\",enabled)"));
+        assertTrue(s.contains("return autoStop;"));
+        assertFalse(s.contains("(void)enabled"));
     }
 
-    @Test public void warningsRemainIndependentFromBlocking() throws Exception {
+    @Test public void firmwareHighMeansGroundAndLowMeansNoGround()throws Exception{
+        String cfg=source("firmware/HazRob/Config.h");
         String hw=source("firmware/HazRob/Hardware.cpp");
-        assertTrue(hw.contains("Alerts::setIr(irWarning||ultraWarning)"));
-        assertTrue(hw.contains("forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop)"));
-        assertTrue(hw.contains("forward_hazard"));
-        assertTrue(hw.contains("stop_zone"));
+        assertTrue(cfg.contains("IR_GROUND_ACTIVE=HIGH"));
+        assertTrue(hw.contains("bool groundNow=irLevel==Cfg::IR_GROUND_ACTIVE"));
+        assertTrue(hw.contains("irGroundDetected=false;irWarning=true"));
+        assertFalse(hw.contains("irVerified"));
+        assertFalse(hw.contains("irSeenHigh"));
     }
 
-    @Test public void compatibilityEndpointsRemainButCannotReEnableAutomaticStopping() throws Exception {
-        String ino=source("firmware/HazRob/HazRob.ino");
+    @Test public void directAndRemoteSafetyControlsRemainAvailable()throws Exception{
+        String web=source("firmware/HazRob/HazRob.ino");
         String mqtt=source("firmware/HazRob/RemoteMqtt.cpp");
         String api=source("app/src/main/java/com/servoc/app/communication/RobotApi.java");
-        String options=source("firmware/HazRob/SafetyOptions.cpp");
-        assertTrue(ino.contains("/safety/auto_stop"));
-        assertTrue(ino.contains("warnings_active"));
+        assertTrue(web.contains("web.on(\"/safety/auto_stop\""));
+        assertTrue(web.contains("safetyAutoStopSet(v==\"1\",true)"));
         assertTrue(mqtt.contains("safety_auto_stop_get"));
         assertTrue(mqtt.contains("safety_auto_stop_set"));
         assertTrue(api.contains("safetyAutoStopStatus()"));
         assertTrue(api.contains("setSafetyAutoStop(boolean enabled)"));
-        assertTrue(options.contains("(void)enabled"));
-        assertTrue(options.contains("safetyNv.putBool(\"autoStop\",false)"));
     }
 
-    @Test public void settingsShowWarningOnlyPolicyAndDoNotOfferEnablePath() throws Exception {
+    @Test public void settingsAllowOperatorEnableOrDisable()throws Exception{
         String settings=source("app/src/main/java/com/servoc/app/ui/SettingsTab.java");
-        assertTrue(settings.contains("التوقف التلقائي للحركة: ملغي — تنبيه فقط"));
-        assertTrue(settings.contains("safetyAutoStop.setEnabled(false)"));
-        assertFalse(settings.contains("تفعيل التوقف التلقائي عند خطر السقوط أو الاصطدام"));
-        assertFalse(settings.contains("setSafetyAutoStop(autoStop)"));
+        assertTrue(settings.contains("private void applySafetyAutoStop(boolean enabled)"));
+        assertTrue(settings.contains("host.robotApi().setSafetyAutoStop(enabled)"));
+        assertTrue(settings.contains("showSafetyAutoStop(status.optBoolean(\"enabled\",false))"));
+        assertFalse(settings.contains("host.robotApi().setSafetyAutoStop(false)"));
+        String hw=source("firmware/HazRob/Hardware.cpp");
+        assertTrue(hw.contains("forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop)"));
     }
 
-    @Test public void emergencyStopAndWatchdogRemainIndependent() throws Exception {
+    @Test public void emergencyStopAndWatchdogStayIndependent()throws Exception{
         String hw=source("firmware/HazRob/Hardware.cpp");
-        String ino=source("firmware/HazRob/HazRob.ino");
+        String web=source("firmware/HazRob/HazRob.ino");
         assertTrue(hw.contains("CONTROL_COMMAND_TIMEOUT_MS"));
-        assertTrue(ino.contains("/estop"));
-        assertTrue(ino.contains("/motion/stop"));
-        assertTrue(ino.contains("watchdog_independent"));
-        assertTrue(ino.contains("estop_independent"));
+        assertTrue(web.contains("/estop"));
+        assertTrue(web.contains("/motion/stop"));
+        assertTrue(web.contains("watchdog_independent"));
+        assertTrue(web.contains("estop_independent"));
     }
 }
