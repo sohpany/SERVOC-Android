@@ -3,7 +3,7 @@
 
 The gate locks the current tunable differential-drive geometry across the Android joystick,
 wheel wrapper, pure mixer, main-firmware side mapping, Direct HTTP and Remote MQTT transports.
-Automatic IR/ultrasonic movement blocking remains forced OFF in HR069 RC2; warnings, E-stop and
+Automatic IR/ultrasonic movement blocking is operator-selectable, default OFF in HR069-R1; warnings, E-stop and
 the stale-command watchdog remain independent. Physical wheel acceptance remains a post-flash gate.
 """
 from pathlib import Path
@@ -99,11 +99,11 @@ def main():
 
     req(hw,"void driveSet(int l,int r){","firmware drive entry")
     req(hw,"bool forwardRequested=(requestedL+requestedR)>0.1f;","front safety forward classification")
-    req(hw,"bool forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop);","front hazard gate remains behind disabled authority")
+    req(hw,"bool forwardBlocked=safetyAutoStopEnabled()&&(irWarning||ultraStop);","front hazard gate remains behind operator-selectable authority")
     req(hw,"if(forwardBlocked&&forwardRequested){curL=curR=0;}else{curL=requestedL;curR=requestedR;}","forward-only block implementation")
-    req(safety,'safetyNv.putBool("autoStop",false)',"automatic hazard-stop persisted OFF")
-    req(safety,'return false;',"automatic hazard-stop runtime authority OFF")
-    req(safety,'if(persist)safetyNv.putBool("autoStop",false)',"compatibility setter cannot enable auto-stop")
+    req(safety,'safetyNv.getBool("autoStop",false)',"automatic hazard-stop default OFF")
+    req(safety,'return autoStop;',"automatic hazard-stop operator-selected")
+    req(safety,'if(persist)safetyNv.putBool("autoStop",enabled)',"operator setter persists auto-stop")
     req(hw,"cmdAt=millis();staleStop=false;driveWrite();","firmware drive watchdog refresh")
     req(hw,"motorWrite(Cfg::DRIVE_L_EN,Cfg::DRIVE_L_IN1,Cfg::DRIVE_L_IN2,curL,Cfg::DRIVE_L_INVERT)","left output")
     req(hw,"motorWrite(Cfg::DRIVE_R_EN,Cfg::DRIVE_R_IN1,Cfg::DRIVE_R_IN2,curR,Cfg::DRIVE_R_INVERT)","right output")
@@ -124,7 +124,7 @@ def main():
     req(remote_policy,"MIN_PUBLISH_MS=40","remote publish ceiling")
 
     print("HazRob 0.10.2 steering contract: PASS")
-    print("tunable inside-side steering (default turn=40%, pivot=60%); hazard auto-stop=FORCED-OFF; warnings active; Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
+    print("tunable inside-side steering (default turn=40%, pivot=60%); hazard auto-stop=OPERATOR-SELECTABLE; warnings active; Direct keepalive=150ms; timeout=250ms; watchdog=500ms; speed default=100%; physical acceptance=PENDING")
 
     if os.environ.get("HR048_SKIP_INTEGRATION") != "1":
         from audit_hr048_integration_contract import main as integration_main
