@@ -26,7 +26,7 @@ def main() -> int:
     for needle in ["ENV_SDA=13","ENV_SCL=14","SDA=21,SCL=22","ENV_I2C_HZ=100000"]: req(cfg,needle,"ENV/ADS GPIO authority")
     req(hw,"TwoWire EnvWire(1)","second ESP32 I2C controller");req(hw,"EnvWire.begin(Cfg::ENV_SDA,Cfg::ENV_SCL)","ENV bus startup");req(hw,"envAck76=envProbe(0x76)","ENV bus probe");req(profile,"ENV_I2C_SDA_GPIO=13","Android ENV SDA");req(profile,"ENV_I2C_SCL_GPIO=14","Android ENV SCL")
 
-    req(cfg,"IR_GROUND_ACTIVE=LOW","IR ground polarity candidate");req(cfg,"IR_CLIFF_ASSERT_SAMPLES=3","IR persistence");req(cfg,"IR_REFERENCE_HEIGHT_CM=8.0f","IR 8 cm physical reference")
+    req(cfg,"IR_GROUND_ACTIVE=HIGH","IR operator-calibrated HIGH-ground polarity");req(cfg,"IR_CLIFF_ASSERT_SAMPLES=3","IR persistence");req(cfg,"IR_REFERENCE_HEIGHT_CM=4.0f","IR 4 cm mounting reference")
     req(hw,"groundNow=irLevel==Cfg::IR_GROUND_ACTIVE","IR ground semantics");req(hw,"irWarning=true","IR cliff assertion");req(hw,'\\"cliff_warning\\"',"IR telemetry cliff state");req(hw,'\\"ground_detected\\"',"IR telemetry ground state")
     req(control_tab,'irBadge.setText(cliff?"⚠ لا توجد أرضية":ground?"أرض ●":"أرض ؟")',"drive cliff UX")
     req(control_tab,'optBoolean("cliff_warning",ir.optBoolean("warning",false))',"drive cliff telemetry authority")
