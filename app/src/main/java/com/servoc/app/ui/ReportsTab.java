@@ -20,6 +20,8 @@ import com.servoc.app.chemcore.ChemCoreDecisionRepository;
 import com.servoc.app.data.ExperimentQueries;
 import com.servoc.app.data.SessionSeries;
 import com.servoc.app.field.FieldSessionRepository;
+import com.servoc.app.SiteSummaryExportActivity;
+import java.util.ArrayList;
 import com.servoc.app.report.AnalyticalCharts;
 
 import org.json.JSONArray;
@@ -44,7 +46,10 @@ public final class ReportsTab {
     private final LinearLayout root,list;
     private final TextView archiveCard,sessionCard,decisionCard,qualityCard,safetyCard,candidateCard,chartStatus,technical;
     private final Button pdf,xlsx,technicalToggle;
-    private final Spinner chartSelector;
+    private final Spinner chartSelector,siteSelector,fieldSelector;
+    private final List<FieldSessionRepository.Site> scopeSites=new ArrayList<>();
+    private final List<FieldSessionRepository.FieldSession> scopeSessions=new ArrayList<>();
+    private String chosenSiteId="",chosenSessionId="";
     private final ImageView chartView;
     private final ChemCoreDecisionRepository decisions;
     private final FieldSessionRepository fieldSessions;
@@ -54,14 +59,36 @@ public final class ReportsTab {
     public ReportsTab(Context c,HazRobHost host){
         this.host=host;decisions=new ChemCoreDecisionRepository(host.database());fieldSessions=new FieldSessionRepository(host.database());
         scroll=new ScrollView(c);scroll.setFillViewport(true);root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,12));root.setBackgroundColor(BG);scroll.addView(root);
-        root.addView(UiKit.title(c,"التقارير الذكية • HR069"),UiKit.full(c));
+        root.addView(UiKit.title(c,"التقارير الذكية • HR069-R1"),UiKit.full(c));
+        TextView scopeHint=UiKit.small(c,"نطاق التقرير: اختر الموقع، ثم جميع جلساته أو جلسة واحدة. لا يجمع التطبيق جلسات مختارة في تقرير جزئي.");
+        scopeHint.setTextColor(MUTED);root.addView(scopeHint,UiKit.full(c));
+        root.addView(UiKit.small(c,"الموقع"),UiKit.full(c));
+        siteSelector=new Spinner(c);root.addView(siteSelector,UiKit.full(c));
+        root.addView(UiKit.small(c,"الجلسة / نطاق التقرير"),UiKit.full(c));
+        fieldSelector=new Spinner(c);root.addView(fieldSelector,UiKit.full(c));
+        siteSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
+                if(position<0||position>=scopeSites.size())return;
+                String next=scopeSites.get(position).id;if(!next.equals(chosenSiteId))chosenSessionId="";
+                chosenSiteId=next;refreshSessionScope();
+            }
+            public void onNothingSelected(AdapterView<?> parent){}
+        });
+        fieldSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
+            public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
+                chosenSessionId=position>0&&position<=scopeSessions.size()?scopeSessions.get(position-1).id:"";
+                updateExportButtonLabels();
+            }
+            public void onNothingSelected(AdapterView<?> parent){}
+        });
+
 
         archiveCard=card(c,"السجل • لا توجد قياسات محفوظة");root.addView(archiveCard,UiKit.full(c));
         LinearLayout r1=UiKit.hbox(c);sessionCard=kpi(c,"الجلسة\n—");decisionCard=kpi(c,"القرار\n—");r1.addView(sessionCard,UiKit.weight(1));r1.addView(decisionCard,UiKit.weight(1));root.addView(r1,UiKit.full(c));
         LinearLayout r2=UiKit.hbox(c);qualityCard=kpi(c,"الجودة\n—");safetyCard=kpi(c,"السلامة\n—");r2.addView(qualityCard,UiKit.weight(1));r2.addView(safetyCard,UiKit.weight(1));root.addView(r2,UiKit.full(c));
         candidateCard=card(c,"المرشحون • —");candidateCard.setTextIsSelectable(true);root.addView(candidateCard,UiKit.full(c));
 
-        LinearLayout actions=UiKit.hbox(c);pdf=UiKit.button(c,"تصدير PDF");pdf.setOnClickListener(v->export("pdf"));actions.addView(pdf,UiKit.weight(1));xlsx=UiKit.button(c,"تصدير Excel");xlsx.setOnClickListener(v->export("xlsx"));actions.addView(xlsx,UiKit.weight(1));root.addView(actions,UiKit.full(c));
+        LinearLayout actions=UiKit.hbox(c);pdf=UiKit.button(c,"تصدير PDF");pdf.setOnClickListener(v->exportScope("pdf"));actions.addView(pdf,UiKit.weight(1));xlsx=UiKit.button(c,"تصدير Excel");xlsx.setOnClickListener(v->exportScope("xlsx"));actions.addView(xlsx,UiKit.weight(1));root.addView(actions,UiKit.full(c));
 
         TextView chartTitle=UiKit.small(c,"الرسوم التحليلية • يعرض التطبيق فقط الرسوم التي تتوفر لها بيانات مسجلة فعلية");chartTitle.setTextColor(MUTED);root.addView(chartTitle,UiKit.full(c));
         chartSelector=new Spinner(c);chartSelector.setAdapter(new ArrayAdapter<String>(c,android.R.layout.simple_spinner_dropdown_item,CHARTS));chartSelector.setBackgroundColor(0xFFF5F5F5);root.addView(chartSelector,UiKit.full(c));
@@ -77,8 +104,53 @@ public final class ReportsTab {
     }
 
     public View view(){return scroll;}
+    public void selectScope(String siteId,String sessionId){
+        chosenSiteId=siteId==null?"":siteId;
+        chosenSessionId=sessionId==null?"":sessionId;
+        refresh();
+    }
+    private void refreshSiteScope(){
+        List<FieldSessionRepository.Site> sites=fieldSessions.sites();
+        scopeSites.clear();scopeSites.addAll(sites);
+        List<String> names=new ArrayList<>();int selected=0;
+        for(int i=0;i<sites.size();i++){names.add(sites.get(i).name);if(sites.get(i).id.equals(chosenSiteId))selected=i;}
+        if(sites.isEmpty()){chosenSiteId="";scopeSessions.clear();chosenSessionId="";names.add("لا توجد مواقع");}
+        else chosenSiteId=sites.get(selected).id;
+        siteSelector.setAdapter(new ArrayAdapter<String>(scroll.getContext(),android.R.layout.simple_spinner_dropdown_item,names));
+        siteSelector.setEnabled(!sites.isEmpty());siteSelector.setSelection(selected);
+        refreshSessionScope();
+    }
+    private void refreshSessionScope(){
+        scopeSessions.clear();if(!chosenSiteId.isEmpty())scopeSessions.addAll(fieldSessions.sessionsForSite(chosenSiteId));
+        List<String> names=new ArrayList<>();names.add("كل جلسات الموقع • تقرير الموقع");
+        int selected=0;
+        for(int i=0;i<scopeSessions.size();i++){
+            FieldSessionRepository.FieldSession f=scopeSessions.get(i);
+            names.add(f.name+(f.active()?" • نشطة":" • منتهية"));
+            if(f.id.equals(chosenSessionId))selected=i+1;
+        }
+        chosenSessionId=selected>0?scopeSessions.get(selected-1).id:"";
+        fieldSelector.setAdapter(new ArrayAdapter<String>(scroll.getContext(),android.R.layout.simple_spinner_dropdown_item,names));
+        fieldSelector.setSelection(selected);
+        fieldSelector.setEnabled(!chosenSiteId.isEmpty());
+        updateExportButtonLabels();
+    }
+    private void updateExportButtonLabels(){
+        if(pdf==null||xlsx==null)return;
+        boolean hasSite=!chosenSiteId.isEmpty();
+        pdf.setEnabled(hasSite);xlsx.setEnabled(hasSite);
+        pdf.setText(chosenSessionId.isEmpty()?"PDF الذكي للموقع":"PDF الذكي للجلسة");
+        xlsx.setText(chosenSessionId.isEmpty()?"Excel الذكي للموقع":"Excel الذكي للجلسة");
+    }
+    private void exportScope(String format){
+        if(chosenSiteId.isEmpty()){host.showToast("اختر موقعًا أولًا");return;}
+        if(chosenSessionId.isEmpty())SiteSummaryExportActivity.start(scroll.getContext(),chosenSiteId,format);
+        else host.requestFieldSessionExport(format,chosenSessionId);
+    }
+
 
     public void refresh(){
+        refreshSiteScope();
         list.removeAllViews();List<ExperimentQueries.Record> rows=ExperimentQueries.recent(host.database(),100);archiveCard.setText("السجل • "+host.database().count()+" قياس محفوظ • المعروض "+rows.size());
         if(rows.isEmpty()){selectedId=-1;setEnabled(false);sessionCard.setText("الجلسة\n—");decisionCard.setText("القرار\n—");qualityCard.setText("الجودة\n—");safetyCard.setText("السلامة\n—");candidateCard.setText("المرشحون • —");technical.setText("لا توجد بيانات تقرير.");chartView.setImageDrawable(null);chartStatus.setText("المخطط • لا توجد جلسة محفوظة");return;}
         if(selectedId<0)selectedId=rows.get(0).id;boolean found=false;
@@ -92,7 +164,7 @@ public final class ReportsTab {
     private void showSelected(){
         ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){setEnabled(false);return;}setEnabled(true);
         JSONObject d=json(r.payload),m=d.optJSONObject("measurement"),e=d.optJSONObject("env"),relay=d.optJSONObject("relay"),a=json(r.analytics);String sid=r.sessionId==null?"":r.sessionId.trim();JSONObject cc=sid.isEmpty()?null:decisions.latestPayloadForSession(sid);SessionSeries.Series ss=SessionSeries.forExperiment(host.database(),r);
-        String fieldSessionId=sid.isEmpty()?"":fieldSessions.fieldSessionIdForMeasurement(sid);boolean fieldReport=!fieldSessionId.isEmpty();pdf.setText(fieldReport?"تصدير PDF الذكي للجلسة":"PDF ذكي • اربط القياس بجلسة");xlsx.setText(fieldReport?"Excel ذكي للجلسة":"Excel ذكي • اربط القياس بجلسة");
+        String fieldSessionId=sid.isEmpty()?"":fieldSessions.fieldSessionIdForMeasurement(sid);boolean fieldReport=!fieldSessionId.isEmpty();updateExportButtonLabels();
         boolean seriesOk=ss!=null&&ss.usable(),mqOn=relay!=null&&relay.optBoolean("on",relay.optInt("mask",0)!=0);String state=m==null?"—":m.optString("state","—");
         sessionCard.setText("الجلسة #"+r.id+"\n"+(sid.isEmpty()?"بدون Session ID":sid)+"\n"+state+(seriesOk?" • "+ss.samples.size()+" عينة":" • لا سلسلة زمنية"));sessionCard.setTextColor(seriesOk?GOOD:WARN);
 
@@ -127,14 +199,7 @@ public final class ReportsTab {
     private TextView kpi(Context c,String text){TextView t=card(c,text);t.setTextSize(14);t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);return t;}
     private static JSONObject first(JSONObject a,JSONObject b){return a!=null?a:b;}
     private static String candidateSummary(JSONObject p){JSONArray a=p==null?null:p.optJSONArray("candidates");if(a==null||a.length()==0)return "المرشحون • لا توجد فرضيات قابلة للحل";StringBuilder s=new StringBuilder("المرشحون الأعلى • ").append(a.length());int n=Math.min(6,a.length());for(int i=0;i<n;i++){JSONObject q=a.optJSONObject(i);if(q==null)continue;s.append("\n#").append(q.optInt("rank",i+1)).append(" ").append(q.optString("label","—")).append(" • ").append(pct(q.optDouble("posterior",Double.NaN))).append(" • residual ").append(fmt(q.optDouble("residual_rms",Double.NaN))).append(" • ").append(q.optString("evidence_tier","—"));}if(a.length()>n)s.append("\n+").append(a.length()-n).append(" مرشح إضافي في نتائج التحليل");return s.toString();}
-    private void setEnabled(boolean v){pdf.setEnabled(v);xlsx.setEnabled(v);chartSelector.setEnabled(v);}
-    private void export(String f){
-        if(selectedId<0){host.showToast("اختر قياسًا أولًا");return;}
-        ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){host.showToast("السجل غير موجود");return;}
-        String sid=r.sessionId==null?"":r.sessionId.trim();String fieldSessionId=sid.isEmpty()?"":fieldSessions.fieldSessionIdForMeasurement(sid);
-        if(!fieldSessionId.isEmpty()){host.requestFieldSessionExport(f,fieldSessionId);return;}
-        host.showToast("SmartReport يتطلب ربط القياس بجلسة ميدانية من تبويب المواقع والجلسات.");
-    }
+    private void setEnabled(boolean v){updateExportButtonLabels();chartSelector.setEnabled(v);}
     private static JSONObject json(String s){try{return s==null?new JSONObject():new JSONObject(s);}catch(Exception e){return new JSONObject();}}
     private static String safe(String s){return s==null?"":s;}
     private static String fmt(double v){return Double.isFinite(v)?String.format(Locale.US,"%.2f",v):"—";}
