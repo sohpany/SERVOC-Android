@@ -29,7 +29,7 @@ public final class SettingsTab {
     private final HazRobHost host;private final ScrollView scroll;
     private final EditText robot,camera,warm,measure,micOffset,turnSpeed,pivotSpeed;
     private final CheckBox safetyAutoStop;
-    private boolean syncingSafetyUi=false;
+    private boolean syncingSafetyUi=false,safetyUpdatePending=false;
     private final TextView compatibility,cameraState,libraryInfo,analysisUpdateInfo,micCalibrationInfo;
     private final ChemCoreLibraryManager libraryManager;
 
@@ -87,7 +87,7 @@ public final class SettingsTab {
         ChemCoreLibraryManager.Status ls=libraryManager.status();analysisUpdateInfo.setText("الإصدار المثبت: "+ls.version+" • "+(ls.remoteSnapshotActive?"مكتبة Stable مثبتة":"المكتبة المدمجة")+"\nمصدر المعرفة: "+ls.sourceLabel);
         JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware —   •   API —   •   Profile —");compatibility.setTextColor(0xFFFFB74D);return;}
         JSONObject adc=d.optJSONObject("adc"),env=d.optJSONObject("env"),ldr=d.optJSONObject("ldr"),alert=d.optJSONObject("alert"),drive=d.optJSONObject("drive");
-        if(drive!=null)showSafetyAutoStop(drive.optBoolean("safety_auto_stop",false));
+        if(drive!=null&&!safetyUpdatePending)showSafetyAutoStop(drive.optBoolean("safety_auto_stop",false));
         String driver=drive==null?HazRobHardwareProfile.DRIVE_DRIVER:drive.optString("driver",HazRobHardwareProfile.DRIVE_DRIVER);boolean envOk=env!=null&&env.optBoolean("ok",false);
         String envStatus=env==null?"—":env.optString("status_code",env.optString("status","NOT READY"));
         String envType=env==null?"—":env.optString("type",env.optString("sensor","—"));
@@ -154,16 +154,16 @@ public final class SettingsTab {
     }catch(Exception e){host.showToast("تعذر قراءة إعدادات التوقف التلقائي");}});}
     private void applySafetyAutoStop(boolean enabled){
         host.setDriveCommand(0,0);
-        safetyAutoStop.setEnabled(false);
+        safetyUpdatePending=true;safetyAutoStop.setEnabled(false);
         host.io().execute(()->{
             try{
                 JSONObject status=host.robotApi().setSafetyAutoStop(enabled);
                 boolean actual=status.optBoolean("enabled",false);
-                new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showSafetyAutoStop(actual));
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{safetyUpdatePending=false;showSafetyAutoStop(actual);});
                 host.showToast(actual==enabled?(actual?"تم تفعيل التوقف التلقائي":"تم تعطيل التوقف التلقائي"):"رفض الروبوت تغيير التوقف التلقائي");
             }catch(Exception e){
                 host.showToast("فشل ضبط التوقف التلقائي • لم تتأكد الحالة");
-                try{JSONObject state=host.robotApi().safetyAutoStopStatus();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showSafetyAutoStop(state.optBoolean("enabled",false)));}catch(Exception ignored){}
+                try{JSONObject state=host.robotApi().safetyAutoStopStatus();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{safetyUpdatePending=false;showSafetyAutoStop(state.optBoolean("enabled",false));});}catch(Exception ignored){new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{safetyUpdatePending=false;safetyAutoStop.setEnabled(true);});}
             }
         });
     }
