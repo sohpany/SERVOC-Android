@@ -29,6 +29,7 @@ public final class SettingsTab {
     private final HazRobHost host;private final ScrollView scroll;
     private final EditText robot,camera,warm,measure,micOffset,turnSpeed,pivotSpeed;
     private final CheckBox safetyAutoStop;
+    private boolean syncingSafetyUi=false;
     private final TextView compatibility,cameraState,libraryInfo,analysisUpdateInfo,micCalibrationInfo;
     private final ChemCoreLibraryManager libraryManager;
 
@@ -55,8 +56,8 @@ public final class SettingsTab {
         cfg.addView(directionReverseCheck(c,"Joystick: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_JOYSTICK),UiKit.full(c));
         cfg.addView(directionReverseCheck(c,"الأزرار: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_BUTTONS),UiKit.full(c));
         cfg.addView(directionReverseCheck(c,"عكس الدوران في المكان (Joystick + عجلة + الأزرار؛ باستثناء المساطر)",DriveDirectionOption.PREF_REVERSE_PIVOT_ALL),UiKit.full(c));
-        safetyAutoStop=new CheckBox(c);safetyAutoStop.setText("التوقف التلقائي للحركة: ملغي — تنبيه فقط");safetyAutoStop.setTextColor(Color.LTGRAY);safetyAutoStop.setChecked(false);safetyAutoStop.setEnabled(false);cfg.addView(safetyAutoStop,UiKit.full(c));
-        TextView safetyHelp=UiKit.small(c,"حساسا IR وEcho يعرضان التحذيرات فقط ولا يمنعان حركة المركبة. E-STOP وزر الإيقاف وwatchdog انقطاع أوامر القيادة تبقى فعالة ومستقلة.");safetyHelp.setTextColor(0xFFFFB74D);cfg.addView(safetyHelp,UiKit.full(c));
+        safetyAutoStop=new CheckBox(c);safetyAutoStop.setTextColor(Color.LTGRAY);safetyAutoStop.setEnabled(false);safetyAutoStop.setChecked(false);safetyAutoStop.setText("التوقف التلقائي • حالة غير معروفة");safetyAutoStop.setOnCheckedChangeListener((button,checked)->{if(!syncingSafetyUi)applySafetyAutoStop(checked);});cfg.addView(safetyAutoStop,UiKit.full(c));
+        TextView safetyHelp=UiKit.small(c,"التوقف التلقائي اختياري ويمنع التقدم أمام عائق ≤5 سم أو عند IR LOW (لا أرض). اضبط حساس IR وتأكد من قطبيته قبل التفعيل. التراجع والدوران يظلان متاحين. E-STOP وزر التوقف وwatchdog مستقلة دائمًا.");safetyHelp.setTextColor(0xFFFFB74D);cfg.addView(safetyHelp,UiKit.full(c));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
         LinearLayout mic=UiKit.card(c);mic.addView(UiKit.title(c,"معايرة الميكروفون MAX4466"),UiKit.full(c));
@@ -86,14 +87,14 @@ public final class SettingsTab {
         ChemCoreLibraryManager.Status ls=libraryManager.status();analysisUpdateInfo.setText("الإصدار المثبت: "+ls.version+" • "+(ls.remoteSnapshotActive?"مكتبة Stable مثبتة":"المكتبة المدمجة")+"\nمصدر المعرفة: "+ls.sourceLabel);
         JSONObject d=host.latestDiagnostics();if(d==null){compatibility.setText("Firmware —   •   API —   •   Profile —");compatibility.setTextColor(0xFFFFB74D);return;}
         JSONObject adc=d.optJSONObject("adc"),env=d.optJSONObject("env"),ldr=d.optJSONObject("ldr"),alert=d.optJSONObject("alert"),drive=d.optJSONObject("drive");
-        showSafetyAutoStop(false);
+        if(drive!=null)showSafetyAutoStop(drive.optBoolean("safety_auto_stop",false));
         String driver=drive==null?HazRobHardwareProfile.DRIVE_DRIVER:drive.optString("driver",HazRobHardwareProfile.DRIVE_DRIVER);boolean envOk=env!=null&&env.optBoolean("ok",false);
         String envStatus=env==null?"—":env.optString("status_code",env.optString("status","NOT READY"));
         String envType=env==null?"—":env.optString("type",env.optString("sensor","—"));
         String envAddr=env==null?"—":env.optString("address","—");
         String envChip=env==null?"—":env.optString("chip_id","—");
         String envAck=env==null?"76:— 77:—":"76:"+(env.optBoolean("ack_0x76",false)?"ACK":"—")+" 77:"+(env.optBoolean("ack_0x77",false)?"ACK":"—");
-        compatibility.setText("Firmware "+d.optString("firmware",d.optString("fw","—"))+"   •   API "+d.optInt("api_version",d.optInt("api",0))+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"\nDrive "+driver+" • L "+HazRobHardwareProfile.DRIVE_L_IN1+"/"+HazRobHardwareProfile.DRIVE_L_IN2+" • R "+HazRobHardwareProfile.DRIVE_R_IN1+"/"+HazRobHardwareProfile.DRIVE_R_IN2+" • Auto-stop OFF\nADS bus SDA21/SCL22 • ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+" • ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—")+"\nENV bus SDA13/SCL14 • "+(envOk?"OK":envStatus)+" • "+envType+" "+envAddr+" chip "+envChip+" • "+envAck+"\nLDR GPIO34 "+(ldr!=null&&ldr.optBoolean("installed",false)?"OK":"—")+"   •   ALERT GPIO"+(alert==null?26:alert.optInt("gpio",26))+" "+(alert!=null?"OK":"—"));compatibility.setTextColor(envOk?0xFF81C784:0xFFFFB74D);
+        compatibility.setText("Firmware "+d.optString("firmware",d.optString("fw","—"))+"   •   API "+d.optInt("api_version",d.optInt("api",0))+"\nProfile "+d.optString("hardware_profile",HazRobHardwareProfile.ID)+"\nDrive "+driver+" • L "+HazRobHardwareProfile.DRIVE_L_IN1+"/"+HazRobHardwareProfile.DRIVE_L_IN2+" • R "+HazRobHardwareProfile.DRIVE_R_IN1+"/"+HazRobHardwareProfile.DRIVE_R_IN2+" • Auto-stop "+(drive!=null&&drive.optBoolean("safety_auto_stop",false)?"ON":"OFF")+"\nADS bus SDA21/SCL22 • ADS1 "+(adc!=null&&adc.optBoolean("ads1",false)?"OK":"—")+" • ADS2 "+(adc!=null&&adc.optBoolean("ads2",false)?"OK":"—")+"\nENV bus SDA13/SCL14 • "+(envOk?"OK":envStatus)+" • "+envType+" "+envAddr+" chip "+envChip+" • "+envAck+"\nLDR GPIO34 "+(ldr!=null&&ldr.optBoolean("installed",false)?"OK":"—")+"   •   ALERT GPIO"+(alert==null?26:alert.optInt("gpio",26))+" "+(alert!=null?"OK":"—"));compatibility.setTextColor(envOk?0xFF81C784:0xFFFFB74D);
     }
 
     private void saveDriveTuning(){
@@ -147,10 +148,28 @@ public final class SettingsTab {
 
     private void testConnections(){host.io().execute(()->{boolean robotOk=false;JSONObject robotDiag=null;try{robotDiag=host.robotApi().diagnostics();robotOk=robotDiag!=null;}catch(Exception ignored){}JSONObject cam=null;try{cam=host.cameraDiagnostics();}catch(Exception ignored){}boolean cameraHttp=cam!=null;if(!cameraHttp)try{cameraHttp=host.cameraReachable();}catch(Exception ignored){}final boolean rOk=robotOk,cHttp=cameraHttp;final JSONObject rdiag=robotDiag,cdiag=cam;new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{if(cdiag!=null){boolean actual=cdiag.optBoolean("camera_ok",false);cameraState.setText(cameraDiagnosticText(cdiag));cameraState.setTextColor(actual?0xFF81C784:0xFFFF7043);}else{int clients=rdiag==null?-1:rdiag.optInt("clients",-1);String hint=clients>=0?" • AP clients "+clients:"";cameraState.setText("CAM "+(cHttp?"HTTP OK":"OFFLINE")+hint+"\nإذا كان الهاتف والـCAM فقط متصلين، يفترض أن يكون AP clients ≥ 2. تحقق من إزالة وصلة GPIO0-GND بعد البرمجة ثم أعد التشغيل.");cameraState.setTextColor(cHttp?0xFFFFB74D:0xFFFF7043);}host.showToast("ESP32 "+(rOk?"OK":"OFFLINE")+" • CAM "+(cHttp?"HTTP":"OFFLINE"));});});}
     private void testAlert(){host.io().execute(()->{try{host.robotApi().alertTest();host.showToast("تم إرسال اختبار تنبيه الروبوت");}catch(Exception e){host.showToast("تعذر اختبار تنبيه الروبوت");}});}
-    private void sync(){host.io().execute(()->{try{JSONObject x=host.robotApi().config();JSONObject s=host.robotApi().safetyAutoStopStatus();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{showConfig(x);showSafetyAutoStop(false);});}catch(Exception e){host.showToast("تعذر المزامنة");}});}
-    private void apply(){final int w=clamp(parse(warm,60),0,3600),m=clamp(parse(measure,30),5,600);final String cam=host.cameraHost();host.setDriveCommand(0,0);host.io().execute(()->{try{JSONObject x=host.robotApi().setConfig(cam,DRIVE_FIRMWARE_LIMIT,w,m);host.robotApi().setSafetyAutoStop(false);host.preferences().edit().remove("speed").putInt("warm",w).putInt("measure",m).putBoolean("safety_auto_stop",false).remove("nl").remove("nr").apply();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{showConfig(x);showSafetyAutoStop(false);});host.showToast("تم تطبيق الضبط • التوقف التلقائي معطّل");}catch(Exception e){host.showToast("فشل تطبيق الضبط");}});}
+    private void sync(){host.io().execute(()->{try{
+        JSONObject x=host.robotApi().config(),status=host.robotApi().safetyAutoStopStatus();
+        new android.os.Handler(android.os.Looper.getMainLooper()).post(()->{showConfig(x);showSafetyAutoStop(status.optBoolean("enabled",false));});
+    }catch(Exception e){host.showToast("تعذر قراءة إعدادات التوقف التلقائي");}});}
+    private void applySafetyAutoStop(boolean enabled){
+        host.setDriveCommand(0,0);
+        safetyAutoStop.setEnabled(false);
+        host.io().execute(()->{
+            try{
+                JSONObject status=host.robotApi().setSafetyAutoStop(enabled);
+                boolean actual=status.optBoolean("enabled",false);
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showSafetyAutoStop(actual));
+                host.showToast(actual==enabled?(actual?"تم تفعيل التوقف التلقائي":"تم تعطيل التوقف التلقائي"):"رفض الروبوت تغيير التوقف التلقائي");
+            }catch(Exception e){
+                host.showToast("فشل ضبط التوقف التلقائي • لم تتأكد الحالة");
+                try{JSONObject state=host.robotApi().safetyAutoStopStatus();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showSafetyAutoStop(state.optBoolean("enabled",false)));}catch(Exception ignored){}
+            }
+        });
+    }
+    private void apply(){final int w=clamp(parse(warm,60),0,3600),m=clamp(parse(measure,30),5,600);final String cam=host.cameraHost();host.setDriveCommand(0,0);host.io().execute(()->{try{JSONObject x=host.robotApi().setConfig(cam,DRIVE_FIRMWARE_LIMIT,w,m);host.preferences().edit().remove("speed").putInt("warm",w).putInt("measure",m).remove("nl").remove("nr").apply();new android.os.Handler(android.os.Looper.getMainLooper()).post(()->showConfig(x));host.showToast("تم تطبيق إعدادات القياس دون تغيير التوقف التلقائي");}catch(Exception e){host.showToast("فشل تطبيق الضبط");}});}
     private void showConfig(JSONObject x){if(x==null)return;String cam=x.optString("cam",camera.getText().toString());if(cam==null||cam.trim().isEmpty())cam="192.168.4.2";camera.setText(cam);host.setCameraHost(cam);warm.setText(String.valueOf(x.optInt("warm",parse(warm,60))));measure.setText(String.valueOf(x.optInt("measure",parse(measure,30))));}
-    private void showSafetyAutoStop(boolean enabled){safetyAutoStop.setChecked(false);host.preferences().edit().putBoolean("safety_auto_stop",false).apply();}
+    private void showSafetyAutoStop(boolean enabled){syncingSafetyUi=true;try{safetyAutoStop.setChecked(enabled);safetyAutoStop.setText("التوقف التلقائي للأمام (IR + Echo) • "+(enabled?"مفعّل":"معطّل"));safetyAutoStop.setEnabled(true);host.preferences().edit().putBoolean("safety_auto_stop",enabled).apply();}finally{syncingSafetyUi=false;}}
     private static int parse(EditText e,int def){try{return Integer.parseInt(e.getText().toString().trim());}catch(Exception ignored){return def;}}
     private static int clamp(int v,int lo,int hi){return Math.max(lo,Math.min(hi,v));}
 }
