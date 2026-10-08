@@ -3,7 +3,6 @@ package com.servoc.app.data;
 import android.database.Cursor;
 
 import com.servoc.app.calibration.AcceptedR0Normalizer;
-import com.servoc.app.calibration.FieldR0Baseline;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 
 import org.json.JSONObject;
@@ -60,9 +59,10 @@ public final class SessionSeries {
     private static List<Sample> readSamples(ExperimentsDb db,String id){List<Sample> rows=new ArrayList<>();try(Cursor c=db.getReadableDatabase().rawQuery("SELECT t_ms,env_payload,mq_payload,motion_payload FROM telemetry_samples WHERE session_id=? ORDER BY t_ms,id",new String[]{id})){while(c.moveToNext())rows.add(new Sample(c.getLong(0),c.getString(1),c.getString(2),c.getString(3)));}catch(Exception ignored){}return rows;}
 
     /**
-     * Report/analysis view of the recorded MQ payload. Raw database bytes remain untouched.
-     * When Rs exists, ratio/R0 is rebound only to the device-local HR069 clean-air baseline. This
-     * is signal normalization, not central chemical identity evidence and not quantitative M4 proof.
+     * Report/analysis projection must never rewrite an archived sample's
+     * device-specific R0 when the operator performs a NEW calibration.
+     * Keep original R0, source, timestamp and lab provenance; only repair the
+     * ratio against the R0 stored with that exact archived sample.
      */
     private static JSONObject normalizeMq(JSONObject source){
         if(source==null)return new JSONObject();
@@ -70,12 +70,15 @@ public final class SessionSeries {
             JSONObject out=new JSONObject(source.toString());
             for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){
                 JSONObject q=out.optJSONObject(hw.key);if(q==null)continue;
-                double ratio=AcceptedR0Normalizer.ratio(hw.key,q),r0=FieldR0Baseline.value(hw.key);
-                if(Double.isFinite(ratio)&&ratio>0){
-                    q.put("ratio",ratio);q.put("r0",r0);q.put("r0_calibrated",true);
-                    q.put("r0_source",AcceptedR0Normalizer.SOURCE);q.put("r0_session",FieldR0Baseline.SESSION);
-                    q.put("r0_device_local",true);q.put("r0_centrally_publishable",false);
-                    q.put("r0_reference_validated",false);q.put("r0_environment_compensated",false);
+                double frozen=AcceptedR0Normalizer.availableRecordedRatio(hw.key,q);
+                if(Double.isFinite(frozen)&&frozen>0){
+                    q.put("ratio",frozen);
+                    q.put("historical_calibration_frozen",true);
+                    double storedR0=q.optDouble("r0",Double.NaN),storedRs=q.optDouble("rs",Double.NaN);
+                    q.put("historical_ratio_source",Double.isFinite(storedR0)&&storedR0>0
+                        &&Double.isFinite(storedRs)&&storedRs>0?"persisted_rs_r0":"persisted_ratio");
+                    q.put("r0_centrally_publishable",false);
+                    // Do not claim manual R0, field provenance or M4 which were not actually captured.
                 }
             }
             return out;
