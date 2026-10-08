@@ -28,6 +28,7 @@ import com.servoc.app.data.ExperimentsDb;
 import com.servoc.app.exposure.ExposureSeedBootstrap;
 import com.servoc.app.measurement.GasAlertCoordinator;
 import com.servoc.app.field.HazRobUserLibrary;
+import com.servoc.app.field.FieldSessionRepository;
 import com.servoc.app.field.HazRobStorageBootstrap;
 import com.servoc.app.measurement.LiveGasStateEngine;
 import com.servoc.app.measurement.PhoneAlertTone;
