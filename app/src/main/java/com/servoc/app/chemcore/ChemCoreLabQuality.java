@@ -144,10 +144,37 @@ public final class ChemCoreLabQuality {
             o.put("configuration_ready",configurationReady);o.put("capture_ready",captureReady);
             o.put("exploratory_screening_ready",exploratoryScreeningReady());o.put("exploratory_results_may_be_exported",true);
             o.put("exploratory_measurement_not_quantitative_calibration",true);o.put("fingerprint_normalization_ready",fingerprintNormalizationReady());o.put("any_reference_gas_calibration_available",anyReferenceGasCalibrationAvailable());
-            JSONObject r0=new JSONObject();r0.put("source",FieldR0Baseline.SOURCE);r0.put("campaign",FieldR0Baseline.SESSION);r0.put("samples",FieldR0Baseline.SAMPLE_COUNT);r0.put("session_count",FieldR0Baseline.SESSION_COUNT);r0.put("reference_gas_validated",FieldR0Baseline.REFERENCE_GAS_VALIDATED);r0.put("environment_compensated",FieldR0Baseline.ENVIRONMENT_COMPENSATED);r0.put("active_policy","manual_override_else_field_baseline");r0.put("normalized_channels",r0NormalizedChannels);r0.put("field_baseline_channels",fieldR0Channels);o.put("r0_standard",r0);
+            JSONObject r0=new JSONObject();
+            String source=fieldR0Channels==r0NormalizedChannels?FieldR0Baseline.SOURCE
+                    :fieldR0Channels==0?"manual_device_r0":"mixed_device_r0";
+            java.util.Set<String> sessionsUsed=new java.util.LinkedHashSet<>();
+            JSONObject channels=new JSONObject();
+            for(String key:ManualR0Calibration.keys()){
+                double value=ManualR0Calibration.get(key);
+                if(!Double.isFinite(value)||value<=0)continue;
+                String src=ManualR0Calibration.getSource(key),session=ManualR0Calibration.getSession(key);
+                if(!session.isEmpty())sessionsUsed.add(session);
+                JSONObject channel=new JSONObject();
+                channel.put("r0",value);channel.put("source",src);channel.put("session",session);
+                channel.put("utc",ManualR0Calibration.getUtc(key));
+                channel.put("device_local",true);channel.put("reference_gas_validated",false);
+                channels.put(key,channel);
+            }
+            String campaign=sessionsUsed.size()==1?sessionsUsed.iterator().next()
+                    :sessionsUsed.isEmpty()?"unknown_device_r0":"mixed_device_r0_sessions";
+            r0.put("source",source);r0.put("campaign",campaign);
+            r0.put("samples",FieldR0Baseline.SOURCE.equals(source)?FieldR0Baseline.SAMPLE_COUNT:0);
+            r0.put("session_count",FieldR0Baseline.SOURCE.equals(source)?FieldR0Baseline.SESSION_COUNT:0);
+            r0.put("reference_gas_validated",false);
+            r0.put("environment_compensated",false);
+            r0.put("active_policy","manual_override_else_field_baseline");
+            r0.put("normalized_channels",r0NormalizedChannels);
+            r0.put("field_baseline_channels",fieldR0Channels);
+            r0.put("per_sensor",channels);
+            o.put("r0_standard",r0);
             JSONObject e=new JSONObject();e.put("ready",environmentReady);e.put("sensor",environmentSensor);e.put("status",environmentStatus);e.put("address",environmentAddress);e.put("chip_id",environmentChipId);putFinite(e,"temperature_c",temperatureC);putFinite(e,"humidity_rh",humidityRh);putFinite(e,"pressure_hpa",pressureHpa);o.put("environment",e);
             o.put("blockers",array(blockers));o.put("advisories",array(advisories));
-            JSONObject calibration=new JSONObject();calibration.put("r0_policy","manual_override_else_field_baseline");calibration.put("r0_normalization_ready",fingerprintNormalizationReady());calibration.put("field_r0_normalization_ready",fingerprintNormalizationReady());calibration.put("r0_normalized_channels",r0NormalizedChannels);calibration.put("field_r0_channels",fieldR0Channels);calibration.put("reference_gas_validated_channels",referenceValidatedChannels);calibration.put("hr069_m4_validated_channels",referenceValidatedChannels);calibration.put("global_ppm_permission","candidate_specific_by_design");calibration.put("ppm_rule","candidate requires complete HR069 M4 support for contributing quantitative curves + accepted open-set identity + validated domain");o.put("calibration_gate",calibration);
+            JSONObject calibration=new JSONObject();calibration.put("r0_policy","manual_override_else_field_baseline");calibration.put("r0_normalization_ready",fingerprintNormalizationReady());calibration.put("field_r0_normalization_ready",fieldR0Channels>=REQUIRED_R0_CHANNELS);calibration.put("r0_normalized_channels",r0NormalizedChannels);calibration.put("field_r0_channels",fieldR0Channels);calibration.put("reference_gas_validated_channels",referenceValidatedChannels);calibration.put("hr069_m4_validated_channels",referenceValidatedChannels);calibration.put("global_ppm_permission","candidate_specific_by_design");calibration.put("ppm_rule","candidate requires complete HR069 M4 support for contributing quantitative curves + accepted open-set identity + validated domain");o.put("calibration_gate",calibration);
             return o;
         }catch(JSONException ex){throw new IllegalStateException("Unable to serialize ChemCore lab quality",ex);}
     }
