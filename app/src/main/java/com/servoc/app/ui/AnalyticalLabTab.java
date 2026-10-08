@@ -56,14 +56,14 @@ public final class AnalyticalLabTab {
     private void show(int index){selected=index==1?1:0;page.removeAllViews();page.addView(selected==0?sessionView:dashboardView,new FrameLayout.LayoutParams(-1,-1));sessionButton.setTextColor(selected==0?Color.WHITE:Color.DKGRAY);dashboardButton.setTextColor(selected==1?Color.WHITE:Color.DKGRAY);sessionButton.setBackgroundColor(selected==0?0xFF263238:0xFFE0E0E0);dashboardButton.setBackgroundColor(selected==1?0xFF263238:0xFFE0E0E0);refresh();}
 
     private void renderQuality(ChemCoreLabQuality q){
-        String state=!q.connected?"غير متصل":q.configurationReady?"جاهز":"يتطلب انتباه";
+        String state=!q.connected?"غير متصل":q.configurationReady?"جاهز للقياس المعياري":q.exploratoryScreeningReady()?"فحص بحثي متاح قبل R0":"يتطلب انتباه";
         readiness.setText(state+" • Capture "+yes(q.captureReady)+" • ثابت "+yes(q.stationary)+" • قنوات R0 "+q.r0NormalizedChannels+"/8\n"+
-                (q.blockers==null||q.blockers.isEmpty()?"لا توجد موانع تشغيلية":"موانع: "+join(q.blockers))+
+                (q.blockers==null||q.blockers.isEmpty()?"لا توجد قيود على التفسير":"قيود اعتماد النتائج: "+join(q.blockers))+
                 (q.advisories==null||q.advisories.isEmpty()?"":"\nتنبيهات: "+join(q.advisories)));
-        readiness.setTextColor(q.configurationReady?0xFF81C784:0xFFFFB74D);
+        readiness.setTextColor(q.configurationReady||q.exploratoryScreeningReady()?0xFF81C784:0xFFFFB74D);
 
         calibration.setText("R0 المحلية: "+q.r0NormalizedChannels+"/8 • clean-air: "+q.fieldR0Channels+"/8 • حساسات بمنحنى M4 فعال: "+q.referenceValidatedChannels+"/8\n"+
-                (q.fingerprintNormalizationReady()?"Screening: READY":"Screening: يحتاج معايرة محلية")+" • "+
+                (q.fingerprintNormalizationReady()?"Screening: R0 READY":"Screening: بحثي دون R0")+" • "+
                 (q.anyReferenceGasCalibrationAvailable()?"PPM/M4: متاح للمواد المؤهلة فقط":"PPM/M4: غير متاح كميًا بعد"));
         calibration.setTextColor(q.fingerprintNormalizationReady()?0xFF81C784:0xFFFFB74D);
 
