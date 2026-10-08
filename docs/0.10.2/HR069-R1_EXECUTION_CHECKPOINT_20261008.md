@@ -161,3 +161,14 @@
   - https://github.com/sohpany/SERVOC-Android/actions/runs/37854726118 — internal release APK test.
   - https://github.com/sohpany/SERVOC-Android/actions/runs/37854726087 — app/firmware integration.
 - Do not mark the new APK ready, add PASS assertions or distribute a vCode28 link until those runs finish successfully and the artifact digest/certificate/contents are verified. Older vCode27 artifact still lacks this correction and is superseded for new test installation.
+
+## vCode28 verified diagnostic artifact handoff
+
+- App functional source SHA: `8b89e4c27fa7fda4cc25b294f9a973a2a1a2a60a`.
+- Android diagnostic build: [GitHub Actions run 37854726140](https://github.com/sohpany/SERVOC-Android/actions/runs/37854726140) — **SUCCESS**, JUnit + ChemCore reference tests + RC2 runtime contract + `apksigner verify` passed.
+- Android vCode28 WORKING APK: `HazRob-0.10.2-HR069-R1-RC2-WORKING-334-8b89e4c27fa7fda4cc25b294f9a973a2a1a2a60a.apk`, SHA-256 `022ba04594cd7b7735e2fd67a37586ee4b9e235eaf5e7e799e170b1e42d19618`.
+- ApplicationId `com.servoc.app`, Android `versionCode 28`, `versionName 0.10.2`; signing-certificate SHA256 `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
+- APK ZIP CRC checked separately: OK. DEX contains `DeveloperR0Tab`, `recordedRatio`, `availableRecordedRatio`, `r0_device_local`. Contains `assets/generated/chemcore/embedded_stable/manifest.json` and `chemcore-stable-snapshot.json`: bundled version `1.0.0-hr069r1`; SHA-256 `94f41ba754a1c239122b82081a91e9656012503cebda0eae6473ed8a4e45d7cf` matches manifest; 652 chemical identities, no M4 calibration count.
+- [HR069 developmental tests + Main and CAM firmware](https://github.com/sohpany/SERVOC-Android/actions/runs/37854726087) **SUCCESS** at same functional SHA.
+- Only the Android application/QA changed from prior vCode27. The already verified Arduino source ZIP remains correct; no Main ESP32 re-flash is required solely to gain revised R0/history/report functions.
+- Outstanding: physical IR polarity adjustment, Echo valid distances, BME I²C stability, motor and joystick mapping, on-device PDF/XLSX openability, R0 on real battery load, Remote networking, and explicit production release authorization. Do not claim field acceptance.
