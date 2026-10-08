@@ -144,27 +144,65 @@ public final class FieldSessionRepository {
     }
 
     /**
-     * Deletes CLOSED user field metadata/mappings only. It deliberately does not delete
-     * measurement_sessions or any developer/scientific-library table. ACTIVE sessions must be
-     * explicitly finalized first so their acquisition lineage cannot be detached mid-run.
+     * Permanently deletes a CLOSED user's Field Session and its own measurement data.
+     * Developer/reference/scientific libraries, calibrations, and other sessions are excluded.
+     * This is atomic in SQLite; caller separately purges portable SAF archives.
      */
     public boolean deleteFieldSession(String fieldSessionId){
         String id=requiredId(fieldSessionId);SQLiteDatabase w=db.getWritableDatabase();w.beginTransaction();
         try{
-            try(Cursor c=w.rawQuery("SELECT status FROM field_sessions WHERE field_session_id=? LIMIT 1",new String[]{id})){if(!c.moveToFirst()||STATUS_ACTIVE.equals(c.getString(0)))return false;}
+            try(Cursor c=w.rawQuery("SELECT status FROM field_sessions WHERE field_session_id=? LIMIT 1",new String[]{id})){
+                if(!c.moveToFirst()||!STATUS_CLOSED.equals(c.getString(0)))return false;
+            }
+            java.util.List<String> ids=new java.util.ArrayList<>();
+            try(Cursor c=w.rawQuery("SELECT m.session_id,m.kind,m.operator_role FROM measurement_sessions m JOIN field_session_measurements f ON f.measurement_session_id=m.session_id WHERE f.field_session_id=?",new String[]{id})){
+                while(c.moveToNext()){
+                    String ms=c.getString(0),kind=c.getString(1),role=c.getString(2);
+                    if(!"USER".equals(role)||kind==null||!kind.startsWith("field_"))
+                        throw new IllegalStateException("Refusing deletion: non-user/reference measurement linked to Field Session");
+                    ids.add(ms);
+                }
+            }
+            // Do not permit any referenced/approved capture to be removed through a user UI action.
+            for(String ms:ids){
+                try(Cursor c=w.rawQuery("SELECT 1 FROM experiments e LEFT JOIN reference_queue q ON q.experiment_id=e.id WHERE e.session_id=? AND (e.approved<>0 OR e.approved_ts IS NOT NULL OR e.reference_kind IS NOT NULL OR q.experiment_id IS NOT NULL) LIMIT 1",new String[]{ms})){
+                    if(c.moveToFirst())throw new IllegalStateException("Refusing deletion: published or controlled reference");
+                }
+                try(Cursor c=w.rawQuery("SELECT 1 FROM captures WHERE session_id=? LIMIT 1",new String[]{ms})){
+                    if(c.moveToFirst())throw new IllegalStateException("Refusing deletion: scientific capture uses this identity");
+                }
+            }
             w.delete("field_session_measurements","field_session_id=?",new String[]{id});
+            for(String ms:ids){
+                String[] arg={ms};
+                w.delete("experiments","session_id=?",arg);
+                w.delete("events","session_id=?",arg);
+                w.delete("chemcore_decisions","session_id=?",arg);
+                w.delete("telemetry_samples","session_id=?",arg);
+                w.delete("media_assets","session_id=?",arg);
+                w.delete("measurement_sessions","session_id=?",arg);
+            }
             int n=w.delete("field_sessions","field_session_id=?",new String[]{id});
-            w.setTransactionSuccessful();return n==1;
+            if(n!=1)throw new IllegalStateException("Field Session disappeared during deletion");
+            ContentValues tombstone=new ContentValues();tombstone.put("k","deleted_field_session_"+id);tombstone.put("v",isoNow());
+            w.insertWithOnConflict("meta",null,tombstone,SQLiteDatabase.CONFLICT_REPLACE);
+            w.setTransactionSuccessful();return true;
         }finally{w.endTransaction();}
     }
 
-    /** A site can be deleted only after its user field sessions have been removed. */
+    /** Delete a site only after all of its field sessions have been removed. */
     public boolean deleteEmptySite(String siteId){
-        String id=requiredId(siteId);
-        try(Cursor c=db.getReadableDatabase().rawQuery("SELECT 1 FROM field_sessions WHERE site_id=? LIMIT 1",new String[]{id})){
-            if(c.moveToFirst())return false;
-        }
-        return db.getWritableDatabase().delete("sites","site_id=?",new String[]{id})==1;
+        String id=requiredId(siteId);SQLiteDatabase w=db.getWritableDatabase();w.beginTransaction();
+        try{
+            try(Cursor c=w.rawQuery("SELECT 1 FROM field_sessions WHERE site_id=? LIMIT 1",new String[]{id})){
+                if(c.moveToFirst())return false;
+            }
+            int n=w.delete("sites","site_id=?",new String[]{id});
+            if(n!=1)return false;
+            ContentValues tombstone=new ContentValues();tombstone.put("k","deleted_site_"+id);tombstone.put("v",isoNow());
+            w.insertWithOnConflict("meta",null,tombstone,SQLiteDatabase.CONFLICT_REPLACE);
+            w.setTransactionSuccessful();return true;
+        }finally{w.endTransaction();}
     }
 
     private boolean siteExists(String id){try(Cursor c=db.getReadableDatabase().rawQuery("SELECT 1 FROM sites WHERE site_id=? LIMIT 1",new String[]{id})){return c.moveToFirst();}}
