@@ -20,7 +20,7 @@ public final class DeveloperTab {
     private final Context context;private final HazRobHost host;private final Runnable onUnlock;
     private final LinearLayout root;private final FrameLayout page;private final LinearLayout bar;
     private boolean unlocked=false;private int selected=0;
-    private Button[] tabs;private DeveloperExperimentsTab experiments;private AnalyticalLabTab chemCore;private DeveloperConnectionDiagnosticsTab connectionSetup;private CentralLibraryDashboardTab library;private View[] views;
+    private Button[] tabs;private DeveloperExperimentsTab experiments;private AnalyticalLabTab chemCore;private DeveloperR0Tab r0;private DeveloperConnectionDiagnosticsTab connectionSetup;private CentralLibraryDashboardTab library;private View[] views;
 
     public DeveloperTab(Context c,HazRobHost host,Runnable onUnlock){
         context=c;this.host=host;this.onUnlock=onUnlock;
@@ -52,14 +52,14 @@ public final class DeveloperTab {
 
     private void unlock(){
         if(unlocked)return;unlocked=true;if(onUnlock!=null)onUnlock.run();
-        experiments=new DeveloperExperimentsTab(context,host);chemCore=new AnalyticalLabTab(context,host);connectionSetup=new DeveloperConnectionDiagnosticsTab(context,host);library=new CentralLibraryDashboardTab(context,host);
-        views=new View[]{experiments.view(),chemCore.view(),connectionSetup.view(),library.view()};
-        String[] names={"التجارب","المختبر","الاتصال","المكتبة المركزية"};tabs=new Button[names.length];bar.removeAllViews();
+        experiments=new DeveloperExperimentsTab(context,host);chemCore=new AnalyticalLabTab(context,host);r0=new DeveloperR0Tab(context,host);connectionSetup=new DeveloperConnectionDiagnosticsTab(context,host);library=new CentralLibraryDashboardTab(context,host);
+        views=new View[]{experiments.view(),chemCore.view(),r0.view(),connectionSetup.view(),library.view()};
+        String[] names={"التجارب","المختبر","معايرة R0","الاتصال","المكتبة"};tabs=new Button[names.length];bar.removeAllViews();
         for(int i=0;i<names.length;i++){final int x=i;Button b=UiKit.button(context,names[i]);b.setTextSize(9);b.setOnClickListener(v->show(x));tabs[i]=b;bar.addView(b,UiKit.weight(1));}
         show(0);host.showToast("تم فتح مساحة المطور");
     }
 
     private void show(int index){if(!unlocked||views==null)return;selected=Math.max(0,Math.min(views.length-1,index));page.removeAllViews();page.addView(views[selected],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabs.length;i++){tabs[i].setTextColor(i==selected?Color.WHITE:Color.DKGRAY);tabs[i].setBackgroundColor(i==selected?0xFF263238:0xFFE0E0E0);}refresh();}
 
-    public void refresh(){if(!unlocked)return;if(selected==0&&experiments!=null)experiments.refresh();else if(selected==1&&chemCore!=null)chemCore.refresh();else if(selected==2&&connectionSetup!=null)connectionSetup.refresh();else if(selected==3&&library!=null)library.refresh();}
+    public void refresh(){if(!unlocked)return;if(selected==0&&experiments!=null)experiments.refresh();else if(selected==1&&chemCore!=null)chemCore.refresh();else if(selected==2&&r0!=null)r0.refresh();else if(selected==3&&connectionSetup!=null)connectionSetup.refresh();else if(selected==4&&library!=null)library.refresh();}
 }
