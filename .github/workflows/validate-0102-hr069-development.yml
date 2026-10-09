@@ -43,6 +43,11 @@ jobs:
           python3 tools/audit_0105_analytical_engines.py
           python3 tools/audit_0106_confidence_fusion.py
 
+      - name: Replay actual HR069 firmware logic on host (Echo IR direct-BME drive)
+        run: |
+          set -euo pipefail
+          python3 tools/test_hr069_r1_hardware_host.py
+
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
