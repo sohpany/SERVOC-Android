@@ -54,3 +54,38 @@
 - **Latest vCode30 functional source:** `fa5914beb3b0bce1d5d6cac43d4a300bd284837f` (Android only changes since previously qualified v29).
 - **Runs that must be completed and inspected (not accepted on creation):** [diagnostic APK 37868380480](https://github.com/sohpany/SERVOC-Android/actions/runs/37868380480), [development validation 37868380504](https://github.com/sohpany/SERVOC-Android/actions/runs/37868380504), and [internal Android 37868380548](https://github.com/sohpany/SERVOC-Android/actions/runs/37868380548).
 - BME values remain **truly live (not last-valid-held, not smoothed)**. Physical I2C reliability and motor independence remain open bench tests. Previous diagnostic APK versionCode29 stays the only validated APK until these versionCode30 runs finish successfully and their signatures/hashes are checked.
+
+
+## FINAL SOFTWARE CI CHECKPOINT — 2026-10-09 / diagnostic vCode30
+
+**All three CI runs COMPLETED SUCCESS** for the same frozen **functional source SHA** `fa5914beb3b0bce1d5d6cac43d4a300bd284837f`.
+
+| Workflow and immutable run | Result | What passed |
+|---|---|---|
+| [37868380480](https://github.com/sohpany/SERVOC-Android/actions/runs/37868380480) | **SUCCESS** | Runtime contract, Android JUnit, ChemCore research challenges, signed debug APK staging and `apksigner` verification |
+| [37868380548](https://github.com/sohpany/SERVOC-Android/actions/runs/37868380548) | **SUCCESS** | Independent Android internal-validation job; unit tests and signed artifact integrity |
+| [37868380504](https://github.com/sohpany/SERVOC-Android/actions/runs/37868380504) | **SUCCESS** | Android + source audits (RC2/UI/measurement/ChemCore/confidence) and Main ESP32 + ESP32-CAM Arduino-ESP32 3.3.11 compilation |
+
+### Output manifests
+
+- APK from run 37868380480: `HazRob-0.10.2-HR069-R1-RC2-WORKING-353-fa5914beb3b0bce1d5d6cac43d4a300bd284837f.apk`, GitHub artifact ID **11588469351**, Android package `com.servoc.app`, `versionName=0.10.2`, `versionCode=30`.
+- **APK SHA-256:** `f54456b4b8486d2ab69b911af5f4d68ac4a9e478a948ebc685849500f676975c`.
+- **APK signer certificate SHA-256:** `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`.
+- Main ESP32 diagnostic ZIP from run 37868380504: artifact ID **11588728999**, **ZIP SHA-256** `41da1677ae615fff8005f40f0fd03f393e11d625ab19681c4c335a7345802292`.
+- ESP32-CAM diagnostic ZIP from run 37868380504: artifact ID **11589865018**, **ZIP SHA-256** `564cde812950769e3ae297892f56a4b15e5cd22096cbe28641ae8b4ce1d2417a`.
+- Source's **Main ESP32 HR069-R1 and ESP32-CAM HR069 functionality was not changed by this field-feedback repair**. ZIP filenames use the generic HR069 wrapper convention; this does not alter the actual revision identifiers.
+- Reference ChemCore snapshot remains `1.0.0-hr069r1`. The experiments/replay/MQ3 pilots are CI software diagnostics, **not** reference-gas or blind-mixture physical validation.
+
+### Test boundaries and unresolved acceptance
+
+**Software build gate PASSED. Physical acceptance is NOT PASSED/NOT YET PERFORMED.** In particular:
+1. Echo requires actual pulse validation, 5V/3.3V interfacing checks and reproducible cm under 5cm/10cm tests. Counters in submitted screenshots were growing; the Android HUD change is diagnostic, not a sensor repair.
+2. BME readings are live-only without hold/smoothing; confirm SDA13/SCL14 wiring, power/load/I2C failure reasons on real hardware (including 0x76/0x77) before marking stable.
+3. Tank sliders: software contracts pass, but independence, gradual PWM, forward/reverse/pivot, deadman and E-stop must be demonstrated on a lifted robot before floor testing.
+4. Sound: electrical RMS presentation smoothing is UI-only. A certified `dB SPL` claim requires external meter traceable calibration.
+5. Smart PDF/XLSX reformatting and field-/site-wide reports still require page/layout/opening tests; improved diagrams do not certify exports.
+6. ChemCore candidate identification/tracking, R0 electrical board load resistor assumption and gas mixture accuracy require real trials.
+7. Railway relay was offline on account inspection; remote WAN end-to-end still **UNVERIFIED**.
+8. Do not promote this diagnostic build, flash any firmware solely for Android UX changes, or overwrite controlled release authority without documented field sign-off.
+
+**Provenance:** Hashes/signature above were read from the exact successful GitHub CI job logs and artifact manifests; verify SHA-256 again on downloaded ZIP/APK bytes before installation. No independent hardware trial or binary installation is represented by these checks.
