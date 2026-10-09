@@ -46,3 +46,11 @@
 - No deployment changes to offline Railway WAN services and no alteration to local library/field session provenance.
 
 **Important:** Android visual fixes cannot establish electrical Echo correctness, battery calibration, BME I2C reliability, gas detection accuracy, or real loaded motor control. This is an **intermediate diagnostic checkpoint**, not a release sign-off.
+
+
+## Incremental CI repair and new source checkpoint
+
+- Previous intermediate builds failed the strict RC2 source audits, first because the changed 100 ms motor control cadence violated the existing 20Hz (`50 ms`) motor refresh contract, then because the report UI audit requires the explicit text `لا توجد نقاط مصطنعة`. Both contractual behaviors were restored without changing Main ESP32 firmware.
+- **Latest vCode30 functional source:** `fa5914beb3b0bce1d5d6cac43d4a300bd284837f` (Android only changes since previously qualified v29).
+- **Runs that must be completed and inspected (not accepted on creation):** [diagnostic APK 37868380480](https://github.com/sohpany/SERVOC-Android/actions/runs/37868380480), [development validation 37868380504](https://github.com/sohpany/SERVOC-Android/actions/runs/37868380504), and [internal Android 37868380548](https://github.com/sohpany/SERVOC-Android/actions/runs/37868380548).
+- BME values remain **truly live (not last-valid-held, not smoothed)**. Physical I2C reliability and motor independence remain open bench tests. Previous diagnostic APK versionCode29 stays the only validated APK until these versionCode30 runs finish successfully and their signatures/hashes are checked.
