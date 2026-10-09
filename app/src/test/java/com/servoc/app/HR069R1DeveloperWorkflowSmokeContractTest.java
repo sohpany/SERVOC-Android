@@ -50,7 +50,8 @@ public final class HR069R1DeveloperWorkflowSmokeContractTest {
         assertTrue(r0.contains("calibrationChangeBlocked()"));
         assertTrue(r0.contains("ChemCoreLibraryManager.measurementOrAnalysisActive(host.latestDiagnostics())"));
         assertTrue(r0.contains("ManualR0Calibration.save("));
-        assertTrue(r0.contains("ManualR0Calibration.clear("));
+        assertTrue(r0.contains("ManualR0Calibration.reset("));
+        assertTrue(r0.contains("ManualR0Calibration.saveAll("));
         assertTrue(r0.contains("kΩ"));
         assertTrue(r0.contains("1000 Ω = 1 kΩ"));
     }
