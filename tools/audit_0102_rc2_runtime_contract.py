@@ -74,6 +74,22 @@ def main() -> int:
     require(hw,"ultraCm=d*0.01715f","ultrasonic pulse-to-cm conversion")
     require(hw,'\\"pulse_us\\":',"ultrasonic pulse diagnostics")
     require(hw,'\\"timeouts\\":',"ultrasonic timeout diagnostics")
+    # HR069-R1 firmware diagnosis: distinguish true bad pulse paths without inventing a distance.
+    for field in ("no_rise","no_fall","stuck_high","invalid_pulse","echo_level","last_ok_age_ms"):
+        require(hw,field,"HC-SR04 missing-edge diagnostics")
+    require(hw,'ultraStatus="no_rising_edge"',"Echo missing rising edge")
+    require(hw,'ultraStatus="no_falling_edge"',"Echo missing falling edge")
+    require(hw,'ultraStatus="echo_high_before_trigger"',"Echo stuck HIGH")
+    require(hw,"ultraLastPulseUs=0;ultraWarning=false;ultraStop=false;","failed Echo cannot keep valid motion thresholds")
+    # ENV values are still acquired every 1000ms; missing samples remain invalid and visible.
+    require(cfg,"ENV_PERIOD=1000","true live BME/BMP sensor cadence")
+    require(hw,"EnvWire.setTimeOut(25)","bounded BME-only I2C timeout")
+    require(hw,"EnvWire.end();","BME bus recovery")
+    require(hw,"EnvWire.begin(Cfg::ENV_SDA,Cfg::ENV_SCL);","dedicated BME bus restart")
+    require(hw,"envReadFails>=ENV_FAIL_LIMIT","BME recovery only after repeated failures")
+    require(hw,"temp=hum=press=NAN;envType=0;","failed BME readings are not used as fresh values")
+    for field in ("total_read_errors","bus_recoveries","i2c_timeout_ms"):
+        require(hw,field,"BME recovery diagnostics")
     require(echo_badge,"ECHO TIMEOUT ×","operator ultrasonic timeout visibility")
     require(echo_badge,'"ECHO %.1f cm"',"operator ultrasonic distance visibility")
 
