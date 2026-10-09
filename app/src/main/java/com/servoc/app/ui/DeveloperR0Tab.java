@@ -39,7 +39,8 @@ public final class DeveloperR0Tab {
 
         root.addView(UiKit.title(c,"معايرة R0 — ثمانية حساسات"),UiKit.full(c));
         TextView instructions=UiKit.small(c,
-            "هذه معايرة هواء نظيف خاصة بروبوتك؛ يمكن تعديل R0 وحفظها دون إنترنت. أدخل القيمة المقاسة بالأوم لكل حساس، بعد ثبات تغذية الحساسات وإحمائها. " +
+            "هذه معايرة هواء نظيف خاصة بروبوتك؛ يمكن تعديل R0 وحفظها دون إنترنت. وحدة Rs وR0 الحالية هي كيلو أوم (kΩ) وفق افتراض RL = 10 kΩ في الفيرموير، وليست أوم. " +
+            "تحقق من قيمة مقاومة الحمل RL الفعلية على كل لوحة MQ قبل اعتماد القيمة؛ 1000 Ω = 1 kΩ. أدخل القيمة بوحدة kΩ بعد ثبات تغذية الحساسات وإحمائها. " +
             "لا يتم اعتماد قراءة Rs على أنها R0 تلقائيًا. R0 وحدها لا تحقق معايرة PPM مرجعية. " +
             "الحفظ معطل أثناء التسجيل/التحليل النشط حتى لا تتغير المعايرة وسط الجلسة. " +
             "حفظ القيم يؤثر في التحليلات الجديدة فقط؛ جلسات القياس المحفوظة لا تُعدّل.");
@@ -136,7 +137,7 @@ public final class DeveloperR0Tab {
         for(int i=0;i<keys.length;i++){
             String k=keys[i];JSONObject sample=mq==null?null:mq.optJSONObject(k);
             double rs=sample==null?Double.NaN:sample.optDouble("rs",Double.NaN);
-            String rsLabel=Double.isFinite(rs)&&rs>0?String.format(Locale.US,"%.5f Ω",rs):"غير متاح";
+            String rsLabel=Double.isFinite(rs)&&rs>0?String.format(Locale.US,"%.5f kΩ",rs):"غير متاح";
             info[i].setText("Rs اللحظية: "+rsLabel+" • المصدر: "+ManualR0Calibration.getSource(k)+
                 "\nآخر حفظ: "+ManualR0Calibration.getUtc(k)+" • جلسة: "+ManualR0Calibration.getSession(k));
         }
