@@ -51,3 +51,27 @@ This is not a claim of independent ADC wiring: a BME280 still communicates digit
 Added host replay step to `.github/workflows/validate-0102-hr069-development.yml` (branch source tests); existing same workflow compiles ESP32 Main and ESP32-CAM and runs Android/chemistry JUnit suites. Signed diagnostic APK and internal Android validation are run by separate existing workflows. Link only immutable exact-source successful results.
 
 **Outstanding:** external hardware bench test, app emulator/phone tests, representative real saved-session PDF/XLSX opening, data replay across Developer/USER roles, actual direct and remote transport. No final release authorization.
+
+
+## Final CI evidence for latest software-tested candidate — 2026-10-09
+
+**LATEST VALIDATED WORKING/UNAPPROVED CANDIDATE (NOT STABLE):** source SHA `6281d3eb7c1c961ce63b0b5e4ae0792874626720`, versionName `0.10.2`, versionCode `30`, engineering revision `HR069-R1`. The source and Android/firmware tests all succeeded at this **exact same commit**. Subsequent documentation or packaging commits do not change the compiled app/firmware code.
+
+| Pipeline and immutable run | Result | Primary evidence |
+| --- | --- | --- |
+| [Signed debug diagnostic APK, run 37870936815](https://github.com/sohpany/SERVOC-Android/actions/runs/37870936815) | SUCCESS | APK artifact ID `11590871098`; Android signing verification `PASS`, package `com.servoc.app` versionCode `30`, versionName `0.10.2`; APK SHA-256 `87226e1749d632e2016332a2a204fec09705eb27ebf378f500a9f5a3b8886039` |
+| [Independent Android internal validation, run 37870936746](https://github.com/sohpany/SERVOC-Android/actions/runs/37870936746) | SUCCESS | Android unit/source contract tests |
+| [ESP32, ESP32-CAM, app tests and host C++ replay, run 37870937034](https://github.com/sohpany/SERVOC-Android/actions/runs/37870937034) | SUCCESS | **35 native-host firmware assertions PASS** (actual firmware Echo/IR/BME/drive functions against simulated GPIO/time/I²C), Android unit tests PASS, Main + CAM compilation PASS with pinned Arduino ESP32 core 3.3.11 |
+| [Main ESP32 firmware ZIP, same run](https://github.com/sohpany/SERVOC-Android/actions/runs/37870937034/artifacts/11590647043) | AVAILABLE | artifact ID `11590647043`; internal firmware ZIP SHA-256 `28474851e87ea431f5beb38f03ff0c016625960ac9dd129132128d53043f55d6`, Main sketch 1,132,833 bytes (36% of allowed app partition) |
+| [ESP32-CAM firmware ZIP, same run](https://github.com/sohpany/SERVOC-Android/actions/runs/37870937034/artifacts/11590297778) | AVAILABLE BUT **NO REFLASH NEEDED** | CAM source unchanged by this change set, compilation PASS |
+
+The latest actual firmware source change is Echo pulse classification and direct BME `EnvWire` bus read error recovery. Android v30 forwards these diagnostics and shows operator information.
+
+### Explicit exclusions and release criteria
+
+- **Not field-accepted:** Echo physical pulse and 5V-to-3.3V ECHO protection, BME wiring/power in a live chamber, real distance measurement, L298N load handling, battery under power load, on-device PDF/XLSX rendering, developer Android tap flows, Remote WAN/Railway.
+- BME wiring confirmed by user as **direct to ESP32 without ADS1115, external level shifter or multiplexer**. Current firmware uses ESP32 secondary I²C peripheral SDA=GPIO13, SCL=GPIO14; this is an internal protocol and does not imply external modules.
+- **Development SHA is not a released stable version**. The controlled `vCode26` authority is not overridden by this record; `vCode30` is the latest successful **diagnostic candidate**.
+- Never delete user local data during install; where permitted, install matching signed build on top, retaining application data.
+- Main ESP32 **must be reprogrammed** to receive firmware Echo/BME diagnostics; **ESP32-CAM need not** be reprogrammed because CAM code was unchanged.
+- The software E-STOP in current Android source still uses two-second hold. Avoid representing it as instant hardwired stop.
