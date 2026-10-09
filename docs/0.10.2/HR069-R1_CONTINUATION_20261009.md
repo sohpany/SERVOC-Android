@@ -51,3 +51,25 @@
 5. Physically qualify the assembled robot and Android reporting before any production promotion. Explicit project-owner approval is still required.
 
 **Next QA result:** PENDING — add exact final v29 workflow IDs, conclusions, checksums and any failures; do not infer a PASS from the job being queued or running.
+
+## E. Remote infrastructure verification — 2026-10-09 (READ-ONLY)
+
+**This section records actual connected Railway account state, not merely Android/firmware source contracts.** No Railway mutation/deployment or GitHub branch switch performed.
+
+- Project: `spirited-youthfulness`, production. Railway `environment_status` reported **OFFLINE** for both `HazRob-Video-Relay-0102-BranchFix` and `HazRob-Video-Relay-0102`. All four services in that Railway environment were offline at inspection.
+- Main ESP32 `RemoteCloudConfig.h` points to the BranchFix Railway bootstrap hostname; this matches a configured Railway service domain on port 8080. Domain configuration by itself does not prove a running service.
+- BranchFix latest settled deployment `d4aef271-9d73-4643-b911-8eb06fffcef2` has state **FAILED** (2026-09-24). Build logs state **"Script start.sh not found"** and **"Railpack could not determine how to build the app"**, and show repository root contents rather than the expected Node.js service subdirectory. The currently displayed Railway config sets source `sohpany/SERVOC-Android`, branch `release/hazrob-0.10.2` and root `remote/video-relay`, with `npm start` and `/health`. These config values do not retroactively repair the failed deployment.
+- Current RC2 `remote/video-relay/package.json` is a Node.js >=20 service with `npm start`, `npm test`. It is **not** qualified as an operational WAN relay merely because code and tests exist.
+- **REMOTE END-TO-END = BLOCKED/UNVERIFIED.** No functioning TLS bootstrap, MQTT command/ACK, MQTT telemetry/ACL, WSS video or controlled failover was demonstrated. EMQX remains the configured primary MQTT broker and HiveMQ is a contingency according to source; neither has been verified live by this inspection.
+- Security review required before production: investigate tracked static bootstrap authentication material and use provisioned, rotatable per-role credentials, without exposing actual token values in documentation. No credential was changed or published in this session.
+- Corrective operations **not executed**: changing Railway source branch, deploying production, reverting to older source, altering cloud credentials, or rebooting physical robot. These require the separate controlled remote-service verification/deployment and acceptance sequence.
+
+## F. New diagnostic v29 validation job references (not acceptance)
+
+Exact **functional** source SHA: `41dba5f781903c977cf4c08e024ae8b3a7b0b7bd`, Android `versionCode 29`. The later documentation-only commit does not modify the tested Android/firmware sources.
+
+- Diagnostic APK / JUnit job: https://github.com/sohpany/SERVOC-Android/actions/runs/37864587662
+- Internal Android validation job: https://github.com/sohpany/SERVOC-Android/actions/runs/37864587673
+- Android + Main ESP32 + CAM build/QA: https://github.com/sohpany/SERVOC-Android/actions/runs/37864587660
+
+All three runs were **IN PROGRESS** at the last observation during this checkpoint. Do not mark them PASSED or claim an installable v29 artifact until their completed results, resulting APK hash, signer fingerprint and manifest are inspected. Earlier superseded intermediate commits were automatically cancelled by CI concurrency and must not be interpreted as release test results.
