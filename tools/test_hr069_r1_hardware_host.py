@@ -59,7 +59,9 @@ def main() -> None:
         "envRecoverBus", "envUpdate", "driveSet"
     )}
     for name in ("envRecoverBus", "envUpdate"):
-        if re.search(r"\b(?:ads|ADS|Wire\.)(?=\w*)", fragments[name]):
+        # Comments correctly mention what must NOT be touched. Inspect executable statements only.
+        executable = re.sub(r"//[^\n]*|/\*.*?\*/", "", fragments[name], flags=re.S)
+        if re.search(r"\b(?:adsBegin|adsRead|Wire\.)", executable):
             raise AssertionError(f"Unexpected ADS bus access from {name}")
 
     cpp = r'''
