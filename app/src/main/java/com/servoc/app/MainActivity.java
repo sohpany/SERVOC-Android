@@ -119,7 +119,8 @@ public final class MainActivity extends Activity implements HazRobHost {
     }
     private void scheduleComms(){
         if(commsScheduled)return;commsScheduled=true;
-        // Two independent motor axes share a coalesced pair command. 100 ms heartbeat stays\n        // below the firmware 500 ms dead-man while avoiding redundant 50 ms network saturation.\n        workers.scheduleAtFixedRate(()->{if(entered&&foreground)queueDriveSend();},0,100,TimeUnit.MILLISECONDS);
+        // Preserve validated 20 Hz drive scheduling; RobotApi coalesces unchanged commands.
+        workers.scheduleAtFixedRate(()->{if(entered&&foreground)queueDriveSend();},0,50,TimeUnit.MILLISECONDS);
         workers.scheduleAtFixedRate(()->pollTelemetry(false),0,150,TimeUnit.MILLISECONDS);
     }
     private void requestManualRefresh(){workers.execute(()->pollTelemetry(true));}
