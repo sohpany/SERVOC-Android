@@ -228,11 +228,12 @@ public final class MeasurementsTab {
         AnalysisPane(){
             view=new ScrollView(c);box=UiKit.vbox(c);box.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,10));view.addView(box);
             box.addView(UiKit.title(c,"ChemCore • لوحة التحليل"),UiKit.full(c));
+            box.addView(UiKit.small(c,"المرشحون مرتّبون بحسب أدلة ChemCore المحفوظة؛ ترتيبهم لا يعني إثبات الهوية أو اعتماد PPM."),UiKit.full(c));
+            candidatePreview=card("المرشحون: —");candidatePreview.setTextIsSelectable(true);box.addView(candidatePreview,UiKit.full(c));
             LinearLayout r1=UiKit.hbox(c);readiness=kpi("الجاهزية\n—");topCandidate=kpi("المرشح الأول\n—");r1.addView(readiness,UiKit.weight(1));r1.addView(topCandidate,UiKit.weight(1));box.addView(r1,UiKit.full(c));
             LinearLayout r2=UiKit.hbox(c);confidence=kpi("الثقة\n—");evidence=kpi("الدليل\n—");r2.addView(confidence,UiKit.weight(1));r2.addView(evidence,UiKit.weight(1));box.addView(r2,UiKit.full(c));
             quantitative=kpi("PPM الكمي\n—");box.addView(quantitative,UiKit.full(c));
             quality=card("جودة التحليل: —");box.addView(quality,UiKit.full(c));
-            candidatePreview=card("المرشحون: —");candidatePreview.setTextIsSelectable(true);box.addView(candidatePreview,UiKit.full(c));
             LinearLayout nav=UiKit.hbox(c);Button openResults=UiKit.button(c,"فتح النتائج التفصيلية");openResults.setOnClickListener(v->show(3));nav.addView(openResults,UiKit.weight(1.4f));technicalToggle=UiKit.button(c,"التفاصيل التقنية");technicalToggle.setOnClickListener(v->{technicalVisible=!technicalVisible;technical.setVisibility(technicalVisible?View.VISIBLE:View.GONE);technicalToggle.setText(technicalVisible?"إخفاء التفاصيل":"التفاصيل التقنية");});nav.addView(technicalToggle,UiKit.weight(1));box.addView(nav,UiKit.full(c));
             technical=card("");technical.setTextIsSelectable(true);technical.setVisibility(View.GONE);box.addView(technical,UiKit.full(c));
             LinearLayout exp=UiKit.hbox(c);Button pdf=UiKit.button(c,"PDF");pdf.setOnClickListener(v->export("pdf"));exp.addView(pdf,UiKit.weight(1));Button xls=UiKit.button(c,"Excel");xls.setOnClickListener(v->export("xlsx"));exp.addView(xls,UiKit.weight(1));Button raw=UiKit.button(c,"Raw");raw.setOnClickListener(v->export("raw"));exp.addView(raw,UiKit.weight(1));box.addView(exp,UiKit.full(c));
@@ -331,6 +332,8 @@ public final class MeasurementsTab {
         }
 
         private void renderCandidates(JSONObject p){
+            // Recreate only the bounded current results. Do not append duplicates when selecting a candidate.
+            candidateList.removeAllViews();
             JSONArray a=p.optJSONArray("candidates");if(a==null||a.length()==0){candidateList.addView(card("لا توجد فرضيات قابلة للحل"),UiKit.full(c));return;}int n=Math.min(12,a.length());
             for(int i=0;i<n;i++){JSONObject q=a.optJSONObject(i);if(q==null)continue;int rank=q.optInt("rank",i+1);long uid=q.optLong("chemical_uid",-1);String name=q.optString("label","—");double posterior=q.optDouble("posterior",Double.NaN),coverage=q.optDouble("coverage_pct",Double.NaN),agreement=q.optDouble("agreement_pct",Double.NaN),residual=q.optDouble("residual_rms",Double.NaN);String tier=q.optString("evidence_tier",p.optString("evidence_tier","—"));int bg=candidateColor(rank-1,"");Button row=UiKit.button(c,(uid==selectedCandidateId?"◉ ":"")+"#"+rank+"  "+name+"\nPosterior "+pct(posterior)+" • Coverage "+pctAny(coverage)+" • Agreement "+pctAny(agreement)+" • Residual "+fmt(residual)+" • "+tier);row.setAllCaps(false);row.setTextColor(foregroundFor(bg));row.setBackgroundColor(bg);row.setOnClickListener(v->{selectedCandidateId=(int)uid;selectedCandidateName=name;selected.setText("المرشح المحدد • "+name+" (#"+uid+") • الاختيار لا يعني قبول الهوية");startTracking.setEnabled(uid>=0);renderCandidates(p);});candidateList.addView(row,UiKit.full(c));}
         }
