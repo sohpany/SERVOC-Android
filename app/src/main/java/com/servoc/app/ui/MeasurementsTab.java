@@ -102,7 +102,7 @@ public final class MeasurementsTab {
         final ScrollView view;
         final TextView[] values=new TextView[PhysicalCatalog.COUNT],states=new TextView[PhysicalCatalog.COUNT];
         final TextView envDiagnostic,soundRms,soundRmsState,soundP2p,soundP2pState,irValue,irState;
-        JSONObject lastValidEnv;long lastValidEnvAt=0;double lastSoundRms=Double.NaN,lastSoundP2p=Double.NaN;
+        double lastSoundRms=Double.NaN,lastSoundP2p=Double.NaN;
 
         PhysicalPane(){
             view=new ScrollView(c);LinearLayout box=UiKit.vbox(c);box.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,8));view.addView(box);
@@ -126,19 +126,13 @@ public final class MeasurementsTab {
         void refresh(){
             JSONObject d=host.latestDiagnostics();if(d==null){reset("غير متصل");envDiagnostic.setText("ENV • غير متصل");return;}reset("غير مركب");
             JSONObject e=d.optJSONObject("env");
-            boolean currentEnv=e!=null&&e.optBoolean("ok",false);
-            long now=android.os.SystemClock.elapsedRealtime();
-            if(currentEnv){lastValidEnv=e;lastValidEnvAt=now;}
-            JSONObject visibleEnv=currentEnv?e:lastValidEnv;
-            boolean staleEnv=!currentEnv&&visibleEnv!=null&&now-lastValidEnvAt<=5000L;
-            envDiagnostic.setText(envDiagnosticText(e)+(staleEnv?"\n⚠ آخر قراءة صالحة (قديمة) • غير معتمدة للتحليل الحالي":""));
-            if(currentEnv||staleEnv){
-                e=visibleEnv;
+            // BME/BMP always displays the latest actual telemetry; never hold a stale value.
+            // Transient failure remains explicitly visible for hardware/I2C troubleshooting.
+            envDiagnostic.setText(envDiagnosticText(e));
+            if(e!=null&&e.optBoolean("ok",false)){
                 String type=e.optString("type","ENV"),src=type+" • "+e.optString("address","—")+" • "+e.optString("chip_id","—");double t=e.optDouble("temperature",Double.NaN),h=e.optDouble("humidity",Double.NaN),p=e.optDouble("pressure",Double.NaN);
-                String quality=staleEnv?"⚠ قديمة • للعرض فقط":"● حية";
-                setPhysical(0,t,src+" • "+quality);setPhysical(1,h,Double.isFinite(h)?src+" • "+quality:"غير متاح في "+type);setPhysical(2,p,src+" • "+quality);
-                if(Double.isFinite(p)&&p>0)setPhysical(14,44330.0*(1.0-Math.pow(p/1013.25,0.1903)),"مشتق من الضغط • "+quality);else states[14].setText("ضغط غير صالح");
-                if(staleEnv)for(int idx:new int[]{0,1,2,14})states[idx].setTextColor(WARN);
+                setPhysical(0,t,src+" • ● حية");setPhysical(1,h,Double.isFinite(h)?src+" • ● حية":"غير متاح في "+type);setPhysical(2,p,src+" • ● حية");
+                if(Double.isFinite(p)&&p>0)setPhysical(14,44330.0*(1.0-Math.pow(p/1013.25,0.1903)),"مشتق من الضغط • ● حية");else states[14].setText("ضغط غير صالح");
             }else{
                 String reason=envReason(e);states[0].setText(reason);states[1].setText(reason);states[2].setText(reason);states[14].setText("يتطلب ضغطًا صالحًا");states[0].setTextColor(WARN);states[1].setTextColor(WARN);states[2].setTextColor(WARN);
             }
