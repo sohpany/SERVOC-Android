@@ -28,7 +28,7 @@ public final class AcceptedR0Normalizer {
 
     /** Strict path used by canonical features and reportable quantitative calculations. */
     public static double ratio(String sensorKey,JSONObject sensor){
-        if(sensor==null||!sensor.optBoolean("valid",sensor.optBoolean("ok",false)))return Double.NaN;
+        if(sensor==null||noChemicalInput(sensor)||!sensor.optBoolean("valid",sensor.optBoolean("ok",false)))return Double.NaN;
         return physicalRatio(sensorKey,sensor);
     }
 
@@ -50,7 +50,7 @@ public final class AcceptedR0Normalizer {
      * no current or synthetic R0 is substituted during history re-analysis.
      */
     public static double recordedRatio(String sensorKey,JSONObject recorded){
-        if(recorded==null||!recorded.optBoolean("valid",recorded.optBoolean("ok",false)))
+        if(recorded==null||noChemicalInput(recorded)||!recorded.optBoolean("valid",recorded.optBoolean("ok",false)))
             return Double.NaN;
         return recordedPhysicalRatio(recorded);
     }
@@ -62,7 +62,7 @@ public final class AcceptedR0Normalizer {
 
     /** Did this saved sample actually carry the active device R0 with provenance? */
     public static boolean usesRecordedDeviceR0(String sensorKey,JSONObject recorded){
-        if(recorded==null||!recorded.optBoolean("valid",recorded.optBoolean("ok",false)))
+        if(recorded==null||noChemicalInput(recorded)||!recorded.optBoolean("valid",recorded.optBoolean("ok",false)))
             return false;
         double rs=recorded.optDouble("rs",Double.NaN),r0=recorded.optDouble("r0",Double.NaN);
         if(!(Double.isFinite(rs)&&rs>0&&Double.isFinite(r0)&&r0>0))return false;
@@ -89,10 +89,13 @@ public final class AcceptedR0Normalizer {
     public static double evidenceWeight(JSONObject sensor){
         if(sensor==null)return 0.0;
         JSONObject quality=sensor.optJSONObject("quality");
-        String status=sensor.optString("status",quality==null?"":quality.optString("status","")).trim().toUpperCase();
+        String status=telemetryStatus(sensor);
         boolean valid=sensor.optBoolean("valid",sensor.optBoolean("ok",false));
         double w;
-        if(valid||"VALID".equals(status))w=1.0;
+        // A stale/contradictory valid flag must never override an explicit absent-input state.
+        if(noChemicalInput(sensor))w=0.0;
+        else if(valid)w=1.0;
+        else if("VALID".equals(status))w=0.35; // inconsistent status: support only
         else if("STALE".equals(status))w=0.55;
         else if("INVALID".equals(status)||"NORMALIZATION_INVALID".equals(status))w=0.35;
         else if("RAIL_HIGH_OR_SATURATED".equals(status))w=0.25;
@@ -116,7 +119,7 @@ public final class AcceptedR0Normalizer {
 
     /** True when a valid Rs value is normalized with any accepted device R0 source. */
     public static boolean usesAcceptedDeviceR0(String sensorKey,JSONObject sensor){
-        if(sensor==null||!sensor.optBoolean("valid",sensor.optBoolean("ok",false)))return false;
+        if(sensor==null||noChemicalInput(sensor)||!sensor.optBoolean("valid",sensor.optBoolean("ok",false)))return false;
         double r0=acceptedR0(sensorKey),rs=sensor.optDouble("rs",Double.NaN);
         return Double.isFinite(r0)&&r0>0&&Double.isFinite(rs)&&rs>0;
     }
@@ -133,6 +136,22 @@ public final class AcceptedR0Normalizer {
             return session==null||session.isEmpty()?source:source+":"+session;
         }
         double v=availableRatio(sensorKey,sensor);return Double.isFinite(v)&&v>0?"telemetry_or_rs_ratio_corroborative":"no_chemical_ratio_available";
+    }
+
+    /** Explicit source/ADC/power loss has priority over contradictory stale validity bits. */
+    private static boolean noChemicalInput(JSONObject sensor){
+        String status=telemetryStatus(sensor);
+        return "POWER_OFF".equals(status)||"ADC_UNAVAILABLE".equals(status)
+                ||"MISSING_SOURCE".equals(status);
+    }
+    private static String telemetryStatus(JSONObject sensor){
+        if(sensor==null)return "";
+        String status=sensor.optString("status","").trim();
+        if(status.isEmpty()){
+            JSONObject quality=sensor.optJSONObject("quality");
+            status=quality==null?"":quality.optString("status","").trim();
+        }
+        return status.toUpperCase(java.util.Locale.US);
     }
 
     private static double physicalRatio(String sensorKey,JSONObject sensor){
