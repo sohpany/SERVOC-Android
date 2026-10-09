@@ -77,7 +77,11 @@ public final class MeasurementsTab {
     }
 
     public View view(){return root;}
-    public void refresh(){physical.refresh();live.refresh();analysis.refresh();analysisResults.refresh();}
+    public void refresh(){
+        // Rendering all four hidden panes at 150 ms rebuilt large candidate lists and caused UI stalls.
+        // Update only the visible pane; showing another pane triggers its own first refresh.
+        switch(selected){case 0:physical.refresh();break;case 1:live.refresh();break;case 2:analysis.refresh();break;case 3:analysisResults.refresh();break;default:break;}
+    }
     private void show(int i){
         selected=Math.max(0,Math.min(3,i));page.removeAllViews();page.addView(views[selected],new FrameLayout.LayoutParams(-1,-1));
         for(int n=0;n<tabs.length;n++){
@@ -98,6 +102,7 @@ public final class MeasurementsTab {
         final ScrollView view;
         final TextView[] values=new TextView[PhysicalCatalog.COUNT],states=new TextView[PhysicalCatalog.COUNT];
         final TextView envDiagnostic,soundRms,soundRmsState,soundP2p,soundP2pState,irValue,irState;
+        JSONObject lastValidEnv;long lastValidEnvAt=0;double lastSoundRms=Double.NaN,lastSoundP2p=Double.NaN;
 
         PhysicalPane(){
             view=new ScrollView(c);LinearLayout box=UiKit.vbox(c);box.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,8));view.addView(box);
@@ -120,17 +125,27 @@ public final class MeasurementsTab {
         private void setPhysical(int index,double value,String source){if(Double.isFinite(value)){values[index].setText(String.format(Locale.US,index==14?"%.1f":"%.2f",value));states[index].setText(source);states[index].setTextColor(GOOD);}else{values[index].setText("—");states[index].setText(source);states[index].setTextColor(WARN);}}
         void refresh(){
             JSONObject d=host.latestDiagnostics();if(d==null){reset("غير متصل");envDiagnostic.setText("ENV • غير متصل");return;}reset("غير مركب");
-            JSONObject e=d.optJSONObject("env");envDiagnostic.setText(envDiagnosticText(e));
-            if(e!=null&&e.optBoolean("ok",false)){
+            JSONObject e=d.optJSONObject("env");
+            boolean currentEnv=e!=null&&e.optBoolean("ok",false);
+            long now=android.os.SystemClock.elapsedRealtime();
+            if(currentEnv){lastValidEnv=e;lastValidEnvAt=now;}
+            JSONObject visibleEnv=currentEnv?e:lastValidEnv;
+            boolean staleEnv=!currentEnv&&visibleEnv!=null&&now-lastValidEnvAt<=5000L;
+            envDiagnostic.setText(envDiagnosticText(e)+(staleEnv?"\n⚠ آخر قراءة صالحة (قديمة) • غير معتمدة للتحليل الحالي":""));
+            if(currentEnv||staleEnv){
+                e=visibleEnv;
                 String type=e.optString("type","ENV"),src=type+" • "+e.optString("address","—")+" • "+e.optString("chip_id","—");double t=e.optDouble("temperature",Double.NaN),h=e.optDouble("humidity",Double.NaN),p=e.optDouble("pressure",Double.NaN);
-                setPhysical(0,t,src);setPhysical(1,h,Double.isFinite(h)?src:"غير متاح في "+type);setPhysical(2,p,src);if(Double.isFinite(p)&&p>0)setPhysical(14,44330.0*(1.0-Math.pow(p/1013.25,0.1903)),"مشتق من الضغط");else states[14].setText("ضغط غير صالح");
+                String quality=staleEnv?"⚠ قديمة • للعرض فقط":"● حية";
+                setPhysical(0,t,src+" • "+quality);setPhysical(1,h,Double.isFinite(h)?src+" • "+quality:"غير متاح في "+type);setPhysical(2,p,src+" • "+quality);
+                if(Double.isFinite(p)&&p>0)setPhysical(14,44330.0*(1.0-Math.pow(p/1013.25,0.1903)),"مشتق من الضغط • "+quality);else states[14].setText("ضغط غير صالح");
+                if(staleEnv)for(int idx:new int[]{0,1,2,14})states[idx].setTextColor(WARN);
             }else{
                 String reason=envReason(e);states[0].setText(reason);states[1].setText(reason);states[2].setText(reason);states[14].setText("يتطلب ضغطًا صالحًا");states[0].setTextColor(WARN);states[1].setTextColor(WARN);states[2].setTextColor(WARN);
             }
             JSONObject ldr=d.optJSONObject("ldr");if(ldr!=null&&ldr.optBoolean("installed",false)){states[3].setText("LDR • عتبة فقط");states[3].setTextColor(WARN);states[4].setText("لا توجد معايرة lm");}
             JSONObject s=d.optJSONObject("sound");double rms=s==null?Double.NaN:s.optDouble("rms_v",Double.NaN),p2p=s==null?Double.NaN:s.optDouble("p2p_v",Double.NaN);
-            if(Double.isFinite(rms)){soundRms.setText(String.format(Locale.US,"%.4f",rms));soundRmsState.setText("MAX4466");soundRmsState.setTextColor(GOOD);}else soundRmsState.setText("لا توجد قراءة");
-            if(Double.isFinite(p2p)){soundP2p.setText(String.format(Locale.US,"%.4f",p2p));soundP2pState.setText("MAX4466");soundP2pState.setTextColor(GOOD);}else soundP2pState.setText("لا توجد قراءة");
+            if(Double.isFinite(rms)){lastSoundRms=Double.isFinite(lastSoundRms)?0.70*lastSoundRms+0.30*rms:rms;soundRms.setText(String.format(Locale.US,"%.4f",lastSoundRms));soundRmsState.setText("MAX4466 • RMS ممهّد للعرض");soundRmsState.setTextColor(GOOD);}else{lastSoundRms=Double.NaN;soundRmsState.setText("لا توجد قراءة");}
+            if(Double.isFinite(p2p)){lastSoundP2p=Double.isFinite(lastSoundP2p)?0.70*lastSoundP2p+0.30*p2p:p2p;soundP2p.setText(String.format(Locale.US,"%.4f",lastSoundP2p));soundP2pState.setText("MAX4466 • ممهّد للعرض");soundP2pState.setTextColor(GOOD);}else{lastSoundP2p=Double.NaN;soundP2pState.setText("لا توجد قراءة");}
             double db=s==null?Double.NaN:s.optDouble("db_spl",Double.NaN);if(Double.isFinite(db)){values[5].setText(String.format(Locale.US,"%.1f",db));states[5].setText("MAX4466 • dB SPL تقديري");states[5].setTextColor(GOOD);}else{values[5].setText("—");states[5].setText(Double.isFinite(rms)||Double.isFinite(p2p)?"MAX4466 • بانتظار dB SPL":"MAX4466 غير متصل");states[5].setTextColor(WARN);}
             JSONObject ir=d.optJSONObject("ir");if(ir!=null){boolean cliff=ir.optBoolean("cliff_warning",ir.optBoolean("warning",false)),ground=ir.optBoolean("ground_detected",!cliff);irValue.setText(cliff?"⚠ لا توجد أرض — خطر سقوط":ground?"الأرض مكتشفة":"جارٍ التحقق");irState.setText("GPIO35 • مرجع "+String.format(Locale.US,"%.0f",ir.optDouble("reference_height_cm",8.0))+" cm • raw="+ir.optInt("raw_level",ir.optInt("level",-1)));irValue.setTextColor(cliff?BAD:ground?GOOD:WARN);irState.setTextColor(MUTED);}else irState.setText("غير متصل");
         }
