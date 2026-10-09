@@ -1,14 +1,22 @@
 # HazRob main ESP32 firmware — 0.10.2 / HR069-R1 WORKING
 
-## Latest documented Main ESP32 source / matched Android app (2026-10-08)
+## Latest verified Main ESP32 firmware + compatible Android APK — 2026-10-09
 
-**LATEST DELIVERED WORKING Arduino sketch:** HazRob **0.10.2 / HR069-R1**, from Git commit `e6a14bc570c335b824c153c7cd7fd2677b9bd005`. The Arduino source ZIP `HazRob-0.10.2-HR069-R1-ESP32-Arduino.zip` has SHA-256 `6532c3495de23b1d4917ad64882519d3cc9c0cb42fd66634dc92059ba560058e`.
+**WORKING / UNAPPROVED, not field-qualified.** The latest **matched** firmware and Android app were built from the identical source commit `6281d3eb7c1c961ce63b0b5e4ae0792874626720`, branch `release/hazrob-0.10.2-rc2`. The older vCode28 / firmware `e6a14bc` evidence has been superseded for testing; do not flash it by mistake.
 
-**LATEST DELIVERED WORKING Android app:** HazRob **0.10.2 / HR069-R1**, **versionCode 28**, APK source commit `8b89e4c27fa7fda4cc25b294f9a973a2a1a2a60a`, APK SHA-256 `022ba04594cd7b7735e2fd67a37586ee4b9e235eaf5e7e799e170b1e42d19618`. Embedded ChemCore Stable: `1.0.0-hr069r1`; locally editable R0 remains on Android. ESP32-CAM is still 0.10.2/HR069.
+| Component | Current latest diagnostic version | Download | File SHA-256 |
+|---|---|---|---|
+| **Main ESP32 firmware** | **HazRob 0.10.2 / HR069-R1**, API v4 | [source + compiled firmware ZIP / artifact 11590647043](https://github.com/sohpany/SERVOC-Android/actions/runs/37870937034/artifacts/11590647043) | `28474851e87ea431f5beb38f03ff0c016625960ac9dd129132128d53043f55d6` (inner ZIP) |
+| **Android APK** | **HazRob 0.10.2 / HR069-R1**, `versionCode 30`, `com.servoc.app` | [signed test APK / artifact 11590871098](https://github.com/sohpany/SERVOC-Android/actions/runs/37870936815/artifacts/11590871098) | `87226e1749d632e2016332a2a204fec09705eb27ebf378f500a9f5a3b8886039` (APK) |
+| **ESP32-CAM** | **0.10.2 / HR069**, unchanged | no reflashing for Main ESP32 updates | separate firmware |
 
-**Verified compatibility of the source revisions:** `firmware/HazRob/` is the identical Git tree `12c8b5fe3c903d320b12e19a9c58d9a94c8cf2f0` in the two delivery commits and documentation baseline. The firmware source did not change between the Arduino ZIP and v28 APK deliveries. Both are the **latest delivered diagnostic versions**; neither has passed real-robot physical validation or been promoted to an approved field/production release.
+GitHub Actions encloses artifacts in a ZIP. For Android, extract `HazRob-0.10.2-HR069-R1-RC2-WORKING-359-6281d3eb7c1c961ce63b0b5e4ae0792874626720.apk`. For ESP32, extract the Arduino source `HazRob/HazRob.ino` and all companion `.cpp`/`.h` files; compile/upload on ESP32 Dev Module with ESP32 Arduino core `3.3.11`, **Huge APP** partitioning. The signed APK should be installed over the existing application rather than uninstalling it first, if signatures match, to retain local records.
 
-**Build evidence:** [Arduino compiler and ZIP](https://github.com/sohpany/SERVOC-Android/actions/runs/37852367741) · [v28 APK](https://github.com/sohpany/SERVOC-Android/actions/runs/37854726140). All ongoing engineering continues on **`release/hazrob-0.10.2-rc2` only**; do not flash HR068 or earlier firmware in place of this source.
+**Successful matching CI runs:** [firmware + Android source and host-replay](https://github.com/sohpany/SERVOC-Android/actions/runs/37870937034), [Android validation](https://github.com/sohpany/SERVOC-Android/actions/runs/37870936746), [APK signed-build](https://github.com/sohpany/SERVOC-Android/actions/runs/37870936815). Real-device acceptance remains pending; previous production-release authority has **not** been replaced.
+
+**Main firmware changes in this pair:** Echo HC-SR04 `TRIG=GPIO23`, `ECHO=GPIO39`, sampling interval 150 ms, timeout 25,000 µs; differentiated missing rising/falling edge, stuck-HIGH and invalid-pulse diagnostics, with invalid distances reported as invalid rather than old/stale distance. BME/BMP environmental sensor reads at nominal 1000 ms and reprobes/restarts its bus after repeated failures; **wired directly to ESP32 GPIO13 SDA / GPIO14 SCL** with no external voltage-level converter, I²C hub or ADS1115 in its signal path. Its dedicated native ESP32 hardware I²C is independent from the MQ ADS1115 GPIO21/22 bus. IR remains **HIGH=ground / LOW=cliff**; forward auto-stop is selectable by the operator and defaults OFF. Physical GPIO voltages, sensor operation and motion fail-safe tests must be validated on the robot.
+
+[Latest pair manifest and tests in root README](../../README.md) · [hardware replay and test matrix](../../docs/0.10.2/HR069-R1_INTERNAL_HARDWARE_AND_DEVELOPER_TESTS_20261009.md).
 
 ---
 
