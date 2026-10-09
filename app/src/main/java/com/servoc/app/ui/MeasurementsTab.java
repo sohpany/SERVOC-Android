@@ -274,7 +274,7 @@ public final class MeasurementsTab {
         TextView technical;
         final Button startTracking,screeningToggle,technicalToggle;
         final ChemCoreDecisionRepository decisions;
-        int selectedCandidateId=-1;String selectedCandidateName="";boolean showAll144=false,showTechnical=false;
+        int selectedCandidateId=-1;String selectedCandidateName="";boolean showAll144=false,showTechnical=false;long lastRenderedAt=0;
 
         AnalysisResultsPane(){
             view=new ScrollView(c);box=UiKit.vbox(c);box.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,10));view.addView(box);
@@ -286,11 +286,14 @@ public final class MeasurementsTab {
             TextView ch=UiKit.small(c,"المرشحون الديناميكيون • اللون ترتيب تحليلي وليس مستوى خطورة");ch.setTextColor(MUTED);box.addView(ch,UiKit.full(c));
             candidateList=UiKit.vbox(c);box.addView(candidateList,UiKit.full(c));
             LinearLayout actions=UiKit.hbox(c);startTracking=UiKit.button(c,"بدء التتبع");startTracking.setEnabled(false);startTracking.setOnClickListener(v->{if(selectedCandidateId<0){host.showToast("اختر مرشحًا أولًا");return;}host.setTrackingTarget(selectedCandidateId,selectedCandidateName);host.showToast("بدأ تتبع: "+selectedCandidateName);refresh();});actions.addView(startTracking,UiKit.weight(1));Button pick=UiKit.button(c,"اختيار غاز من المكتبة");pick.setOnClickListener(v->chooseTrackingChemical());actions.addView(pick,UiKit.weight(1.15f));Button stop=UiKit.button(c,"إيقاف التتبع");stop.setOnClickListener(v->{host.setTrackingTarget(-1,"");host.showToast("تم إيقاف التتبع");refresh();});actions.addView(stop,UiKit.weight(1));box.addView(actions,UiKit.full(c));
-            screeningToggle=UiKit.button(c,"إظهار فحص 144");screeningToggle.setOnClickListener(v->{showAll144=!showAll144;screeningToggle.setText(showAll144?"إخفاء فحص 144":"إظهار فحص 144");refresh();});box.addView(screeningToggle,UiKit.full(c));screeningList=UiKit.vbox(c);box.addView(screeningList,UiKit.full(c));
+            screeningToggle=UiKit.button(c,"إظهار فحص 144");screeningToggle.setOnClickListener(v->{showAll144=!showAll144;screeningToggle.setText(showAll144?"إخفاء فحص 144":"إظهار فحص 144");lastRenderedAt=0;refresh();});box.addView(screeningToggle,UiKit.full(c));screeningList=UiKit.vbox(c);box.addView(screeningList,UiKit.full(c));
             technicalToggle=UiKit.button(c,"إظهار البواقي والتفاصيل");technicalToggle.setOnClickListener(v->{showTechnical=!showTechnical;technical.setVisibility(showTechnical?View.VISIBLE:View.GONE);technicalToggle.setText(showTechnical?"إخفاء البواقي والتفاصيل":"إظهار البواقي والتفاصيل");});box.addView(technicalToggle,UiKit.full(c));technical=card("");technical.setVisibility(View.GONE);technical.setTextIsSelectable(true);box.addView(technical,UiKit.full(c));
             decisions=new ChemCoreDecisionRepository(host.database());
         }
         void refresh(){
+            long now=android.os.SystemClock.elapsedRealtime();
+            if(lastRenderedAt>0&&now-lastRenderedAt<750L)return;
+            lastRenderedAt=now;
             String id=host.lastMeasurementSessionId();JSONObject p=id==null||id.isEmpty()?null:decisions.latestPayloadForSession(id);candidateList.removeAllViews();screeningList.removeAllViews();tracking.setText(host.trackingTargetId()>=0?"التتبع • "+host.trackingTargetName()+" (#"+host.trackingTargetId()+") • فرضية مشغل":"التتبع • لا يوجد");
             if(p==null){startTracking.setEnabled(selectedCandidateId>=0);decisionCard.setText("القرار: لا توجد نتيجة محفوظة — يسمح بالتتبع الاستدلالي قبل المعايرة");screeningCard.setText("فحص 144: —");safetyCard.setText("السلامة والتعرض: —");technical.setText("—");return;}
             String chemical=p.optString("chemical","—"),outcome=p.optString("outcome","—"),tier=p.optString("evidence_tier","—");double post=p.optDouble("top_posterior",Double.NaN),margin=p.optDouble("posterior_separation_margin",Double.NaN);boolean ppmOk=p.optBoolean("ppm_reportable",false);double ppm=p.optDouble("ppm",Double.NaN);
