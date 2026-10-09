@@ -38,6 +38,32 @@ public final class AcceptedR0NormalizerEvidenceTest {
         assertEquals("WEAK",AcceptedR0Normalizer.evidenceQualityClass(q));
     }
 
+    @Test public void contradictoryValidFlagsCannotTurnPowerOrAdcFailureIntoChemicalEvidence()throws Exception{
+        for(String state:new String[]{"POWER_OFF","ADC_UNAVAILABLE","MISSING_SOURCE"}){
+            JSONObject q=measurement(true,state,2.0);
+            q.put("rs",FieldR0Baseline.value("mq2"));
+            assertTrue(state,Double.isNaN(AcceptedR0Normalizer.ratio("mq2",q)));
+            assertTrue(state,Double.isNaN(AcceptedR0Normalizer.recordedRatio("mq2",q)));
+            assertEquals(state,0.0,AcceptedR0Normalizer.evidenceWeight(q),0.0);
+            assertEquals(state,"DIAGNOSTIC_ONLY",AcceptedR0Normalizer.evidenceQualityClass(q));
+            assertFalse(state,AcceptedR0Normalizer.usesAcceptedDeviceR0("mq2",q));
+            assertFalse(state,AcceptedR0Normalizer.usesRecordedDeviceR0("mq2",q));
+            assertEquals(state,2.0,AcceptedR0Normalizer.availableRecordedRatio("mq2",q),1e-9);
+        }
+    }
+
+    @Test public void nestedHealthFailureAndContradictoryValidTextStaySupportOnly()throws Exception{
+        JSONObject nested=measurement(true,"VALID",2.0);
+        nested.remove("status");
+        nested.getJSONObject("quality").put("status","ADC_UNAVAILABLE");
+        assertEquals(0.0,AcceptedR0Normalizer.evidenceWeight(nested),0.0);
+        assertTrue(Double.isNaN(AcceptedR0Normalizer.ratio("mq3",nested)));
+
+        JSONObject contradictory=measurement(false,"VALID",2.0);
+        assertEquals(0.35,AcceptedR0Normalizer.evidenceWeight(contradictory),1e-9);
+        assertTrue(Double.isNaN(AcceptedR0Normalizer.ratio("mq3",contradictory)));
+    }
+
     private static JSONObject measurement(boolean valid,String status,double ratio)throws Exception{
         JSONObject q=new JSONObject();q.put("valid",valid);q.put("ok",valid);q.put("status",status);q.put("ratio",ratio);JSONObject quality=new JSONObject();quality.put("status",status);q.put("quality",quality);return q;
     }
