@@ -92,7 +92,7 @@ public final class ReportsTab {
 
         LinearLayout actions=UiKit.hbox(c);pdf=UiKit.button(c,"تصدير PDF");pdf.setOnClickListener(v->exportScope("pdf"));actions.addView(pdf,UiKit.weight(1));xlsx=UiKit.button(c,"تصدير Excel");xlsx.setOnClickListener(v->exportScope("xlsx"));actions.addView(xlsx,UiKit.weight(1));root.addView(actions,UiKit.full(c));
 
-        TextView chartTitle=UiKit.small(c,"الرسوم التحليلية • يعرض التطبيق فقط الرسوم التي تتوفر لها بيانات مسجلة فعلية");chartTitle.setTextColor(MUTED);root.addView(chartTitle,UiKit.full(c));
+        TextView chartTitle=UiKit.small(c,"الرسوم التحليلية • البيانات المسجلة فقط • لا توجد نقاط مصطنعة");chartTitle.setTextColor(MUTED);root.addView(chartTitle,UiKit.full(c));
         chartSelector=new Spinner(c);chartSelector.setBackgroundColor(0xFF263238);root.addView(chartSelector,UiKit.full(c));
         chartStatus=card(c,"المخطط • اختر جلسة محفوظة");root.addView(chartStatus,UiKit.full(c));
         chartView=new ImageView(c);chartView.setAdjustViewBounds(true);chartView.setMinimumHeight(UiKit.dp(c,220));chartView.setBackgroundColor(CARD2);chartView.setVisibility(View.GONE);root.addView(chartView,UiKit.full(c));
