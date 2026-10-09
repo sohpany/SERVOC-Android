@@ -145,7 +145,7 @@ void resetEcho(){
 void runEcho(float centimeters){
   ultraUpdate();check(ultraAwaiting,"Echo trigger armed");
   fakeUs+=100;echoLevel=HIGH;ultraEchoIsr();
-  fakeUs+=static_cast<uint32_t>(std::round(centimeters/0.01715f));
+  fakeUs+=static_cast<uint32_t>(std::floor(centimeters/0.01715f));
   echoLevel=LOW;ultraEchoIsr();
   ultraUpdate();
 }
@@ -172,9 +172,9 @@ int main(){
   check(std::strcmp(ultraStatus,"no_falling_edge")==0,"rise-only pulse diagnosed");
   check(ultraNoFallCount==1&&ultraTimeoutCount==1,"no-fall counter");
 
-  resetEcho();echoLevel=HIGH;ultraUpdate();
+  resetEcho();int triggerBefore=trigHighCount;echoLevel=HIGH;ultraUpdate();
   check(std::strcmp(ultraStatus,"echo_high_before_trigger")==0,"stuck HIGH diagnosis");
-  check(ultraStuckHighCount==1&&trigHighCount>0,"stuck HIGH counter without invented distance");
+  check(ultraStuckHighCount==1&&trigHighCount==triggerBefore&&!std::isfinite(ultraCm),"stuck HIGH rejects trigger and distance");
 
   resetEcho();ultraUpdate();fakeUs+=100;echoLevel=HIGH;ultraEchoIsr();
   fakeUs+=26000;echoLevel=LOW;ultraEchoIsr();ultraUpdate();
