@@ -49,6 +49,8 @@ public final class ReportsTab {
     private final Spinner chartSelector,siteSelector,fieldSelector;
     private final List<FieldSessionRepository.Site> scopeSites=new ArrayList<>();
     private final List<FieldSessionRepository.FieldSession> scopeSessions=new ArrayList<>();
+    private final List<Integer> availableCharts=new ArrayList<>();
+    private long chartGeneration=0;
     private String chosenSiteId="",chosenSessionId="";
     private final ImageView chartView;
     private final ChemCoreDecisionRepository decisions;
@@ -91,9 +93,9 @@ public final class ReportsTab {
         LinearLayout actions=UiKit.hbox(c);pdf=UiKit.button(c,"تصدير PDF");pdf.setOnClickListener(v->exportScope("pdf"));actions.addView(pdf,UiKit.weight(1));xlsx=UiKit.button(c,"تصدير Excel");xlsx.setOnClickListener(v->exportScope("xlsx"));actions.addView(xlsx,UiKit.weight(1));root.addView(actions,UiKit.full(c));
 
         TextView chartTitle=UiKit.small(c,"الرسوم التحليلية • يعرض التطبيق فقط الرسوم التي تتوفر لها بيانات مسجلة فعلية");chartTitle.setTextColor(MUTED);root.addView(chartTitle,UiKit.full(c));
-        chartSelector=new Spinner(c);chartSelector.setAdapter(new ArrayAdapter<String>(c,android.R.layout.simple_spinner_dropdown_item,CHARTS));chartSelector.setBackgroundColor(0xFFF5F5F5);root.addView(chartSelector,UiKit.full(c));
+        chartSelector=new Spinner(c);chartSelector.setBackgroundColor(0xFF263238);root.addView(chartSelector,UiKit.full(c));
         chartStatus=card(c,"المخطط • اختر جلسة محفوظة");root.addView(chartStatus,UiKit.full(c));
-        chartView=new ImageView(c);chartView.setAdjustViewBounds(true);chartView.setMinimumHeight(UiKit.dp(c,260));chartView.setBackgroundColor(Color.WHITE);root.addView(chartView,UiKit.full(c));
+        chartView=new ImageView(c);chartView.setAdjustViewBounds(true);chartView.setMinimumHeight(UiKit.dp(c,220));chartView.setBackgroundColor(CARD2);chartView.setVisibility(View.GONE);root.addView(chartView,UiKit.full(c));
         chartSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){public void onItemSelected(AdapterView<?> p,View v,int pos,long id){renderSelectedChart(pos);}public void onNothingSelected(AdapterView<?> p){}});
 
         technical=card(c,"—");technical.setTextIsSelectable(true);technical.setVisibility(View.GONE);
@@ -152,7 +154,7 @@ public final class ReportsTab {
     public void refresh(){
         refreshSiteScope();
         list.removeAllViews();List<ExperimentQueries.Record> rows=ExperimentQueries.recentUser(host.database(),100);archiveCard.setText("السجل • "+host.database().count()+" قياس محفوظ • المعروض "+rows.size());
-        if(rows.isEmpty()){selectedId=-1;setEnabled(false);sessionCard.setText("الجلسة\n—");decisionCard.setText("القرار\n—");qualityCard.setText("الجودة\n—");safetyCard.setText("السلامة\n—");candidateCard.setText("المرشحون • —");technical.setText("لا توجد بيانات تقرير.");chartView.setImageDrawable(null);chartStatus.setText("المخطط • لا توجد جلسة محفوظة");return;}
+        if(rows.isEmpty()){selectedId=-1;setEnabled(false);sessionCard.setText("الجلسة\n—");decisionCard.setText("القرار\n—");qualityCard.setText("الجودة\n—");safetyCard.setText("السلامة\n—");candidateCard.setText("المرشحون • —");technical.setText("لا توجد بيانات تقرير.");availableCharts.clear();chartSelector.setAdapter(null);chartView.setImageDrawable(null);chartView.setVisibility(View.GONE);chartStatus.setText("المخطط • لا توجد جلسة محفوظة");return;}
         if(selectedId<0)selectedId=rows.get(0).id;boolean found=false;
         for(ExperimentQueries.Record r:rows){if(r.id==selectedId)found=true;Button b=UiKit.button(list.getContext(),(r.id==selectedId?"● ":"")+"#"+r.id+"   "+safe(r.ts)+"   "+safe(r.protocol));b.setOnClickListener(v->select(r.id));list.addView(b,UiKit.full(list.getContext()));}
         if(!found)selectedId=rows.get(0).id;showSelected();
@@ -177,22 +179,68 @@ public final class ReportsTab {
             candidateCard.setText(candidateSummary(cc));
         }
 
-        StringBuilder t=new StringBuilder("المرجع والتتبّع\n");t.append("Experiment #").append(r.id).append(" • UTC ").append(safe(r.ts)).append("\nProtocol: ").append(safe(r.protocol)).append("\nSession: ").append(sid.isEmpty()?"—":sid).append("\nField Session: ").append(fieldReport?fieldSessionId:"—").append("\nMQ Power: ").append(mqOn?"ON":"OFF");if(relay!=null&&mqOn)t.append(" • ").append(relay.optLong("power_ms",0)).append(" ms");if(e!=null&&e.optBoolean("ok",false))t.append("\nENV: ").append(fmt(e.optDouble("temperature",Double.NaN))).append(" °C • ").append(fmt(e.optDouble("humidity",Double.NaN))).append(" %RH • ").append(fmt(e.optDouble("pressure",Double.NaN))).append(" hPa");t.append("\nStored analytical rows: ").append(a.optJSONArray("results")==null?0:a.optJSONArray("results").length());if(cc!=null){t.append("\n\n").append(ChemCoreAnalysisPresenter.summary(cc));t.append("\n\n").append(ChemCoreAnalysisPresenter.equationsAndResiduals(cc,6));}technical.setText(t.toString());renderSelectedChart(chartSelector.getSelectedItemPosition());
+        StringBuilder t=new StringBuilder("المرجع والتتبّع\n");t.append("Experiment #").append(r.id).append(" • UTC ").append(safe(r.ts)).append("\nProtocol: ").append(safe(r.protocol)).append("\nSession: ").append(sid.isEmpty()?"—":sid).append("\nField Session: ").append(fieldReport?fieldSessionId:"—").append("\nMQ Power: ").append(mqOn?"ON":"OFF");if(relay!=null&&mqOn)t.append(" • ").append(relay.optLong("power_ms",0)).append(" ms");if(e!=null&&e.optBoolean("ok",false))t.append("\nENV: ").append(fmt(e.optDouble("temperature",Double.NaN))).append(" °C • ").append(fmt(e.optDouble("humidity",Double.NaN))).append(" %RH • ").append(fmt(e.optDouble("pressure",Double.NaN))).append(" hPa");t.append("\nStored analytical rows: ").append(a.optJSONArray("results")==null?0:a.optJSONArray("results").length());if(cc!=null){t.append("\n\n").append(ChemCoreAnalysisPresenter.summary(cc));t.append("\n\n").append(ChemCoreAnalysisPresenter.equationsAndResiduals(cc,6));}technical.setText(t.toString());refreshAvailableCharts(seriesOk,cc!=null);
     }
 
-    private void renderSelectedChart(int pos){
-        ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),selectedId);if(r==null){chartView.setImageDrawable(null);chartStatus.setText("المخطط • لا توجد جلسة");return;}
-        SessionSeries.Series ss=SessionSeries.forExperiment(host.database(),r);String sid=r.sessionId==null?"":r.sessionId.trim();JSONObject cc=sid.isEmpty()?null:decisions.latestPayloadForSession(sid);boolean seriesOk=ss!=null&&ss.usable(),chemOk=cc!=null;boolean needsChem=pos>=3&&pos<=10,needsSeries=pos<=2||pos>=11;
-        if((needsChem&&!chemOk)||(needsSeries&&!seriesOk)){chartView.setImageDrawable(null);chartStatus.setText("غير متاح • "+CHARTS[Math.max(0,Math.min(pos,CHARTS.length-1))]+" • يحتاج "+(needsChem?"نتيجة ChemCore محفوظة":"سلسلة زمنية مسجلة"));chartStatus.setTextColor(WARN);return;}
-        String source=needsChem?"ChemCore payload":"السلسلة الزمنية المسجلة";chartStatus.setText("متاح ● • "+CHARTS[pos]+" • المصدر: "+source+" • لا توجد نقاط مصطنعة");chartStatus.setTextColor(GOOD);
-        Bitmap b=Bitmap.createBitmap(1200,650,Bitmap.Config.ARGB_8888);Canvas canvas=new Canvas(b);canvas.drawColor(Color.WHITE);RectF box=new RectF(12,12,1188,638);
+    /** Only expose diagrams backed by the selected record's actual persisted evidence. */
+    private void refreshAvailableCharts(boolean seriesOk,boolean chemOk){
+        chartGeneration++; // invalidate any chart drawing for the previous record
+        availableCharts.clear();List<String> labels=new ArrayList<>();
+        for(int i=0;i<CHARTS.length;i++){
+            boolean needsChem=i>=3&&i<=10;
+            if((needsChem&&chemOk)||(!needsChem&&seriesOk)){
+                availableCharts.add(i);labels.add(CHARTS[i]);
+            }
+        }
+        chartView.setImageDrawable(null);chartView.setVisibility(View.GONE);
+        if(labels.isEmpty()){
+            labels.add("لا توجد رسوم ذات بيانات صالحة");
+            chartStatus.setText("لا توجد رسوم لهذا القياس • أنشئ جلسة تتضمن سلسلة زمنية أو تحليل ChemCore محفوظًا");
+            chartStatus.setTextColor(WARN);
+        }else chartStatus.setText("اختر رسمًا من "+labels.size()+" رسوم متاحة مرتبطة بالقياس المحدد");
+        ArrayAdapter<String> adapter=new ArrayAdapter<>(scroll.getContext(),android.R.layout.simple_spinner_item,labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        chartSelector.setAdapter(adapter);chartSelector.setEnabled(!availableCharts.isEmpty());
+        if(!availableCharts.isEmpty())renderSelectedChart(0);
+    }
+
+    private void renderSelectedChart(int selectedIndex){
+        if(selectedIndex<0||selectedIndex>=availableCharts.size())return;
+        final int pos=availableCharts.get(selectedIndex);
+        final long experimentId=selectedId,request=++chartGeneration;
+        chartStatus.setText("جارٍ إعداد الرسم • "+CHARTS[pos]);
+        // DB reconstruction and rasterisation are potentially expensive: never do them on UI.
+        host.io().execute(()->{
+            try{
+                ExperimentQueries.Record r=ExperimentQueries.byId(host.database(),experimentId);
+                if(r==null)return;
+                SessionSeries.Series ss=SessionSeries.forExperiment(host.database(),r);
+                String sid=r.sessionId==null?"":r.sessionId.trim();
+                JSONObject cc=sid.isEmpty()?null:decisions.latestPayloadForSession(sid);
+                boolean needsChem=pos>=3&&pos<=10;
+                boolean ready=needsChem?cc!=null:ss!=null&&ss.usable();
+                if(!ready){
+                    scroll.post(()->{if(chartGeneration!=request)return;chartView.setImageDrawable(null);chartView.setVisibility(View.GONE);chartStatus.setText("بيانات الرسم غير متوفرة لهذه الجلسة");});
+                    return;
+                }
+                Bitmap b=Bitmap.createBitmap(1200,650,Bitmap.Config.ARGB_8888);
+                Canvas canvas=new Canvas(b);canvas.drawColor(Color.WHITE);RectF box=new RectF(12,12,1188,638);
         switch(pos){
             case 0:AnalyticalCharts.mqRsR0(canvas,box,ss);break;case 1:AnalyticalCharts.fingerprint(canvas,box,ss);break;case 2:AnalyticalCharts.fingerprintRadar(canvas,box,ss);break;
             case 3:AnalyticalCharts.candidates(canvas,box,cc);break;case 4:AnalyticalCharts.candidateScatter(canvas,box,cc);break;case 5:AnalyticalCharts.candidateBubbleMap(canvas,box,cc);break;case 6:AnalyticalCharts.candidateResiduals(canvas,box,cc);break;case 7:AnalyticalCharts.screening144(canvas,box,cc);break;case 8:AnalyticalCharts.screeningDonut(canvas,box,cc);break;case 9:AnalyticalCharts.evidenceTiers(canvas,box,cc);break;case 10:AnalyticalCharts.exposureRatios(canvas,box,cc);break;
             case 11:AnalyticalCharts.mqEnvironmentMatrix(canvas,box,ss);break;case 12:AnalyticalCharts.mqSignalQuality(canvas,box,ss);break;case 13:AnalyticalCharts.mqResponseKinetics(canvas,box,ss);break;case 14:AnalyticalCharts.mqPersistenceMap(canvas,box,ss);break;case 15:AnalyticalCharts.analyticalQualityRadar(canvas,box,ss);break;case 16:AnalyticalCharts.temperature(canvas,box,ss);break;case 17:AnalyticalCharts.humidity(canvas,box,ss);break;case 18:AnalyticalCharts.pressure(canvas,box,ss);break;case 19:AnalyticalCharts.sound(canvas,box,ss);break;
             default:AnalyticalCharts.candidates(canvas,box,cc);
         }
-        chartView.setImageBitmap(b);
+                scroll.post(()->{
+                    if(chartGeneration!=request||selectedId!=experimentId){b.recycle();return;}
+                    chartView.setImageBitmap(b);chartView.setVisibility(View.VISIBLE);
+                    chartStatus.setText("● "+CHARTS[pos]+" • "+(needsChem?"ChemCore محفوظ":"سلسلة زمنية محفوظة"));
+                    chartStatus.setTextColor(GOOD);
+                });
+            }catch(Exception failure){
+                scroll.post(()->{if(chartGeneration!=request)return;chartView.setImageDrawable(null);chartView.setVisibility(View.GONE);chartStatus.setText("تعذر رسم المخطط • "+failure.getClass().getSimpleName());chartStatus.setTextColor(WARN);});
+            }
+        });
     }
 
     private TextView card(Context c,String text){TextView t=UiKit.text(c,text);t.setTextColor(TEXT);t.setBackgroundColor(CARD);t.setPadding(UiKit.dp(c,10),UiKit.dp(c,9),UiKit.dp(c,10),UiKit.dp(c,9));return t;}
