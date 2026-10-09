@@ -73,3 +73,29 @@ Exact **functional** source SHA: `41dba5f781903c977cf4c08e024ae8b3a7b0b7bd`, And
 - Android + Main ESP32 + CAM build/QA: https://github.com/sohpany/SERVOC-Android/actions/runs/37864587660
 
 All three runs were **IN PROGRESS** at the last observation during this checkpoint. Do not mark them PASSED or claim an installable v29 artifact until their completed results, resulting APK hash, signer fingerprint and manifest are inspected. Earlier superseded intermediate commits were automatically cancelled by CI concurrency and must not be interpreted as release test results.
+
+ 
+## G. Verified v29 CI results — 2026-10-09
+
+All three workflows below have **COMPLETED SUCCESS** for the identical **functional** source SHA `41dba5f781903c977cf4c08e024ae8b3a7b0b7bd`:
+
+| CI run | Result | Evidence |
+| --- | --- | --- |
+| [37864587662](https://github.com/sohpany/SERVOC-Android/actions/runs/37864587662) | SUCCESS | Runtime source contract, Android JUnit (including new MQ health and kΩ contracts), ChemCore challenge report staging, `:app:assembleDebug`, apksigner verification, upload of working diagnostic APK |
+| [37864587673](https://github.com/sohpany/SERVOC-Android/actions/runs/37864587673) | SUCCESS | Android internal build/validation |
+| [37864587660](https://github.com/sohpany/SERVOC-Android/actions/runs/37864587660) | SUCCESS | Source and Android tests, Main ESP32 and ESP32-CAM firmware compilation and diagnostic packaging |
+
+### Diagnostic Android APK, never production authority
+- APK artifact: `HazRob-0.10.2-HR069-R1-RC2-WORKING-339-41dba5f781903c977cf4c08e024ae8b3a7b0b7bd.apk`.
+- GitHub Actions artifact ID **11586928997**, retained on run [37864587662](https://github.com/sohpany/SERVOC-Android/actions/runs/37864587662).
+- SHA-256 from CI's published `ARTIFACT-MANIFEST.txt` and `SHA256SUMS.txt`: `abcf6ab2dd38acebce1e0b65ec385fe05365bd94f1db91723ea5ee50b385b6b7`.
+- Android application ID `com.servoc.app`; `versionName=0.10.2`, `versionCode=29`.
+- Signing certificate SHA-256 `d6b5b69be382f2afa6df4b46bade5b6f864f4060622e949075293ac62003d3f0`, unchanged from the v28 diagnostic certificate. CI reports `apk_signer_verification=PASS`.
+- All artifact hashes here come from CI logs, **not an independent physical-device install or byte-for-byte external download**. Reverify downloaded files with SHA-256.
+
+### Recompiled diagnostic firmware, no new functional firmware modification
+- Main ESP32 and CAM compiles both PASSED in run [37864587660](https://github.com/sohpany/SERVOC-Android/actions/runs/37864587660) with Arduino-ESP32 core 3.3.11.
+- The generic validation workflow created a Main ESP32 ZIP SHA-256 `33eaaf97e37bf1ae4382c77713b50d8f193866587eea6045ae6c08911da81ab0` and CAM ZIP SHA-256 `4324881d7e8138438aade303d6b6bdfc4cf74efec84a66cd400dc239223c9c81`. These archives are marked WORKING/UNAPPROVED and bear the historical HR069 wrapper prefix even though the unchanged Main ESP32 configuration declares **HR069-R1**. Do not confuse ZIP wrapper labels with actual firmware engineering revision.
+- For Arduino IDE source, previously verified conventional `HazRob/HazRob.ino` ZIP at source `e6a14bc5...` and hash `6532c3495de23b1d4917ad64882519d3cc9c0cb42fd66634dc92059ba560058e` remains the original source handoff. **No Main or CAM firmware change or reflashing is required for these Android-only corrections.**
+
+**Release gates still blocked:** measured board RL and R0/reproducibility, M4/reference-gas calibration, actual gas identity and tracking blind challenge, operator IR/Echo mechanical and electrical checks, direct/remote network hardware trials (Railway currently offline), and phone-opened session/site PDF/XLSX. Owner-controlled promotion remains explicitly NOT AUTHORIZED.
