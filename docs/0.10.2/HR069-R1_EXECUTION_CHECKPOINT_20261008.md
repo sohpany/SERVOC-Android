@@ -172,3 +172,8 @@
 - [HR069 developmental tests + Main and CAM firmware](https://github.com/sohpany/SERVOC-Android/actions/runs/37854726087) **SUCCESS** at same functional SHA.
 - Only the Android application/QA changed from prior vCode27. The already verified Arduino source ZIP remains correct; no Main ESP32 re-flash is required solely to gain revised R0/history/report functions.
 - Outstanding: physical IR polarity adjustment, Echo valid distances, BME I²C stability, motor and joystick mapping, on-device PDF/XLSX openability, R0 on real battery load, Remote networking, and explicit production release authorization. Do not claim field acceptance.
+
+
+## Continuation cross-reference — 2026-10-09
+
+The authoritative incremental QA log after this 2026-10-08 checkpoint is [`HR069-R1_CONTINUATION_20261009.md`](HR069-R1_CONTINUATION_20261009.md). The same RC2 branch has diagnostic Android source fixes for contradictory MQ input-health flags, an R0/Rs display unit correction to kΩ consistent with the firmware's nominal 10 kΩ RL model, regressions, and a distinguishable diagnostic `versionCode 29`. Main ESP32 and CAM functional sources are unchanged. The live Railway service check found the configured bootstrap/video relay offline, so Remote end-to-end is blocked. New diagnostic v29 CI test results, on-device R0/Echo/IR, tracking, exports and field-safety approval must be recorded before replacing any working artifact or controlled release authority. This cross-reference changes documentation only.
