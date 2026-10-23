@@ -116,7 +116,7 @@ def main() -> int:
     req(settings_tab, "قراءة جهاز القياس المعاير − قراءة HazRob الخام", "operator microphone offset guidance")
     req(settings_tab, "saveMicrophoneOffset()", "operator microphone offset persistence")
     req(physical_ui, "MicrophoneDbCalibration.rawDbFs(sound)", "physical UI raw dBFS derivation")
-    req(physical_ui, "MicrophoneDbCalibration.compensate(rawDb,offset)", "physical UI saved offset application")
+    req(physical_ui, "MicrophoneDbCalibration.compensate(displayDb,offset)", "physical UI saved offset application after smoothing")
     req(physical_ui, "معوض بمرجع خارجي", "physical UI compensation provenance")
     req(hw, '\\"rms_v\\":', "firmware publishes MAX4466 RMS voltage")
     req(hw, '\\"p2p_v\\":', "firmware publishes MAX4466 peak-to-peak voltage")

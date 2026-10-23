@@ -105,11 +105,13 @@ public final class MeasurementsTab {
         double lastSoundRms=Double.NaN,lastSoundP2p=Double.NaN;
 
         PhysicalPane(){
-            view=new ScrollView(c);LinearLayout box=UiKit.vbox(c);box.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,8));view.addView(box);
-            box.addView(UiKit.title(c,"القياسات الفيزيائية والتشخيصية"),UiKit.full(c));
+            view=new ScrollView(c);view.setVerticalScrollBarEnabled(true);view.setScrollbarFadingEnabled(false);view.setBackgroundColor(0xFFF7F8FA);
+            LinearLayout box=UiKit.vbox(c);box.setBackgroundColor(0xFFF7F8FA);box.setPadding(UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,4),UiKit.dp(c,8));view.addView(box);
+            TextView physicalTitle=UiKit.title(c,"القياسات الفيزيائية والتشخيصية");physicalTitle.setTextColor(0xFF263238);box.addView(physicalTitle,UiKit.full(c));
+            TextView provenance=UiKit.small(c,"القيم تعرض القياسات الفعلية فقط؛ أي مقارنة مهنية تتطلب وحدة ومعايرة وسياقًا ومدة تعرض.");provenance.setTextColor(0xFF455A64);box.addView(provenance,UiKit.full(c));
             TableLayout table=new TableLayout(c);table.setStretchAllColumns(true);table.setShrinkAllColumns(true);table.addView(headerRow());
             for(int i=0;i<PhysicalCatalog.COUNT;i++){
-                TableRow row=new TableRow(c);row.setBackgroundColor((i&1)==0?0xFF161C23:0xFF1B222B);
+                TableRow row=new TableRow(c);row.setBackgroundColor((i&1)==0?0xFFF1F3F6:0xFFFFFFFF);
                 row.addView(tableCell(PhysicalCatalog.NAMES_AR[i],false));values[i]=tableCell("—",false);row.addView(values[i]);row.addView(tableCell(PhysicalCatalog.UNITS[i],false));states[i]=tableCell("غير مركب",false);row.addView(states[i]);table.addView(row);
             }
             TableRow rms=auxRow("MAX4466 RMS","V");soundRms=(TextView)rms.getChildAt(1);soundRmsState=(TextView)rms.getChildAt(3);table.addView(rms);
@@ -119,10 +121,10 @@ public final class MeasurementsTab {
             envDiagnostic=UiKit.small(c,"ENV • بانتظار الاتصال");envDiagnostic.setTextColor(MUTED);envDiagnostic.setTextIsSelectable(true);envDiagnostic.setBackgroundColor(CARD);box.addView(envDiagnostic,UiKit.full(c));
         }
         private TableRow headerRow(){TableRow r=new TableRow(c);r.addView(tableCell("القياس",true));r.addView(tableCell("القيمة",true));r.addView(tableCell("الوحدة",true));r.addView(tableCell("الحالة / المصدر",true));return r;}
-        private TableRow auxRow(String name,String unit){TableRow r=new TableRow(c);r.setBackgroundColor(0xFF1B222B);r.addView(tableCell(name,false));r.addView(tableCell("—",false));r.addView(tableCell(unit,false));r.addView(tableCell("—",false));return r;}
-        private TextView tableCell(String text,boolean header){TextView v=new TextView(c);v.setText(text);v.setTextColor(header?Color.WHITE:0xFFCFD8DC);v.setTextSize(header?12:11);v.setPadding(UiKit.dp(c,4),UiKit.dp(c,7),UiKit.dp(c,4),UiKit.dp(c,7));if(header){v.setBackgroundColor(0xFF263238);v.setTypeface(Typeface.DEFAULT_BOLD);}return v;}
-        private void reset(String state){for(int i=0;i<PhysicalCatalog.COUNT;i++){if(i==5)continue;values[i].setText("—");states[i].setText(state);states[i].setTextColor(0xFF90A4AE);}soundRms.setText("—");soundP2p.setText("—");irValue.setText("—");soundRmsState.setText(state);soundP2pState.setText(state);irState.setText(state);}
-        private void setPhysical(int index,double value,String source){if(Double.isFinite(value)){values[index].setText(String.format(Locale.US,index==14?"%.1f":"%.2f",value));states[index].setText(source);states[index].setTextColor(GOOD);}else{values[index].setText("—");states[index].setText(source);states[index].setTextColor(WARN);}}
+        private TableRow auxRow(String name,String unit){TableRow r=new TableRow(c);r.setBackgroundColor(0xFFF1F3F6);r.addView(tableCell(name,false));r.addView(tableCell("—",false));r.addView(tableCell(unit,false));r.addView(tableCell("—",false));return r;}
+        private TextView tableCell(String text,boolean header){TextView v=new TextView(c);v.setText(text);v.setTextColor(0xFF263238);v.setTextSize(header?12:11);v.setPadding(UiKit.dp(c,4),UiKit.dp(c,7),UiKit.dp(c,4),UiKit.dp(c,7));if(header){v.setBackgroundColor(0xFFFFD36A);v.setTypeface(Typeface.DEFAULT_BOLD);}return v;}
+        private void reset(String state){for(int i=0;i<PhysicalCatalog.COUNT;i++){if(i==5)continue;values[i].setText("—");states[i].setText(state);states[i].setTextColor(0xFF455A64);}soundRms.setText("—");soundP2p.setText("—");irValue.setText("—");soundRmsState.setText(state);soundP2pState.setText(state);irState.setText(state);}
+        private void setPhysical(int index,double value,String source){if(Double.isFinite(value)){values[index].setText(String.format(Locale.US,index==14?"%.1f":"%.2f",value));states[index].setText(source);states[index].setTextColor(0xFF1B5E20);}else{values[index].setText("—");states[index].setText(source);states[index].setTextColor(0xFF955000);}}
         void refresh(){
             JSONObject d=host.latestDiagnostics();if(d==null){reset("غير متصل");envDiagnostic.setText("ENV • غير متصل");return;}reset("غير مركب");
             JSONObject e=d.optJSONObject("env");

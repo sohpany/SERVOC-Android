@@ -107,7 +107,7 @@ public final class HR069R1DeveloperWorkflowSmokeContractTest {
         String measurements=source("ui/MeasurementsTab.java");
         for(String field:new String[]{"no_rise","no_fall","stuck_high","invalid_pulse","echo_level","bus_recoveries","total_read_errors"})
             assertTrue("Missing telemetry field "+field,protocol.contains(field));
-        assertTrue(status.contains("echo.optString(\"status\""));
+        assertTrue(status.contains("echoReading.status"));
         assertTrue(measurements.contains("BME direct GPIO13/14"));
         assertFalse(measurements.contains("lastValidEnv"));
         assertFalse(measurements.contains("staleEnv"));

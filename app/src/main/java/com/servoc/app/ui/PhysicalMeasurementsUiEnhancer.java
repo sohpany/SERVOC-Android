@@ -125,7 +125,7 @@ public final class PhysicalMeasurementsUiEnhancer implements Runnable {
                     tv.setSingleLine(true);
                     tv.setTextSize(14);
                     tv.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
-                    tv.setTextColor(0xFFECEFF1);
+                    tv.setTextColor(0xFF263238);
                     tv.setGravity(Gravity.CENTER);
                 }else if(i==2){
                     tv.setSingleLine(true);
@@ -162,19 +162,19 @@ public final class PhysicalMeasurementsUiEnhancer implements Runnable {
             if(configured){
                 double corrected=MicrophoneDbCalibration.compensate(displayDb,offset);
                 value.setText(String.format(Locale.US,"%.1f",corrected));
-                value.setTextColor(Color.WHITE);
+                value.setTextColor(0xFF1B5E20);
                 state.setText("MAX4466 • معوض بمرجع خارجي • raw "+String.format(Locale.US,"%.1f dBFS",rawDb)+" • offset "+String.format(Locale.US,"%+.1f dB",offset));
-                state.setTextColor(0xFF81C784);
+                state.setTextColor(0xFF1B5E20);
             }else{
                 value.setText(String.format(Locale.US,"%.1f",displayDb));
-                value.setTextColor(0xFFFFB74D);
+                value.setTextColor(0xFF955000);
                 state.setText("MAX4466 • dBFS خام • تمهيد وتحديث كل ثانية • أدخل التعويض من الإعدادات");
-                state.setTextColor(0xFFFFB74D);
+                state.setTextColor(0xFF955000);
             }
         }else{
             value.setText("—");
             state.setText("MAX4466 • لا توجد قراءة RMS صالحة");
-            state.setTextColor(0xFFFFB74D);
+            state.setTextColor(0xFF955000);
         }
     }
 }
