@@ -159,12 +159,14 @@ public final class DeveloperR0Tab {
         if(capture==null||!capture.finished()||calibrationChangeBlocked())return;
         Map<String,Double> candidate=capture.estimate();
         if(candidate.size()!=keys.length){host.showToast("القراءات غير مستقرة");return;}
+        final int acceptedSamples=capture.samples();
+        final long elapsedMs=capture.elapsed(SystemClock.elapsedRealtime());
         StringBuilder review=new StringBuilder("قيم Rs التشغيلية (kΩ) وليست معايرة بغاز مرجعي:\n");
         for(String k:keys)review.append(k.toUpperCase(Locale.US)).append(": ").append(String.format(Locale.US,"%.3f",candidate.get(k))).append(" kΩ\n");
         new AlertDialog.Builder(context).setTitle("اعتماد أساس R0 الآلي").setMessage(review.toString())
             .setNegativeButton("إلغاء",null).setPositiveButton("اعتماد",(d,w)->{
                 if(calibrationChangeBlocked())return;
-                if(!ManualR0Calibration.saveAutomatedCleanAir(host.preferences(),candidate,capture.samples(),capture.elapsed(SystemClock.elapsedRealtime()))){host.showToast("فشل حفظ القيم");return;}
+                if(!ManualR0Calibration.saveAutomatedCleanAir(host.preferences(),candidate,acceptedSamples,elapsedMs)){host.showToast("فشل حفظ القيم");return;}
                 capture=null;sampledSnapshot=null;acceptAuto.setEnabled(false);reloadFields();host.refreshAllTabs();
                 host.showToast("حُفظ الأساس التشغيلي مع التوقيت والمصدر");
             }).show();
