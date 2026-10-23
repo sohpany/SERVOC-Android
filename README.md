@@ -1,5 +1,20 @@
 # HazRob 0.10.2 / HR069
 
+## RC3 (2026-10-24) — Candidate source complete; APK build blocked
+
+**Target:** original wheeled HazRob application, NOT HazRob Tank. Branch `release/hazrob-0.10.2-rc3`, Android `0.10.2` / `HR069-R1`, `versionCode 31`, package `com.servoc.app`; preserve original HR069-R1 logo and the existing Main ESP32/ESP32-CAM firmware.
+
+**Implemented candidate changes:** crash-contained sites/sessions UI; Tank-style independent management/reports panels, explicit NEW/APPROVED states and approved-only local PDF/Excel; protected retry, additive SQLite v10 migration and portable approval provenance; black-on-white tracking search items; readable drive-reversal checkbox outlines; landscape MQ control relocation; 1,000 ms MAX4466 noise presentation and smoothing; diagnostic Echo pulses and optional display-only cm offset; reviewable 30-sample clean-air Rs baseline (NOT calibrated reference-gas R0); light theme for non-driving tabs.
+
+**Compatible deployable ChemCore Stable:** `1.0.0-hr069r1`, generated offline with `tools/build_hr069_embedded_stable.py`, 652 chemical identities and 49 screening-only M1/M2 priors; no approved device/reference-gas M4. Gradle `prepareHr069EmbeddedStable` embeds the generated manifest and SHA-256-pinned snapshot. RC3 adds independent manifest verification and a post-build APK byte-by-byte packaging check in `tools/verify_rc3_embedded_stable.py`. Latest HazRob/build-harness research reference snapshot of 2026-10-21 has `runtime_activation:false` and is **not** deployable Stable.
+
+**Build/qualification status:** RC3 GitHub Actions [run 40032225815](https://github.com/sohpany/SERVOC-Android/actions/runs/40032225815) **FAILED BEFORE ANY JOB STEP (0 steps, no runner assigned)**. The prior RC3 runs failed the same way. This is NOT a passed Gradle test or a produced APK. There is **NO VERIFIED RC3 APK**, no verified signing/hash, and no basis to claim an on-device fix for Sessions closing. The RC2 signed APK information below is historical and must not be mislabelled as RC3.
+
+**Release controls and resumption:** [RC3 source/build checkpoint](docs/0.10.2/RC3_RELEASE_CANDIDATE_CHECKPOINT_20261024.md); [Tank-style session/report parity](docs/0.10.2/RC2_TANK_SESSIONS_APPROVAL_PARITY_20261024.md); [.github/workflows/build-rc3-test-apk.yml](.github/workflows/build-rc3-test-apk.yml). GitHub Actions runner availability/permissions must be restored and the RC3 job pass including Android unit tests, APK build, `apksigner verify`, and verification that compatible ChemCore Stable bytes are in the actual APK. Only then distribute the signed APK; device validation and separate controlled approval are required before a production promotion.
+
+---
+
+
 ## Latest paired APK and Main ESP32 firmware — 2026-10-09
 
 **CURRENT LATEST VERIFIED DIAGNOSTIC PAIR: HazRob 0.10.2 / HR069-R1, WORKING / UNAPPROVED.** Use the **same exact source commit** `6281d3eb7c1c961ce63b0b5e4ae0792874626720` for the app and Main ESP32. Active engineering branch: `release/hazrob-0.10.2-rc2`. **Do not roll back to HR068/HR067/HR050.** No field/production release promotion has taken place; the historical controlled Android baseline remains versionCode 26.
