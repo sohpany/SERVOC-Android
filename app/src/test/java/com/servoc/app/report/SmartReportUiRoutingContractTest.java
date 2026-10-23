@@ -14,17 +14,17 @@ public final class SmartReportUiRoutingContractTest {
 
     @Test public void centralReportSelectorIsOneSessionOrFullSite()throws Exception{
         String s=read("src/main/java/com/servoc/app/ui/ReportsTab.java");
-        assertTrue(s.contains("fieldSessions.sessionsForSite(chosenSiteId)"));
+        assertTrue(s.contains("fieldSessions.approvedSessionsForSite(chosenSiteId)"));
         assertTrue(s.contains("SiteSummaryExportActivity.start(scroll.getContext(),chosenSiteId,format)"));
         assertTrue(s.contains("host.requestFieldSessionExport(format,chosenSessionId)"));
-        assertTrue(s.contains("كل جلسات الموقع"));
+        assertTrue(s.contains("كل الجلسات المعتمدة"));
         assertFalse(s.contains("host.requestExport(f,selectedId);"));
         assertTrue(s.contains("ExperimentQueries.recentUser(host.database(),100)"));
     }
 
     @Test public void userSessionTabRoutesThroughSameReportScope()throws Exception{
         String s=read("src/main/java/com/servoc/app/ui/FieldSessionsTab.java");
-        assertTrue(s.contains("host.openReportsForSite(selectedSiteId,q.id)"));
+        assertTrue(s.contains("host.requestFieldSessionExport(format,reportApprovedId)"));
         assertTrue(s.contains("host.openReportsForSite(selectedSiteId,\"\")"));
         assertFalse(s.contains("host.syncUserLibrary()"));
         assertFalse(s.contains("requestUserLibraryFolder()"));
@@ -32,7 +32,7 @@ public final class SmartReportUiRoutingContractTest {
 
     @Test public void siteExporterIncludesEverySiteSessionWithoutSubsetFilter()throws Exception{
         String exporter=read("src/main/java/com/servoc/app/report/SiteSummaryReportExporter.java");
-        assertTrue(exporter.contains("repo.sessionsForSite(id)"));
+        assertTrue(exporter.contains("repo.approvedSessionsForSite(id)"));
         String field=read("src/main/java/com/servoc/app/field/FieldSessionRepository.java");
         assertTrue(field.contains("fieldSessionIdForMeasurement(String measurementSessionId)"));
         assertTrue(field.contains("SELECT field_session_id FROM field_session_measurements WHERE measurement_session_id=?"));
