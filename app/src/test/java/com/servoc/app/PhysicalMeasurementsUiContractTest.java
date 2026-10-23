@@ -48,7 +48,7 @@ public class PhysicalMeasurementsUiContractTest {
         assertTrue(settings.contains("قراءة جهاز القياس المعاير − قراءة HazRob الخام"));
         assertTrue(settings.contains("saveMicrophoneOffset()"));
         assertTrue(enhancer.contains("MicrophoneDbCalibration.rawDbFs(sound)"));
-        assertTrue(enhancer.contains("MicrophoneDbCalibration.compensate(rawDb,offset)"));
+        assertTrue(enhancer.contains("MicrophoneDbCalibration.compensate(displayDb,offset)"));
         assertTrue(enhancer.contains("معوض بمرجع خارجي"));
         assertTrue(enhancer.contains("dBFS خام"));
 
