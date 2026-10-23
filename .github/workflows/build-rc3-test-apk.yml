@@ -1,0 +1,199 @@
+# CR-20261004-003
+# RC3 candidate remains unapproved until successful CI and on-device review.
+name: Build HazRob RC3 WORKING Diagnostic APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'release/hazrob-0.10.2-rc3'
+    paths:
+      - 'app/**'
+      - 'tools/audit_0102_rc3_runtime_contract.py'
+      - 'signing/hazrob-prototype.jks.b64'
+      - '*.gradle'
+      - 'gradle.properties'
+      - '.github/workflows/build-rc3-test-apk.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hazrob-rc3-working-diagnostic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-working-diagnostic-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout RC3 source
+        uses: actions/checkout@v4
+
+      - name: Record non-authoritative build identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p working-artifact
+          {
+            echo "authority_status=WORKING_UNAPPROVED_NON_AUTHORITATIVE"
+            echo "product=HazRob-0.10.2"
+            echo "engineering_revision=HR069-R1"
+            echo "source_repository=${GITHUB_REPOSITORY}"
+            echo "source_branch=${GITHUB_REF_NAME}"
+            echo "source_sha=${GITHUB_SHA}"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "workflow_run_number=${GITHUB_RUN_NUMBER}"
+            echo "change_record=CR-20261024-RC3-CANDIDATE"
+            echo "implementation_checkpoint=docs/0.10.2/RC3_RELEASE_CANDIDATE_CHECKPOINT_20261024.md"
+            echo "promotion_rule=This artifact cannot supersede CURRENT_RELEASE_AUTHORITY.md without a separate completed approval/promotion record."
+          } > working-artifact/ARTIFACT-MANIFEST.txt
+          cat working-artifact/ARTIFACT-MANIFEST.txt
+
+      - name: Validate current RC3 runtime contract
+        run: python3 tools/audit_0102_rc3_runtime_contract.py
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Use preinstalled Android SDK
+        run: |
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=/usr/local/lib/android/sdk" >> "$GITHUB_ENV"
+          echo "/usr/local/lib/android/sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "/usr/local/lib/android/sdk/platform-tools" >> "$GITHUB_PATH"
+
+      - name: Install Android platform and build tools
+        run: |
+          yes | /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses >/dev/null || true
+          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.5.0
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Restore prototype signing key for diagnostic device build
+        run: |
+          set -euo pipefail
+          base64 -d signing/hazrob-prototype.jks.b64 > signing/hazrob-prototype.jks
+          chmod 600 signing/hazrob-prototype.jks
+
+      - name: Independently construct and verify the latest compatible deployable ChemCore Stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/build_hr069_embedded_stable.py --out-dir app/build/generated/hazrobAssets/generated/chemcore/embedded_stable
+          python3 tools/verify_rc3_embedded_stable.py --asset-dir app/build/generated/hazrobAssets/generated/chemcore/embedded_stable
+
+      - name: Verify RC3 source/regression boundaries
+        run: python3 tools/audit_rc3_release_candidate.py
+
+      - name: Run Android unit tests and ChemCore reference challenges
+        run: gradle --no-daemon :app:testDebugUnitTest
+
+      - name: Stage ChemCore analytical challenge reports
+        run: |
+          set -euo pipefail
+          SIM_REPORT="$(find . -name chemcore-reference-simulation.json -type f -print -quit)"
+          REPLAY_REPORT="$(find . -name chemcore-experiment4-replay.json -type f -print -quit)"
+          MQ3_REPORT="$(find . -name mq3-digital-twin-pilot.json -type f -print -quit)"
+          MQ3_QSPR_REPORT="$(find . -name mq3-qspr-fingerprint-pilot.json -type f -print -quit)"
+          test -n "$SIM_REPORT"
+          test -n "$REPLAY_REPORT"
+          test -n "$MQ3_REPORT"
+          test -n "$MQ3_QSPR_REPORT"
+          cp "$SIM_REPORT" ChemCore-reference-simulation.json
+          cp "$REPLAY_REPORT" ChemCore-experiment4-replay.json
+          cp "$MQ3_REPORT" MQ3-digital-twin-pilot.json
+          cp "$MQ3_QSPR_REPORT" MQ3-qspr-fingerprint-pilot.json
+
+      - name: Upload ChemCore reference simulation diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChemCore-reference-simulation-WORKING-${{ github.run_number }}-${{ github.sha }}
+          path: ChemCore-reference-simulation.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload ChemCore Experiment 4 replay diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChemCore-experiment4-replay-WORKING-${{ github.run_number }}-${{ github.sha }}
+          path: ChemCore-experiment4-replay.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload MQ3 digital twin pilot diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: MQ3-digital-twin-pilot-WORKING-${{ github.run_number }}-${{ github.sha }}
+          path: MQ3-digital-twin-pilot.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload MQ3 QSPR fingerprint pilot diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: MQ3-qspr-fingerprint-pilot-WORKING-${{ github.run_number }}-${{ github.sha }}
+          path: MQ3-qspr-fingerprint-pilot.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Build installable diagnostic debug APK
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify packaged ChemCore Stable inside candidate APK
+        shell: bash
+        run: |
+          python3 tools/verify_rc3_embedded_stable.py --asset-dir app/build/generated/hazrobAssets/generated/chemcore/embedded_stable --apk app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Verify, fingerprint and stage diagnostic APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          test -f "$APK"
+          /usr/local/lib/android/sdk/build-tools/36.0.0/apksigner verify --verbose --print-certs "$APK"
+          OUT="HazRob-0.10.2-HR069-R1-RC3-WORKING-${GITHUB_RUN_NUMBER}-${GITHUB_SHA}.apk"
+          cp "$APK" "working-artifact/$OUT"
+          APK_SHA256=$(sha256sum "working-artifact/$OUT" | awk '{print $1}')
+          BADGING=$(/usr/local/lib/android/sdk/build-tools/36.0.0/aapt dump badging "$APK" | head -1)
+          CERT_SHA256=$(/usr/local/lib/android/sdk/build-tools/36.0.0/apksigner verify --print-certs "$APK" | awk -F': ' '/SHA-256 digest/ {print $2; exit}' | tr -d ': ' | tr 'A-F' 'a-f')
+          {
+            echo "apk_filename=$OUT"
+            echo "apk_sha256=$APK_SHA256"
+            echo "apk_badging=$BADGING"
+            echo "signing_cert_sha256=$CERT_SHA256"
+            echo "chemcore_stable_version=1.0.0-hr069r1"
+            echo "chemcore_stable_evidence_tier=screening_non_M4"
+            echo "chemcore_embedded_sha256_verified=PASS"
+            echo "rc3_source_regression_audit=PASS"
+            echo "runtime_contract=PASS"
+            echo "android_unit_tests=PASS"
+            echo "apk_build=PASS"
+            echo "apk_signer_verification=PASS"
+          } >> working-artifact/ARTIFACT-MANIFEST.txt
+          sha256sum "working-artifact/$OUT" > working-artifact/SHA256SUMS.txt
+          cat working-artifact/ARTIFACT-MANIFEST.txt
+          cat working-artifact/SHA256SUMS.txt
+
+      - name: Upload WORKING UNAPPROVED diagnostic APK package
+        uses: actions/upload-artifact@v4
+        with:
+          name: HazRob-0.10.2-HR069-R1-RC3-WORKING-UNAPPROVED-${{ github.run_number }}-${{ github.sha }}
+          path: working-artifact/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove temporary signing material
+        if: always()
+        run: |
+          rm -f signing/hazrob-prototype.jks
+          rm -f ChemCore-reference-simulation.json
+          rm -f ChemCore-experiment4-replay.json
+          rm -f MQ3-digital-twin-pilot.json
+          rm -f MQ3-qspr-fingerprint-pilot.json
