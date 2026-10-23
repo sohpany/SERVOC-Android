@@ -30,7 +30,16 @@ public final class FieldSessionArchive {
                 measurements.put(m);
             }
         }
-        root.put("measurements",measurements);return root;
+        root.put("measurements",measurements);
+        // Optional backward-compatible v1 approval metadata.
+        try(Cursor c=r.rawQuery("SELECT measurement_session_id,approved_ts FROM field_session_approvals WHERE field_session_id=?",
+            new String[]{fieldSessionId})){
+            if(c.moveToFirst()){
+                JSONObject approval=new JSONObject();approval.put("measurement_session_id",c.getString(0));
+                approval.put("approved_ts",c.getString(1));root.put("field_approval",approval);
+            }
+        }
+        return root;
     }
 
     public static final class ImportSummary {
@@ -58,6 +67,7 @@ public final class FieldSessionArchive {
         String fieldId=root.optString("field_session_id","").trim();if(fieldId.isEmpty())throw new IllegalStateException("field_session_id required");
         if(w==null)throw new IllegalArgumentException("transaction db required");if(!exists(w,"field_sessions","field_session_id",fieldId))throw new IllegalStateException("field session metadata must be restored first");
         JSONArray a=root.optJSONArray("measurements");int nm=0,nx=0,ns=0,ne=0,nd=0;
+        w.delete("field_session_approvals","field_session_id=?",new String[]{fieldId});
 
         if(a!=null)for(int i=0;i<a.length();i++){
             JSONObject m=a.optJSONObject(i);if(m==null)continue;
@@ -68,6 +78,25 @@ public final class FieldSessionArchive {
             // Child rows are replaced by exact session identity so repeated restore cannot duplicate AUTOINCREMENT rows.
             w.delete("experiments","session_id=?",new String[]{sid});w.delete("telemetry_samples","session_id=?",new String[]{sid});w.delete("events","session_id=?",new String[]{sid});w.delete("chemcore_decisions","session_id=?",new String[]{sid});
             nx+=restoreExperiments(w,sid,m.optJSONArray("experiments"));ns+=restoreSamples(w,sid,m.optJSONArray("telemetry_samples"));ne+=restoreEvents(w,sid,m.optJSONArray("events"));nd+=restoreDecisions(w,sid,m.optJSONArray("chemcore_decisions"));
+        }
+        JSONObject approval=root.optJSONObject("field_approval");
+        if(approval!=null){
+            String ms=req(approval,"measurement_session_id"),ts=req(approval,"approved_ts");
+            try(Cursor c=w.rawQuery(
+                "SELECT 1 FROM field_session_measurements fsm JOIN field_sessions fs ON fs.field_session_id=fsm.field_session_id "+
+                "JOIN measurement_sessions m ON m.session_id=fsm.measurement_session_id WHERE fsm.field_session_id=? "+
+                "AND fsm.measurement_session_id=? AND fs.status='CLOSED' AND m.operator_role='USER' "+
+                "AND m.kind LIKE 'field_%' AND m.ended_ts IS NOT NULL AND TRIM(m.ended_ts)<>'' LIMIT 1",
+                new String[]{fieldId,ms})){
+                if(!c.moveToFirst())throw new IllegalStateException("archive contains invalid field approval");
+            }
+            try(Cursor c=w.rawQuery("SELECT COUNT(*) FROM field_session_measurements WHERE field_session_id=?",
+                new String[]{fieldId})){
+                if(!c.moveToFirst()||c.getInt(0)!=1)throw new IllegalStateException("approved session has multiple attempts");
+            }
+            ContentValues p=new ContentValues();p.put("field_session_id",fieldId);
+            p.put("measurement_session_id",ms);p.put("approved_ts",ts);
+            w.insertOrThrow("field_session_approvals",null,p);
         }
         return new ImportSummary(nm,nx,ns,ne,nd);
     }
