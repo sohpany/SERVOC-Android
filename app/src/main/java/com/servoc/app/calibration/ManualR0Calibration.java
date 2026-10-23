@@ -90,6 +90,25 @@ public final class ManualR0Calibration {
         return true;
     }
 
+    /** Atomic provenance-preserving acceptance of automated operational Rs baselines. */
+    public static synchronized boolean saveAutomatedCleanAir(SharedPreferences p,Map<String,Double> updated,int samples,long elapsedMs){
+        if(p==null||updated==null||updated.size()!=KEYS.length||samples<30||elapsedMs<29000)return false;
+        for(String k:KEYS){Double v=updated.get(k);if(v==null||!Double.isFinite(v)||v<=0)return false;}
+        long now=System.currentTimeMillis();String utc=iso(now),session="AUTO-CLEAN-AIR-RS-"+now,source="auto_clean_air_rs_baseline_unvalidated";
+        SharedPreferences.Editor e=p.edit();
+        for(String k:KEYS){
+            e.putString("manual_r0_"+k,Double.toString(updated.get(k)));
+            e.putString("manual_r0_source_"+k,source);
+            e.putString("manual_r0_session_"+k,session);
+            e.putString("manual_r0_utc_"+k,utc);
+            e.putInt("auto_r0_samples_"+k,samples);
+            e.putLong("auto_r0_elapsed_ms_"+k,elapsedMs);
+        }
+        if(!e.commit())return false;
+        for(String k:KEYS){values.put(k,updated.get(k));sources.put(k,source);sessions.put(k,session);utcs.put(k,utc);}
+        loaded=true;return true;
+    }
+
     /** Reset one manually overridden channel to the preserved HR069 clean-air fallback. */
     public static synchronized boolean reset(SharedPreferences p,String key){
         key=norm(key);

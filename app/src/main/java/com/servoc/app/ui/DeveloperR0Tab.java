@@ -3,6 +3,7 @@ package com.servoc.app.ui;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.graphics.Color;
+import android.os.SystemClock;
 import android.text.InputType;
 import android.view.View;
 import android.widget.Button;
@@ -12,10 +13,12 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
+import com.servoc.app.calibration.AutoR0Capture;
 import com.servoc.app.chemcore.library.ChemCoreLibraryManager;
 import org.json.JSONObject;
 
 import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 
@@ -27,7 +30,10 @@ public final class DeveloperR0Tab {
     private final String[] keys=ManualR0Calibration.keys();
     private final EditText[] entry=new EditText[keys.length];
     private final TextView[] info=new TextView[keys.length];
-    private final TextView summary;
+    private final TextView summary,autoStatus;
+    private final Button acceptAuto;
+    private AutoR0Capture capture;
+    private JSONObject sampledSnapshot;
 
     public DeveloperR0Tab(Context c,HazRobHost h){
         context=c;host=h;
@@ -46,6 +52,15 @@ public final class DeveloperR0Tab {
             "حفظ القيم يؤثر في التحليلات الجديدة فقط؛ جلسات القياس المحفوظة لا تُعدّل.");
         instructions.setTextColor(0xFFFFC107);root.addView(instructions,UiKit.full(c));
 
+        LinearLayout autoCard=UiKit.card(c);
+        autoCard.addView(UiKit.title(c,"معايرة آلية للهواء النظيف"),UiKit.full(c));
+        autoCard.addView(UiKit.small(c,"تُجمع 30 عينة Rs كاملة بفاصل ثانية بعد التسخين. لا تُقبل القيم إلا إذا كان CV لكل قناة ≤10%. النتائج مسودة للتأكيد، وليست معايرة بغاز مرجعي ولا إثباتًا لدقة PPM."),UiKit.full(c));
+        autoStatus=UiKit.small(c,"لم يبدأ الجمع");autoCard.addView(autoStatus,UiKit.full(c));
+        LinearLayout autoButtons=UiKit.hbox(c);
+        Button begin=UiKit.button(c,"بدء جمع 30 عينة");begin.setOnClickListener(v->startCapture());autoButtons.addView(begin,UiKit.weight(1));
+        Button cancel=UiKit.button(c,"إلغاء");cancel.setOnClickListener(v->{capture=null;sampledSnapshot=null;acceptAuto.setEnabled(false);autoStatus.setText("أُلغي الجمع دون تغيير R0");});autoButtons.addView(cancel,UiKit.weight(1));
+        autoCard.addView(autoButtons,UiKit.full(c));
+        acceptAuto=UiKit.button(c,"مراجعة واعتماد");acceptAuto.setEnabled(false);acceptAuto.setOnClickListener(v->acceptCapture());autoCard.addView(acceptAuto,UiKit.full(c));root.addView(autoCard,UiKit.full(c));
         for(int i=0;i<keys.length;i++){
             final int index=i;
             LinearLayout card=UiKit.card(c);
@@ -131,8 +146,55 @@ public final class DeveloperR0Tab {
         }
         refresh();
     }
+    private void startCapture(){
+        if(calibrationChangeBlocked())return;
+        JSONObject d=host.latestDiagnostics(),relay=d==null?null:d.optJSONObject("relay");
+        if(relay==null||!relay.optBoolean("on",relay.optInt("mask",0)!=0)){host.showToast("شغّل MQ أولًا");return;}
+        long warmMs=Math.max(0,host.preferences().getInt("warm",60))*1000L;
+        if(relay.optLong("power_ms",0)<warmMs){host.showToast("انتظر اكتمال التسخين");return;}
+        capture=new AutoR0Capture(SystemClock.elapsedRealtime());sampledSnapshot=null;acceptAuto.setEnabled(false);
+        autoStatus.setText("0/30 • حافظ على ثبات الهواء النظيف");
+    }
+    private void acceptCapture(){
+        if(capture==null||!capture.finished()||calibrationChangeBlocked())return;
+        Map<String,Double> candidate=capture.estimate();
+        if(candidate.size()!=keys.length){host.showToast("القراءات غير مستقرة");return;}
+        StringBuilder review=new StringBuilder("قيم Rs التشغيلية (kΩ) وليست معايرة بغاز مرجعي:\n");
+        for(String k:keys)review.append(k.toUpperCase(Locale.US)).append(": ").append(String.format(Locale.US,"%.3f",candidate.get(k))).append(" kΩ\n");
+        new AlertDialog.Builder(context).setTitle("اعتماد أساس R0 الآلي").setMessage(review.toString())
+            .setNegativeButton("إلغاء",null).setPositiveButton("اعتماد",(d,w)->{
+                if(calibrationChangeBlocked())return;
+                if(!ManualR0Calibration.saveAutomatedCleanAir(host.preferences(),candidate,capture.samples(),capture.elapsed(SystemClock.elapsedRealtime()))){host.showToast("فشل حفظ القيم");return;}
+                capture=null;sampledSnapshot=null;acceptAuto.setEnabled(false);reloadFields();host.refreshAllTabs();
+                host.showToast("حُفظ الأساس التشغيلي مع التوقيت والمصدر");
+            }).show();
+    }
+    private void refreshCapture(JSONObject d){
+        if(capture==null||capture.finished()||d==null||d==sampledSnapshot)return;
+        JSONObject relay=d.optJSONObject("relay"),mq=d.optJSONObject("mq");
+        if(relay==null||!relay.optBoolean("on",relay.optInt("mask",0)!=0)){
+            capture=null;acceptAuto.setEnabled(false);autoStatus.setText("توقف الجمع: MQ OFF");return;
+        }
+        if(ChemCoreLibraryManager.measurementOrAnalysisActive(d)){
+            capture=null;acceptAuto.setEnabled(false);autoStatus.setText("توقف الجمع: قياس أو تحليل نشط");return;
+        }
+        sampledSnapshot=d;
+        Map<String,Double> rs=new HashMap<>();
+        if(mq!=null)for(String key:keys){
+            JSONObject q=mq.optJSONObject(key);
+            if(q!=null&&q.optBoolean("valid",q.optBoolean("ok",false))){
+                double v=q.optDouble("rs",Double.NaN);if(Double.isFinite(v)&&v>0)rs.put(key,v);
+            }
+        }
+        capture.sample(SystemClock.elapsedRealtime(),rs);
+        if(capture.finished()){
+            boolean stable=capture.estimate().size()==keys.length;
+            autoStatus.setText(stable?"30/30 • CV ≤10% • جاهز للمراجعة":"30/30 • تباين مرتفع؛ أعد جمع العينات");
+            acceptAuto.setEnabled(stable);
+        }else autoStatus.setText("العينات "+capture.samples()+"/30 • المرفوضة "+capture.rejected()+" • تحديث 1 ثانية");
+    }
     public void refresh(){
-        JSONObject d=host.latestDiagnostics();
+        JSONObject d=host.latestDiagnostics();refreshCapture(d);
         JSONObject mq=d==null?null:d.optJSONObject("mq");
         for(int i=0;i<keys.length;i++){
             String k=keys[i];JSONObject sample=mq==null?null:mq.optJSONObject(k);
