@@ -219,6 +219,10 @@ public final class MainActivity extends Activity implements HazRobHost {
         try{selected=new FieldSessionRepository(db).fieldSessionById(fs);}
         catch(Exception e){showToast("تعذر قراءة الجلسة");return;}
         if(selected==null){showToast("هذه الجلسة غير موجودة");return;}
+        // Prevent SAF creating a blank output for a NEW/unapproved session.
+        if(!new FieldSessionRepository(db).isApproved(fs)){
+            showToast("التصدير النهائي يتطلب اعتماد الجلسة المكتملة أولًا");return;
+        }
         pendingFieldSessionId=fs;
         boolean pdf="pdf".equalsIgnoreCase(format);
         Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);

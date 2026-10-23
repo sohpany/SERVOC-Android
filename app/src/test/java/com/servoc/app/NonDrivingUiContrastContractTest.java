@@ -65,14 +65,13 @@ public final class NonDrivingUiContrastContractTest {
     @Test public void reportsAndMeasurementsUseReadableDarkCardsForDynamicText() throws Exception {
         String reports=src("src/main/java/com/servoc/app/ui/ReportsTab.java");
         String measurements=src("src/main/java/com/servoc/app/ui/MeasurementsTab.java");
-        assertTrue(reports.contains("0xFF151A20"));
-        assertTrue(reports.contains("0xFFECEFF1"));
-        assertTrue(reports.contains("0xFFB0BEC5"));
-        assertTrue(measurements.contains("0xFF171D24"));
-        assertTrue(measurements.contains("0xFFECEFF1"));
-        assertTrue(measurements.contains("0xFFB0BEC5"));
-        assertTrue(darkWorkspace(reports));
-        assertTrue(darkWorkspace(measurements));
+        // Tank-style light workspaces retain explicit black text and readable status colors.
+        assertTrue(reports.contains("BG=UiKit.NON_DRIVING_BG"));
+        assertTrue(reports.contains("TEXT=0xFF0A0D11"));
+        assertTrue(reports.contains("UiKit.readableOptions"));
+        assertTrue(measurements.contains("BG=UiKit.NON_DRIVING_BG"));
+        assertTrue(measurements.contains("TEXT=0xFF0A0D11"));
+        assertTrue(measurements.contains("UiKit.selected(tabs[n],on)"));
     }
 
     @Test public void safetyPanelUsesDarkSharedCardAndReadableText() throws Exception {
