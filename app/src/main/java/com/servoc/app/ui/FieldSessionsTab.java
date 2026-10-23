@@ -113,7 +113,7 @@ public final class FieldSessionsTab {
         reportPane.addView(reportSiteDropdown,UiKit.full(c));
         reportSiteDropdown.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             public void onItemSelected(AdapterView<?> p,View v,int pos,long id){
-                if(selectingScope||refreshing||pos<0||pos>=displayedSites.size())return;
+                if(selectingScope||refreshing||pos<0||pos>=displayedSites.size()||pos!=p.getSelectedItemPosition())return;
                 String siteId=displayedSites.get(pos).id;
                 if(!siteId.equals(selectedSiteId)){selectedSiteId=siteId;selectedSessionId="";reportApprovedId="";refresh();}
             }
@@ -124,7 +124,7 @@ public final class FieldSessionsTab {
         reportPane.addView(reportApprovedDropdown,UiKit.full(c));
         reportApprovedDropdown.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             public void onItemSelected(AdapterView<?> p,View v,int pos,long id){
-                if(selectingScope||refreshing)return;
+                if(selectingScope||refreshing||pos!=p.getSelectedItemPosition())return;
                 reportApprovedId=pos>0&&pos<=approvedChoices.size()?approvedChoices.get(pos-1).id:"";
                 updateReportScope();
             }

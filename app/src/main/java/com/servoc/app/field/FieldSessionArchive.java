@@ -67,7 +67,10 @@ public final class FieldSessionArchive {
         String fieldId=root.optString("field_session_id","").trim();if(fieldId.isEmpty())throw new IllegalStateException("field_session_id required");
         if(w==null)throw new IllegalArgumentException("transaction db required");if(!exists(w,"field_sessions","field_session_id",fieldId))throw new IllegalStateException("field session metadata must be restored first");
         JSONArray a=root.optJSONArray("measurements");int nm=0,nx=0,ns=0,ne=0,nd=0;
-        w.delete("field_session_approvals","field_session_id=?",new String[]{fieldId});
+        // Older backups cannot silently revoke an already approved local session.
+        // The explicit approval record, if supplied, is validated and restored below.
+        if(root.has("field_approval"))
+            w.delete("field_session_approvals","field_session_id=?",new String[]{fieldId});
 
         if(a!=null)for(int i=0;i<a.length();i++){
             JSONObject m=a.optJSONObject(i);if(m==null)continue;
