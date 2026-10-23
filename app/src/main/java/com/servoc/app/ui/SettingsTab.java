@@ -36,7 +36,7 @@ public final class SettingsTab {
 
     public SettingsTab(Context c,HazRobHost host){
         this.host=host;this.libraryManager=new ChemCoreLibraryManager(c);ManualR0Calibration.load(host.preferences());scroll=new ScrollView(c);scroll.setFillViewport(true);
-        LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
+        LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,14));root.setBackgroundColor(UiKit.NON_DRIVING_BG);scroll.addView(root);
 
         LinearLayout net=UiKit.card(c);net.addView(UiKit.title(c,"الشبكة"),UiKit.full(c));
         robot=field(c,net,"ESP32",host.preferences().getString("robot","192.168.4.1"));camera=field(c,net,"ESP32-CAM",host.preferences().getString("camera","192.168.4.2"));
@@ -49,15 +49,15 @@ public final class SettingsTab {
         turnSpeed=field(c,cfg,"سرعة الالتفاف (%)",String.valueOf(host.preferences().getInt(DriveTuning.PREF_TURN_PERCENT,DriveTuning.DEFAULT_TURN_PERCENT)));
         pivotSpeed=field(c,cfg,"سرعة الدوران في المكان (%)",String.valueOf(host.preferences().getInt(DriveTuning.PREF_PIVOT_PERCENT,DriveTuning.DEFAULT_PIVOT_PERCENT)));
         turnSpeed.setInputType(InputType.TYPE_CLASS_NUMBER);pivotSpeed.setInputType(InputType.TYPE_CLASS_NUMBER);
-        TextView tuningHelp=UiKit.small(c,"الالتفاف = سرعة الجهة الداخلية عند أقصى انحراف أثناء الحركة. الدوران = سرعة Pivot في المكان. النطاق 0–100%. الافتراضي 40% / 60%. تطبق القيم على العجلة وJoystick والأزرار فقط.");tuningHelp.setTextColor(0xFF90CAF9);cfg.addView(tuningHelp,UiKit.full(c));
+        TextView tuningHelp=UiKit.small(c,"الالتفاف = سرعة الجهة الداخلية عند أقصى انحراف أثناء الحركة. الدوران = سرعة Pivot في المكان. النطاق 0–100%. الافتراضي 40% / 60%. تطبق القيم على العجلة وJoystick والأزرار فقط.");tuningHelp.setTextColor(0xFF16527C);cfg.addView(tuningHelp,UiKit.full(c));
         Button saveDriveTuning=UiKit.button(c,"حفظ سرعات القيادة");saveDriveTuning.setOnClickListener(v->saveDriveTuning());cfg.addView(saveDriveTuning,UiKit.full(c));
         cfg.addView(UiKit.small(c,"منظومة الحركة: L298N • LEFT=B: EN17/IN19/32 • RIGHT=A: EN16/IN18/27 • تزال جمبرا ENA/ENB عند تحكم PWM من ESP32."),UiKit.full(c));
-        TextView reverseHelp=UiKit.small(c,"عكس التوجيه مستقل لكل طريقة: يبدل يمين/يسار فقط ولا يغيّر الأمام/الخلف. المساطر المزدوجة مستثناة وتبقى كل مسطرة مرتبطة بجهتها مباشرة.");reverseHelp.setTextColor(0xFF90CAF9);cfg.addView(reverseHelp,UiKit.full(c));
+        TextView reverseHelp=UiKit.small(c,"عكس التوجيه مستقل لكل طريقة: يبدل يمين/يسار فقط ولا يغيّر الأمام/الخلف. المساطر المزدوجة مستثناة وتبقى كل مسطرة مرتبطة بجهتها مباشرة.");reverseHelp.setTextColor(0xFF16527C);cfg.addView(reverseHelp,UiKit.full(c));
         cfg.addView(directionReverseCheck(c,"العجلة: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_WHEEL),UiKit.full(c));
         cfg.addView(directionReverseCheck(c,"Joystick: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_JOYSTICK),UiKit.full(c));
         cfg.addView(directionReverseCheck(c,"الأزرار: عكس التوجيه يمين/يسار",DriveDirectionOption.PREF_REVERSE_BUTTONS),UiKit.full(c));
         cfg.addView(directionReverseCheck(c,"عكس الدوران في المكان (Joystick + عجلة + الأزرار؛ باستثناء المساطر)",DriveDirectionOption.PREF_REVERSE_PIVOT_ALL),UiKit.full(c));
-        safetyAutoStop=new CheckBox(c);safetyAutoStop.setTextColor(Color.LTGRAY);safetyAutoStop.setEnabled(false);safetyAutoStop.setChecked(false);safetyAutoStop.setText("التوقف التلقائي • حالة غير معروفة");safetyAutoStop.setOnCheckedChangeListener((button,checked)->{if(!syncingSafetyUi)applySafetyAutoStop(checked);});cfg.addView(safetyAutoStop,UiKit.full(c));
+        safetyAutoStop=new CheckBox(c);UiKit.readableCheckBox(safetyAutoStop);safetyAutoStop.setEnabled(false);safetyAutoStop.setChecked(false);safetyAutoStop.setText("التوقف التلقائي • حالة غير معروفة");safetyAutoStop.setOnCheckedChangeListener((button,checked)->{if(!syncingSafetyUi)applySafetyAutoStop(checked);});cfg.addView(safetyAutoStop,UiKit.full(c));
         TextView safetyHelp=UiKit.small(c,"التوقف التلقائي اختياري ويمنع التقدم أمام عائق ≤5 سم أو عند IR LOW (لا أرض). اضبط حساس IR وتأكد من قطبيته قبل التفعيل. التراجع والدوران يظلان متاحين. E-STOP وزر التوقف وwatchdog مستقلة دائمًا.");safetyHelp.setTextColor(0xFFFFB74D);cfg.addView(safetyHelp,UiKit.full(c));
         LinearLayout buttons=UiKit.hbox(c);Button sync=UiKit.button(c,"مزامنة");sync.setOnClickListener(v->sync());buttons.addView(sync,UiKit.weight(1));Button apply=UiKit.button(c,"تطبيق");apply.setOnClickListener(v->apply());buttons.addView(apply,UiKit.weight(1));cfg.addView(buttons,UiKit.full(c));root.addView(cfg,UiKit.full(c));
 
@@ -84,7 +84,7 @@ public final class SettingsTab {
         refreshMicrophoneCalibration();
     }
 
-    private CheckBox directionReverseCheck(Context c,String label,String key){CheckBox b=new CheckBox(c);b.setText(label);b.setTextColor(Color.LTGRAY);b.setChecked(host.preferences().getBoolean(key,false));b.setOnCheckedChangeListener((buttonView,checked)->{host.setDriveCommand(0,0);host.preferences().edit().putBoolean(key,checked).apply();host.refreshAllTabs();host.showToast(label+" • "+(checked?"معكوس":"طبيعي"));});return b;}
+    private CheckBox directionReverseCheck(Context c,String label,String key){CheckBox b=new CheckBox(c);b.setText(label);UiKit.readableCheckBox(b);b.setChecked(host.preferences().getBoolean(key,false));b.setOnCheckedChangeListener((buttonView,checked)->{host.setDriveCommand(0,0);host.preferences().edit().putBoolean(key,checked).apply();host.refreshAllTabs();host.showToast(label+" • "+(checked?"معكوس":"طبيعي"));});return b;}
     private EditText field(Context c,LinearLayout p,String label,String value){TextView l=UiKit.small(c,label);l.setTextColor(0xFFB0BEC5);p.addView(l,UiKit.full(c));EditText e=UiKit.input(c,value);p.addView(e,UiKit.full(c));return e;}
     public View view(){return scroll;}
 

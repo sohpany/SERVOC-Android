@@ -1,6 +1,7 @@
 package com.servoc.app.ui;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.ColorDrawable;
@@ -10,6 +11,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewParent;
 import android.widget.Button;
+import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -20,14 +23,14 @@ public final class UiKit {
 
     // HazRob identity palette: yellow / black / white / gray.
     public static final int HAZ_BLACK=0xFF0A0D11;
-    public static final int HAZ_SURFACE=0xFF151A20;
-    public static final int HAZ_SURFACE_ALT=0xFF232A33;
-    public static final int HAZ_GRAY_DARK=0xFF263238;
-    public static final int HAZ_GRAY=0xFF455A64;
-    public static final int HAZ_MUTED=0xFFB0BEC5;
-    public static final int HAZ_WHITE=0xFFF5F7F8;
-    public static final int HAZ_YELLOW=0xFFFFC107;
-    public static final int NON_DRIVING_BG=0xFF0E1116;
+    public static final int HAZ_SURFACE=0xFFFFFFFF;
+    public static final int HAZ_SURFACE_ALT=0xFFECEFF2;
+    public static final int HAZ_GRAY_DARK=0xFFE1E5EA;
+    public static final int HAZ_GRAY=0xFF737B86;
+    public static final int HAZ_MUTED=0xFF505966;
+    public static final int HAZ_WHITE=0xFFFFFFFF;
+    public static final int HAZ_YELLOW=0xFFFFBD36;
+    public static final int NON_DRIVING_BG=0xFFF7F8FA;
     public static final double MIN_TEXT_CONTRAST=4.5;
 
     // Functional state colors are intentionally separate from brand colors.
@@ -37,23 +40,23 @@ public final class UiKit {
     public static final int STATE_CRITICAL=0xFFC62828;
 
     // Compatibility aliases used by existing screens.
-    public static final int DARK_BG=HAZ_SURFACE,DARK_TEXT=HAZ_WHITE,MUTED_TEXT=HAZ_MUTED,LIGHT_BG=HAZ_GRAY_DARK,LIGHT_TEXT=HAZ_WHITE;
+    public static final int DARK_BG=HAZ_SURFACE,DARK_TEXT=Color.BLACK,MUTED_TEXT=HAZ_MUTED,LIGHT_BG=HAZ_GRAY_DARK,LIGHT_TEXT=Color.BLACK;
 
     public static LinearLayout vbox(Context c){LinearLayout l=new LinearLayout(c);l.setOrientation(LinearLayout.VERTICAL);rtl(l);return l;}
     public static LinearLayout hbox(Context c){LinearLayout l=new LinearLayout(c);l.setOrientation(LinearLayout.HORIZONTAL);l.setGravity(Gravity.CENTER_VERTICAL);rtl(l);return l;}
     public static TextView text(Context c,String s){TextView t=new TextView(c);t.setText(s);t.setTextColor(DARK_TEXT);t.setTextSize(14);t.setPadding(dp(c,8),dp(c,7),dp(c,8),dp(c,7));t.setGravity(Gravity.START|Gravity.CENTER_VERTICAL);t.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);guardOnAttach(t);return t;}
-    public static TextView title(Context c,String s){TextView t=text(c,s);t.setTextSize(18);t.setTypeface(Typeface.DEFAULT_BOLD);t.setTextColor(HAZ_YELLOW);return t;}
+    public static TextView title(Context c,String s){TextView t=text(c,s);t.setTextSize(18);t.setTypeface(Typeface.DEFAULT_BOLD);t.setTextColor(Color.BLACK);return t;}
     public static TextView small(Context c,String s){TextView t=text(c,s);t.setTextSize(12);t.setTextColor(MUTED_TEXT);return t;}
 
     /** Default secondary action: gray surface with white text. */
-    public static Button button(Context c,String s){Button b=new Button(c);b.setText(s);b.setAllCaps(false);b.setTextSize(13);b.setTextColor(HAZ_WHITE);b.setBackgroundColor(HAZ_GRAY_DARK);b.setMinHeight(dp(c,48));b.setMinWidth(dp(c,48));b.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));b.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);guardOnAttach(b);return b;}
+    public static Button button(Context c,String s){Button b=new Button(c);b.setText(s);b.setAllCaps(false);b.setTextSize(13);b.setTextColor(Color.BLACK);b.setBackgroundColor(HAZ_YELLOW);b.setMinHeight(dp(c,48));b.setMinWidth(dp(c,48));b.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));b.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);guardOnAttach(b);return b;}
     /** Primary/selected action: HazRob yellow with black text. */
     public static void primary(Button b){if(b==null)return;b.setBackgroundColor(HAZ_YELLOW);b.setTextColor(Color.BLACK);}
-    public static void secondary(Button b){if(b==null)return;b.setBackgroundColor(HAZ_GRAY_DARK);b.setTextColor(HAZ_WHITE);}
+    public static void secondary(Button b){if(b==null)return;b.setBackgroundColor(HAZ_GRAY_DARK);b.setTextColor(Color.BLACK);}
     public static void selected(Button b,boolean on){if(on)primary(b);else secondary(b);}
     public static void danger(Button b){if(b==null)return;b.setBackgroundColor(STATE_CRITICAL);b.setTextColor(Color.WHITE);}
 
-    public static EditText input(Context c,String s){EditText e=new EditText(c);e.setText(s);e.setTextColor(HAZ_WHITE);e.setHintTextColor(0xFF90A4AE);e.setSingleLine(true);e.setMinHeight(dp(c,48));e.setBackgroundColor(HAZ_SURFACE_ALT);e.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));e.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);guardOnAttach(e);return e;}
+    public static EditText input(Context c,String s){EditText e=new EditText(c);e.setText(s);e.setTextColor(Color.BLACK);e.setHintTextColor(0xFF56616F);e.setSingleLine(true);e.setMinHeight(dp(c,48));e.setBackgroundColor(HAZ_SURFACE_ALT);e.setPadding(dp(c,10),dp(c,8),dp(c,10),dp(c,8));e.setTextDirection(View.TEXT_DIRECTION_FIRST_STRONG);guardOnAttach(e);return e;}
     public static LinearLayout card(Context c){LinearLayout l=vbox(c);l.setPadding(dp(c,8),dp(c,8),dp(c,8),dp(c,8));l.setBackgroundColor(HAZ_SURFACE);return l;}
     public static LinearLayout.LayoutParams full(Context c){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(c,3),0,dp(c,3));return p;}
     public static LinearLayout.LayoutParams weight(float w){return new LinearLayout.LayoutParams(0,-2,w);}
@@ -114,5 +117,35 @@ public final class UiKit {
     }
     public static String stars(int confidence){return confidence<=0?"—":confidence==1?"★☆☆":confidence==2?"★★☆":"★★★";}
     public static String riskName(int risk){switch(risk){case 1:return"آمن جدًا";case 2:return"آمن";case 3:return"تنبيه";case 4:return"خطر";case 5:return"حرج";default:return"غير متاح";}}
+    /** Explicitly legible black text and checkbox outlines on light settings panels. */
+    public static void readableCheckBox(CheckBox box){
+        if(box==null)return;
+        box.setTextColor(Color.BLACK);
+        box.setBackgroundColor(HAZ_SURFACE);
+        box.setButtonTintList(new ColorStateList(new int[][]{
+            new int[]{android.R.attr.state_checked},new int[]{}},
+            new int[]{HAZ_BLACK,HAZ_BLACK}));
+        box.setPadding(dp(box.getContext(),8),dp(box.getContext(),6),dp(box.getContext(),8),dp(box.getContext(),6));
+        box.setMinHeight(dp(box.getContext(),48));
+    }
+
+    /** High contrast search-result and spinner rows independent of system theme. */
+    public static ArrayAdapter<String> readableOptions(Context c,java.util.List<String> labels){
+        return new ArrayAdapter<String>(c,android.R.layout.simple_spinner_item,labels){
+            private View style(View view){
+                if(view instanceof TextView){
+                    TextView t=(TextView)view;
+                    t.setTextColor(Color.BLACK);t.setBackgroundColor(Color.WHITE);
+                    t.setSingleLine(false);
+                    t.setPadding(dp(c,12),dp(c,10),dp(c,12),dp(c,10));
+                    t.setMinHeight(dp(c,46));
+                }
+                return view;
+            }
+            @Override public View getView(int pos,View convert,ViewGroup parent){return style(super.getView(pos,convert,parent));}
+            @Override public View getDropDownView(int pos,View convert,ViewGroup parent){return style(super.getDropDownView(pos,convert,parent));}
+        };
+    }
+
     public static View divider(Context c){View v=new View(c);v.setBackgroundColor(HAZ_GRAY);v.setLayoutParams(new LinearLayout.LayoutParams(-1,dp(c,1)));return v;}
 }

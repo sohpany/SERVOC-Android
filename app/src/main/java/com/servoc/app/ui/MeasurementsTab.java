@@ -311,6 +311,7 @@ public final class MeasurementsTab {
         private void chooseTrackingChemical(){
             EditText query=new EditText(c);query.setSingleLine(true);
             query.setHint("اسم المادة أو رقم CAS");
+            query.setTextColor(Color.BLACK);query.setHintTextColor(0xFF505966);query.setBackgroundColor(Color.WHITE);
             query.setInputType(InputType.TYPE_CLASS_TEXT);
             new AlertDialog.Builder(c)
                 .setTitle("اختيار مادة للتتبع الاستدلالي")
@@ -324,7 +325,7 @@ public final class MeasurementsTab {
                     for(int i=0;i<matches.size();i++)labels[i]=matches.get(i).label();
                     new AlertDialog.Builder(c)
                         .setTitle("حدد المادة")
-                        .setItems(labels,(dialog,index)->{
+                        .setAdapter(UiKit.readableOptions(c,java.util.Arrays.asList(labels)),(dialog,index)->{
                             ChemicalRepository.Chemical item=matches.get(index);
                             if(item.uid>Integer.MAX_VALUE){host.showToast("معرّف غير مدعوم");return;}
                             selectedCandidateId=(int)item.uid;
