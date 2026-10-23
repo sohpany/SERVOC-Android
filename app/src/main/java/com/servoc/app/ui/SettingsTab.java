@@ -13,6 +13,7 @@ import android.widget.TextView;
 
 import com.servoc.app.calibration.ManualR0Calibration;
 import com.servoc.app.calibration.MicrophoneDbCalibration;
+import com.servoc.app.measurement.EchoReading;
 import com.servoc.app.control.DriveDirectionOption;
 import com.servoc.app.control.DriveTuning;
 import com.servoc.app.hardware.HazRobHardwareProfile;
@@ -27,7 +28,7 @@ import java.util.Locale;
 public final class SettingsTab {
     private static final int DRIVE_FIRMWARE_LIMIT=100;
     private final HazRobHost host;private final ScrollView scroll;
-    private final EditText robot,camera,warm,measure,micOffset,turnSpeed,pivotSpeed;
+    private final EditText robot,camera,warm,measure,micOffset,turnSpeed,pivotSpeed,echoOffset;
     private final CheckBox safetyAutoStop;
     private boolean syncingSafetyUi=false,safetyUpdatePending=false;
     private final TextView compatibility,cameraState,libraryInfo,analysisUpdateInfo,micCalibrationInfo;
@@ -67,6 +68,11 @@ public final class SettingsTab {
         micHelp.setTextColor(0xFFFFB74D);mic.addView(micHelp,UiKit.full(c));
         micCalibrationInfo=UiKit.small(c,"");micCalibrationInfo.setBackgroundColor(0xFF151A20);mic.addView(micCalibrationInfo,UiKit.full(c));
         LinearLayout micButtons=UiKit.hbox(c);Button saveMic=UiKit.button(c,"حفظ التعويض");saveMic.setOnClickListener(v->saveMicrophoneOffset());micButtons.addView(saveMic,UiKit.weight(1));Button clearMic=UiKit.button(c,"مسح التعويض");clearMic.setOnClickListener(v->clearMicrophoneOffset());micButtons.addView(clearMic,UiKit.weight(1));mic.addView(micButtons,UiKit.full(c));root.addView(mic,UiKit.full(c));
+        LinearLayout echoCard=UiKit.card(c);echoCard.addView(UiKit.title(c,"معايرة عرض المسافة — ECHO"),UiKit.full(c));
+        echoOffset=field(c,echoCard,"تعويض المسافة (سم، موجب أو سالب)",String.format(Locale.US,"%.1f",EchoReading.offsetCm(host.preferences())));
+        echoOffset.setInputType(InputType.TYPE_CLASS_NUMBER|InputType.TYPE_NUMBER_FLAG_DECIMAL|InputType.TYPE_NUMBER_FLAG_SIGNED);
+        echoCard.addView(UiKit.small(c,"القراءة المعروضة = مسافة الحساس الصالحة + التعويض. تحويل مستوى ECHO من 5V إلى 3.3V لا يغيّر زمن النبضة ولا يحتاج معامل 5/3.3. التعويض للعرض فقط ولا يغيّر توقف الروبوت. تحقق من الأسلاك والنبضة عند ظهور timeout."),UiKit.full(c));
+        LinearLayout echoButtons=UiKit.hbox(c);Button saveEcho=UiKit.button(c,"حفظ تعويض ECHO");saveEcho.setOnClickListener(v->saveEchoOffset());echoButtons.addView(saveEcho,UiKit.weight(1));Button clearEcho=UiKit.button(c,"تصفير");clearEcho.setOnClickListener(v->{EchoReading.saveOffset(host.preferences(),0.0);echoOffset.setText("0.0");host.refreshAllTabs();});echoButtons.addView(clearEcho,UiKit.weight(1));echoCard.addView(echoButtons,UiKit.full(c));root.addView(echoCard,UiKit.full(c));
 
         LinearLayout compat=UiKit.card(c);compat.addView(UiKit.title(c,"النظام والتنبيهات"),UiKit.full(c));compatibility=UiKit.text(c,"Firmware —");compat.addView(compatibility,UiKit.full(c));
         LinearLayout alertButtons=UiKit.hbox(c);Button robotAlert=UiKit.button(c,"اختبار تنبيه الروبوت");robotAlert.setOnClickListener(v->testAlert());alertButtons.addView(robotAlert,UiKit.weight(1));Button phoneAlert=UiKit.button(c,"اختبار صوت الهاتف");phoneAlert.setOnClickListener(v->host.testPhoneAlert());alertButtons.addView(phoneAlert,UiKit.weight(1));compat.addView(alertButtons,UiKit.full(c));root.addView(compat,UiKit.full(c));
@@ -103,6 +109,16 @@ public final class SettingsTab {
         host.setDriveCommand(0,0);
         host.preferences().edit().putInt(DriveTuning.PREF_TURN_PERCENT,turn).putInt(DriveTuning.PREF_PIVOT_PERCENT,pivot).apply();
         turnSpeed.setText(String.valueOf(turn));pivotSpeed.setText(String.valueOf(pivot));host.refreshAllTabs();host.showToast("تم حفظ سرعات القيادة • التفاف "+turn+"% • دوران "+pivot+"%");
+    }
+
+    private void saveEchoOffset(){
+        double v;
+        try{v=Double.parseDouble(echoOffset.getText().toString().trim().replace(',','.'));}
+        catch(Exception e){host.showToast("تعويض ECHO غير صالح");return;}
+        if(!EchoReading.saveOffset(host.preferences(),v)){
+            host.showToast("تعويض ECHO يجب أن يكون بين -200 و +200 سم");return;
+        }
+        host.refreshAllTabs();host.showToast("حُفظ تعويض العرض فقط دون تعديل التوقف الآمن");
     }
 
     private void refreshMicrophoneCalibration(){

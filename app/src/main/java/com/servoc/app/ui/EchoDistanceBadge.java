@@ -6,6 +6,7 @@ import android.view.Gravity;
 import android.widget.TextView;
 
 import org.json.JSONObject;
+import com.servoc.app.measurement.EchoReading;
 
 import java.util.Locale;
 
@@ -54,6 +55,7 @@ public final class EchoDistanceBadge extends TextView implements Runnable {
         JSONObject device=d==null?null:d.optJSONObject("device");
         JSONObject proximity=device==null?null:device.optJSONObject("proximity");
         double cm=proximity==null?Double.NaN:proximity.optDouble("distance_cm",proximity.optDouble("cm",Double.NaN));
+        EchoReading reading=EchoReading.from(d,host.preferences());
         long timeouts=0,pulseUs=0;
 
         // Raw API4 fallback protects the overlay if an intermediate normalizer omits/renames a field.
@@ -68,6 +70,8 @@ public final class EchoDistanceBadge extends TextView implements Runnable {
             }
         }
 
+        if(!reading.valid){cm=Double.NaN;}
+        else cm=reading.displayCm;
         if(Double.isNaN(cm)||Double.isInfinite(cm)||cm<=0){
             if(timeouts>0){
                 setText("ECHO TIMEOUT ×"+timeouts);

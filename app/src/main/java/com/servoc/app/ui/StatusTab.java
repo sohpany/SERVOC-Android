@@ -19,6 +19,7 @@ import com.servoc.app.chemcore.library.ChemCoreLibraryStore;
 import com.servoc.app.communication.RemoteConnection;
 import com.servoc.app.hardware.HazRobHardwareProfile;
 import com.servoc.app.measurement.SensorHealthEngine;
+import com.servoc.app.measurement.EchoReading;
 import com.servoc.app.models.ModelRuntimeRegistry;
 import com.servoc.app.models.MqDataScience76Catalog;
 import com.servoc.app.update.AppUpdateManager;
@@ -131,11 +132,14 @@ public final class StatusTab {
         JSONObject mq=d.optJSONObject("mq");StringBuilder s=new StringBuilder();for(HazRobHardwareProfile.Channel hw:HazRobHardwareProfile.MQ){if(s.length()>0)s.append('\n');SensorHealthEngine.Snapshot h=host.sensorHealth(hw.key);JSONObject r=mq==null?null:mq.optJSONObject(hw.key);boolean valid=r!=null&&r.optBoolean("valid",r.optBoolean("ok",false));boolean calibrated=r!=null&&r.optBoolean("manual_calibration_confirmed",r.optBoolean("r0_calibrated",false));s.append(hw.key.toUpperCase(Locale.US)).append("   ADS").append(hw.ads).append(" A").append(hw.adcChannel).append("   ").append(valid?"● SIGNAL   ":"○ —   ").append(SensorHealthEngine.stateAr(h.state)).append(calibrated?"   •   CAL ●":"   •   CAL —");}sensors.setText(s.toString());
         // HR069-R1 operator hardware matrix. Presence/configuration is NOT equivalent to healthy readings.
         JSONObject device=d.optJSONObject("device"),echo=device==null?null:device.optJSONObject("proximity"),battery=device==null?null:device.optJSONObject("battery"),ir=d.optJSONObject("ir"),sound=d.optJSONObject("sound"),drive=d.optJSONObject("drive");
+        EchoReading echoReading=EchoReading.from(d,host.preferences());
         String echoText="ECHO GPIO23/39   ";
         if(echo==null)echoText+="○ لا بيانات";
-        else if(echo.optBoolean("valid",false)&&echo.has("distance_cm")&&!echo.isNull("distance_cm"))
-            echoText+=String.format(Locale.US,"● %.1f cm",echo.optDouble("distance_cm",Double.NaN));
-        else echoText+="⚠ قياس غير صالح • "+echo.optString("status","unknown")+" • timeouts "+echo.optLong("timeouts",0)+" • pulse "+echo.optLong("pulse_us",0)+" µs"+" • ↑ "+echo.optLong("no_rise",0)+" ↓ "+echo.optLong("no_fall",0)+" HIGH "+echo.optLong("stuck_high",0);
+        else if(echoReading.valid)
+            echoText+=String.format(Locale.US,"● %.1f cm (خام %.1f، تعويض %+.1f cm)",echoReading.displayCm,echoReading.rawCm,EchoReading.offsetCm(host.preferences()));
+        else echoText+="⚠ قياس غير صالح • "+echoReading.status+" • timeouts "+echoReading.timeouts+" • pulse "+echoReading.pulseUs+" µs"+
+            (Double.isFinite(echoReading.diagnosticCm)?String.format(Locale.US," • نبضة تعادل نظريًا %.0f cm (ليست قراءة صالحة)",echoReading.diagnosticCm):"")+
+            " • ↑ "+echo.optLong("no_rise",0)+" ↓ "+echo.optLong("no_fall",0)+" HIGH "+echo.optLong("stuck_high",0);
         String irText="IR GPIO35   "+(ir==null?"○ لا بيانات":ir.optBoolean("ground_detected",false)?"● أرض موجودة":"⚠ لا توجد أرض")+(ir==null?"":" • RAW "+ir.optInt("raw_level",ir.optInt("level",-1))+" • HIGH=أرض");
         String voltage=battery==null||battery.isNull("voltage_v")?"○ لا قراءة":String.format(Locale.US,"%.2f V (تقديري)",battery.optDouble("voltage_v",Double.NaN));
         String microphone=sound==null||sound.isNull("rms_v")?"○ لا قراءة":String.format(Locale.US,"● RMS %.3f V",sound.optDouble("rms_v",Double.NaN));
