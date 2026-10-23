@@ -10,7 +10,7 @@ import static org.junit.Assert.*;
 public class SiteSummaryReportContractTest {
  @Test public void siteReportSummarizesAllChildFieldSessionsWithoutPoolingPpm() throws Exception {
   String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/report/SiteSummaryReportExporter.java")),StandardCharsets.UTF_8);
-  assertTrue(s.contains("sessionsForSite(id)"));
+  assertTrue(s.contains("approvedSessionsForSite(id)"));
   assertTrue(s.contains("FieldSessionReportExporter.resolve(db,fs.id)"));
   assertTrue(s.contains("SiteReportIntelligence.plan"));
   assertTrue(s.contains("PAGE_WIDTH=842"));assertTrue(s.contains("PAGE_HEIGHT=595"));
@@ -42,12 +42,12 @@ public class SiteSummaryReportContractTest {
   String s=new String(Files.readAllBytes(Paths.get("src/main/java/com/servoc/app/ui/FieldSessionsTab.java")),StandardCharsets.UTF_8);
   assertTrue(s.contains("تقرير الموقع PDF"));
   assertTrue(s.contains("Excel ذكي للموقع"));
-  assertTrue(s.contains("تقرير الجلسة PDF • 4–5 صفحات أفقية"));
-  assertTrue(s.contains("Excel ذكي للجلسة"));
+  assertTrue(s.contains("تقارير المواقع والجلسات المعتمدة"));
+  assertTrue(s.contains("تصدير Excel"));
   assertTrue(s.contains("host.openReportsForSite(selectedSiteId,\"\")"));
   assertTrue(s.contains("host.openReportsForSite(selectedSiteId,\"\")"));
-  assertTrue(s.contains("host.openReportsForSite(selectedSiteId,q.id)"));
-  assertTrue(s.contains("host.openReportsForSite(selectedSiteId,q.id)"));
+  assertTrue(s.contains("host.requestFieldSessionExport(format,reportApprovedId)"));
+  assertTrue(s.contains("host.requestFieldSessionExport(format,reportApprovedId)"));
  }
 
  @Test public void siteExportUsesDedicatedSafActivityForSmartPdfAndXlsx() throws Exception {
