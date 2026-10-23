@@ -31,7 +31,7 @@ public final class DeveloperR0Tab {
     private final EditText[] entry=new EditText[keys.length];
     private final TextView[] info=new TextView[keys.length];
     private final TextView summary,autoStatus;
-    private final Button acceptAuto;
+    private Button acceptAuto;
     private AutoR0Capture capture;
     private JSONObject sampledSnapshot;
 
