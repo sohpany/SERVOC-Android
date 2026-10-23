@@ -30,7 +30,9 @@ import java.util.Locale;
  */
 public final class PhysicalMeasurementsUiEnhancer implements Runnable {
     private static final String TAG="hazrob_physical_measurements_enhancer";
-    private static final long REFRESH_MS=250L;
+    private static final long REFRESH_MS=1000L;
+    private static final double NOISE_EMA_ALPHA=0.35;
+    private double displayDb=Double.NaN;
     private static final float[] WEIGHTS={0.30f,0.18f,0.16f,0.36f};
     private static final int NOISE_ROW=6; // header row + PhysicalCatalog index 5 (Noise)
 
@@ -152,20 +154,21 @@ public final class PhysicalMeasurementsUiEnhancer implements Runnable {
         JSONObject sound=d==null?null:d.optJSONObject("sound");
         if(sound==null&&d!=null){JSONObject raw=d.optJSONObject("_data_api");sound=raw==null?null:raw.optJSONObject("sound");}
         double rawDb=MicrophoneDbCalibration.rawDbFs(sound);
+        displayDb=Double.isFinite(rawDb)?(Double.isFinite(displayDb)?displayDb+NOISE_EMA_ALPHA*(rawDb-displayDb):rawDb):Double.NaN;
         boolean configured=MicrophoneDbCalibration.configured(host.preferences());
         double offset=MicrophoneDbCalibration.offsetDb(host.preferences());
         if(Double.isFinite(rawDb)){
             value.setTypeface(Typeface.DEFAULT,Typeface.BOLD);
             if(configured){
-                double corrected=MicrophoneDbCalibration.compensate(rawDb,offset);
+                double corrected=MicrophoneDbCalibration.compensate(displayDb,offset);
                 value.setText(String.format(Locale.US,"%.1f",corrected));
                 value.setTextColor(Color.WHITE);
                 state.setText("MAX4466 • معوض بمرجع خارجي • raw "+String.format(Locale.US,"%.1f dBFS",rawDb)+" • offset "+String.format(Locale.US,"%+.1f dB",offset));
                 state.setTextColor(0xFF81C784);
             }else{
-                value.setText(String.format(Locale.US,"%.1f",rawDb));
+                value.setText(String.format(Locale.US,"%.1f",displayDb));
                 value.setTextColor(0xFFFFB74D);
-                state.setText("MAX4466 • dBFS خام • أدخل التعويض من الإعدادات");
+                state.setText("MAX4466 • dBFS خام • تمهيد وتحديث كل ثانية • أدخل التعويض من الإعدادات");
                 state.setTextColor(0xFFFFB74D);
             }
         }else{
