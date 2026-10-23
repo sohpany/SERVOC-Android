@@ -8,6 +8,8 @@ import com.servoc.app.data.ExperimentsDb;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -133,6 +135,18 @@ public final class FieldSessionRepository {
             long row=w.insertWithOnConflict("field_session_measurements",null,v,SQLiteDatabase.CONFLICT_IGNORE);
             w.setTransactionSuccessful();return row!=-1;
         }finally{w.endTransaction();}
+    }
+
+    /** Single grouped query for session counts: avoids N+1 DB reads during tab rendering. */
+    public Map<String,Integer> measurementCountsForSite(String siteId){
+        Map<String,Integer> out=new HashMap<>();
+        String sql="SELECT fsm.field_session_id,COUNT(*) FROM field_session_measurements fsm " +
+            "JOIN field_sessions fs ON fs.field_session_id=fsm.field_session_id " +
+            "WHERE fs.site_id=? GROUP BY fsm.field_session_id";
+        try(Cursor c=db.getReadableDatabase().rawQuery(sql,new String[]{requiredId(siteId)})){
+            while(c.moveToNext())out.put(c.getString(0),c.getInt(1));
+        }
+        return out;
     }
 
     public List<String> measurementSessionIds(String fieldSessionId){

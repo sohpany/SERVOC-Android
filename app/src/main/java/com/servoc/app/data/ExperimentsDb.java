@@ -22,6 +22,12 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
         createCalibrationTables(db);db.execSQL("CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)");createV6Tables(db);createV8Tables(db);createV9UserFieldTables(db);seedLegacyChemicals(db);seedCoreSources(db);createCaptureUidIndex(db);
     }
 
+    /** Restore missing user-field tables without dropping data on experimental installations. */
+    @Override public void onOpen(SQLiteDatabase database){
+        super.onOpen(database);
+        if(!database.isReadOnly())createV9UserFieldTables(database);
+    }
+
     @Override public void onUpgrade(SQLiteDatabase db,int oldVersion,int newVersion){
         if(oldVersion<2){try{db.execSQL("ALTER TABLE experiments ADD COLUMN protocol TEXT");}catch(Exception ignored){}try{db.execSQL("ALTER TABLE experiments ADD COLUMN analytics TEXT");}catch(Exception ignored){}db.execSQL("CREATE TABLE IF NOT EXISTS fingerprints(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, label TEXT NOT NULL, created_ts TEXT NOT NULL, payload TEXT NOT NULL)");db.execSQL("CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT NOT NULL)");}
         if(oldVersion<3){db.execSQL("CREATE TABLE IF NOT EXISTS captures(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, known_ppm REAL, ts TEXT NOT NULL, session_id TEXT, temp_c REAL, rh REAL, phase TEXT, sensor_payload TEXT NOT NULL, feature_payload TEXT)");db.execSQL("CREATE TABLE IF NOT EXISTS models(id INTEGER PRIMARY KEY AUTOINCREMENT, chemical_id INTEGER NOT NULL, model_type TEXT NOT NULL, version TEXT NOT NULL, created_ts TEXT NOT NULL, training_count INTEGER, metrics TEXT, payload TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 0)");}
