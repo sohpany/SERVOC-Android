@@ -68,6 +68,8 @@ public final class ExperimentsDb extends SQLiteOpenHelper {
         db.execSQL("CREATE TABLE IF NOT EXISTS field_session_measurements(field_session_id TEXT NOT NULL, measurement_session_id TEXT NOT NULL UNIQUE, linked_ts TEXT NOT NULL, PRIMARY KEY(field_session_id,measurement_session_id), FOREIGN KEY(field_session_id) REFERENCES field_sessions(field_session_id), FOREIGN KEY(measurement_session_id) REFERENCES measurement_sessions(session_id))");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_field_measurements_field ON field_session_measurements(field_session_id,linked_ts)");
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_field_measurements_measurement ON field_session_measurements(measurement_session_id)");
+        // Non-destructive: never auto-approve legacy CLOSED sessions.
+        db.execSQL("CREATE TABLE IF NOT EXISTS field_session_approvals(field_session_id TEXT PRIMARY KEY,measurement_session_id TEXT NOT NULL,approved_ts TEXT NOT NULL,FOREIGN KEY(field_session_id) REFERENCES field_sessions(field_session_id),FOREIGN KEY(measurement_session_id) REFERENCES measurement_sessions(session_id))");
     }
 
     private static void createV6Tables(SQLiteDatabase db){

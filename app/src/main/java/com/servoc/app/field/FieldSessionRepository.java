@@ -149,6 +149,59 @@ public final class FieldSessionRepository {
         return out;
     }
 
+    /** Explicit user approval, independent of old ACTIVE/CLOSED storage state. */
+    public boolean isApproved(String fieldSessionId){
+        try(Cursor c=db.getReadableDatabase().rawQuery(
+            "SELECT 1 FROM field_session_approvals a JOIN field_sessions f ON f.field_session_id=a.field_session_id WHERE a.field_session_id=? AND f.status=? LIMIT 1",
+            new String[]{requiredId(fieldSessionId),STATUS_CLOSED})){return c.moveToFirst();}
+    }
+    public List<FieldSession> approvedSessionsForSite(String siteId){
+        List<FieldSession> out=new ArrayList<>();
+        String sql="SELECT f.field_session_id,f.site_id,f.name,f.started_ts,f.ended_ts,f.status "+
+            "FROM field_sessions f JOIN field_session_approvals a ON a.field_session_id=f.field_session_id "+
+            "WHERE f.site_id=? AND f.status=? ORDER BY f.started_ts DESC,f.field_session_id DESC";
+        try(Cursor c=db.getReadableDatabase().rawQuery(sql,new String[]{requiredId(siteId),STATUS_CLOSED})){
+            while(c.moveToNext())out.add(fieldSession(c));
+        }
+        return out;
+    }
+    /** Approval requires exactly one completed USER/FIELD acquisition. */
+    public boolean canApprove(String fieldSessionId){
+        if(isApproved(fieldSessionId))return false;
+        String sql="SELECT COUNT(*),MIN(CASE WHEN ms.ended_ts IS NOT NULL AND TRIM(ms.ended_ts)<>'' AND "+
+            "ms.operator_role='USER' AND ms.kind LIKE 'field_%' THEN 1 ELSE 0 END) "+
+            "FROM field_session_measurements fsm JOIN measurement_sessions ms ON ms.session_id=fsm.measurement_session_id "+
+            "JOIN field_sessions fs ON fs.field_session_id=fsm.field_session_id "+
+            "WHERE fsm.field_session_id=? AND fs.status=?";
+        try(Cursor c=db.getReadableDatabase().rawQuery(sql,new String[]{requiredId(fieldSessionId),STATUS_CLOSED})){
+            return c.moveToFirst()&&c.getInt(0)==1&&c.getInt(1)==1;
+        }
+    }
+    /** Transactional, no legacy record is rewritten or silently promoted. */
+    public boolean approve(String fieldSessionId){
+        String id=requiredId(fieldSessionId);
+        SQLiteDatabase w=db.getWritableDatabase();w.beginTransaction();
+        try{
+            String sql="SELECT fsm.measurement_session_id FROM field_session_measurements fsm "+
+                "JOIN field_sessions fs ON fs.field_session_id=fsm.field_session_id "+
+                "JOIN measurement_sessions ms ON ms.session_id=fsm.measurement_session_id "+
+                "WHERE fsm.field_session_id=? AND fs.status=? AND ms.operator_role='USER' "+
+                "AND ms.kind LIKE 'field_%' AND ms.ended_ts IS NOT NULL AND TRIM(ms.ended_ts)<>''";
+            String measurement="";
+            try(Cursor c=w.rawQuery(sql,new String[]{id,STATUS_CLOSED})){
+                if(!c.moveToFirst())return false;
+                measurement=c.getString(0);if(c.moveToNext())return false;
+            }
+            try(Cursor c=w.rawQuery("SELECT COUNT(*) FROM field_session_measurements WHERE field_session_id=?",new String[]{id})){
+                if(!c.moveToFirst()||c.getInt(0)!=1)return false;
+            }
+            ContentValues v=new ContentValues();v.put("field_session_id",id);
+            v.put("measurement_session_id",measurement);v.put("approved_ts",isoNow());
+            long inserted=w.insertWithOnConflict("field_session_approvals",null,v,SQLiteDatabase.CONFLICT_IGNORE);
+            w.setTransactionSuccessful();return inserted!=-1;
+        }finally{w.endTransaction();}
+    }
+
     public List<String> measurementSessionIds(String fieldSessionId){
         List<String> out=new ArrayList<>();
         try(Cursor c=db.getReadableDatabase().rawQuery("SELECT measurement_session_id FROM field_session_measurements WHERE field_session_id=? ORDER BY linked_ts,measurement_session_id",new String[]{requiredId(fieldSessionId)})){
@@ -194,6 +247,7 @@ public final class FieldSessionRepository {
                     if(c.moveToFirst())throw new IllegalStateException("Refusing deletion: scientific capture uses this identity");
                 }
             }
+            w.delete("field_session_approvals","field_session_id=?",new String[]{id});
             w.delete("field_session_measurements","field_session_id=?",new String[]{id});
             for(String ms:ids){
                 String[] arg={ms};

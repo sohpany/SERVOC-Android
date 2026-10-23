@@ -52,7 +52,12 @@ public final class SiteSummaryReportExporter {
     public static SiteBundle resolve(ExperimentsDb db,String siteId){
         if(db==null)throw new IllegalArgumentException("db required");String id=required(siteId);FieldSessionRepository repo=new FieldSessionRepository(db);FieldSessionRepository.Site site=null;
         for(FieldSessionRepository.Site q:repo.sites())if(id.equals(q.id)){site=q;break;}if(site==null)throw new IllegalArgumentException("site not found");
-        List<SessionSummary> out=new ArrayList<>();for(FieldSessionRepository.FieldSession fs:repo.sessionsForSite(id))out.add(new SessionSummary(db,FieldSessionReportExporter.resolve(db,fs.id)));return new SiteBundle(site,out);
+        List<SessionSummary> out=new ArrayList<>();
+        for(FieldSessionRepository.FieldSession fs:repo.approvedSessionsForSite(id)){
+            out.add(new SessionSummary(db,FieldSessionReportExporter.resolve(db,fs.id)));
+        }
+        if(out.isEmpty())throw new IllegalStateException("site has no approved field sessions");
+        return new SiteBundle(site,out);
     }
 
     public static void writePdf(OutputStream out,ExperimentsDb db,String siteId)throws Exception{

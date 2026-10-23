@@ -132,12 +132,12 @@ public final class ReportsTab {
     private void refreshSessionScope(){
         bindingScopes=true;
         try{
-        scopeSessions.clear();if(!chosenSiteId.isEmpty())scopeSessions.addAll(fieldSessions.sessionsForSite(chosenSiteId));
-        List<String> names=new ArrayList<>();names.add("كل جلسات الموقع • تقرير الموقع");
+        scopeSessions.clear();if(!chosenSiteId.isEmpty())scopeSessions.addAll(fieldSessions.approvedSessionsForSite(chosenSiteId));
+        List<String> names=new ArrayList<>();names.add("كل الجلسات المعتمدة • تقرير الموقع");
         int selected=0;
         for(int i=0;i<scopeSessions.size();i++){
             FieldSessionRepository.FieldSession f=scopeSessions.get(i);
-            names.add(f.name+(f.active()?" • نشطة":" • منتهية"));
+            names.add(f.name+" • معتمدة");
             if(f.id.equals(chosenSessionId))selected=i+1;
         }
         chosenSessionId=selected>0?scopeSessions.get(selected-1).id:"";
@@ -150,7 +150,8 @@ public final class ReportsTab {
     private void updateExportButtonLabels(){
         if(pdf==null||xlsx==null)return;
         boolean hasSite=!chosenSiteId.isEmpty();
-        pdf.setEnabled(hasSite);xlsx.setEnabled(hasSite);
+        boolean canExport=hasSite&&!scopeSessions.isEmpty();
+        pdf.setEnabled(canExport);xlsx.setEnabled(canExport);
         String siteName="";for(FieldSessionRepository.Site site:scopeSites)if(site.id.equals(chosenSiteId)){siteName=site.name;break;}
         String sessionName="";for(FieldSessionRepository.FieldSession session:scopeSessions)if(session.id.equals(chosenSessionId)){sessionName=session.name;break;}
         scopeSummary.setText(!hasSite?"نطاق التصدير: لم يُحدد موقع":"نطاق التصدير: "+siteName+(chosenSessionId.isEmpty()?" • جميع جلسات الموقع":" • الجلسة: "+sessionName)+"\nسيُصدّر PDF وExcel لهذا النطاق نفسه دون دمج قياسات غير مرتبطة.");

@@ -43,6 +43,7 @@ public final class FieldSessionReportExporter {
         FieldSessionRepository repo=new FieldSessionRepository(db);FieldSessionRepository.Site site=null;FieldSessionRepository.FieldSession field=null;
         for(FieldSessionRepository.Site s:repo.sites()){for(FieldSessionRepository.FieldSession q:repo.sessionsForSite(s.id))if(fs.equals(q.id)){site=s;field=q;break;}if(field!=null)break;}
         if(field==null||site==null)throw new IllegalArgumentException("field session not found");
+        if(!repo.isApproved(fs))throw new IllegalStateException("field session is not explicitly approved");
         List<String> sessions=repo.measurementSessionIds(fs);List<ExperimentQueries.Record> records=new ArrayList<>();for(String sid:sessions)records.addAll(ExperimentQueries.bySessionId(db,sid));
         ChemCoreDecisionRepository decisions=new ChemCoreDecisionRepository(db);
 
