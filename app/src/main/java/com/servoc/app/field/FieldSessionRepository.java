@@ -169,7 +169,8 @@ public final class FieldSessionRepository {
     public boolean canApprove(String fieldSessionId){
         if(isApproved(fieldSessionId))return false;
         String sql="SELECT COUNT(*),MIN(CASE WHEN ms.ended_ts IS NOT NULL AND TRIM(ms.ended_ts)<>'' AND "+
-            "ms.operator_role='USER' AND ms.kind LIKE 'field_%' THEN 1 ELSE 0 END) "+
+            "ms.operator_role='USER' AND ms.kind LIKE 'field_%' "+
+            "AND EXISTS(SELECT 1 FROM telemetry_samples t WHERE t.session_id=ms.session_id) THEN 1 ELSE 0 END) "+
             "FROM field_session_measurements fsm JOIN measurement_sessions ms ON ms.session_id=fsm.measurement_session_id "+
             "JOIN field_sessions fs ON fs.field_session_id=fsm.field_session_id "+
             "WHERE fsm.field_session_id=? AND fs.status=?";
@@ -186,7 +187,8 @@ public final class FieldSessionRepository {
                 "JOIN field_sessions fs ON fs.field_session_id=fsm.field_session_id "+
                 "JOIN measurement_sessions ms ON ms.session_id=fsm.measurement_session_id "+
                 "WHERE fsm.field_session_id=? AND fs.status=? AND ms.operator_role='USER' "+
-                "AND ms.kind LIKE 'field_%' AND ms.ended_ts IS NOT NULL AND TRIM(ms.ended_ts)<>''";
+                "AND ms.kind LIKE 'field_%' AND ms.ended_ts IS NOT NULL AND TRIM(ms.ended_ts)<>'' "+
+                "AND EXISTS(SELECT 1 FROM telemetry_samples t WHERE t.session_id=ms.session_id)";
             String measurement="";
             try(Cursor c=w.rawQuery(sql,new String[]{id,STATUS_CLOSED})){
                 if(!c.moveToFirst())return false;
