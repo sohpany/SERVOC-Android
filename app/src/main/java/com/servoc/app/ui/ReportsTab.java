@@ -32,7 +32,7 @@ import java.util.Locale;
 
 /** HazRob 0.10.2 / HR069 smart operator report workspace. */
 public final class ReportsTab {
-    private static final int BG=0xFF0E1116,CARD=0xFF151A20,CARD2=0xFF11171D,TEXT=0xFFECEFF1,MUTED=0xFFB0BEC5,GOOD=0xFF81C784,WARN=0xFFFFB74D,BAD=0xFFFF7043,INFO=0xFF90CAF9;
+    private static final int BG=UiKit.NON_DRIVING_BG,CARD=UiKit.HAZ_SURFACE,CARD2=UiKit.HAZ_SURFACE_ALT,TEXT=0xFF0A0D11,MUTED=UiKit.HAZ_MUTED,GOOD=0xFF1B5E20,WARN=0xFF955000,BAD=0xFFC62828,INFO=0xFF16527C;
     private static final String[] CHARTS={
             "استجابة MQ / Rs-R0","البصمة الكيميائية","البصمة الرادارية Radar","المرشحون",
             "خريطة المرشحين Scatter","خريطة المرشحين متعددة المتغيرات","بواقي المرشحين Residual",
@@ -57,6 +57,8 @@ public final class ReportsTab {
     private final FieldSessionRepository fieldSessions;
     private long selectedId=-1;
     private boolean technicalVisible=false;
+    private boolean bindingScopes=false;
+    private final TextView scopeSummary;
 
     public ReportsTab(Context c,HazRobHost host){
         this.host=host;decisions=new ChemCoreDecisionRepository(host.database());fieldSessions=new FieldSessionRepository(host.database());
@@ -65,12 +67,13 @@ public final class ReportsTab {
         TextView scopeHint=UiKit.small(c,"نطاق التقرير: اختر الموقع، ثم جميع جلساته أو جلسة واحدة. لا يجمع التطبيق جلسات مختارة في تقرير جزئي.");
         scopeHint.setTextColor(MUTED);root.addView(scopeHint,UiKit.full(c));
         root.addView(UiKit.small(c,"الموقع"),UiKit.full(c));
-        siteSelector=new Spinner(c);root.addView(siteSelector,UiKit.full(c));
+        siteSelector=new Spinner(c);siteSelector.setBackgroundColor(UiKit.HAZ_SURFACE_ALT);root.addView(siteSelector,UiKit.full(c));
         root.addView(UiKit.small(c,"الجلسة / نطاق التقرير"),UiKit.full(c));
-        fieldSelector=new Spinner(c);root.addView(fieldSelector,UiKit.full(c));
+        fieldSelector=new Spinner(c);fieldSelector.setBackgroundColor(UiKit.HAZ_SURFACE_ALT);root.addView(fieldSelector,UiKit.full(c));
+        scopeSummary=card(c,"نطاق التصدير: لم يُحدد موقع");root.addView(scopeSummary,UiKit.full(c));
         siteSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
-                if(position<0||position>=scopeSites.size())return;
+                if(bindingScopes||position<0||position>=scopeSites.size())return;
                 String next=scopeSites.get(position).id;if(!next.equals(chosenSiteId))chosenSessionId="";
                 chosenSiteId=next;refreshSessionScope();
             }
@@ -78,6 +81,7 @@ public final class ReportsTab {
         });
         fieldSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){
             public void onItemSelected(AdapterView<?> parent,View view,int position,long id){
+                if(bindingScopes)return;
                 chosenSessionId=position>0&&position<=scopeSessions.size()?scopeSessions.get(position-1).id:"";
                 updateExportButtonLabels();
             }
@@ -93,7 +97,7 @@ public final class ReportsTab {
         LinearLayout actions=UiKit.hbox(c);pdf=UiKit.button(c,"تصدير PDF");pdf.setOnClickListener(v->exportScope("pdf"));actions.addView(pdf,UiKit.weight(1));xlsx=UiKit.button(c,"تصدير Excel");xlsx.setOnClickListener(v->exportScope("xlsx"));actions.addView(xlsx,UiKit.weight(1));root.addView(actions,UiKit.full(c));
 
         TextView chartTitle=UiKit.small(c,"الرسوم التحليلية • البيانات المسجلة فقط • لا توجد نقاط مصطنعة");chartTitle.setTextColor(MUTED);root.addView(chartTitle,UiKit.full(c));
-        chartSelector=new Spinner(c);chartSelector.setBackgroundColor(0xFF263238);root.addView(chartSelector,UiKit.full(c));
+        chartSelector=new Spinner(c);chartSelector.setBackgroundColor(UiKit.HAZ_SURFACE_ALT);root.addView(chartSelector,UiKit.full(c));
         chartStatus=card(c,"المخطط • اختر جلسة محفوظة");root.addView(chartStatus,UiKit.full(c));
         chartView=new ImageView(c);chartView.setAdjustViewBounds(true);chartView.setMinimumHeight(UiKit.dp(c,220));chartView.setBackgroundColor(CARD2);chartView.setVisibility(View.GONE);root.addView(chartView,UiKit.full(c));
         chartSelector.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){public void onItemSelected(AdapterView<?> p,View v,int pos,long id){renderSelectedChart(pos);}public void onNothingSelected(AdapterView<?> p){}});
@@ -112,17 +116,22 @@ public final class ReportsTab {
         refresh();
     }
     private void refreshSiteScope(){
+        bindingScopes=true;
+        try{
         List<FieldSessionRepository.Site> sites=fieldSessions.sites();
         scopeSites.clear();scopeSites.addAll(sites);
         List<String> names=new ArrayList<>();int selected=0;
         for(int i=0;i<sites.size();i++){names.add(sites.get(i).name);if(sites.get(i).id.equals(chosenSiteId))selected=i;}
         if(sites.isEmpty()){chosenSiteId="";scopeSessions.clear();chosenSessionId="";names.add("لا توجد مواقع");}
         else chosenSiteId=sites.get(selected).id;
-        siteSelector.setAdapter(new ArrayAdapter<String>(scroll.getContext(),android.R.layout.simple_spinner_dropdown_item,names));
+        siteSelector.setAdapter(UiKit.readableOptions(scroll.getContext(),names));
         siteSelector.setEnabled(!sites.isEmpty());siteSelector.setSelection(selected);
         refreshSessionScope();
+        }finally{bindingScopes=false;}
     }
     private void refreshSessionScope(){
+        bindingScopes=true;
+        try{
         scopeSessions.clear();if(!chosenSiteId.isEmpty())scopeSessions.addAll(fieldSessions.sessionsForSite(chosenSiteId));
         List<String> names=new ArrayList<>();names.add("كل جلسات الموقع • تقرير الموقع");
         int selected=0;
@@ -136,11 +145,15 @@ public final class ReportsTab {
         fieldSelector.setSelection(selected);
         fieldSelector.setEnabled(!chosenSiteId.isEmpty());
         updateExportButtonLabels();
+        }finally{bindingScopes=false;}
     }
     private void updateExportButtonLabels(){
         if(pdf==null||xlsx==null)return;
         boolean hasSite=!chosenSiteId.isEmpty();
         pdf.setEnabled(hasSite);xlsx.setEnabled(hasSite);
+        String siteName="";for(FieldSessionRepository.Site site:scopeSites)if(site.id.equals(chosenSiteId)){siteName=site.name;break;}
+        String sessionName="";for(FieldSessionRepository.FieldSession session:scopeSessions)if(session.id.equals(chosenSessionId)){sessionName=session.name;break;}
+        scopeSummary.setText(!hasSite?"نطاق التصدير: لم يُحدد موقع":"نطاق التصدير: "+siteName+(chosenSessionId.isEmpty()?" • جميع جلسات الموقع":" • الجلسة: "+sessionName)+"\nسيُصدّر PDF وExcel لهذا النطاق نفسه دون دمج قياسات غير مرتبطة.");
         pdf.setText(chosenSessionId.isEmpty()?"PDF الذكي للموقع":"PDF الذكي للجلسة");
         xlsx.setText(chosenSessionId.isEmpty()?"Excel الذكي للموقع":"Excel الذكي للجلسة");
     }
@@ -198,7 +211,7 @@ public final class ReportsTab {
             chartStatus.setText("لا توجد رسوم لهذا القياس • أنشئ جلسة تتضمن سلسلة زمنية أو تحليل ChemCore محفوظًا");
             chartStatus.setTextColor(WARN);
         }else chartStatus.setText("اختر رسمًا من "+labels.size()+" رسوم متاحة مرتبطة بالقياس المحدد");
-        ArrayAdapter<String> adapter=new ArrayAdapter<>(scroll.getContext(),android.R.layout.simple_spinner_item,labels);
+        ArrayAdapter<String> adapter=UiKit.readableOptions(scroll.getContext(),labels);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         chartSelector.setAdapter(adapter);chartSelector.setEnabled(!availableCharts.isEmpty());
         if(!availableCharts.isEmpty())renderSelectedChart(0);

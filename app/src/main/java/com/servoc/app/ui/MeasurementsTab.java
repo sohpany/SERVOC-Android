@@ -47,8 +47,8 @@ import java.util.TimeZone;
 
 /** HazRob 0.10.2 / HR069 operator measurement + ChemCore dashboard. */
 public final class MeasurementsTab {
-    private static final int BG=0xFF0E1116,CARD=0xFF171D24,CARD_ALT=0xFF11171D;
-    private static final int TEXT=0xFFECEFF1,MUTED=0xFFB0BEC5,GOOD=0xFF81C784,WARN=0xFFFFB74D,BAD=0xFFFF7043,INFO=0xFF90CAF9;
+    private static final int BG=UiKit.NON_DRIVING_BG,CARD=UiKit.HAZ_SURFACE,CARD_ALT=UiKit.HAZ_SURFACE_ALT;
+    private static final int TEXT=0xFF0A0D11,MUTED=0xFF505966,GOOD=0xFF1B5E20,WARN=0xFF955000,BAD=0xFFC62828,INFO=0xFF16527C;
 
     private final Context c;
     private final HazRobHost host;
@@ -85,7 +85,7 @@ public final class MeasurementsTab {
     private void show(int i){
         selected=Math.max(0,Math.min(3,i));page.removeAllViews();page.addView(views[selected],new FrameLayout.LayoutParams(-1,-1));
         for(int n=0;n<tabs.length;n++){
-            boolean on=n==selected;tabs[n].setTextColor(on?Color.WHITE:0xFF263238);tabs[n].setBackgroundColor(on?0xFF263238:0xFFECEFF1);
+            boolean on=n==selected;UiKit.selected(tabs[n],on);
         }
         refresh();
     }
@@ -203,7 +203,7 @@ public final class MeasurementsTab {
 
     private final class SensorCard {
         final HazRobHardwareProfile.Channel hw;final LinearLayout root;final TextView head,data;final AlphaAnimation pulse;
-        SensorCard(HazRobHardwareProfile.Channel hw){this.hw=hw;root=UiKit.card(c);head=UiKit.text(c,"");head.setTextSize(14);head.setTypeface(Typeface.DEFAULT_BOLD);root.addView(head,UiKit.full(c));data=UiKit.small(c,"");data.setTextColor(0xFFCFD8DC);root.addView(data,UiKit.full(c));pulse=new AlphaAnimation(.45f,1f);pulse.setDuration(450);pulse.setRepeatMode(Animation.REVERSE);pulse.setRepeatCount(Animation.INFINITE);}
+        SensorCard(HazRobHardwareProfile.Channel hw){this.hw=hw;root=UiKit.card(c);head=UiKit.text(c,"");head.setTextSize(14);head.setTypeface(Typeface.DEFAULT_BOLD);root.addView(head,UiKit.full(c));data=UiKit.small(c,"");data.setTextColor(UiKit.HAZ_MUTED);root.addView(data,UiKit.full(c));pulse=new AlphaAnimation(.45f,1f);pulse.setDuration(450);pulse.setRepeatMode(Animation.REVERSE);pulse.setRepeatCount(Animation.INFINITE);}
         void refresh(boolean connected,boolean powered,JSONObject relay,JSONObject adc,JSONObject q){
             head.clearAnimation();if(!connected){head.setBackgroundColor(0xFF424242);head.setTextColor(Color.WHITE);head.setText(hw.key.toUpperCase(Locale.US)+" • غير متصل");data.setText("Raw — • Vadc — • Vao — • Rs/R0 —");return;}
             if(!powered){head.setBackgroundColor(0xFF455A64);head.setTextColor(Color.WHITE);head.setText(hw.key.toUpperCase(Locale.US)+" • MQ OFF");data.setText(InstantMqWarningEngine.target(hw.key));return;}

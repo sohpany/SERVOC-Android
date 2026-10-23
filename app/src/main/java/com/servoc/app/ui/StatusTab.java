@@ -40,15 +40,15 @@ public final class StatusTab {
     private volatile boolean updateBusy=false;
 
     public StatusTab(Context c,HazRobHost host){
-        this.context=c.getApplicationContext();this.host=host;appUpdater=new AppUpdateManager(c);libraryUpdater=new ChemCoreLibraryManager(c);scroll=new ScrollView(c);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,10));root.setBackgroundColor(0xFF0E1116);scroll.addView(root);
+        this.context=c.getApplicationContext();this.host=host;appUpdater=new AppUpdateManager(c);libraryUpdater=new ChemCoreLibraryManager(c);scroll=new ScrollView(c);LinearLayout root=UiKit.vbox(c);root.setPadding(UiKit.dp(c,8),UiKit.dp(c,6),UiKit.dp(c,8),UiKit.dp(c,10));root.setBackgroundColor(UiKit.NON_DRIVING_BG);scroll.addView(root);
         root.addView(UiKit.title(c,"الحالة"),UiKit.full(c));
         updateButton=UiKit.button(c,initialUpdateLabel());updateButton.setOnClickListener(v->runUnifiedUpdate());root.addView(updateButton,UiKit.full(c));
-        TextView updateNote=UiKit.small(c,"زر التحديث متاح لجميع المستخدمين ويبحث عن تحديثات التطبيق ومكتبة ChemCore المستقرة. إدارة المكتبة وتطويرها ومصدر التحديث والرجوع للإصدارات السابقة تبقى داخل تبويب المطور فقط.");updateNote.setTextColor(0xFFB0BEC5);root.addView(updateNote,UiKit.full(c));
+        TextView updateNote=UiKit.small(c,"زر التحديث متاح لجميع المستخدمين ويبحث عن تحديثات التطبيق ومكتبة ChemCore المستقرة. إدارة المكتبة وتطويرها ومصدر التحديث والرجوع للإصدارات السابقة تبقى داخل تبويب المطور فقط.");updateNote.setTextColor(UiKit.HAZ_MUTED);root.addView(updateNote,UiKit.full(c));
         master=card(c,root);network=card(c,root);hardware=card(c,root);sensors=card(c,root);science=card(c,root);camera=card(c,root);
         science.setText("Scientific   MQ "+HazRobHardwareProfile.MQ.length+"/8   •   Curves "+GasEngine.curveCount()+"+"+ResearchCurveRegistry.count()+"   •   Models "+ModelRuntimeRegistry.nativeCount()+"/"+MqDataScience76Catalog.COUNT+" Native");
     }
     public View view(){return scroll;}
-    private static TextView card(Context c,LinearLayout root){TextView t=UiKit.text(c,"—");t.setTextSize(14);t.setBackgroundColor(0xFF151A20);root.addView(t,UiKit.full(c));return t;}
+    private static TextView card(Context c,LinearLayout root){TextView t=UiKit.text(c,"—");t.setTextSize(14);t.setBackgroundColor(UiKit.HAZ_SURFACE);root.addView(t,UiKit.full(c));return t;}
     private boolean remoteMode(){return "remote".equalsIgnoreCase(host.preferences().getString("connection_mode","direct"));}
 
     private String initialUpdateLabel(){

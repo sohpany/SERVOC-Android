@@ -24,7 +24,7 @@ public final class DeveloperTab {
 
     public DeveloperTab(Context c,HazRobHost host,Runnable onUnlock){
         context=c;this.host=host;this.onUnlock=onUnlock;
-        root=UiKit.vbox(c);root.setBackgroundColor(0xFF0E1116);root.setPadding(UiKit.dp(c,6),UiKit.dp(c,6),UiKit.dp(c,6),UiKit.dp(c,10));
+        root=UiKit.vbox(c);root.setBackgroundColor(UiKit.NON_DRIVING_BG);root.setPadding(UiKit.dp(c,6),UiKit.dp(c,6),UiKit.dp(c,6),UiKit.dp(c,10));
         bar=UiKit.hbox(c);root.addView(bar,UiKit.full(c));
         page=new FrameLayout(c);root.addView(page,new LinearLayout.LayoutParams(-1,0,1f));
         renderLocked();
@@ -38,7 +38,7 @@ public final class DeveloperTab {
         bar.removeAllViews();page.removeAllViews();
         LinearLayout box=UiKit.vbox(context);box.setGravity(Gravity.CENTER);box.setPadding(UiKit.dp(context,24),UiKit.dp(context,30),UiKit.dp(context,24),UiKit.dp(context,30));
         TextView title=UiKit.title(context,"المطور");title.setGravity(Gravity.CENTER);box.addView(title,UiKit.full(context));
-        TextView note=UiKit.small(context,"مساحة التجارب المرجعية، المختبر التحليلي، تشخيص الاتصال وإدارة المكتبة المركزية.");note.setGravity(Gravity.CENTER);note.setTextColor(0xFFB0BEC5);box.addView(note,UiKit.full(context));
+        TextView note=UiKit.small(context,"مساحة التجارب المرجعية، المختبر التحليلي، تشخيص الاتصال وإدارة المكتبة المركزية.");note.setGravity(Gravity.CENTER);note.setTextColor(UiKit.HAZ_MUTED);box.addView(note,UiKit.full(context));
         Button open=UiKit.button(context,"دخول المطور");open.setOnClickListener(v->askPin());LinearLayout.LayoutParams p=UiKit.full(context);p.topMargin=UiKit.dp(context,18);box.addView(open,p);
         page.addView(box,new FrameLayout.LayoutParams(-1,-1));
     }
@@ -59,7 +59,7 @@ public final class DeveloperTab {
         show(0);host.showToast("تم فتح مساحة المطور");
     }
 
-    private void show(int index){if(!unlocked||views==null)return;selected=Math.max(0,Math.min(views.length-1,index));page.removeAllViews();page.addView(views[selected],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabs.length;i++){tabs[i].setTextColor(i==selected?Color.WHITE:Color.DKGRAY);tabs[i].setBackgroundColor(i==selected?0xFF263238:0xFFE0E0E0);}refresh();}
+    private void show(int index){if(!unlocked||views==null)return;selected=Math.max(0,Math.min(views.length-1,index));page.removeAllViews();page.addView(views[selected],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabs.length;i++)UiKit.selected(tabs[i],i==selected);refresh();}
 
     public void refresh(){if(!unlocked)return;if(selected==0&&experiments!=null)experiments.refresh();else if(selected==1&&chemCore!=null)chemCore.refresh();else if(selected==2&&r0!=null)r0.refresh();else if(selected==3&&connectionSetup!=null)connectionSetup.refresh();else if(selected==4&&library!=null)library.refresh();}
 }
