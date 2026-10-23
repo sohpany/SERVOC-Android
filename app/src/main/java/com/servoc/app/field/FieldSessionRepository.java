@@ -266,6 +266,54 @@ public final class FieldSessionRepository {
         }finally{w.endTransaction();}
     }
 
+    /** Explicit retry: resets only unapproved USER/FIELD measurements; keeps scientific records untouched. */
+    public boolean restartUnapproved(String fieldSessionId){
+        String id=requiredId(fieldSessionId);SQLiteDatabase w=db.getWritableDatabase();w.beginTransaction();
+        try{
+            try(Cursor c=w.rawQuery("SELECT 1 FROM field_session_approvals WHERE field_session_id=? LIMIT 1",new String[]{id})){
+                if(c.moveToFirst())return false;
+            }
+            try(Cursor c=w.rawQuery("SELECT 1 FROM field_sessions WHERE field_session_id=? AND status=? LIMIT 1",
+                new String[]{id,STATUS_CLOSED})){if(!c.moveToFirst())return false;}
+            try(Cursor c=w.rawQuery("SELECT 1 FROM field_sessions WHERE status=? LIMIT 1",new String[]{STATUS_ACTIVE})){
+                if(c.moveToFirst())return false;
+            }
+            List<String> ids=new ArrayList<>();
+            try(Cursor c=w.rawQuery(
+                "SELECT ms.session_id,ms.kind,ms.operator_role FROM measurement_sessions ms JOIN field_session_measurements fsm "+
+                "ON fsm.measurement_session_id=ms.session_id WHERE fsm.field_session_id=?",new String[]{id})){
+                while(c.moveToNext()){
+                    String measurementId=c.getString(0);
+                    if(!FieldSessionPolicy.mayAttachMeasurement(c.getString(1),c.getString(2)))
+                        throw new IllegalStateException("Reference or developer capture must not be reset");
+                    ids.add(measurementId);
+                }
+            }
+            for(String ms:ids){
+                try(Cursor c=w.rawQuery(
+                    "SELECT 1 FROM experiments e LEFT JOIN reference_queue q ON q.experiment_id=e.id "+
+                    "WHERE e.session_id=? AND (e.approved<>0 OR e.approved_ts IS NOT NULL OR e.reference_kind IS NOT NULL OR q.experiment_id IS NOT NULL) LIMIT 1",
+                    new String[]{ms})){if(c.moveToFirst())throw new IllegalStateException("Approved scientific artifact cannot be reset");}
+                try(Cursor c=w.rawQuery("SELECT 1 FROM captures WHERE session_id=? LIMIT 1",new String[]{ms})){
+                    if(c.moveToFirst())throw new IllegalStateException("Scientific capture cannot be reset");
+                }
+            }
+            w.delete("field_session_measurements","field_session_id=?",new String[]{id});
+            for(String ms:ids){
+                String[] arg={ms};
+                w.delete("experiments","session_id=?",arg);w.delete("events","session_id=?",arg);
+                w.delete("chemcore_decisions","session_id=?",arg);w.delete("telemetry_samples","session_id=?",arg);
+                w.delete("media_assets","session_id=?",arg);w.delete("measurement_sessions","session_id=?",arg);
+            }
+            ContentValues updated=new ContentValues();
+            updated.put("status",STATUS_ACTIVE);updated.putNull("ended_ts");updated.put("updated_ts",isoNow());
+            int changed=w.update("field_sessions",updated,"field_session_id=? AND status=?",
+                new String[]{id,STATUS_CLOSED});
+            if(changed!=1)throw new IllegalStateException("Concurrent field session state change");
+            w.setTransactionSuccessful();return true;
+        }finally{w.endTransaction();}
+    }
+
     /** Delete a site only after all of its field sessions have been removed. */
     public boolean deleteEmptySite(String siteId){
         String id=requiredId(siteId);SQLiteDatabase w=db.getWritableDatabase();w.beginTransaction();

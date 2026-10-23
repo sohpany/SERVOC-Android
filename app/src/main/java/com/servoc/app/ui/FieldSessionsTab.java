@@ -273,6 +273,19 @@ public final class FieldSessionsTab {
                 catch(RuntimeException e){Log.e(TAG,"Approve failed",e);host.showToast("تعذر اعتماد الجلسة؛ البيانات محفوظة");}
             }).show());
         sessions.addView(approve,UiKit.full(sessions.getContext()));
+        if(!approved&&!selectedSession.active()){
+            Button retry=UiKit.button(sessions.getContext(),"إعادة القياس (استبدال المحاولات غير المعتمدة)");
+            retry.setOnClickListener(v->new AlertDialog.Builder(sessions.getContext())
+                .setTitle("إعادة القياس")
+                .setMessage("سيتم حذف القياسات التجريبية غير المعتمدة لهذه الجلسة من التطبيق واستئناف جمع قياس جديد. لا يمس هذا الإجراء قياسات المطور أو البيانات المرجعية، ولا يمكن التراجع عنه.")
+                .setNegativeButton("إلغاء",null).setPositiveButton("إعادة القياس",(d,w)->{
+                    try{
+                        if(repo.restartUnapproved(selectedSession.id)){host.showToast("أعيد فتح الجلسة لقياس جديد");refresh();}
+                        else host.showToast("تعذر إعادة فتح الجلسة؛ تحقق من وجود جلسة نشطة");
+                    }catch(RuntimeException e){Log.e(TAG,"Retry blocked",e);host.showToast("لم يتم استبدال القياسات: توجد بيانات محمية");}
+                }).show());
+            sessions.addView(retry,UiKit.full(sessions.getContext()));
+        }
         if(!approved){
             TextView note=UiKit.small(sessions.getContext(),
                 "تبقى الحالة «جديدة» حتى تكتمل جلسة قياس واحدة ويعتمدها المستخدم. لا تُنشأ تقارير نهائية من البيانات غير المعتمدة.");

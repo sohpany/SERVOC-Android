@@ -97,7 +97,19 @@ public final class MainActivity extends Activity implements HazRobHost {
     private void showTab(int index){
         if(!entered||index<0||index>=tabViews.length)return;
         if(selectedTab==0&&index!=0)controlTab.stopCamera();
-        selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++)UiKit.selected(tabButtons[i],i==index);if(index!=0)UiKit.applyNonDrivingContrast(tabViews[index]);if(index==6&&!developerTab.isUnlocked())developerTab.requestUnlock();if(index==0&&foreground)controlTab.startCamera();if(index==1)fieldSessionsTab.refresh();else if(index==3)reportsTab.refresh();else refreshVisibleTab();
+        selectedTab=index;page.removeAllViews();page.addView(tabViews[index],new FrameLayout.LayoutParams(-1,-1));for(int i=0;i<tabButtons.length;i++)UiKit.selected(tabButtons[i],i==index);if(index!=0)UiKit.applyNonDrivingContrast(tabViews[index]);if(index==6&&!developerTab.isUnlocked())developerTab.requestUnlock();if(index==0&&foreground)controlTab.startCamera();if(index==1){
+            try{fieldSessionsTab.refresh();}
+            catch(RuntimeException failure){
+                android.util.Log.e("HazRobFieldSessions","Session tab navigation failed",failure);
+                showToast("تعذر فتح إدارة الجلسات؛ لم تُحذف البيانات");
+            }
+        }else if(index==3){
+            try{reportsTab.refresh();}
+            catch(RuntimeException failure){
+                android.util.Log.e("HazRobReports","Reports tab navigation failed",failure);
+                showToast("تعذر عرض التقارير؛ البيانات محفوظة");
+            }
+        }else refreshVisibleTab();
     }
 
     private void queueDriveSend(){
